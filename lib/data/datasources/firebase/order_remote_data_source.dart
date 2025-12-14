@@ -1,0 +1,51 @@
+import 'package:firebase_database/firebase_database.dart';
+
+class OrderRemoteDataSource {
+  OrderRemoteDataSource(this._db);
+  final FirebaseDatabase _db;
+
+  DatabaseReference get _ref => _db.ref('stores/store_001/orders');
+
+  Future<void> create(String id, Map<String, dynamic> map) {
+    return _ref.child(id).set(map);
+  }
+
+  Stream<List<Map<String, dynamic>>> watchByCustomer(String customerId) {
+    return _ref.orderByChild('customerId').equalTo(customerId).onValue.map((event) {
+      final data = event.snapshot.value as Map? ?? {};
+      return data.values.map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e as Map)).toList();
+    });
+  }
+
+  // Thêm method để lấy tất cả orders
+  Stream<List<Map<String, dynamic>>> watchAll() {
+    return _ref.onValue.map((event) {
+      final data = event.snapshot.value as Map? ?? {};
+      return data.values.map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e as Map)).toList();
+    });
+  }
+
+  // Lấy orders theo khoảng thời gian
+  Stream<List<Map<String, dynamic>>> watchByDateRange(DateTime startDate, DateTime endDate) {
+    // Dùng inclusive range: start <= createdAt <= end (end cuối ngày)
+    final start = startDate.toIso8601String();
+    final end = endDate.toIso8601String();
+
+    return _ref
+        .orderByChild('createdAt')
+        .startAt(start)
+        .endAt(end)
+        .onValue
+        .map((event) {
+      final data = event.snapshot.value as Map? ?? {};
+      final list = data.values.map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e as Map)).toList();
+      // Firebase Realtime Database orderByChild+range đôi khi bao gồm phần tử biên không như mong muốn
+      // nên lọc lại phía client để đảm bảo phạm vi chính xác
+      return list.where((m) {
+        final createdAt = DateTime.tryParse(m['createdAt']?.toString() ?? '');
+        if (createdAt == null) return false;
+        return !createdAt.isBefore(startDate) && !createdAt.isAfter(endDate);
+      }).toList();
+    });
+  }
+}

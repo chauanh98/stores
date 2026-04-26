@@ -2,7 +2,7 @@
   "@@locale": "vi",
   "language": "Tiếng Việt",
   "title": "Quản Lý Cửa Hàng",
-  "dashboard": "Bảng Điều Khiển",
+  "dashboard": "Tổng quan",
   "products": "Sản Phẩm",
   "customers": "Khách Hàng",
   "reports": "Báo Cáo",
@@ -103,5 +103,7 @@
   "importDetail": "Chi tiết nhập hàng",
   "inventoryTransactions": "Giao dịch tồn kho",
   "all": "All",
-  "export": "Xuất"
+  "export": "Xuất",
+  "outOfStockMsg": "Sản phẩm đã hết hàng",
+  "notEnoughStock": "Số lượng vượt quá tồn kho"
 }

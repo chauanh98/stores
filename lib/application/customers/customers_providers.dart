@@ -7,8 +7,11 @@ import '../../domain/entities/customer.dart';
 import '../../domain/repositories/customer_repository.dart';
 import 'customer_list_notifier.dart';
 
+import '../auth/auth_providers.dart';
+
 final customerRemoteDataSourceProvider = Provider<CustomerRemoteDataSource>((ref) {
-  return CustomerRemoteDataSource(FirebaseDatabase.instance);
+  final storeId = ref.watch(currentStoreIdProvider);
+  return CustomerRemoteDataSource(FirebaseDatabase.instance, storeId);
 });
 
 final customerRepositoryProvider = Provider<CustomerRepository>((ref) {

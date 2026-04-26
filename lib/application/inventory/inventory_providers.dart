@@ -6,8 +6,11 @@ import '../../data/repositories/inventory_repository_impl.dart';
 import '../../domain/entities/inventory_transaction.dart';
 import '../../domain/repositories/inventory_repository.dart';
 
+import '../auth/auth_providers.dart';
+
 final inventoryRemoteDataSourceProvider = Provider<InventoryRemoteDataSource>((ref) {
-  return InventoryRemoteDataSource(FirebaseDatabase.instance);
+  final storeId = ref.watch(currentStoreIdProvider);
+  return InventoryRemoteDataSource(FirebaseDatabase.instance, storeId);
 });
 
 final inventoryRepositoryProvider = Provider<InventoryRepository>((ref) {

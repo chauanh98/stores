@@ -1,10 +1,11 @@
 import 'package:firebase_database/firebase_database.dart';
 
 class OrderRemoteDataSource {
-  OrderRemoteDataSource(this._db);
+  OrderRemoteDataSource(this._db, this.storeId);
   final FirebaseDatabase _db;
+  final String storeId;
 
-  DatabaseReference get _ref => _db.ref('stores/store_001/orders');
+  DatabaseReference get _ref => _db.ref('stores/$storeId/orders');
 
   Future<void> create(String id, Map<String, dynamic> map) {
     return _ref.child(id).set(map);

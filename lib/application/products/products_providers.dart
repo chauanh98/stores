@@ -6,8 +6,11 @@ import '../../data/repositories/product_repository_impl.dart';
 import '../../domain/entities/product.dart';
 import '../../domain/repositories/product_repository.dart';
 
+import '../auth/auth_providers.dart';
+
 final productRemoteDataSourceProvider = Provider<ProductRemoteDataSource>((ref) {
-  return ProductRemoteDataSource(FirebaseDatabase.instance);
+  final storeId = ref.watch(currentStoreIdProvider);
+  return ProductRemoteDataSource(FirebaseDatabase.instance, storeId);
 });
 
 final productRepositoryProvider = Provider<ProductRepository>((ref) {

@@ -6,7 +6,7 @@ import 'customers_providers.dart';
 class CustomerListNotifier extends AutoDisposeAsyncNotifier<List<Customer>> {
   @override
   Future<List<Customer>> build() async {
-    final repo = ref.read(customerRepositoryProvider);
+    final repo = ref.watch(customerRepositoryProvider);
     return await repo.watchAll().first;
   }
 

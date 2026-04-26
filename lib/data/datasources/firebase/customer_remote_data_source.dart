@@ -1,10 +1,11 @@
 import 'package:firebase_database/firebase_database.dart';
 
 class CustomerRemoteDataSource {
-  CustomerRemoteDataSource(this._db);
+  CustomerRemoteDataSource(this._db, this.storeId);
   final FirebaseDatabase _db;
+  final String storeId;
 
-  DatabaseReference get _ref => _db.ref('stores/store_001/customers');
+  DatabaseReference get _ref => _db.ref('stores/$storeId/customers');
 
   Stream<List<Map>> watchAll() => _ref.onValue.map((event) {
     final data = event.snapshot.value as Map? ?? {};

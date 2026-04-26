@@ -1,10 +1,11 @@
 import 'package:firebase_database/firebase_database.dart';
 
 class InventoryRemoteDataSource {
-  InventoryRemoteDataSource(this._db);
+  InventoryRemoteDataSource(this._db, this.storeId);
   final FirebaseDatabase _db;
+  final String storeId;
 
-  DatabaseReference get _ref => _db.ref('stores/store_001/inventory_transactions');
+  DatabaseReference get _ref => _db.ref('stores/$storeId/inventory_transactions');
 
   Stream<List<Map>> watchByProduct(String productId) => _ref
       .orderByChild('productId')

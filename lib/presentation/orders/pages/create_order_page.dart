@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -164,6 +165,7 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
                                       border: const OutlineInputBorder(),
                                     ),
                                     keyboardType: TextInputType.number,
+                                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                                     onChanged: (v) => setState(() {
                                       item.quantity = int.tryParse(v) ?? 1;
                                     }),
@@ -328,6 +330,18 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
             SnackBar(content: Text(l10n.checkProductsAndQuantity)));
         return;
       }
+      
+      final p = products.firstWhere((e) => e.id == i.productId);
+      if (p.stock <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('${p.name} - ${l10n.outOfStockMsg}')));
+        return;
+      }
+      if (i.quantity > p.stock) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('${p.name} - ${l10n.notEnoughStock} (Tồn: ${p.stock})')));
+        return;
+      }
     }
 
     setState(() => _saving = true);
@@ -411,7 +425,6 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
 
       if (mounted) {
         Navigator.of(context).pop();
-        Navigator.of(context).pop();
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(l10n.added)));
       }
@@ -475,7 +488,7 @@ class _ProductAutocompleteState extends State<_ProductAutocomplete> {
             category: ''),
       );
       _lastSelectedText =
-          '${product.name} • ${product.brand} • ${product.model}';
+          '${product.name} • ${product.brand} • ${product.model} (Tồn: ${product.stock})';
       _controller.text = _lastSelectedText;
     } else {
       _lastSelectedText = '';
@@ -495,12 +508,13 @@ class _ProductAutocompleteState extends State<_ProductAutocomplete> {
 
     return Autocomplete<Product>(
       displayStringForOption: (product) =>
-          '${product.name} • ${product.brand} • ${product.model}',
+          '${product.name} • ${product.brand} • ${product.model} (${l10n.stock}: ${product.stock})',
       optionsBuilder: (textEditingValue) {
         if (textEditingValue.text.isEmpty) {
-          return widget.products;
+          return widget.products.where((p) => p.stock > 0).toList();
         }
         return widget.products.where((product) {
+          if (product.stock <= 0) return false;
           final query = textEditingValue.text.toLowerCase();
           return product.name.toLowerCase().contains(query) ||
               product.brand.toLowerCase().contains(query) ||
@@ -510,7 +524,7 @@ class _ProductAutocompleteState extends State<_ProductAutocomplete> {
       onSelected: (product) {
         widget.onProductSelected(product.id);
         _lastSelectedText =
-            '${product.name} • ${product.brand} • ${product.model}';
+            '${product.name} • ${product.brand} • ${product.model} (${l10n.stock}: ${product.stock})';
         _controller.text = _lastSelectedText;
       },
       fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {

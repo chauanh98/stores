@@ -1,23 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_database/firebase_database.dart';
-
 import '../../data/datasources/firebase/order_remote_data_source.dart';
 import '../../data/datasources/firebase/inventory_remote_data_source.dart';
 import '../../data/datasources/firebase/product_remote_data_source.dart';
 import '../../data/repositories/revenue_repository_impl.dart';
 import '../../domain/entities/revenue_report.dart';
+import '../auth/auth_providers.dart';
 
 final orderRemoteDataSourceProvider = Provider<OrderRemoteDataSource>((ref) {
-  return OrderRemoteDataSource(FirebaseDatabase.instance);
+  final storeId = ref.watch(currentStoreIdProvider);
+  return OrderRemoteDataSource(FirebaseDatabase.instance, storeId);
 });
 
 final inventoryRemoteDataSourceProvider = Provider<InventoryRemoteDataSource>((ref) {
-  return InventoryRemoteDataSource(FirebaseDatabase.instance);
+  final storeId = ref.watch(currentStoreIdProvider);
+  return InventoryRemoteDataSource(FirebaseDatabase.instance, storeId);
 });
 
 final productRemoteDataSourceProvider = Provider<ProductRemoteDataSource>((ref) {
-  return ProductRemoteDataSource(FirebaseDatabase.instance);
+  final storeId = ref.watch(currentStoreIdProvider);
+  return ProductRemoteDataSource(FirebaseDatabase.instance, storeId);
 });
 
 final revenueRepositoryProvider = Provider<RevenueRepositoryImpl>((ref) {

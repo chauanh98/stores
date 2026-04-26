@@ -103,5 +103,7 @@
   "importDetail": "Import Detail",
   "inventoryTransactions": "Inventory Transactions",
   "all": "All",
-  "export": "Export"
+  "export": "Export",
+  "outOfStockMsg": "Product is out of stock",
+  "notEnoughStock": "Quantity exceeds current stock"
 }

@@ -6,8 +6,11 @@ import '../../data/repositories/order_repository_impl.dart';
 import '../../domain/repositories/order_repository.dart';
 import '../../domain/entities/order.dart';
 
+import '../auth/auth_providers.dart';
+
 final orderRemoteDataSourceProvider = Provider<OrderRemoteDataSource>((ref) {
-  return OrderRemoteDataSource(FirebaseDatabase.instance);
+  final storeId = ref.watch(currentStoreIdProvider);
+  return OrderRemoteDataSource(FirebaseDatabase.instance, storeId);
 });
 
 final orderRepositoryProvider = Provider<OrderRepository>((ref) {

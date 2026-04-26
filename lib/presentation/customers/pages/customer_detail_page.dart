@@ -52,7 +52,14 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final c = widget.customer;
+    final customersAsync = ref.watch(customerListNotifierProvider);
+    final c = customersAsync.maybeWhen(
+      data: (list) => list.firstWhere(
+        (x) => x.id == widget.customer.id,
+        orElse: () => widget.customer,
+      ),
+      orElse: () => widget.customer,
+    );
 
     return Scaffold(
       appBar: AppBar(

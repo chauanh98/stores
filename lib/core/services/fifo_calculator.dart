@@ -140,6 +140,6 @@ class FifoCalculator {
   /// Tính profit margin
   static double calculateProfitMargin(double revenue, double cost) {
     if (revenue == 0) return 0.0;
-    return ((revenue - cost) / revenue) * 100;
+    return ((revenue - cost) / cost) * 100;
   }
 }

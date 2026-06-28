@@ -6,14 +6,29 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:stores/presentation/inventories/pages/imports_page.dart';
 import 'package:stores/presentation/products/pages/products_page.dart';
 import 'package:stores/presentation/reports/pages/revenue_statistics_page.dart';
+import 'package:stores/presentation/reports/pages/overview_page.dart';
+import 'package:stores/presentation/orders/pages/pos_page.dart';
+import 'package:stores/presentation/orders/pages/invoices_page.dart';
+import 'package:stores/presentation/settings/pages/more_page.dart';
 import 'package:stores/presentation/auth/pages/login_page.dart';
 import 'package:stores/application/auth/auth_providers.dart';
-import 'package:stores/presentation/settings/pages/settings_page.dart';
+import 'package:stores/core/theme/app_theme.dart';
 
+import 'package:flutter/services.dart';
 import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    statusBarIconBrightness: Brightness.dark,
+    statusBarBrightness: Brightness.light,
+    // for iOS
+    systemNavigationBarColor: Colors.transparent,
+    systemNavigationBarDividerColor: Colors.transparent,
+    systemNavigationBarIconBrightness: Brightness.dark,
+  ));
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
@@ -29,10 +44,8 @@ class MyApp extends ConsumerWidget {
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorSchemeSeed: Colors.blue,
-      ),
+      theme: AppTheme.lightTheme,
+      themeMode: ThemeMode.light,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       locale: const Locale('vi'),
@@ -58,12 +71,11 @@ class _AdaptiveScaffoldState extends ConsumerState<AdaptiveScaffold> {
     final user = ref.watch(authProvider);
 
     final screens = [
-      const ImportsPage(key: PageStorageKey('imports')),
+      const OverviewPage(key: PageStorageKey('overview')),
       const ProductsPage(key: PageStorageKey('products')),
-      const CustomersPage(key: PageStorageKey('customers')),
-      if (user?.isAdmin == true)
-        const RevenueStatisticsPage(key: PageStorageKey('reports')),
-      const SettingsPage(key: PageStorageKey('settings')),
+      const POSPage(key: PageStorageKey('pos')),
+      const InvoicesPage(key: PageStorageKey('invoices')),
+      const MorePage(key: PageStorageKey('more')),
     ];
 
     return Scaffold(
@@ -75,51 +87,26 @@ class _AdaptiveScaffoldState extends ConsumerState<AdaptiveScaffold> {
               onDestinationSelected: (index) {
                 setState(() => _selectedIndex = index);
               },
-              destinations: [
+              destinations: const [
                 NavigationRailDestination(
-                    icon: const Icon(Icons.dashboard),
-                    label: Text(l10n.dashboard)),
+                    icon: Icon(Icons.trending_up), label: Text('Tổng quan')),
                 NavigationRailDestination(
-                    icon: const Icon(Icons.shopping_bag),
-                    label: Text(l10n.products)),
+                    icon: Icon(Icons.inventory_2_outlined),
+                    label: Text('Hàng hoá')),
                 NavigationRailDestination(
-                    icon: const Icon(Icons.people),
-                    label: Text(l10n.customers)),
-                if (user?.isAdmin == true)
-                  NavigationRailDestination(
-                      icon: const Icon(Icons.bar_chart),
-                      label: Text(l10n.reports)),
-                const NavigationRailDestination(
-                    icon: Icon(Icons.settings),
-                    label: Text('Cài đặt')),
+                    icon: Icon(Icons.storefront_outlined),
+                    label: Text('Bán hàng')),
+                NavigationRailDestination(
+                    icon: Icon(Icons.receipt_long_outlined),
+                    label: Text('Hoá đơn')),
+                NavigationRailDestination(
+                    icon: Icon(Icons.menu), label: Text('Nhiều hơn')),
               ],
             ),
           Expanded(
-            child: Column(
-              children: [
-                Container(
-                  color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.store, size: 20),
-                      const SizedBox(width: 8),
-                      ref.watch(currentStoreNameProvider).when(
-                        data: (name) => Text('Cửa hàng: $name', style: const TextStyle(fontWeight: FontWeight.bold)),
-                        loading: () => const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
-                        error: (_, __) => const Text('Lỗi tải tên cửa hàng'),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: IndexedStack(
-                    index: _selectedIndex,
-                    children: screens,
-                  ),
-                ),
-              ],
+            child: IndexedStack(
+              index: _selectedIndex,
+              children: screens,
             ),
           ),
         ],
@@ -131,18 +118,17 @@ class _AdaptiveScaffoldState extends ConsumerState<AdaptiveScaffold> {
               onDestinationSelected: (index) {
                 setState(() => _selectedIndex = index);
               },
-              destinations: [
+              destinations: const [
                 NavigationDestination(
-                    icon: const Icon(Icons.dashboard), label: l10n.dashboard),
+                    icon: Icon(Icons.trending_up), label: 'Tổng quan'),
                 NavigationDestination(
-                    icon: const Icon(Icons.shopping_bag), label: l10n.products),
+                    icon: Icon(Icons.inventory_2_outlined), label: 'Hàng hoá'),
                 NavigationDestination(
-                    icon: const Icon(Icons.people), label: l10n.customers),
-                if (user?.isAdmin == true)
-                  NavigationDestination(
-                      icon: const Icon(Icons.bar_chart), label: l10n.reports),
-                const NavigationDestination(
-                    icon: Icon(Icons.settings), label: 'Cài đặt'),
+                    icon: Icon(Icons.storefront_outlined), label: 'Bán hàng'),
+                NavigationDestination(
+                    icon: Icon(Icons.receipt_long_outlined), label: 'Hoá đơn'),
+                NavigationDestination(
+                    icon: Icon(Icons.menu), label: 'Nhiều hơn'),
               ],
             ),
     );

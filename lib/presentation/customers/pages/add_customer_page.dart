@@ -35,7 +35,6 @@ class _AddCustomerPageState extends ConsumerState<AddCustomerPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.addNewCustomer),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
           IconButton(
             icon: const Icon(Icons.save),

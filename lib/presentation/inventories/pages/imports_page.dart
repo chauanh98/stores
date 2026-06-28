@@ -26,7 +26,7 @@ class ImportsPage extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.import),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+
         actions: [
           IconButton(
             icon: Icon(filterMode == ImportFilterMode.range
@@ -184,10 +184,12 @@ class ImportsPage extends ConsumerWidget {
       orElse: () => const Product(
         id: '',
         name: 'Unknown',
+        code: '',
         brand: '',
         model: '',
         price: 0,
-        stock: 0,
+        costPrice: 0,
+        branchStocks: {},
         category: 'Other',
       ),
     );

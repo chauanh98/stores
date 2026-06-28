@@ -105,5 +105,11 @@
   "all": "All",
   "export": "Export",
   "outOfStockMsg": "Product is out of stock",
-  "notEnoughStock": "Quantity exceeds current stock"
+  "notEnoughStock": "Quantity exceeds current stock",
+  "transferProduct": "Transfer Product",
+  "selectTargetStore": "Select target store",
+  "transferQuantity": "Transfer quantity",
+  "transferCompleted": "Transfer completed",
+  "targetStore": "Target store",
+  "transfer": "Transfer"
 }

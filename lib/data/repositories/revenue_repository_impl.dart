@@ -54,6 +54,23 @@ class RevenueRepositoryImpl {
     final productsStream = _productDs.watchAll();
     final products = await productsStream.first;
 
+    return calculateRevenueSummary(
+      orders: orders,
+      inventoryTransactions: inventoryTransactions,
+      products: products,
+      startDate: startDate,
+      endDate: endDate,
+    );
+  }
+
+  /// Tính toán báo cáo doanh thu tổng hợp từ dữ liệu có sẵn
+  RevenueSummary calculateRevenueSummary({
+    required List<Map<String, dynamic>> orders,
+    required List<Map> inventoryTransactions,
+    required List<Map> products,
+    required DateTime startDate,
+    required DateTime endDate,
+  }) {
     // Tính toán cho từng ngày
     final dailyReports = <RevenueReport>[];
     DateTime currentDate = DateTime(startDate.year, startDate.month, startDate.day);
@@ -61,7 +78,10 @@ class RevenueRepositoryImpl {
 
     while (!currentDate.isAfter(endDateOnly)) {
       final dayOrders = orders.where((order) {
-        final orderDate = DateTime.parse(order['createdAt']);
+        final createdAtStr = order['createdAt']?.toString();
+        if (createdAtStr == null) return false;
+        final orderDate = DateTime.tryParse(createdAtStr);
+        if (orderDate == null) return false;
         return orderDate.year == currentDate.year &&
             orderDate.month == currentDate.month &&
             orderDate.day == currentDate.day;
@@ -118,6 +138,8 @@ class RevenueRepositoryImpl {
     for (final m in inventoryTransactions) {
       try {
         final model = InventoryTransactionModel.fromMap(m);
+        final product = productMap[model.productId];
+        final fallbackPrice = product != null ? _toDouble(product['costPrice']) : null;
         
         inventoryTxs.add(InventoryTransaction(
           id: model.id,
@@ -126,7 +148,7 @@ class RevenueRepositoryImpl {
           quantity: model.quantity,
           date: model.date,
           note: model.note,
-          importPrice: model.importPrice,
+          importPrice: model.importPrice ?? fallbackPrice,
         ));
       } catch (e) {
         print('Error parsing inventory transaction: $e');
@@ -142,8 +164,8 @@ class RevenueRepositoryImpl {
     // Sắp xếp orders theo thời gian để đảm bảo FIFO chính xác
     final sortedOrders = List<Map<String, dynamic>>.from(orders);
     sortedOrders.sort((a, b) {
-      final dateA = DateTime.parse(a['createdAt']);
-      final dateB = DateTime.parse(b['createdAt']);
+      final dateA = DateTime.tryParse(a['createdAt']?.toString() ?? '') ?? DateTime(1970);
+      final dateB = DateTime.tryParse(b['createdAt']?.toString() ?? '') ?? DateTime(1970);
       return dateA.compareTo(dateB);
     });
 

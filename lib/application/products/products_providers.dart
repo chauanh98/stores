@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -7,6 +8,7 @@ import '../../domain/entities/product.dart';
 import '../../domain/repositories/product_repository.dart';
 
 import '../auth/auth_providers.dart';
+import '../reports/overview_providers.dart';
 
 final productRemoteDataSourceProvider = Provider<ProductRemoteDataSource>((ref) {
   final storeId = ref.watch(currentStoreIdProvider);
@@ -20,4 +22,80 @@ final productRepositoryProvider = Provider<ProductRepository>((ref) {
 
 final productListProvider = StreamProvider.autoDispose<List<Product>>((ref) {
   return ref.watch(productRepositoryProvider).watchAll();
+});
+
+// Provider quản lý danh sách sản phẩm gộp từ nhiều cửa hàng cho Admin
+final allStoresProductsProvider = StreamProvider<List<Product>>((ref) {
+  final storeFilter = ref.watch(selectedStoreFilterProvider);
+  final currentStoreId = ref.watch(currentStoreIdProvider);
+  final selectedBranches = ref.watch(selectedBranchesProvider);
+  final user = ref.watch(authProvider);
+
+  final List<String> targetStoreIds = [];
+  if (user?.isAdmin == true) {
+    if (storeFilter == 'all') {
+      final availableStores = ref.watch(availableStoresProvider).value ?? {};
+      if (availableStores.isNotEmpty) {
+        targetStoreIds.addAll(availableStores.keys);
+      } else {
+        targetStoreIds.add(currentStoreId);
+      }
+    } else if (storeFilter != null) {
+      targetStoreIds.add(storeFilter);
+    } else {
+      // Khi không lọc trực tiếp cửa hàng, ánh xạ từ danh sách chi nhánh được chọn trên giao diện
+      for (final branchId in selectedBranches) {
+        if (currentStoreId == 'store_001') {
+          if (branchId == 'branch_1') {
+            targetStoreIds.add('store_001'); // Cửa hàng Hà Nội
+          } else if (branchId == 'branch_2') {
+            targetStoreIds.add('store_002'); // Cửa hàng TP.HCM
+          }
+        } else if (currentStoreId == 'store_002') {
+          if (branchId == 'branch_1') {
+            targetStoreIds.add('store_002'); // Cửa hàng TP.HCM
+          } else if (branchId == 'branch_2') {
+            targetStoreIds.add('store_001'); // Cửa hàng Hà Nội
+          }
+        }
+      }
+    }
+  }
+
+  if (targetStoreIds.isEmpty) {
+    targetStoreIds.add(currentStoreId);
+  }
+
+  final controller = StreamController<List<Product>>();
+  final List<StreamSubscription> subscriptions = [];
+  final Map<String, List<Product>> storeProductsMap = {};
+
+  for (final storeId in targetStoreIds) {
+    final productDs = ProductRemoteDataSource(FirebaseDatabase.instance, storeId);
+    final productRepo = ProductRepositoryImpl(productDs);
+    final sub = productRepo.watchAll().listen(
+      (products) {
+        storeProductsMap[storeId] = products;
+        final combined = storeProductsMap.values.expand((e) => e).toList();
+        if (!controller.isClosed) {
+          controller.add(combined);
+        }
+      },
+      onError: (err) {
+        if (!controller.isClosed) {
+          controller.addError(err);
+        }
+      },
+    );
+    subscriptions.add(sub);
+  }
+
+  ref.onDispose(() {
+    for (final sub in subscriptions) {
+      sub.cancel();
+    }
+    controller.close();
+  });
+
+  return controller.stream;
 });

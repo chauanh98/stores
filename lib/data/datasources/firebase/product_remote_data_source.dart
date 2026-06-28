@@ -12,6 +12,12 @@ class ProductRemoteDataSource {
     return data.values.map<Map>((e) => Map.from(e as Map)).toList();
   });
 
+  Future<List<Map>> fetchAll() async {
+    final snap = await _ref.get();
+    final data = snap.value as Map? ?? {};
+    return data.values.map<Map>((e) => Map.from(e as Map)).toList();
+  }
+
   Future<Map?> fetchById(String id) async {
     final snap = await _ref.child(id).get();
     return snap.value == null ? null : Map.from(snap.value as Map);

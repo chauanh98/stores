@@ -38,7 +38,6 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.addProduct),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
           IconButton(
             icon: const Icon(Icons.save),
@@ -148,10 +147,14 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
       final product = Product(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         name: _nameController.text.trim(),
+        code: _nameController.text.trim().length > 3
+            ? _nameController.text.trim().substring(0, 3).toUpperCase()
+            : _nameController.text.trim().toUpperCase(),
         brand: _brandController.text.trim(),
         model: _modelController.text.trim(),
         price: double.parse(_priceController.text.trim()),
-        stock: 0,
+        costPrice: double.parse(_priceController.text.trim()) * 0.7,
+        branchStocks: const {'branch_1': 0, 'branch_2': 0},
         category: _selectedCategory,
       );
 

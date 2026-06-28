@@ -6,6 +6,7 @@ class Order {
   final DateTime createdAt;
   final List<OrderItem> items;
   final double total;
+  final String status; // 'draft' hoặc 'completed'
 
   const Order({
     required this.id,
@@ -13,5 +14,6 @@ class Order {
     required this.createdAt,
     required this.items,
     required this.total,
+    this.status = 'completed',
   });
 }

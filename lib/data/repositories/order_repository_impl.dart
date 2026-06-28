@@ -27,6 +27,7 @@ class OrderRepositoryImpl implements OrderRepository {
                 price: i.price,
               ))
           .toList(),
+      status: order.status,
     );
     return ds.create(order.id, model.toMap());
   }
@@ -34,25 +35,42 @@ class OrderRepositoryImpl implements OrderRepository {
   @override
   Stream<List<Order>> watchByCustomer(String customerId) {
     return ds.watchByCustomer(customerId).map((list) {
-      return list.map((m) {
-        final om = OrderModel.fromMap(m);
-        return Order(
-          id: om.id,
-          customerId: om.customerId,
-          createdAt: om.createdAt,
-          total: om.total,
-          items: om.items
-              .map((im) => OrderItem(
-                    productId: im.productId,
-                    productName: im.productName,
-                    quantity: im.quantity,
-                    warrantyMonths: im.warrantyMonths,
-                    purchaseDate: im.purchaseDate,
-                    price: im.price,
-                  ))
-              .toList(),
-        );
-      }).toList();
+      return list.map((m) => _mapToOrder(m)).toList();
     });
+  }
+
+  @override
+  Stream<List<Order>> watchAll() {
+    return ds.watchAll().map((list) {
+      return list.map((m) => _mapToOrder(m)).toList();
+    });
+  }
+
+  @override
+  Stream<List<Order>> watchByDateRange(DateTime start, DateTime end) {
+    return ds.watchByDateRange(start, end).map((list) {
+      return list.map((m) => _mapToOrder(m)).toList();
+    });
+  }
+
+  Order _mapToOrder(Map<String, dynamic> m) {
+    final om = OrderModel.fromMap(m);
+    return Order(
+      id: om.id,
+      customerId: om.customerId,
+      createdAt: om.createdAt,
+      total: om.total,
+      items: om.items
+          .map((im) => OrderItem(
+                productId: im.productId,
+                productName: im.productName,
+                quantity: im.quantity,
+                warrantyMonths: im.warrantyMonths,
+                purchaseDate: im.purchaseDate,
+                price: im.price,
+              ))
+          .toList(),
+      status: om.status,
+    );
   }
 }

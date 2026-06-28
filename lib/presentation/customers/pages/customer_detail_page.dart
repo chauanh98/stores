@@ -64,7 +64,6 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(_isEditing ? l10n.edit : l10n.customerDetail),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
           IconButton(
             icon: const Icon(Icons.receipt_long),
@@ -103,19 +102,19 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
                     ? Form(
                         key: _formKey,
                         child: Column(
-                        children: [
-                          _field(_name, l10n.name, Icons.person),
-                          const SizedBox(height: 12),
-                          _field(_phone, l10n.phone, Icons.phone,
-                              keyboard: TextInputType.phone),
-                          const SizedBox(height: 12),
-                          _field(_email, l10n.email, Icons.email,
-                              keyboard: TextInputType.emailAddress,
-                              required: false),
-                          const SizedBox(height: 12),
-                          _field(_address, l10n.address, Icons.location_on,
-                              maxLines: 2, required: false),
-                        ],
+                          children: [
+                            _field(_name, l10n.name, Icons.person),
+                            const SizedBox(height: 12),
+                            _field(_phone, l10n.phone, Icons.phone,
+                                keyboard: TextInputType.phone),
+                            const SizedBox(height: 12),
+                            _field(_email, l10n.email, Icons.email,
+                                keyboard: TextInputType.emailAddress,
+                                required: false),
+                            const SizedBox(height: 12),
+                            _field(_address, l10n.address, Icons.location_on,
+                                maxLines: 2, required: false),
+                          ],
                         ),
                       )
                     : Column(
@@ -452,10 +451,12 @@ class _PurchasesSection extends ConsumerWidget {
   Product _unknownProduct(String id) => Product(
         id: id,
         name: 'Unknown Product',
+        code: 'unknown_$id',
         brand: 'Unknown',
         model: 'Unknown',
         price: 0,
-        stock: 0,
+        costPrice: 0,
+        branchStocks: const {},
         category: 'Other',
       );
 

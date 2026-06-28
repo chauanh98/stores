@@ -15,10 +15,13 @@ class ProductRepositoryImpl implements ProductRepository {
       return Product(
         id: model.id,
         name: model.name,
+        code: model.code,
+        barcode: model.barcode,
         brand: model.brand,
         model: model.model,
         price: model.price,
-        stock: model.stock,
+        costPrice: model.costPrice,
+        branchStocks: model.branchStocks,
         category: model.category,
       );
     }).toList();
@@ -32,10 +35,13 @@ class ProductRepositoryImpl implements ProductRepository {
     return Product(
       id: model.id,
       name: model.name,
+      code: model.code,
+      barcode: model.barcode,
       brand: model.brand,
       model: model.model,
       price: model.price,
-      stock: model.stock,
+      costPrice: model.costPrice,
+      branchStocks: model.branchStocks,
       category: model.category,
     );
   }
@@ -45,10 +51,13 @@ class ProductRepositoryImpl implements ProductRepository {
     final map = ProductModel(
       id: product.id,
       name: product.name,
+      code: product.code,
+      barcode: product.barcode,
       brand: product.brand,
       model: product.model,
       price: product.price,
-      stock: product.stock,
+      costPrice: product.costPrice,
+      branchStocks: product.branchStocks,
       category: product.category,
     ).toMap();
     return _ds.upsert(product.id, map);

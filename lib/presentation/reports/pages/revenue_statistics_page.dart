@@ -27,7 +27,7 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.revenue),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+
         actions: [
           IconButton(
             icon: Icon(_isRangeMode ? Icons.calendar_today : Icons.date_range),

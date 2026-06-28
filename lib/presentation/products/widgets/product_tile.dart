@@ -28,26 +28,38 @@ class ProductTile extends ConsumerWidget {
         ),
         title: Text(
           product.name,
-          style: Theme.of(context).textTheme.titleMedium,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('${product.brand} • ${product.model}\n${product.category}'),
+            Text(
+              'Mã: ${product.code}',
+              style: const TextStyle(color: Colors.black54, fontSize: 12),
+            ),
             const SizedBox(height: 4),
             _buildStockStatus(context, l10n),
           ],
         ),
-        isThreeLine: true,
         trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(
               _formatPrice(product.price),
-              style: Theme.of(context).textTheme.titleMedium,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF0067AC),
+                fontSize: 14,
+              ),
             ),
             const SizedBox(height: 2),
-            Text('${l10n.stock}: ${product.stock}'),
+            Text(
+              'Tồn: ${product.stock}',
+              style: const TextStyle(color: Colors.black87, fontSize: 12),
+            ),
           ],
         ),
         onTap: () => _navigateToDetail(context),

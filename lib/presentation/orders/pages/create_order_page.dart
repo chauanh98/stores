@@ -117,9 +117,8 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
                       ],
                     );
                   },
-                  loading: () => const SizedBox(
-                      height: 48,
-                      child: LoadingIndicator()),
+                  loading: () =>
+                      const SizedBox(height: 48, child: LoadingIndicator()),
                   error: (e, _) => ErrorView(e),
                 ),
               ),
@@ -165,7 +164,9 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
                                       border: const OutlineInputBorder(),
                                     ),
                                     keyboardType: TextInputType.number,
-                                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.digitsOnly
+                                    ],
                                     onChanged: (v) => setState(() {
                                       item.quantity = int.tryParse(v) ?? 1;
                                     }),
@@ -260,9 +261,8 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
                   ),
                 ],
               ),
-              loading: () => const SizedBox(
-                  height: 120,
-                  child: LoadingIndicator()),
+              loading: () =>
+                  const SizedBox(height: 120, child: LoadingIndicator()),
               error: (e, _) => ErrorView(e),
             ),
 
@@ -295,10 +295,12 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
           orElse: () => const Product(
                 id: '',
                 name: '',
+                code: '',
                 brand: '',
                 model: '',
                 price: 0,
-                stock: 0,
+                costPrice: 0,
+                branchStocks: {},
                 category: '',
               ));
       s += (p.price) * i.quantity;
@@ -330,7 +332,7 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
             SnackBar(content: Text(l10n.checkProductsAndQuantity)));
         return;
       }
-      
+
       final p = products.firstWhere((e) => e.id == i.productId);
       if (p.stock <= 0) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -338,8 +340,9 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
         return;
       }
       if (i.quantity > p.stock) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('${p.name} - ${l10n.notEnoughStock} (Tồn: ${p.stock})')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content:
+                Text('${p.name} - ${l10n.notEnoughStock} (Tồn: ${p.stock})')));
         return;
       }
     }
@@ -356,7 +359,8 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
           productId: p.id,
           productName: p.name,
           quantity: i.quantity,
-          price: p.price, // Lưu giá bán thực tế tại thời điểm tạo đơn hàng
+          price: p.price,
+          // Lưu giá bán thực tế tại thời điểm tạo đơn hàng
           warrantyMonths: i.warrantyMonths,
           purchaseDate: now,
         );
@@ -406,8 +410,15 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
 
       for (final i in orderItems) {
         final p = products.firstWhere((e) => e.id == i.productId);
-        final newStock = (p.stock - i.quantity).clamp(0, 1 << 31);
-        await productRepo.updateStock(p.id, newStock);
+
+        final branchStocks = Map<String, int>.from(p.branchStocks);
+        final currentBranchStock = branchStocks['branch_1'] ?? 0;
+        branchStocks['branch_1'] =
+            (currentBranchStock - i.quantity).clamp(0, 99999);
+
+        final updatedProduct = p.copyWith(branchStocks: branchStocks);
+        await productRepo.upsert(updatedProduct);
+
         await inventoryRepo.record(InventoryTransaction(
           id: '${id}_${i.productId}',
           productId: i.productId,
@@ -481,10 +492,12 @@ class _ProductAutocompleteState extends State<_ProductAutocomplete> {
         orElse: () => const Product(
             id: '',
             name: '',
+            code: '',
             brand: '',
             model: '',
             price: 0,
-            stock: 0,
+            costPrice: 0,
+            branchStocks: {},
             category: ''),
       );
       _lastSelectedText =

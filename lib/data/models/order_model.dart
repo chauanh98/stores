@@ -6,6 +6,7 @@ class OrderModel {
   final DateTime createdAt;
   final List<OrderItemModel> items;
   final double total;
+  final String status;
 
   const OrderModel({
     required this.id,
@@ -13,6 +14,7 @@ class OrderModel {
     required this.createdAt,
     required this.items,
     required this.total,
+    this.status = 'completed',
   });
 
   Map<String, dynamic> toMap() => {
@@ -21,6 +23,7 @@ class OrderModel {
     'createdAt': createdAt.toIso8601String(),
     'total': total,
     'items': items.map((e) => e.toMap()).toList(),
+    'status': status,
   };
 
   factory OrderModel.fromMap(Map<dynamic, dynamic> map) => OrderModel(
@@ -31,5 +34,6 @@ class OrderModel {
     items: (map['items'] as List)
         .map((e) => OrderItemModel.fromMap(Map<String, dynamic>.from(e as Map)))
         .toList(),
+    status: map['status']?.toString() ?? 'completed',
   );
 }

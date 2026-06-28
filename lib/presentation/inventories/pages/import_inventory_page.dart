@@ -195,9 +195,8 @@ class _ImportInventoryPageState extends ConsumerState<ImportInventoryPage> {
                   ),
                 ],
               ),
-              loading: () => const SizedBox(
-                  height: 120,
-                  child: LoadingIndicator()),
+              loading: () =>
+                  const SizedBox(height: 120, child: LoadingIndicator()),
               error: (e, _) => ErrorView(e),
             ),
 
@@ -319,9 +318,23 @@ class _ImportInventoryPageState extends ConsumerState<ImportInventoryPage> {
       for (final item in _items) {
         final product = products.firstWhere((p) => p.id == item.productId);
 
-        // 1) Cập nhật stock sản phẩm
-        final newStock = product.stock + item.quantity;
-        await productRepo.updateStock(product.id, newStock);
+        // 1) Cập nhật stock chi nhánh và tính toán lại giá vốn (Weighted Average)
+        final branchStocks = Map<String, int>.from(product.branchStocks);
+        final currentBranchStock = branchStocks['branch_1'] ?? 0;
+        branchStocks['branch_1'] = currentBranchStock + item.quantity;
+
+        final currentTotalStock = product.stock;
+        final double newCostPrice = (currentTotalStock + item.quantity) > 0
+            ? ((currentTotalStock * product.costPrice) +
+                    (item.quantity * item.importPrice)) /
+                (currentTotalStock + item.quantity)
+            : item.importPrice;
+
+        final updatedProduct = product.copyWith(
+          branchStocks: branchStocks,
+          costPrice: newCostPrice,
+        );
+        await productRepo.upsert(updatedProduct);
 
         // 2) Ghi inventory transaction
         await inventoryRepo.record(InventoryTransaction(
@@ -401,10 +414,12 @@ class _ProductAutocompleteState extends State<_ProductAutocomplete> {
         orElse: () => const Product(
             id: '',
             name: '',
+            code: '',
             brand: '',
             model: '',
             price: 0,
-            stock: 0,
+            costPrice: 0,
+            branchStocks: {},
             category: ''),
       );
       _lastSelectedText =

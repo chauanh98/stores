@@ -34,31 +34,44 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.customers),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       body: Column(
         children: [
           // Search bar
           Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: SearchBar(
+            padding: const EdgeInsets.all(12.0),
+            child: TextField(
               controller: _searchController,
-              hintText: l10n.searchCustomersHint,
-              leading: const Icon(Icons.search),
-              trailing: _searchQuery.isNotEmpty
-                  ? [
-                      IconButton(
+              decoration: InputDecoration(
+                hintText: l10n.searchCustomersHint,
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
                         icon: const Icon(Icons.clear),
                         onPressed: () {
                           _searchController.clear();
                           setState(() => _searchQuery = '');
                         },
-                      ),
-                    ]
-                  : null,
-              onChanged: (value) {
-                setState(() => _searchQuery = value);
-              },
+                      )
+                    : null,
+                fillColor: Colors.white,
+                filled: true,
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFFE1E2E4)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFF0067AC)),
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFFE1E2E4)),
+                ),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+              onChanged: (v) => setState(() => _searchQuery = v),
             ),
           ),
           // Customers list

@@ -105,5 +105,11 @@
   "all": "All",
   "export": "Xuất",
   "outOfStockMsg": "Sản phẩm đã hết hàng",
-  "notEnoughStock": "Số lượng vượt quá tồn kho"
+  "notEnoughStock": "Số lượng vượt quá tồn kho",
+  "transferProduct": "Chuyển kho",
+  "selectTargetStore": "Chọn cửa hàng nhận",
+  "transferQuantity": "Số lượng chuyển",
+  "transferCompleted": "Chuyển kho thành công",
+  "targetStore": "Cửa hàng nhận",
+  "transfer": "Chuyển"
 }

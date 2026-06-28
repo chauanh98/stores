@@ -28,9 +28,12 @@ class OrderRemoteDataSource {
 
   // Lấy orders theo khoảng thời gian
   Stream<List<Map<String, dynamic>>> watchByDateRange(DateTime startDate, DateTime endDate) {
+    // Đảm bảo endDate luôn là cuối ngày để không bỏ sót đơn hàng trong ngày đó
+    final adjustedEndDate = DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59, 999);
+
     // Dùng inclusive range: start <= createdAt <= end (end cuối ngày)
     final start = startDate.toIso8601String();
-    final end = endDate.toIso8601String();
+    final end = adjustedEndDate.toIso8601String();
 
     return _ref
         .orderByChild('createdAt')
@@ -45,8 +48,30 @@ class OrderRemoteDataSource {
       return list.where((m) {
         final createdAt = DateTime.tryParse(m['createdAt']?.toString() ?? '');
         if (createdAt == null) return false;
-        return !createdAt.isBefore(startDate) && !createdAt.isAfter(endDate);
+        return !createdAt.isBefore(startDate) && !createdAt.isAfter(adjustedEndDate);
       }).toList();
     });
+  }
+
+  // Lấy orders theo khoảng thời gian bằng Future (chạy một lần, không bị treo)
+  Future<List<Map<String, dynamic>>> fetchByDateRange(DateTime startDate, DateTime endDate) async {
+    final adjustedEndDate = DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59, 999);
+    final start = startDate.toIso8601String();
+    final end = adjustedEndDate.toIso8601String();
+
+    final snap = await _ref
+        .orderByChild('createdAt')
+        .startAt(start)
+        .endAt(end)
+        .get();
+
+    final data = snap.value as Map? ?? {};
+    final list = data.values.map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e as Map)).toList();
+    
+    return list.where((m) {
+      final createdAt = DateTime.tryParse(m['createdAt']?.toString() ?? '');
+      if (createdAt == null) return false;
+      return !createdAt.isBefore(startDate) && !createdAt.isAfter(adjustedEndDate);
+    }).toList();
   }
 }

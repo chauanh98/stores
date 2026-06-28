@@ -28,6 +28,12 @@ class InventoryRemoteDataSource {
     });
   }
 
+  Future<List<Map>> fetchAll() async {
+    final snap = await _ref.get();
+    final data = snap.value as Map? ?? {};
+    return data.values.map<Map>((e) => Map.from(e as Map)).toList();
+  }
+
   // Lấy import transactions theo khoảng thời gian
   Stream<List<Map>> watchImportsByDateRange(DateTime startDate, DateTime endDate) {
     return _ref

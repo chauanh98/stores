@@ -1,12 +1,11 @@
 import 'package:firebase_database/firebase_database.dart';
 
-class ProductRemoteDataSource {
-  ProductRemoteDataSource(this._db, this.storeId);
+class CategoryRemoteDataSource {
+  CategoryRemoteDataSource(this._db);
 
   final FirebaseDatabase _db;
-  final String storeId;
 
-  DatabaseReference get _ref => _db.ref('stores/$storeId/products');
+  DatabaseReference get _ref => _db.ref('shared_categories');
 
   List<Map> _parseSnapshot(dynamic value) {
     if (value == null) return [];
@@ -34,22 +33,9 @@ class ProductRemoteDataSource {
     return _parseSnapshot(snap.value);
   }
 
-  Future<Map?> fetchById(String id) async {
-    final snap = await _ref.child(id).get();
-    if (snap.value == null) return null;
-    if (snap.value is Map) {
-      return Map.from(snap.value as Map);
-    }
-    return null;
-  }
-
   Future<void> upsert(String id, Map<String, dynamic> map) {
     return _ref.child(id).set(map);
   }
 
   Future<void> delete(String id) => _ref.child(id).remove();
-
-  Future<void> updateStock(String id, int stock) {
-    return _ref.child(id).update({'stock': stock});
-  }
 }

@@ -1,7 +1,34 @@
+import 'dart:isolate';
+
+import 'package:flutter/foundation.dart';
+
 import '../../domain/entities/product.dart';
 import '../../domain/repositories/product_repository.dart';
 import '../datasources/firebase/product_remote_data_source.dart';
 import '../models/product_model.dart';
+
+Product _mapToProduct(Map m) {
+  final model = ProductModel.fromMap(m);
+  return Product(
+    id: model.id,
+    name: model.name,
+    code: model.code,
+    barcode: model.barcode,
+    brand: model.brand,
+    model: model.model,
+    price: model.price,
+    costPrice: model.costPrice,
+    branchStocks: model.branchStocks,
+    category: model.category,
+    type: model.type,
+    category3Levels: model.category3Levels,
+    unit: model.unit,
+    description: model.description,
+    noteTemplate: model.noteTemplate,
+    components: model.components,
+    imageUrl: model.imageUrl,
+  );
+}
 
 class ProductRepositoryImpl implements ProductRepository {
   ProductRepositoryImpl(this._ds);
@@ -9,23 +36,12 @@ class ProductRepositoryImpl implements ProductRepository {
   final ProductRemoteDataSource _ds;
 
   @override
-  Stream<List<Product>> watchAll() => _ds.watchAll().map((list) {
-    return list.map((m) {
-      final model = ProductModel.fromMap(m);
-      return Product(
-        id: model.id,
-        name: model.name,
-        code: model.code,
-        barcode: model.barcode,
-        brand: model.brand,
-        model: model.model,
-        price: model.price,
-        costPrice: model.costPrice,
-        branchStocks: model.branchStocks,
-        category: model.category,
-      );
-    }).toList();
-  });
+  Stream<List<Product>> watchAll() => _ds.watchAll().asyncMap((list) async {
+        if (kIsWeb) {
+          return list.map(_mapToProduct).toList();
+        }
+        return await Isolate.run(() => list.map(_mapToProduct).toList());
+      });
 
   @override
   Future<Product?> fetchById(String id) async {
@@ -43,6 +59,13 @@ class ProductRepositoryImpl implements ProductRepository {
       costPrice: model.costPrice,
       branchStocks: model.branchStocks,
       category: model.category,
+      type: model.type,
+      category3Levels: model.category3Levels,
+      unit: model.unit,
+      description: model.description,
+      noteTemplate: model.noteTemplate,
+      components: model.components,
+      imageUrl: model.imageUrl,
     );
   }
 
@@ -59,6 +82,13 @@ class ProductRepositoryImpl implements ProductRepository {
       costPrice: product.costPrice,
       branchStocks: product.branchStocks,
       category: product.category,
+      type: product.type,
+      category3Levels: product.category3Levels,
+      unit: product.unit,
+      description: product.description,
+      noteTemplate: product.noteTemplate,
+      components: product.components,
+      imageUrl: product.imageUrl,
     ).toMap();
     return _ds.upsert(product.id, map);
   }
@@ -67,5 +97,6 @@ class ProductRepositoryImpl implements ProductRepository {
   Future<void> delete(String id) => _ds.delete(id);
 
   @override
-  Future<void> updateStock(String id, int newStock) => _ds.updateStock(id, newStock);
+  Future<void> updateStock(String id, int newStock) =>
+      _ds.updateStock(id, newStock);
 }

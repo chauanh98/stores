@@ -6,6 +6,7 @@ import '../models/inventory_transaction_model.dart';
 
 class InventoryRepositoryImpl implements InventoryRepository {
   InventoryRepositoryImpl(this._ds);
+
   final InventoryRemoteDataSource _ds;
 
   @override
@@ -16,7 +17,9 @@ class InventoryRepositoryImpl implements InventoryRepository {
           return InventoryTransaction(
             id: model.id,
             productId: model.productId,
-            type: model.type == 'import' ? TransactionType.import : TransactionType.export,
+            type: model.type == 'import'
+                ? TransactionType.import
+                : TransactionType.export,
             quantity: model.quantity,
             date: model.date,
             note: model.note,

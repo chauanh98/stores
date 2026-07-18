@@ -1,11 +1,13 @@
 import 'dart:async';
+
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_database/firebase_database.dart';
+
 import '../../data/datasources/firebase/order_remote_data_source.dart';
 import '../../data/repositories/order_repository_impl.dart';
-import '../../domain/repositories/order_repository.dart';
 import '../../domain/entities/order.dart';
+import '../../domain/repositories/order_repository.dart';
 import '../auth/auth_providers.dart';
 import '../reports/overview_providers.dart';
 
@@ -20,7 +22,7 @@ final orderRepositoryProvider = Provider<OrderRepository>((ref) {
 });
 
 final customerOrdersProvider =
-StreamProvider.family<List<Order>, String>((ref, customerId) {
+    StreamProvider.family<List<Order>, String>((ref, customerId) {
   return ref.watch(orderRepositoryProvider).watchByCustomer(customerId);
 });
 
@@ -28,11 +30,15 @@ final allOrdersProvider = StreamProvider<List<Order>>((ref) {
   return ref.watch(orderRepositoryProvider).watchAll();
 });
 
-final ordersByDateRangeProvider = StreamProvider.family<List<Order>, DateTimeRange>((ref, range) {
-  return ref.watch(orderRepositoryProvider).watchByDateRange(range.start, range.end);
+final ordersByDateRangeProvider =
+    StreamProvider.family<List<Order>, DateTimeRange>((ref, range) {
+  return ref
+      .watch(orderRepositoryProvider)
+      .watchByDateRange(range.start, range.end);
 });
 
-final allBranchesOrdersByDateRangeProvider = StreamProvider.family<List<Order>, DateTimeRange>((ref, range) {
+final allBranchesOrdersByDateRangeProvider =
+    StreamProvider.family<List<Order>, DateTimeRange>((ref, range) {
   final user = ref.watch(authProvider);
   final currentStoreId = ref.watch(currentStoreIdProvider);
   final selectedBranches = ref.watch(selectedBranchesProvider);
@@ -66,7 +72,8 @@ final allBranchesOrdersByDateRangeProvider = StreamProvider.family<List<Order>, 
   return _createCombinedOrdersStream(targetStoreIds, range);
 });
 
-Stream<List<Order>> _createCombinedOrdersStream(List<String> storeIds, DateTimeRange range) {
+Stream<List<Order>> _createCombinedOrdersStream(
+    List<String> storeIds, DateTimeRange range) {
   // ignore: close_sinks
   final controller = StreamController<List<Order>>();
   final Map<String, List<Order>> storeOrdersMap = {};
@@ -75,20 +82,17 @@ Stream<List<Order>> _createCombinedOrdersStream(List<String> storeIds, DateTimeR
   for (final storeId in storeIds) {
     final ds = OrderRemoteDataSource(FirebaseDatabase.instance, storeId);
     final repo = OrderRepositoryImpl(ds);
-    
-    final sub = repo.watchByDateRange(range.start, range.end).listen(
-      (orders) {
-        storeOrdersMap[storeId] = orders;
-        final combined = storeOrdersMap.values.expand((e) => e).toList();
-        combined.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-        if (!controller.isClosed) {
-          controller.add(combined);
-        }
-      },
-      onError: (e) {
-        print('Error watching orders for store $storeId: $e');
+
+    final sub = repo.watchByDateRange(range.start, range.end).listen((orders) {
+      storeOrdersMap[storeId] = orders;
+      final combined = storeOrdersMap.values.expand((e) => e).toList();
+      combined.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      if (!controller.isClosed) {
+        controller.add(combined);
       }
-    );
+    }, onError: (e) {
+      print('Error watching orders for store $storeId: $e');
+    });
     subs.add(sub);
   }
 

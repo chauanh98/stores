@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../application/auth/auth_providers.dart';
 import '../../../application/customers/customers_providers.dart';
 import '../../../domain/entities/customer.dart';
 
@@ -123,6 +124,9 @@ class _AddCustomerPageState extends ConsumerState<AddCustomerPage> {
     setState(() => _saving = true);
     final l10n = AppLocalizations.of(context)!;
     try {
+      final currentUser = ref.read(authProvider);
+      final activeBranchName = await ref.read(currentStoreNameProvider.future);
+
       final customer = Customer(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         name: _name.text.trim(),
@@ -130,6 +134,9 @@ class _AddCustomerPageState extends ConsumerState<AddCustomerPage> {
         email: _email.text.trim(),
         address: _address.text.trim(),
         purchases: const [],
+        branch: activeBranchName,
+        createdAt: DateTime.now().toIso8601String(),
+        createdBy: currentUser?.username ?? 'admin',
       );
       await ref.read(customerRepositoryProvider).upsert(customer);
       if (!mounted) return;

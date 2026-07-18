@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../domain/entities/product.dart';
+
 import '../../../domain/entities/order_item.dart';
+import '../../../domain/entities/product.dart';
 
 // Provider quản lý chi nhánh đang được chọn để bán hàng tại POS
 final selectedPOSBranchProvider = StateProvider<String>((ref) => 'branch_1');
@@ -26,6 +27,7 @@ class CartItem {
   }
 
   double get price => customPrice ?? product.price;
+
   double get total => price * quantity;
 }
 
@@ -109,17 +111,18 @@ class CartNotifier extends StateNotifier<Map<String, CartItem>> {
   void populateCart(List<OrderItem> items, List<Product> allProducts) {
     final newCart = <String, CartItem>{};
     for (final item in items) {
-      final product = allProducts.firstWhere((p) => p.id == item.productId, orElse: () => Product(
-        id: item.productId,
-        name: item.productName,
-        code: '',
-        brand: '',
-        model: '',
-        price: item.price,
-        costPrice: 0.0,
-        branchStocks: const {},
-        category: '',
-      ));
+      final product = allProducts.firstWhere((p) => p.id == item.productId,
+          orElse: () => Product(
+                id: item.productId,
+                name: item.productName,
+                code: '',
+                brand: '',
+                model: '',
+                price: item.price,
+                costPrice: 0.0,
+                branchStocks: const {},
+                category: '',
+              ));
       newCart[item.productId] = CartItem(
         product: product,
         quantity: item.quantity,
@@ -131,7 +134,8 @@ class CartNotifier extends StateNotifier<Map<String, CartItem>> {
 }
 
 // Provider chính của giỏ hàng
-final cartProvider = StateNotifierProvider<CartNotifier, Map<String, CartItem>>((ref) {
+final cartProvider =
+    StateNotifierProvider<CartNotifier, Map<String, CartItem>>((ref) {
   return CartNotifier();
 });
 

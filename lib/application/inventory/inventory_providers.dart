@@ -5,10 +5,10 @@ import '../../data/datasources/firebase/inventory_remote_data_source.dart';
 import '../../data/repositories/inventory_repository_impl.dart';
 import '../../domain/entities/inventory_transaction.dart';
 import '../../domain/repositories/inventory_repository.dart';
-
 import '../auth/auth_providers.dart';
 
-final inventoryRemoteDataSourceProvider = Provider<InventoryRemoteDataSource>((ref) {
+final inventoryRemoteDataSourceProvider =
+    Provider<InventoryRemoteDataSource>((ref) {
   final storeId = ref.watch(currentStoreIdProvider);
   return InventoryRemoteDataSource(FirebaseDatabase.instance, storeId);
 });
@@ -42,17 +42,21 @@ final selectedImportRangeProvider = StateProvider<TupleDateRange>((ref) {
 class TupleDateRange {
   final DateTime start;
   final DateTime end;
+
   const TupleDateRange(this.start, this.end);
 }
 
 // Unified stream depending on mode
-final importsFilteredProvider = StreamProvider.autoDispose<List<InventoryTransaction>>((ref) {
+final importsFilteredProvider =
+    StreamProvider.autoDispose<List<InventoryTransaction>>((ref) {
   final repository = ref.watch(inventoryRepositoryProvider);
   final mode = ref.watch(importFilterModeProvider);
   if (mode == ImportFilterMode.day) {
     final selected = ref.watch(selectedImportDateProvider);
-    final start = DateTime(selected.year, selected.month, selected.day, 0, 0, 0);
-    final end = DateTime(selected.year, selected.month, selected.day, 23, 59, 59, 999);
+    final start =
+        DateTime(selected.year, selected.month, selected.day, 0, 0, 0);
+    final end =
+        DateTime(selected.year, selected.month, selected.day, 23, 59, 59, 999);
     return repository.watchImportsByDateRange(start, end);
   } else {
     final range = ref.watch(selectedImportRangeProvider);
@@ -61,7 +65,8 @@ final importsFilteredProvider = StreamProvider.autoDispose<List<InventoryTransac
 });
 
 // Transactions by product
-final transactionsByProductProvider = StreamProvider.family.autoDispose<List<InventoryTransaction>, String>((ref, productId) {
+final transactionsByProductProvider = StreamProvider.family
+    .autoDispose<List<InventoryTransaction>, String>((ref, productId) {
   final repository = ref.watch(inventoryRepositoryProvider);
   return repository.watchByProduct(productId);
 });

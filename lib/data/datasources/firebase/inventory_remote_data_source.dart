@@ -2,19 +2,18 @@ import 'package:firebase_database/firebase_database.dart';
 
 class InventoryRemoteDataSource {
   InventoryRemoteDataSource(this._db, this.storeId);
+
   final FirebaseDatabase _db;
   final String storeId;
 
-  DatabaseReference get _ref => _db.ref('stores/$storeId/inventory_transactions');
+  DatabaseReference get _ref =>
+      _db.ref('stores/$storeId/inventory_transactions');
 
-  Stream<List<Map>> watchByProduct(String productId) => _ref
-      .orderByChild('productId')
-      .equalTo(productId)
-      .onValue
-      .map((event) {
-    final data = event.snapshot.value as Map? ?? {};
-    return data.values.map<Map>((e) => Map.from(e as Map)).toList();
-  });
+  Stream<List<Map>> watchByProduct(String productId) =>
+      _ref.orderByChild('productId').equalTo(productId).onValue.map((event) {
+        final data = event.snapshot.value as Map? ?? {};
+        return data.values.map<Map>((e) => Map.from(e as Map)).toList();
+      });
 
   Future<void> record(String id, Map<String, dynamic> map) {
     return _ref.child(id).set(map);
@@ -35,7 +34,8 @@ class InventoryRemoteDataSource {
   }
 
   // Lấy import transactions theo khoảng thời gian
-  Stream<List<Map>> watchImportsByDateRange(DateTime startDate, DateTime endDate) {
+  Stream<List<Map>> watchImportsByDateRange(
+      DateTime startDate, DateTime endDate) {
     return _ref
         .orderByChild('date')
         .startAt(startDate.toIso8601String())

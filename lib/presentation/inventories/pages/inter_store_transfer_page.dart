@@ -58,7 +58,8 @@ class _InterStoreTransferPageState
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.store_outlined, size: 64, color: colorScheme.outline),
+                  Icon(Icons.store_outlined,
+                      size: 64, color: colorScheme.outline),
                   const SizedBox(height: 16),
                   Text(
                     'Không có cửa hàng khác để chuyển.',
@@ -116,7 +117,10 @@ class _InterStoreTransferPageState
                         const SizedBox(height: 16),
                         Text(
                           widget.product.name,
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineSmall
+                              ?.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: colorScheme.onPrimaryContainer,
                               ),
@@ -124,14 +128,18 @@ class _InterStoreTransferPageState
                         ),
                         const SizedBox(height: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
                             color: colorScheme.surface,
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
                             '${l10n.currentStock}: ${widget.product.stock}',
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
                                   color: colorScheme.primary,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -170,17 +178,19 @@ class _InterStoreTransferPageState
                               initialValue: sourceStoreName,
                               readOnly: true,
                               decoration: InputDecoration(
-                                prefixIcon: Icon(Icons.storefront, color: colorScheme.primary),
+                                prefixIcon: Icon(Icons.storefront,
+                                    color: colorScheme.primary),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12),
                                   borderSide: BorderSide.none,
                                 ),
                                 filled: true,
-                                fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                                fillColor: colorScheme.surfaceContainerHighest
+                                    .withOpacity(0.3),
                               ),
                             ),
                           ),
-                          
+
                           Padding(
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             child: Icon(
@@ -196,19 +206,23 @@ class _InterStoreTransferPageState
                             child: DropdownButtonFormField<String>(
                               value: _selectedTargetStoreId,
                               decoration: InputDecoration(
-                                prefixIcon: Icon(Icons.store, color: colorScheme.secondary),
+                                prefixIcon: Icon(Icons.store,
+                                    color: colorScheme.secondary),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 16),
                               ),
-                              icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                              icon:
+                                  const Icon(Icons.keyboard_arrow_down_rounded),
                               items: availableTargets.map((entry) {
                                 return DropdownMenuItem(
                                   value: entry.key,
                                   child: Text(
                                     entry.value,
-                                    style: const TextStyle(fontWeight: FontWeight.w500),
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w500),
                                   ),
                                 );
                               }).toList(),
@@ -231,12 +245,14 @@ class _InterStoreTransferPageState
                                 fontWeight: FontWeight.bold,
                               ),
                               decoration: InputDecoration(
-                                prefixIcon: const Icon(Icons.production_quantity_limits),
+                                prefixIcon: const Icon(
+                                    Icons.production_quantity_limits),
                                 hintText: 'Nhập số lượng...',
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                                contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                                contentPadding:
+                                    const EdgeInsets.symmetric(vertical: 16),
                               ),
                               keyboardType: TextInputType.number,
                               validator: (value) {
@@ -355,12 +371,14 @@ class _InterStoreTransferPageState
                 children: [
                   const Icon(Icons.check_circle_rounded, color: Colors.white),
                   const SizedBox(width: 12),
-                  Text(l10n.transferCompleted, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text(l10n.transferCompleted,
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
                 ],
               ),
               behavior: SnackBarBehavior.floating,
               backgroundColor: Colors.green.shade600,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
             ),
           );
         }

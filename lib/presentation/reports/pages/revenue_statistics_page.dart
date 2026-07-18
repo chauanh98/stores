@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:stores/presentation/common/widgets/loading_indicator.dart';
 
 import '../../../application/reports/revenue_providers.dart';
@@ -27,7 +27,6 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.revenue),
-
         actions: [
           IconButton(
             icon: Icon(_isRangeMode ? Icons.calendar_today : Icons.date_range),

@@ -8,7 +8,7 @@ plugins {
 
 android {
     namespace = "com.example.stores"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 35
     ndkVersion = flutter.ndkVersion
     ndkVersion = "25.1.8937393"
 

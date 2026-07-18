@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -6,11 +7,11 @@ import '../../data/datasources/firebase/product_remote_data_source.dart';
 import '../../data/repositories/product_repository_impl.dart';
 import '../../domain/entities/product.dart';
 import '../../domain/repositories/product_repository.dart';
-
 import '../auth/auth_providers.dart';
 import '../reports/overview_providers.dart';
 
-final productRemoteDataSourceProvider = Provider<ProductRemoteDataSource>((ref) {
+final productRemoteDataSourceProvider =
+    Provider<ProductRemoteDataSource>((ref) {
   final storeId = ref.watch(currentStoreIdProvider);
   return ProductRemoteDataSource(FirebaseDatabase.instance, storeId);
 });
@@ -71,7 +72,8 @@ final allStoresProductsProvider = StreamProvider<List<Product>>((ref) {
   final Map<String, List<Product>> storeProductsMap = {};
 
   for (final storeId in targetStoreIds) {
-    final productDs = ProductRemoteDataSource(FirebaseDatabase.instance, storeId);
+    final productDs =
+        ProductRemoteDataSource(FirebaseDatabase.instance, storeId);
     final productRepo = ProductRepositoryImpl(productDs);
     final sub = productRepo.watchAll().listen(
       (products) {
@@ -98,4 +100,54 @@ final allStoresProductsProvider = StreamProvider<List<Product>>((ref) {
   });
 
   return controller.stream;
+});
+
+final productSearchQueryProvider =
+    StateProvider.autoDispose<String>((ref) => '');
+final productCategoryFilterProvider =
+    StateProvider.autoDispose<String>((ref) => 'All');
+
+class ProcessedProductsData {
+  final List<Product> filteredProducts;
+  final Set<String> categories;
+  final int totalStock;
+
+  ProcessedProductsData({
+    required this.filteredProducts,
+    required this.categories,
+    required this.totalStock,
+  });
+}
+
+final processedProductsProvider =
+    Provider.autoDispose<AsyncValue<ProcessedProductsData>>((ref) {
+  final productsAsync = ref.watch(productListProvider);
+  final searchQuery = ref.watch(productSearchQueryProvider);
+  final selectedCategory = ref.watch(productCategoryFilterProvider);
+
+  return productsAsync.whenData((products) {
+    final cats = {'All', ...products.map((e) => e.category).toSet()};
+
+    final byCategory = selectedCategory == 'All'
+        ? products
+        : products.where((p) => p.category == selectedCategory).toList();
+
+    final q = searchQuery.trim().toLowerCase();
+    final filtered = q.isEmpty
+        ? byCategory
+        : byCategory.where((p) {
+            return p.name.toLowerCase().contains(q) ||
+                (p.brand ?? '').toLowerCase().contains(q) ||
+                (p.model ?? '').toLowerCase().contains(q) ||
+                p.category.toLowerCase().contains(q);
+          }).toList();
+
+    final totalStock = filtered.fold(0, (sum, p) => sum + p.stock);
+
+    return ProcessedProductsData(
+      filteredProducts: filtered,
+      categories: cats,
+      totalStock: totalStock,
+    );
+  });
 });

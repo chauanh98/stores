@@ -6,6 +6,7 @@ class RevenueReport {
   final int totalOrders;
   final int totalItemsSold;
   final List<ProductRevenue> productRevenues;
+  final Map<String, double> storeRevenues;
 
   const RevenueReport({
     required this.date,
@@ -15,6 +16,7 @@ class RevenueReport {
     required this.totalOrders,
     required this.totalItemsSold,
     required this.productRevenues,
+    this.storeRevenues = const {},
   });
 }
 

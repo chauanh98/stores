@@ -22,14 +22,17 @@ class ReportRepositoryImpl implements ReportRepository {
     }
 
     final txs = await inventory.watchByProduct(productId).first;
-    final range = txs.where((t) => !t.date.isBefore(from) && !t.date.isAfter(to));
+    final range =
+        txs.where((t) => !t.date.isBefore(from) && !t.date.isAfter(to));
 
     final exported = range.where((t) => t.type == TransactionType.export);
     final imported = range.where((t) => t.type == TransactionType.import);
 
     final totalQty = exported.fold<int>(0, (s, t) => s + t.quantity);
-    final revenue = exported.fold<double>(0, (s, t) => s + t.quantity * product.price);
-    final importCost = imported.fold<double>(0, (s, t) => s + (t.importPrice ?? 0) * t.quantity);
+    final revenue =
+        exported.fold<double>(0, (s, t) => s + t.quantity * product.price);
+    final importCost = imported.fold<double>(
+        0, (s, t) => s + (t.importPrice ?? 0) * t.quantity);
     final profit = revenue - importCost;
 
     return ProductReport(

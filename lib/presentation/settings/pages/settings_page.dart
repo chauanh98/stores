@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../application/auth/auth_providers.dart';
 
 class SettingsPage extends ConsumerWidget {
@@ -22,10 +23,12 @@ class SettingsPage extends ConsumerWidget {
             child: ListTile(
               leading: const Icon(Icons.person),
               title: Text(user?.username ?? 'Khách'),
-              subtitle: Text('Vai trò: ${user?.role == 'admin' ? 'Quản trị viên' : 'Nhân viên'}'),
+              subtitle: Text(
+                  'Vai trò: ${user?.role == 'admin' ? 'Quản trị viên' : 'Nhân viên'}'),
               trailing: TextButton.icon(
                 icon: const Icon(Icons.logout, color: Colors.red),
-                label: const Text('Đăng xuất', style: TextStyle(color: Colors.red)),
+                label: const Text('Đăng xuất',
+                    style: TextStyle(color: Colors.red)),
                 onPressed: () {
                   showDialog(
                     context: context,
@@ -33,7 +36,9 @@ class SettingsPage extends ConsumerWidget {
                       title: const Text('Đăng xuất'),
                       content: const Text('Bạn có chắc chắn muốn đăng xuất?'),
                       actions: [
-                        TextButton(onPressed: () => Navigator.pop(c), child: const Text('Hủy')),
+                        TextButton(
+                            onPressed: () => Navigator.pop(c),
+                            child: const Text('Hủy')),
                         FilledButton(
                           onPressed: () {
                             Navigator.pop(c);
@@ -58,7 +63,10 @@ class SettingsPage extends ConsumerWidget {
                   children: [
                     Text(
                       'Chuyển Đổi Nhanh Cửa Hàng (Dành cho Admin)',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleMedium
+                          ?.copyWith(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 16),
                     storeNamesAsync.when(
@@ -78,9 +86,12 @@ class SettingsPage extends ConsumerWidget {
                         }).toList(),
                         onChanged: (v) {
                           if (v != null) {
-                            ref.read(selectedStoreIdProvider.notifier).state = v;
+                            ref.read(selectedStoreIdProvider.notifier).state =
+                                v;
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Đã chuyển sang ${storeNames[v] ?? v}')),
+                              SnackBar(
+                                  content: Text(
+                                      'Đã chuyển sang ${storeNames[v] ?? v}')),
                             );
                           }
                         },

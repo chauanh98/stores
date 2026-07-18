@@ -394,13 +394,13 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
             ),
           ));
         }
-        await customerRepo.upsert(Customer(
-          id: customer.id,
-          name: customer.name,
-          phone: customer.phone,
-          email: customer.email,
-          address: customer.address,
+        final double currentTotalSales = customer.totalSales ?? 0.0;
+        final double currentNetSales = customer.netSales ?? 0.0;
+        await customerRepo.upsert(customer.copyWith(
           purchases: newPurchases,
+          totalSales: currentTotalSales + total,
+          netSales: currentNetSales + total,
+          lastTransactionDate: now.toIso8601String(),
         ));
       }
 
@@ -501,7 +501,7 @@ class _ProductAutocompleteState extends State<_ProductAutocomplete> {
             category: ''),
       );
       _lastSelectedText =
-          '${product.name} • ${product.brand} • ${product.model} (Tồn: ${product.stock})';
+          '${product.name} • ${product.brand ?? ''} • ${product.model ?? ''} (Tồn: ${product.stock})';
       _controller.text = _lastSelectedText;
     } else {
       _lastSelectedText = '';
@@ -521,7 +521,7 @@ class _ProductAutocompleteState extends State<_ProductAutocomplete> {
 
     return Autocomplete<Product>(
       displayStringForOption: (product) =>
-          '${product.name} • ${product.brand} • ${product.model} (${l10n.stock}: ${product.stock})',
+          '${product.name} • ${product.brand ?? ''} • ${product.model ?? ''} (${l10n.stock}: ${product.stock})',
       optionsBuilder: (textEditingValue) {
         if (textEditingValue.text.isEmpty) {
           return widget.products.where((p) => p.stock > 0).toList();
@@ -530,14 +530,14 @@ class _ProductAutocompleteState extends State<_ProductAutocomplete> {
           if (product.stock <= 0) return false;
           final query = textEditingValue.text.toLowerCase();
           return product.name.toLowerCase().contains(query) ||
-              product.brand.toLowerCase().contains(query) ||
-              product.model.toLowerCase().contains(query);
+              (product.brand ?? '').toLowerCase().contains(query) ||
+              (product.model ?? '').toLowerCase().contains(query);
         }).toList();
       },
       onSelected: (product) {
         widget.onProductSelected(product.id);
         _lastSelectedText =
-            '${product.name} • ${product.brand} • ${product.model} (${l10n.stock}: ${product.stock})';
+            '${product.name} • ${product.brand ?? ''} • ${product.model ?? ''} (${l10n.stock}: ${product.stock})';
         _controller.text = _lastSelectedText;
       },
       fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {

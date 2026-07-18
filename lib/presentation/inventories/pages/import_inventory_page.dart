@@ -423,7 +423,7 @@ class _ProductAutocompleteState extends State<_ProductAutocomplete> {
             category: ''),
       );
       _lastSelectedText =
-          '${product.name} • ${product.brand} • ${product.model}';
+          '${product.name} • ${product.brand ?? ''} • ${product.model ?? ''}';
       _controller.text = _lastSelectedText;
     } else {
       _lastSelectedText = '';
@@ -443,7 +443,7 @@ class _ProductAutocompleteState extends State<_ProductAutocomplete> {
 
     return Autocomplete<Product>(
       displayStringForOption: (product) =>
-          '${product.name} • ${product.brand} • ${product.model}',
+          '${product.name} • ${product.brand ?? ''} • ${product.model ?? ''}',
       optionsBuilder: (textEditingValue) {
         if (textEditingValue.text.isEmpty) {
           return widget.products;
@@ -451,14 +451,14 @@ class _ProductAutocompleteState extends State<_ProductAutocomplete> {
         return widget.products.where((product) {
           final query = textEditingValue.text.toLowerCase();
           return product.name.toLowerCase().contains(query) ||
-              product.brand.toLowerCase().contains(query) ||
-              product.model.toLowerCase().contains(query);
+              (product.brand ?? '').toLowerCase().contains(query) ||
+              (product.model ?? '').toLowerCase().contains(query);
         }).toList();
       },
       onSelected: (product) {
         widget.onProductSelected(product.id);
         _lastSelectedText =
-            '${product.name} • ${product.brand} • ${product.model}';
+            '${product.name} • ${product.brand ?? ''} • ${product.model ?? ''}';
         _controller.text = _lastSelectedText;
       },
       fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {

@@ -125,6 +125,12 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
                           _infoRow(context, Icons.email, l10n.email, c.email),
                           _infoRow(context, Icons.location_on, l10n.address,
                               c.address),
+                          if (c.branch != null && c.branch!.isNotEmpty)
+                            _infoRow(
+                                context, Icons.store, 'Chi nhánh', c.branch!),
+                          if (c.createdAt != null && c.createdAt!.isNotEmpty)
+                            _infoRow(context, Icons.calendar_today,
+                                l10n.createdAt, _formatDateString(c.createdAt)),
                         ],
                       ),
               ),
@@ -135,6 +141,17 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
         ),
       ),
     );
+  }
+
+  String _formatDateString(String? dateStr) {
+    if (dateStr == null || dateStr.isEmpty) return '';
+    try {
+      final dateTime = DateTime.tryParse(dateStr);
+      if (dateTime != null) {
+        return '${dateTime.day.toString().padLeft(2, '0')}/${dateTime.month.toString().padLeft(2, '0')}/${dateTime.year}';
+      }
+    } catch (_) {}
+    return dateStr;
   }
 
   Widget _field(
@@ -221,13 +238,11 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
 
     setState(() => _isLoading = true);
     try {
-      final updated = Customer(
-        id: widget.customer.id,
+      final updated = widget.customer.copyWith(
         name: _name.text.trim(),
         phone: _phone.text.trim(),
         email: _email.text.trim(),
         address: _address.text.trim(),
-        purchases: widget.customer.purchases,
       );
       await ref.read(customerRepositoryProvider).upsert(updated);
       // Refresh customers list and navigate back to the list page
@@ -321,7 +336,7 @@ class _PurchasesSection extends ConsumerWidget {
                                   style: theme.textTheme.titleMedium
                                       ?.copyWith(fontWeight: FontWeight.w600)),
                               Text(
-                                '${product.brand} • ${product.model}',
+                                '${product.brand ?? ''} • ${product.model ?? ''}',
                                 style: theme.textTheme.bodySmall?.copyWith(
                                     color: theme.colorScheme.onSurfaceVariant),
                               ),

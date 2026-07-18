@@ -18,14 +18,14 @@ class InventoryTransactionModel {
   });
 
   Map<String, dynamic> toMap() => {
-    'id': id,
-    'productId': productId,
-    'type': type,
-    'quantity': quantity,
-    'date': date.toIso8601String(),
-    'note': note,
-    'importPrice': importPrice,
-  };
+        'id': id,
+        'productId': productId,
+        'type': type,
+        'quantity': quantity,
+        'date': date.toIso8601String(),
+        'note': note,
+        'importPrice': importPrice,
+      };
 
   factory InventoryTransactionModel.fromMap(Map<dynamic, dynamic> map) =>
       InventoryTransactionModel(

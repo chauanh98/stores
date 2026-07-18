@@ -102,7 +102,7 @@
   "productId": "Mã sản phẩm",
   "importDetail": "Chi tiết nhập hàng",
   "inventoryTransactions": "Giao dịch tồn kho",
-  "all": "All",
+  "all": "Tất cả",
   "export": "Xuất",
   "outOfStockMsg": "Sản phẩm đã hết hàng",
   "notEnoughStock": "Số lượng vượt quá tồn kho",
@@ -111,5 +111,151 @@
   "transferQuantity": "Số lượng chuyển",
   "transferCompleted": "Chuyển kho thành công",
   "targetStore": "Cửa hàng nhận",
-  "transfer": "Chuyển"
+  "transfer": "Chuyển",
+  "importExcel": "Nhập từ Excel",
+  "exportExcel": "Xuất ra Excel",
+  "importSuccess": "Nhập thành công dữ liệu",
+  "exportSuccess": "Xuất dữ liệu thành công",
+  "noDataToExport": "Không có dữ liệu để xuất",
+  "filePickerError": "Chưa chọn file",
+  "importError": "Có lỗi xảy ra khi nhập dữ liệu",
+  "createdAt": "Ngày tạo",
+  "createdBy": "Người tạo",
+  "totalProducts": "Tổng cộng ({count} mặt hàng)",
+  "totalStockCount": "Tổng tồn: {count}",
+  "totalCustomers": "Tổng cộng ({count} khách hàng)",
+  "totalInvoices": "Tổng cộng ({count} hoá đơn)",
+  "salesTitle": "Bán hàng",
+  "searchPOSHint": "Tìm tên, mã hàng, thương hiệu...",
+  "noProductsFound": "Không tìm thấy sản phẩm phù hợp",
+  "cartSummaryTitle": "Giỏ hàng ({count} sản phẩm)",
+  "@cartSummaryTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "doneBtn": "Xong",
+  "outOfStockAlert": "Sản phẩm đã hết hàng trong kho!",
+  "stockLimitAlert": "Không thể vượt quá số lượng tồn kho ({count})!",
+  "@stockLimitAlert": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "loadingText": "Đang tải...",
+  "unknownStore": "Không rõ cửa hàng",
+  "barcodeScannerStarting": "Tính năng quét mã vạch đang được khởi động...",
+  "productCode": "Mã",
+  "stockLabel": "Tồn",
+  "checkout": "Thanh toán",
+  "change": "Thay đổi",
+  "retailCustomer": "Khách lẻ",
+  "orderInfo": "Thông tin đơn hàng",
+  "changePrice": "Thay đổi giá",
+  "newPrice": "Giá bán mới",
+  "totalProductAmount": "Tổng tiền hàng",
+  "orderDiscount": "Giảm giá đơn hàng",
+  "amountToPay": "Khách cần trả",
+  "amountPaid": "Khách đưa",
+  "changeDue": "Tiền thừa trả khách",
+  "paymentMethod": "Phương thức",
+  "cash": "Tiền mặt",
+  "transfer": "Chuyển khoản",
+  "saveDraft": "Lưu tạm",
+  "selectCustomer": "Chọn khách hàng",
+  "fullNameRequired": "Họ và tên *",
+  "phoneNumberRequired": "Số điện thoại *",
+  "addCustomerSuccess": "Thêm khách hàng thành công!",
+  "saveDraftTitle": "Lưu đơn nháp",
+  "saveDraftConfirm": "Bạn có muốn lưu đơn hàng này vào danh sách lưu tạm không?",
+  "no": "Không",
+  "draftSaved": "Đơn hàng nháp đã được lưu!",
+  "paymentSuccess": "Thanh toán đơn hàng thành công!",
+  "invoicesTitle": "Hóa đơn",
+  "searchInvoicesHint": "Tìm theo mã hoá đơn, tên khách hàng...",
+  "paid": "Đã thanh toán",
+  "draft": "Lưu tạm",
+  "orderIdLabel": "Mã đơn: {id}",
+  "@orderIdLabel": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "selectBranch": "Chọn chi nhánh",
+  "selectAll": "Chọn tất cả",
+  "invoiceDetail": "Chi tiết hoá đơn",
+  "draftDetail": "Chi tiết đơn tạm",
+  "invoiceId": "Mã hoá đơn",
+  "createdTime": "Thời gian tạo",
+  "status": "Trạng thái",
+  "draftUnpaid": "Lưu tạm (Chưa thanh toán)",
+  "productList": "Danh sách sản phẩm",
+  "totalPaymentAmount": "Tổng tiền thanh toán",
+  "continuePayment": "Tiếp tục thanh toán / Lên đơn",
+  "allBranches": "Tất cả chi nhánh",
+  "noInvoicesFound": "Không tìm thấy hóa đơn nào",
+  "timeRange": "Thời gian",
+  "allBranchesCombined": "Tất cả chi nhánh (Xem gộp)",
+  "store": "Cửa hàng",
+  "profit": "Lợi nhuận",
+  "invoiceCountLabel": "{count} hoá đơn",
+  "@invoiceCountLabel": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "returnsCountLabel": "0 đơn trả hàng - 0",
+  "loans": "Vay vốn",
+  "shipping": "Giao hàng",
+  "staff": "Nhân viên",
+  "taxAndAccounting": "Thuế & Kế toán",
+  "revenue": "Doanh thu",
+  "noData": "Không có dữ liệu hiển thị",
+  "noTransactions": "Không có giao dịch nào trong khoảng thời gian này",
+  "ordersCount": "({count} đơn)",
+  "@ordersCount": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "inventoryValue": "Giá trị tồn",
+  "goodsCount": "{count} hàng hoá",
+  "@goodsCount": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "inventoryLoadError": "Lỗi tải tồn kho: {error}",
+  "@inventoryLoadError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "topSelling": "Hàng bán chạy",
+  "byRevenue": "Theo doanh thu",
+  "byQuantity": "Theo số lượng",
+  "noSalesData": "Chưa có số liệu bán hàng",
+  "soldQty": "Đã bán: {count}",
+  "@soldQty": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "update": "Cập nhật"
 }

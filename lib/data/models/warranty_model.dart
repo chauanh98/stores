@@ -5,12 +5,12 @@ class WarrantyModel {
   const WarrantyModel({required this.months, required this.expireDate});
 
   Map<String, dynamic> toMap() => {
-    'months': months,
-    'expireDate': expireDate.toIso8601String(),
-  };
+        'months': months,
+        'expireDate': expireDate.toIso8601String(),
+      };
 
   factory WarrantyModel.fromMap(Map<dynamic, dynamic> map) => WarrantyModel(
-    months: map['months'] as int,
-    expireDate: DateTime.parse(map['expireDate'] as String),
-  );
+        months: map['months'] as int,
+        expireDate: DateTime.parse(map['expireDate'] as String),
+      );
 }

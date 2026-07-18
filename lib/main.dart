@@ -1,20 +1,17 @@
-import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:stores/presentation/customers/pages/customers_page.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:stores/presentation/inventories/pages/imports_page.dart';
-import 'package:stores/presentation/products/pages/products_page.dart';
-import 'package:stores/presentation/reports/pages/revenue_statistics_page.dart';
-import 'package:stores/presentation/reports/pages/overview_page.dart';
-import 'package:stores/presentation/orders/pages/pos_page.dart';
-import 'package:stores/presentation/orders/pages/invoices_page.dart';
-import 'package:stores/presentation/settings/pages/more_page.dart';
-import 'package:stores/presentation/auth/pages/login_page.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:stores/application/auth/auth_providers.dart';
 import 'package:stores/core/theme/app_theme.dart';
+import 'package:stores/presentation/auth/pages/login_page.dart';
+import 'package:stores/presentation/orders/pages/invoices_page.dart';
+import 'package:stores/presentation/orders/pages/pos_page.dart';
+import 'package:stores/presentation/products/pages/products_page.dart';
+import 'package:stores/presentation/reports/pages/overview_page.dart';
+import 'package:stores/presentation/settings/pages/more_page.dart';
 
-import 'package:flutter/services.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -41,6 +38,19 @@ class MyApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authProvider);
+    final isAuthLoading = ref.watch(authLoadingProvider);
+
+    if (isAuthLoading) {
+      return MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme,
+        home: const Scaffold(
+          body: Center(
+            child: CircularProgressIndicator(),
+          ),
+        ),
+      );
+    }
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,

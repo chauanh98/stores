@@ -1,9 +1,11 @@
 import 'dart:async';
+
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_database/firebase_database.dart';
-import '../../data/datasources/firebase/order_remote_data_source.dart';
+
 import '../../data/datasources/firebase/inventory_remote_data_source.dart';
+import '../../data/datasources/firebase/order_remote_data_source.dart';
 import '../../data/datasources/firebase/product_remote_data_source.dart';
 import '../../data/repositories/revenue_repository_impl.dart';
 import '../../domain/entities/revenue_report.dart';
@@ -15,12 +17,14 @@ final orderRemoteDataSourceProvider = Provider<OrderRemoteDataSource>((ref) {
   return OrderRemoteDataSource(FirebaseDatabase.instance, storeId);
 });
 
-final inventoryRemoteDataSourceProvider = Provider<InventoryRemoteDataSource>((ref) {
+final inventoryRemoteDataSourceProvider =
+    Provider<InventoryRemoteDataSource>((ref) {
   final storeId = ref.watch(currentStoreIdProvider);
   return InventoryRemoteDataSource(FirebaseDatabase.instance, storeId);
 });
 
-final productRemoteDataSourceProvider = Provider<ProductRemoteDataSource>((ref) {
+final productRemoteDataSourceProvider =
+    Provider<ProductRemoteDataSource>((ref) {
   final storeId = ref.watch(currentStoreIdProvider);
   return ProductRemoteDataSource(FirebaseDatabase.instance, storeId);
 });
@@ -33,7 +37,8 @@ final revenueRepositoryProvider = Provider<RevenueRepositoryImpl>((ref) {
 });
 
 // Dùng StreamProvider để tự động cập nhật khi có đơn hàng mới
-final revenueByDateProvider = StreamProvider.family<RevenueReport, DateTime>((ref, date) async* {
+final revenueByDateProvider =
+    StreamProvider.family<RevenueReport, DateTime>((ref, date) async* {
   final repository = ref.watch(revenueRepositoryProvider);
   final inventoryDs = ref.watch(inventoryRemoteDataSourceProvider);
   final productDs = ref.watch(productRemoteDataSourceProvider);
@@ -46,14 +51,16 @@ final revenueByDateProvider = StreamProvider.family<RevenueReport, DateTime>((re
 
   await for (final orders in ordersStream) {
     // Debug: In ra số lượng orders
-    print('RevenueProvider: Found ${orders.length} orders for date ${date.toIso8601String()}');
-    
+    print(
+        'RevenueProvider: Found ${orders.length} orders for date ${date.toIso8601String()}');
+
     // Lấy dữ liệu inventory và products snapshot hiện tại để tính bằng Future fetchAll()
     final inventory = await inventoryDs.fetchAll();
     final products = await productDs.fetchAll();
-    
-    print('RevenueProvider: Found ${inventory.length} inventory transactions, ${products.length} products');
-    
+
+    print(
+        'RevenueProvider: Found ${inventory.length} inventory transactions, ${products.length} products');
+
     // Tính toán báo cáo trực tiếp với dữ liệu đã lấy được
     final report = repository.calculateRevenueReport(
       orders: orders,
@@ -61,14 +68,16 @@ final revenueByDateProvider = StreamProvider.family<RevenueReport, DateTime>((re
       products: products,
       date: date,
     );
-    
-    print('RevenueProvider: Generated report with revenue: ${report.totalRevenue}, cost: ${report.totalCost}, profit: ${report.profit}');
-    
+
+    print(
+        'RevenueProvider: Generated report with revenue: ${report.totalRevenue}, cost: ${report.totalCost}, profit: ${report.profit}');
+
     yield report;
   }
 });
 
-final revenueByDateRangeProvider = StreamProvider.family<RevenueSummary, DateTimeRange>((ref, range) async* {
+final revenueByDateRangeProvider =
+    StreamProvider.family<RevenueSummary, DateTimeRange>((ref, range) async* {
   final repository = ref.watch(revenueRepositoryProvider);
   final selectedBranches = ref.watch(selectedBranchesProvider);
   final currentStoreId = ref.watch(currentStoreIdProvider);
@@ -113,10 +122,12 @@ final revenueByDateRangeProvider = StreamProvider.family<RevenueSummary, DateTim
   }
 
   final start = DateTime(range.start.year, range.start.month, range.start.day);
-  final end = DateTime(range.end.year, range.end.month, range.end.day, 23, 59, 59, 999);
-  
-  print('DEBUG_REVENUE: Starting multi-store provider for targets $targetStoreIds, range: $start to $end');
-  
+  final end =
+      DateTime(range.end.year, range.end.month, range.end.day, 23, 59, 59, 999);
+
+  print(
+      'DEBUG_REVENUE: Starting multi-store provider for targets $targetStoreIds, range: $start to $end');
+
   // Tạo combined stream để gộp các update của nhiều store
   final controller = StreamController<List<Map<String, dynamic>>>();
   final List<StreamSubscription> subscriptions = [];
@@ -151,8 +162,9 @@ final revenueByDateRangeProvider = StreamProvider.family<RevenueSummary, DateTim
 
   try {
     await for (final combinedOrders in controller.stream) {
-      print('DEBUG_REVENUE: Combined stream emitted ${combinedOrders.length} total orders');
-      
+      print(
+          'DEBUG_REVENUE: Combined stream emitted ${combinedOrders.length} total orders');
+
       // Lọc orders theo chi nhánh chọn (chỉ lấy hóa đơn hoàn thành completed và thuộc chi nhánh lọc)
       final filteredOrders = combinedOrders.where((order) {
         final status = order['status']?.toString() ?? 'completed';
@@ -168,7 +180,7 @@ final revenueByDateRangeProvider = StreamProvider.family<RevenueSummary, DateTim
 
       // Tính toán summary cho từng store riêng biệt, rồi gộp lại để đảm bảo FIFO chuẩn xác từng store
       final List<RevenueSummary> summaries = [];
-      
+
       for (final storeId in targetStoreIds) {
         final storeOrders = storeOrdersMap[storeId] ?? [];
         final filteredStoreOrders = storeOrders.where((order) {
@@ -183,8 +195,10 @@ final revenueByDateRangeProvider = StreamProvider.family<RevenueSummary, DateTim
           return selectedBranches.contains(simulatedBranchId);
         }).toList();
 
-        final inventoryDs = InventoryRemoteDataSource(FirebaseDatabase.instance, storeId);
-        final productDs = ProductRemoteDataSource(FirebaseDatabase.instance, storeId);
+        final inventoryDs =
+            InventoryRemoteDataSource(FirebaseDatabase.instance, storeId);
+        final productDs =
+            ProductRemoteDataSource(FirebaseDatabase.instance, storeId);
 
         print('DEBUG_REVENUE: Fetching inventory for store $storeId...');
         final inventory = await inventoryDs.fetchAll();
@@ -209,8 +223,10 @@ final revenueByDateRangeProvider = StreamProvider.family<RevenueSummary, DateTim
       }
 
       // Merge các summaries lại
-      final mergedSummary = mergeRevenueSummaries(summaries, range.start, range.end);
-      print('DEBUG_REVENUE: Aggregation done. Combined Revenue: ${mergedSummary.totalRevenue}, Profit: ${mergedSummary.totalProfit}');
+      final mergedSummary =
+          mergeRevenueSummaries(summaries, range.start, range.end);
+      print(
+          'DEBUG_REVENUE: Aggregation done. Combined Revenue: ${mergedSummary.totalRevenue}, Profit: ${mergedSummary.totalProfit}');
       yield mergedSummary;
     }
   } catch (e, stack) {
@@ -221,44 +237,50 @@ final revenueByDateRangeProvider = StreamProvider.family<RevenueSummary, DateTim
 });
 
 // Helper gộp nhiều RevenueSummary của các store riêng biệt
-RevenueSummary mergeRevenueSummaries(List<RevenueSummary> summaries, DateTime startDate, DateTime endDate) {
+RevenueSummary mergeRevenueSummaries(
+    List<RevenueSummary> summaries, DateTime startDate, DateTime endDate) {
   double totalRevenue = 0.0;
   double totalCost = 0.0;
   int totalOrders = 0;
   int totalItemsSold = 0;
-  
+
   // Gộp dailyReports theo ngày
   final Map<DateTime, RevenueReport> combinedDailyReports = {};
-  
+
   for (final summary in summaries) {
     totalRevenue += summary.totalRevenue;
     totalCost += summary.totalCost;
     totalOrders += summary.totalOrders;
     totalItemsSold += summary.totalItemsSold;
-    
+
     for (final report in summary.dailyReports) {
-      final dateOnly = DateTime(report.date.year, report.date.month, report.date.day);
+      final dateOnly =
+          DateTime(report.date.year, report.date.month, report.date.day);
       if (combinedDailyReports.containsKey(dateOnly)) {
         final existing = combinedDailyReports[dateOnly]!;
         combinedDailyReports[dateOnly] = RevenueReport(
           date: dateOnly,
           totalRevenue: existing.totalRevenue + report.totalRevenue,
           totalCost: existing.totalCost + report.totalCost,
-          profit: (existing.totalRevenue + report.totalRevenue) - (existing.totalCost + report.totalCost),
+          profit: (existing.totalRevenue + report.totalRevenue) -
+              (existing.totalCost + report.totalCost),
           totalOrders: existing.totalOrders + report.totalOrders,
           totalItemsSold: existing.totalItemsSold + report.totalItemsSold,
-          productRevenues: _mergeProductRevenues(existing.productRevenues, report.productRevenues),
+          productRevenues: _mergeProductRevenues(
+              existing.productRevenues, report.productRevenues),
+          storeRevenues:
+              _mergeStoreRevenues(existing.storeRevenues, report.storeRevenues),
         );
       } else {
         combinedDailyReports[dateOnly] = report;
       }
     }
   }
-  
+
   // Sắp xếp lại dailyReports theo thời gian
   final sortedReports = combinedDailyReports.values.toList()
     ..sort((a, b) => a.date.compareTo(b.date));
-    
+
   return RevenueSummary(
     startDate: startDate,
     endDate: endDate,
@@ -271,8 +293,19 @@ RevenueSummary mergeRevenueSummaries(List<RevenueSummary> summaries, DateTime st
   );
 }
 
+// Helper gộp storeRevenues của các store
+Map<String, double> _mergeStoreRevenues(
+    Map<String, double> map1, Map<String, double> map2) {
+  final Map<String, double> result = Map.from(map1);
+  map2.forEach((key, value) {
+    result[key] = (result[key] ?? 0.0) + value;
+  });
+  return result;
+}
+
 // Helper gộp productRevenues của các store
-List<ProductRevenue> _mergeProductRevenues(List<ProductRevenue> list1, List<ProductRevenue> list2) {
+List<ProductRevenue> _mergeProductRevenues(
+    List<ProductRevenue> list1, List<ProductRevenue> list2) {
   final Map<String, ProductRevenue> map = {};
   for (final pr in [...list1, ...list2]) {
     if (map.containsKey(pr.productId)) {
@@ -286,7 +319,8 @@ List<ProductRevenue> _mergeProductRevenues(List<ProductRevenue> list1, List<Prod
         revenue: newRevenue,
         cost: newCost,
         profit: newRevenue - newCost,
-        profitMargin: ((newRevenue - newCost) / (newCost == 0 ? 1.0 : newCost)) * 100,
+        profitMargin:
+            ((newRevenue - newCost) / (newCost == 0 ? 1.0 : newCost)) * 100,
       );
     } else {
       map[pr.productId] = pr;

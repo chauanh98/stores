@@ -6,6 +6,7 @@ import '../../../domain/entities/product.dart';
 
 class ImportDetailPage extends StatelessWidget {
   const ImportDetailPage({super.key, required this.tx, required this.product});
+
   final InventoryTransaction tx;
   final Product product;
 
@@ -28,13 +29,17 @@ class ImportDetailPage extends StatelessWidget {
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: Colors.green.withOpacity(0.08),
                         border: Border.all(color: Colors.green),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Text(l10n.import, style: TextStyle(color: Colors.green[700], fontWeight: FontWeight.w600)),
+                      child: Text(l10n.import,
+                          style: TextStyle(
+                              color: Colors.green[700],
+                              fontWeight: FontWeight.w600)),
                     ),
                   ],
                 ),
@@ -44,7 +49,9 @@ class ImportDetailPage extends StatelessWidget {
                 _row(theme, l10n.productId, product.id),
                 _row(theme, l10n.date, _fmt(tx.date)),
                 _row(theme, l10n.quantity, '${tx.quantity}'),
-                if (tx.importPrice != null) _row(theme, l10n.importPrice, tx.importPrice!.toStringAsFixed(0)),
+                if (tx.importPrice != null)
+                  _row(theme, l10n.importPrice,
+                      tx.importPrice!.toStringAsFixed(0)),
                 if (tx.note.isNotEmpty) _row(theme, l10n.note, tx.note),
               ],
             ),
@@ -60,9 +67,13 @@ class ImportDetailPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+          Text(label,
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
           const SizedBox(height: 2),
-          Text(value, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+          Text(value,
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(fontWeight: FontWeight.w600)),
         ],
       ),
     );
@@ -71,5 +82,3 @@ class ImportDetailPage extends StatelessWidget {
   String _fmt(DateTime d) =>
       '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 }
-
-

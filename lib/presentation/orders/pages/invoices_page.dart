@@ -1,17 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:stores/presentation/common/widgets/loading_indicator.dart';
+import 'package:stores/core/theme/app_colors.dart';
 import 'package:stores/presentation/common/widgets/error_view.dart';
+import 'package:stores/presentation/common/widgets/loading_indicator.dart';
 
-import '../../../application/orders/orders_providers.dart';
-import '../../../application/customers/customers_providers.dart';
-import '../../../application/reports/overview_providers.dart';
 import '../../../application/auth/auth_providers.dart';
-import '../../../application/products/products_providers.dart';
+import '../../../application/customers/customers_providers.dart';
 import '../../../application/orders/cart_providers.dart';
-import '../../../domain/entities/order.dart';
+import '../../../application/orders/orders_providers.dart';
+import '../../../application/products/products_providers.dart';
+import '../../../application/reports/overview_providers.dart';
 import '../../../domain/entities/customer.dart';
+import '../../../domain/entities/order.dart';
 import 'pos_checkout_page.dart';
 
 class InvoicesPage extends ConsumerStatefulWidget {
@@ -34,12 +36,14 @@ class _InvoicesPageState extends ConsumerState<InvoicesPage> {
 
   @override
   Widget build(BuildContext context) {
-    final activeRange = ref.watch(activeDateRangeProvider);
-    final timeRangeType = ref.watch(selectedTimeRangeTypeProvider);
+    final l10n = AppLocalizations.of(context)!;
+    final activeRange = ref.watch(invoicesActiveDateRangeProvider);
+    final timeRangeType = ref.watch(invoicesTimeRangeTypeProvider);
     final selectedBranchIds = ref.watch(selectedBranchesProvider);
 
     // Watch all orders for the active date range (including multi-branch support)
-    final ordersAsync = ref.watch(allBranchesOrdersByDateRangeProvider(activeRange));
+    final ordersAsync =
+        ref.watch(allBranchesOrdersByDateRangeProvider(activeRange));
     final customersAsync = ref.watch(customerListNotifierProvider);
 
     final currencyFormat = NumberFormat('#,###', 'vi_VN');
@@ -47,7 +51,8 @@ class _InvoicesPageState extends ConsumerState<InvoicesPage> {
     // Nhãn hiển thị thời gian
     final String dateLabel;
     if (timeRangeType == OverviewTimeRange.custom) {
-      dateLabel = '${DateFormat('dd/MM').format(activeRange.start)} - ${DateFormat('dd/MM').format(activeRange.end)}';
+      dateLabel =
+          '${DateFormat('dd/MM').format(activeRange.start)} - ${DateFormat('dd/MM').format(activeRange.end)}';
     } else {
       dateLabel = timeRangeType.label;
     }
@@ -58,17 +63,19 @@ class _InvoicesPageState extends ConsumerState<InvoicesPage> {
     // Nhãn hiển thị chi nhánh
     String branchLabel;
     if (selectedBranchIds.length == mockBranches.length) {
-      branchLabel = 'Tất cả chi nhánh';
+      branchLabel = l10n.allBranches;
     } else if (selectedBranchIds.length == 1) {
-      branchLabel = mockBranches.firstWhere((b) => b.id == selectedBranchIds.first).name;
+      branchLabel =
+          mockBranches.firstWhere((b) => b.id == selectedBranchIds.first).name;
     } else {
       branchLabel = '${selectedBranchIds.length} chi nhánh';
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6F9),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Hoá đơn', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(l10n.invoicesTitle,
+            style: const TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.white,
         actions: [
           IconButton(
@@ -85,7 +92,7 @@ class _InvoicesPageState extends ConsumerState<InvoicesPage> {
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Tìm theo mã hoá đơn, tên khách hàng...',
+                hintText: l10n.searchInvoicesHint,
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
@@ -100,17 +107,18 @@ class _InvoicesPageState extends ConsumerState<InvoicesPage> {
                 filled: true,
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: Color(0xFFE1E2E4)),
+                  borderSide: const BorderSide(color: AppColors.border),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: Color(0xFF0067AC)),
+                  borderSide: const BorderSide(color: AppColors.primary),
                 ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: Color(0xFFE1E2E4)),
+                  borderSide: const BorderSide(color: AppColors.border),
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
               onChanged: (v) => setState(() => _searchQuery = v),
             ),
@@ -121,14 +129,15 @@ class _InvoicesPageState extends ConsumerState<InvoicesPage> {
 
           // Bộ lọc trạng thái hoá đơn (Tất cả, Đã thanh toán, Lưu tạm)
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
             child: Row(
               children: [
-                _buildStatusFilterChip('all', 'Tất cả'),
+                _buildStatusFilterChip('all', l10n.all),
                 const SizedBox(width: 8),
-                _buildStatusFilterChip('completed', 'Đã thanh toán'),
+                _buildStatusFilterChip('completed', l10n.paid),
                 const SizedBox(width: 8),
-                _buildStatusFilterChip('draft', 'Lưu tạm'),
+                _buildStatusFilterChip('draft', l10n.draft),
               ],
             ),
           ),
@@ -142,119 +151,188 @@ class _InvoicesPageState extends ConsumerState<InvoicesPage> {
                     final branchFilteredOrders = orders;
 
                     // Áp dụng bộ lọc trạng thái
-                    final statusFilteredOrders = branchFilteredOrders.where((order) {
+                    final statusFilteredOrders =
+                        branchFilteredOrders.where((order) {
                       if (_selectedStatusFilter == 'all') return true;
                       return order.status == _selectedStatusFilter;
                     }).toList();
 
                     // Tìm kiếm
-                    final searchFilteredOrders = statusFilteredOrders.where((order) {
+                    final searchFilteredOrders =
+                        statusFilteredOrders.where((order) {
                       final query = _searchQuery.toLowerCase().trim();
                       if (query.isEmpty) return true;
 
-                      final cName = _getCustomerName(customers, order.customerId).toLowerCase();
-                      return order.id.toLowerCase().contains(query) || cName.contains(query);
+                      final cName =
+                          _getCustomerName(context, customers, order.customerId)
+                              .toLowerCase();
+                      return order.id.toLowerCase().contains(query) ||
+                          cName.contains(query);
                     }).toList();
 
                     // Sắp xếp đơn mới nhất lên đầu
-                    searchFilteredOrders.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+                    searchFilteredOrders
+                        .sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
                     final totalInvoices = searchFilteredOrders.length;
-                    final totalRevenue = searchFilteredOrders.fold(0.0, (sum, o) => sum + o.total);
+                    final totalRevenue = searchFilteredOrders.fold(
+                        0.0, (sum, o) => sum + o.total);
 
                     return Column(
                       children: [
                         // Thẻ thống kê tổng tiền hoá đơn đang lọc
-                        _buildTotalSummaryCard(totalInvoices, totalRevenue, currencyFormat),
-                        
+                        _buildTotalSummaryCard(
+                            totalInvoices, totalRevenue, currencyFormat, l10n),
+
                         // Danh sách
                         Expanded(
                           child: searchFilteredOrders.isEmpty
-                              ? const Center(child: Text('Không tìm thấy hoá đơn nào'))
+                              ? Center(child: Text(l10n.noInvoicesFound))
                               : ListView.separated(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 8),
                                   itemCount: searchFilteredOrders.length,
-                                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                                  separatorBuilder: (_, __) =>
+                                      const SizedBox(height: 8),
                                   itemBuilder: (context, index) {
                                     final order = searchFilteredOrders[index];
-                                    final customerName = _getCustomerName(customers, order.customerId);
-                                    
+                                    final customerName = _getCustomerName(
+                                        context, customers, order.customerId);
+
                                     // Mô phỏng phương thức thanh toán dựa trên mã đơn
                                     final isCash = order.id.hashCode % 3 != 0;
-                                    final paymentMethodStr = isCash ? 'Tiền mặt' : 'Chuyển khoản';
+                                    final paymentMethodStr =
+                                        isCash ? l10n.cash : l10n.transfer;
 
                                     return InkWell(
-                                      onTap: () => _showInvoiceDetailsBottomSheet(context, ref, order, customerName),
+                                      onTap: () =>
+                                          _showInvoiceDetailsBottomSheet(
+                                              context,
+                                              ref,
+                                              order,
+                                              customerName),
                                       child: Container(
                                         decoration: BoxDecoration(
                                           color: Colors.white,
-                                          borderRadius: BorderRadius.circular(10),
-                                          border: Border.all(color: const Color(0xFFE1E2E4)),
+                                          borderRadius:
+                                              BorderRadius.circular(10),
+                                          border: Border.all(
+                                              color: AppColors.border),
                                         ),
                                         padding: const EdgeInsets.all(16),
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Row(
-                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment
+                                                      .spaceBetween,
                                               children: [
                                                 Text(
                                                   customerName,
-                                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87),
+                                                  style: const TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      fontSize: 14,
+                                                      color: Colors.black87),
                                                 ),
                                                 Text(
                                                   '${currencyFormat.format(order.total)} đ',
-                                                  style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0067AC), fontSize: 14),
+                                                  style: const TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color: AppColors.primary,
+                                                      fontSize: 14),
                                                 ),
                                               ],
                                             ),
                                             const SizedBox(height: 8),
                                             Row(
-                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment
+                                                      .spaceBetween,
                                               children: [
                                                 Column(
-                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
                                                   children: [
                                                     Text(
-                                                      'Mã đơn: ${order.id}',
-                                                      style: const TextStyle(color: Colors.black54, fontSize: 12),
+                                                      l10n.orderIdLabel(
+                                                          order.id),
+                                                      style: const TextStyle(
+                                                          color: Colors.black54,
+                                                          fontSize: 12),
                                                     ),
                                                     const SizedBox(height: 2),
                                                     Text(
-                                                      DateFormat('dd/MM/yyyy HH:mm').format(order.createdAt),
-                                                      style: const TextStyle(color: Colors.black38, fontSize: 11),
+                                                      DateFormat(
+                                                              'dd/MM/yyyy HH:mm')
+                                                          .format(
+                                                              order.createdAt),
+                                                      style: const TextStyle(
+                                                          color: Colors.black38,
+                                                          fontSize: 11),
                                                     ),
                                                   ],
                                                 ),
                                                 Row(
                                                   children: [
                                                     Container(
-                                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                      padding: const EdgeInsets
+                                                          .symmetric(
+                                                          horizontal: 8,
+                                                          vertical: 4),
                                                       decoration: BoxDecoration(
-                                                        color: order.status == 'draft'
-                                                            ? Colors.orange.withOpacity(0.06)
-                                                            : Colors.green.withOpacity(0.06),
-                                                        borderRadius: BorderRadius.circular(4),
+                                                        color: order.status ==
+                                                                'draft'
+                                                            ? Colors.orange
+                                                                .withOpacity(
+                                                                    0.06)
+                                                            : Colors.green
+                                                                .withOpacity(
+                                                                    0.06),
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(4),
                                                       ),
                                                       child: Text(
-                                                        order.status == 'draft' ? 'Lưu tạm' : 'Đã thanh toán',
+                                                        order.status == 'draft'
+                                                            ? l10n.draft
+                                                            : l10n.paid,
                                                         style: TextStyle(
-                                                          color: order.status == 'draft' ? Colors.orange : Colors.green,
+                                                          color: order.status ==
+                                                                  'draft'
+                                                              ? Colors.orange
+                                                              : Colors.green,
                                                           fontSize: 10,
-                                                          fontWeight: FontWeight.bold,
+                                                          fontWeight:
+                                                              FontWeight.bold,
                                                         ),
                                                       ),
                                                     ),
                                                     const SizedBox(width: 6),
                                                     Container(
-                                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                      padding: const EdgeInsets
+                                                          .symmetric(
+                                                          horizontal: 8,
+                                                          vertical: 4),
                                                       decoration: BoxDecoration(
-                                                        color: const Color(0xFF0067AC).withOpacity(0.06),
-                                                        borderRadius: BorderRadius.circular(4),
+                                                        color: AppColors.primary
+                                                            .withOpacity(0.06),
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(4),
                                                       ),
                                                       child: Text(
                                                         paymentMethodStr,
-                                                        style: const TextStyle(color: Color(0xFF0067AC), fontSize: 10, fontWeight: FontWeight.bold),
+                                                        style: const TextStyle(
+                                                            color: AppColors
+                                                                .primary,
+                                                            fontSize: 10,
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .bold),
                                                       ),
                                                     ),
                                                   ],
@@ -285,11 +363,12 @@ class _InvoicesPageState extends ConsumerState<InvoicesPage> {
   }
 
   // Thanh bộ lọc (Thời gian & Chi nhánh)
-  Widget _buildFiltersBar(BuildContext context, String dateText, String branchText) {
+  Widget _buildFiltersBar(
+      BuildContext context, String dateText, String branchText) {
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
-        border: Border(bottom: BorderSide(color: Color(0xFFEEEEEE))),
+        border: Border(bottom: BorderSide(color: AppColors.divider)),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
       child: Row(
@@ -303,13 +382,14 @@ class _InvoicesPageState extends ConsumerState<InvoicesPage> {
                   Text(
                     dateText,
                     style: const TextStyle(
-                      color: Color(0xFF0067AC),
+                      color: AppColors.primary,
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
                     ),
                   ),
                   const SizedBox(width: 4),
-                  const Icon(Icons.arrow_drop_down, color: Color(0xFF0067AC), size: 18),
+                  const Icon(Icons.arrow_drop_down,
+                      color: AppColors.primary, size: 18),
                 ],
               ),
             ),
@@ -328,7 +408,8 @@ class _InvoicesPageState extends ConsumerState<InvoicesPage> {
                   ),
                 ),
                 const SizedBox(width: 4),
-                const Icon(Icons.arrow_drop_down, color: Colors.black54, size: 18),
+                const Icon(Icons.arrow_drop_down,
+                    color: Colors.black54, size: 18),
               ],
             ),
           ),
@@ -338,20 +419,27 @@ class _InvoicesPageState extends ConsumerState<InvoicesPage> {
   }
 
   // Thẻ tổng kết trên cùng danh sách hoá đơn
-  Widget _buildTotalSummaryCard(int count, double totalRevenue, NumberFormat format) {
+  Widget _buildTotalSummaryCard(int count, double totalRevenue,
+      NumberFormat format, AppLocalizations l10n) {
     return Container(
-      color: const Color(0xFFE3F2FD),
+      color: AppColors.primary.withOpacity(0.12),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            'Tổng cộng ($count hoá đơn)',
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87),
+            l10n.totalInvoices(count),
+            style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                color: Colors.black87),
           ),
           Text(
             '${format.format(totalRevenue)} đ',
-            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Color(0xFF0067AC)),
+            style: const TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 15,
+                color: AppColors.primary),
           )
         ],
       ),
@@ -359,14 +447,24 @@ class _InvoicesPageState extends ConsumerState<InvoicesPage> {
   }
 
   // Tra cứu tên khách hàng dựa trên ID
-  String _getCustomerName(List<Customer> customers, String id) {
-    if (id == 'khach_le' || id.isEmpty) return 'Khách lẻ';
-    final match = customers.firstWhere((c) => c.id == id, orElse: () => const Customer(id: '', name: 'Khách lẻ', phone: '', email: '', address: '', purchases: []));
+  String _getCustomerName(
+      BuildContext context, List<Customer> customers, String id) {
+    final l10n = AppLocalizations.of(context)!;
+    if (id == 'khach_le' || id.isEmpty) return l10n.retailCustomer;
+    final match = customers.firstWhere((c) => c.id == id,
+        orElse: () => Customer(
+            id: '',
+            name: l10n.retailCustomer,
+            phone: '',
+            email: '',
+            address: '',
+            purchases: const []));
     return match.name;
   }
 
   // Hộp thoại Bottom Sheet lọc Thời gian
   void _showDateRangeFilterBottomSheet(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
@@ -379,41 +477,52 @@ class _InvoicesPageState extends ConsumerState<InvoicesPage> {
       builder: (sheetContext) {
         return Consumer(
           builder: (consumerContext, sheetRef, child) {
-            final activeType = sheetRef.watch(selectedTimeRangeTypeProvider);
+            final activeType = sheetRef.watch(invoicesTimeRangeTypeProvider);
             return Container(
               padding: const EdgeInsets.only(top: 16, bottom: 24),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16.0, vertical: 8.0),
                     child: Text(
-                      'Thời gian',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      l10n.timeRange,
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                   ),
-                  const Divider(color: Color(0xFFEEEEEE)),
+                  const Divider(color: AppColors.divider),
                   ...OverviewTimeRange.values.map((type) {
                     final isSelected = activeType == type;
                     return ListTile(
                       title: Text(
                         type.label,
                         style: TextStyle(
-                          color: isSelected ? const Color(0xFF0067AC) : Colors.black87,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          color:
+                              isSelected ? AppColors.primary : Colors.black87,
+                          fontWeight:
+                              isSelected ? FontWeight.bold : FontWeight.normal,
                         ),
                       ),
-                      trailing: isSelected ? const Icon(Icons.check, color: Color(0xFF0067AC)) : null,
+                      trailing: isSelected
+                          ? const Icon(Icons.check, color: AppColors.primary)
+                          : null,
                       onTap: () async {
                         Navigator.pop(consumerContext);
                         if (type == OverviewTimeRange.custom) {
-                          final initialRange = ref.read(customDateRangeProvider);
+                          final initialRange =
+                              ref.read(invoicesCustomDateRangeProvider);
                           final now = DateTime.now();
                           // Chuẩn hóa initialRange về start of day để tránh lỗi của Flutter date picker
                           final normalizedInitialRange = DateTimeRange(
-                            start: DateTime(initialRange.start.year, initialRange.start.month, initialRange.start.day),
-                            end: DateTime(initialRange.end.year, initialRange.end.month, initialRange.end.day),
+                            start: DateTime(
+                                initialRange.start.year,
+                                initialRange.start.month,
+                                initialRange.start.day),
+                            end: DateTime(initialRange.end.year,
+                                initialRange.end.month, initialRange.end.day),
                           );
                           final pickedRange = await showDateRangePicker(
                             context: context,
@@ -422,11 +531,17 @@ class _InvoicesPageState extends ConsumerState<InvoicesPage> {
                             initialDateRange: normalizedInitialRange,
                           );
                           if (pickedRange != null) {
-                            ref.read(customDateRangeProvider.notifier).state = pickedRange;
-                            ref.read(selectedTimeRangeTypeProvider.notifier).state = OverviewTimeRange.custom;
+                            ref
+                                .read(invoicesCustomDateRangeProvider.notifier)
+                                .state = pickedRange;
+                            ref
+                                .read(invoicesTimeRangeTypeProvider.notifier)
+                                .state = OverviewTimeRange.custom;
                           }
                         } else {
-                          ref.read(selectedTimeRangeTypeProvider.notifier).state = type;
+                          ref
+                              .read(invoicesTimeRangeTypeProvider.notifier)
+                              .state = type;
                         }
                       },
                     );
@@ -442,6 +557,7 @@ class _InvoicesPageState extends ConsumerState<InvoicesPage> {
 
   // Hộp thoại Bottom Sheet lọc Chi nhánh
   void _showBranchFilterBottomSheet(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
@@ -466,33 +582,38 @@ class _InvoicesPageState extends ConsumerState<InvoicesPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16.0, vertical: 8.0),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          'Chọn chi nhánh',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        Text(
+                          l10n.selectBranch,
+                          style: const TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold),
                         ),
                         InkWell(
                           onTap: () {
                             notifier.selectAll();
                           },
-                          child: const Text(
-                            'Chọn tất cả',
-                            style: TextStyle(color: Color(0xFF0067AC), fontSize: 13, fontWeight: FontWeight.w500),
+                          child: Text(
+                            l10n.selectAll,
+                            style: const TextStyle(
+                                color: AppColors.primary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500),
                           ),
                         )
                       ],
                     ),
                   ),
-                  const Divider(color: Color(0xFFEEEEEE)),
+                  const Divider(color: AppColors.divider),
                   ...mockBranches.map((branch) {
                     final isChecked = selectedBranchIds.contains(branch.id);
                     return CheckboxListTile(
                       title: Text(branch.name),
                       value: isChecked,
-                      activeColor: const Color(0xFF0067AC),
+                      activeColor: AppColors.primary,
                       onChanged: (_) {
                         notifier.toggleBranch(branch.id);
                       },
@@ -506,9 +627,9 @@ class _InvoicesPageState extends ConsumerState<InvoicesPage> {
                       child: FilledButton(
                         onPressed: () => Navigator.pop(context),
                         style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFF0067AC),
+                          backgroundColor: AppColors.primary,
                         ),
-                        child: const Text('Xong'),
+                        child: Text(l10n.doneBtn),
                       ),
                     ),
                   )
@@ -533,9 +654,9 @@ class _InvoicesPageState extends ConsumerState<InvoicesPage> {
           });
         }
       },
-      selectedColor: const Color(0xFF0067AC).withOpacity(0.12),
+      selectedColor: AppColors.primary.withOpacity(0.12),
       labelStyle: TextStyle(
-        color: isSelected ? const Color(0xFF0067AC) : Colors.black87,
+        color: isSelected ? AppColors.primary : Colors.black87,
         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
         fontSize: 12,
       ),
@@ -549,6 +670,7 @@ class _InvoicesPageState extends ConsumerState<InvoicesPage> {
     String customerName,
   ) {
     final currencyFormat = NumberFormat('#,###', 'vi_VN');
+    final l10n = AppLocalizations.of(context)!;
 
     showModalBottomSheet(
       context: context,
@@ -563,7 +685,8 @@ class _InvoicesPageState extends ConsumerState<InvoicesPage> {
       builder: (context) {
         return Container(
           padding: const EdgeInsets.all(16),
-          constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.8),
+          constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.8),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -572,8 +695,11 @@ class _InvoicesPageState extends ConsumerState<InvoicesPage> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    order.status == 'draft' ? 'Chi tiết đơn tạm' : 'Chi tiết hoá đơn',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    order.status == 'draft'
+                        ? l10n.draftDetail
+                        : l10n.invoiceDetail,
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   IconButton(
                     icon: const Icon(Icons.close),
@@ -581,24 +707,32 @@ class _InvoicesPageState extends ConsumerState<InvoicesPage> {
                   )
                 ],
               ),
-              const Divider(color: Color(0xFFEEEEEE)),
+              const Divider(color: AppColors.divider),
               Expanded(
                 child: SingleChildScrollView(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildDetailRow('Mã hoá đơn', order.id),
-                      _buildDetailRow('Khách hàng', customerName),
-                      _buildDetailRow('Thời gian tạo', DateFormat('dd/MM/yyyy HH:mm').format(order.createdAt)),
+                      _buildDetailRow(l10n.invoiceId, order.id),
+                      _buildDetailRow(l10n.customers, customerName),
                       _buildDetailRow(
-                        'Trạng thái',
-                        order.status == 'draft' ? 'Lưu tạm (Chưa thanh toán)' : 'Đã thanh toán',
-                        textColor: order.status == 'draft' ? Colors.orange : Colors.green,
+                          l10n.createdTime,
+                          DateFormat('dd/MM/yyyy HH:mm')
+                              .format(order.createdAt)),
+                      _buildDetailRow(
+                        l10n.status,
+                        order.status == 'draft' ? l10n.draftUnpaid : l10n.paid,
+                        textColor: order.status == 'draft'
+                            ? Colors.orange
+                            : Colors.green,
                       ),
                       const SizedBox(height: 16),
-                      const Text(
-                        'Danh sách sản phẩm',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87),
+                      Text(
+                        l10n.productList,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: Colors.black87),
                       ),
                       const SizedBox(height: 8),
                       ...order.items.map((item) {
@@ -613,34 +747,42 @@ class _InvoicesPageState extends ConsumerState<InvoicesPage> {
                                   children: [
                                     Text(
                                       item.productName,
-                                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                                      style: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w500),
                                     ),
                                     Text(
                                       '${item.quantity} x ${currencyFormat.format(item.price)} đ',
-                                      style: const TextStyle(fontSize: 11, color: Colors.black54),
+                                      style: const TextStyle(
+                                          fontSize: 11, color: Colors.black54),
                                     )
                                   ],
                                 ),
                               ),
                               Text(
                                 '${currencyFormat.format(item.price * item.quantity)} đ',
-                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                                style: const TextStyle(
+                                    fontSize: 13, fontWeight: FontWeight.bold),
                               )
                             ],
                           ),
                         );
                       }).toList(),
-                      const Divider(height: 24, color: Color(0xFFEEEEEE)),
+                      const Divider(height: 24, color: AppColors.divider),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            'Tổng tiền thanh toán',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                          Text(
+                            l10n.totalPaymentAmount,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 14),
                           ),
                           Text(
                             '${currencyFormat.format(order.total)} đ',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF0067AC)),
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: AppColors.primary),
                           )
                         ],
                       ),
@@ -656,16 +798,20 @@ class _InvoicesPageState extends ConsumerState<InvoicesPage> {
                   child: FilledButton(
                     onPressed: () {
                       Navigator.pop(context); // Đóng Bottom Sheet
-                      
+
                       // Nạp lại đơn hàng nháp vào giỏ hàng
-                      final products = ref.read(productListProvider).value ?? [];
-                      ref.read(cartProvider.notifier).populateCart(order.items, products);
-                      
+                      final products =
+                          ref.read(productListProvider).value ?? [];
+                      ref
+                          .read(cartProvider.notifier)
+                          .populateCart(order.items, products);
+
                       // Set mã đơn tạm đang hoạt động
                       ref.read(activeOrderIdProvider.notifier).state = order.id;
 
                       // Tìm khách hàng
-                      final customers = ref.read(customerListNotifierProvider).value ?? [];
+                      final customers =
+                          ref.read(customerListNotifierProvider).value ?? [];
                       Customer? customer;
                       for (final c in customers) {
                         if (c.id == order.customerId) {
@@ -685,12 +831,14 @@ class _InvoicesPageState extends ConsumerState<InvoicesPage> {
                       );
                     },
                     style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF0067AC),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      backgroundColor: AppColors.primary,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
                     ),
-                    child: const Text(
-                      'Tiếp tục thanh toán / Lên đơn',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    child: Text(
+                      l10n.continuePayment,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 14),
                     ),
                   ),
                 )
@@ -708,7 +856,8 @@ class _InvoicesPageState extends ConsumerState<InvoicesPage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontSize: 13, color: Colors.black54)),
+          Text(label,
+              style: const TextStyle(fontSize: 13, color: Colors.black54)),
           Text(
             value,
             style: TextStyle(

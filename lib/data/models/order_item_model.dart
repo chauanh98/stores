@@ -16,20 +16,21 @@ class OrderItemModel {
   });
 
   Map<String, dynamic> toMap() => {
-    'productId': productId,
-    'productName': productName,
-    'quantity': quantity,
-    'price': price,
-    'warrantyMonths': warrantyMonths,
-    'purchaseDate': purchaseDate.toIso8601String(),
-  };
+        'productId': productId,
+        'productName': productName,
+        'quantity': quantity,
+        'price': price,
+        'warrantyMonths': warrantyMonths,
+        'purchaseDate': purchaseDate.toIso8601String(),
+      };
 
   factory OrderItemModel.fromMap(Map<dynamic, dynamic> map) => OrderItemModel(
-    productId: map['productId'] as String,
-    productName: map['productName'] as String,
-    quantity: map['quantity'] as int,
-    price: (map['price'] as num?)?.toDouble() ?? 0.0, // Fallback về 0.0 nếu không có price
-    warrantyMonths: map['warrantyMonths'] as int,
-    purchaseDate: DateTime.parse(map['purchaseDate'] as String),
-  );
+        productId: map['productId'] as String,
+        productName: map['productName'] as String,
+        quantity: map['quantity'] as int,
+        price: (map['price'] as num?)?.toDouble() ?? 0.0,
+        // Fallback về 0.0 nếu không có price
+        warrantyMonths: map['warrantyMonths'] as int,
+        purchaseDate: DateTime.parse(map['purchaseDate'] as String),
+      );
 }

@@ -37,6 +37,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   # State management
   flutter_riverpod: ^2.6.1
+  shared_preferences: ^2.3.2
   fl_chart: ^0.69.0
 
   # Routing
@@ -53,6 +54,10 @@ dependencies:
   json_annotation: ^4.9.0
 
   # Utils
+  excel: ^4.0.6
+  file_picker: ^8.1.2
+  share_plus: ^10.0.2
+  path_provider: ^2.1.4
 
   uuid: ^4.5.0
   logger: ^2.5.0

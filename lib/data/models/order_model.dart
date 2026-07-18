@@ -18,22 +18,23 @@ class OrderModel {
   });
 
   Map<String, dynamic> toMap() => {
-    'id': id,
-    'customerId': customerId,
-    'createdAt': createdAt.toIso8601String(),
-    'total': total,
-    'items': items.map((e) => e.toMap()).toList(),
-    'status': status,
-  };
+        'id': id,
+        'customerId': customerId,
+        'createdAt': createdAt.toIso8601String(),
+        'total': total,
+        'items': items.map((e) => e.toMap()).toList(),
+        'status': status,
+      };
 
   factory OrderModel.fromMap(Map<dynamic, dynamic> map) => OrderModel(
-    id: map['id'] as String,
-    customerId: map['customerId'] as String,
-    createdAt: DateTime.parse(map['createdAt'] as String),
-    total: (map['total'] as num).toDouble(),
-    items: (map['items'] as List)
-        .map((e) => OrderItemModel.fromMap(Map<String, dynamic>.from(e as Map)))
-        .toList(),
-    status: map['status']?.toString() ?? 'completed',
-  );
+        id: map['id'] as String,
+        customerId: map['customerId'] as String,
+        createdAt: DateTime.parse(map['createdAt'] as String),
+        total: (map['total'] as num).toDouble(),
+        items: (map['items'] as List)
+            .map((e) =>
+                OrderItemModel.fromMap(Map<String, dynamic>.from(e as Map)))
+            .toList(),
+        status: map['status']?.toString() ?? 'completed',
+      );
 }

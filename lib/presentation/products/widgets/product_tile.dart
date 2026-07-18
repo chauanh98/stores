@@ -166,7 +166,10 @@ class ProductTile extends ConsumerWidget {
     );
   }
 
+  static final NumberFormat _vietnamCurrencyFormat =
+      NumberFormat.currency(locale: 'vi_VN', symbol: 'đ');
+
   static String _formatPrice(double v) {
-    return NumberFormat.currency(locale: 'vi_VN', symbol: 'đ').format(v);
+    return _vietnamCurrencyFormat.format(v);
   }
 }

@@ -111,5 +111,151 @@
   "transferQuantity": "Transfer quantity",
   "transferCompleted": "Transfer completed",
   "targetStore": "Target store",
-  "transfer": "Transfer"
+  "transfer": "Transfer",
+  "importExcel": "Import from Excel",
+  "exportExcel": "Export to Excel",
+  "importSuccess": "Data imported successfully",
+  "exportSuccess": "Data exported successfully",
+  "noDataToExport": "No data to export",
+  "filePickerError": "No file selected",
+  "importError": "An error occurred during import",
+  "createdAt": "Created At",
+  "createdBy": "Created By",
+  "totalProducts": "Total ({count} items)",
+  "totalStockCount": "Total stock: {count}",
+  "totalCustomers": "Total ({count} customers)",
+  "totalInvoices": "Total ({count} invoices)",
+  "salesTitle": "Sales",
+  "searchPOSHint": "Search name, code, brand...",
+  "noProductsFound": "No matching products found",
+  "cartSummaryTitle": "Cart ({count} products)",
+  "@cartSummaryTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "doneBtn": "Done",
+  "outOfStockAlert": "Product is out of stock!",
+  "stockLimitAlert": "Cannot exceed stock limit ({count})!",
+  "@stockLimitAlert": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "loadingText": "Loading...",
+  "unknownStore": "Unknown Store",
+  "barcodeScannerStarting": "Barcode scanner is starting...",
+  "productCode": "Code",
+  "stockLabel": "Stock",
+  "checkout": "Checkout",
+  "change": "Change",
+  "retailCustomer": "Retail Customer",
+  "orderInfo": "Order Info",
+  "changePrice": "Change Price",
+  "newPrice": "New Price",
+  "totalProductAmount": "Total Product Amount",
+  "orderDiscount": "Order Discount",
+  "amountToPay": "Amount to Pay",
+  "amountPaid": "Amount Paid",
+  "changeDue": "Change Due",
+  "paymentMethod": "Payment Method",
+  "cash": "Cash",
+  "transfer": "Transfer",
+  "saveDraft": "Save Draft",
+  "selectCustomer": "Select Customer",
+  "fullNameRequired": "Full Name *",
+  "phoneNumberRequired": "Phone Number *",
+  "addCustomerSuccess": "Customer added successfully!",
+  "saveDraftTitle": "Save Draft",
+  "saveDraftConfirm": "Do you want to save this order as a draft?",
+  "no": "No",
+  "draftSaved": "Draft order saved!",
+  "paymentSuccess": "Payment completed successfully!",
+  "invoicesTitle": "Invoices",
+  "searchInvoicesHint": "Search by invoice ID, customer name...",
+  "paid": "Paid",
+  "draft": "Draft",
+  "orderIdLabel": "Order ID: {id}",
+  "@orderIdLabel": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "selectBranch": "Select Branch",
+  "selectAll": "Select All",
+  "invoiceDetail": "Invoice Detail",
+  "draftDetail": "Draft Detail",
+  "invoiceId": "Invoice ID",
+  "createdTime": "Created Time",
+  "status": "Status",
+  "draftUnpaid": "Draft (Unpaid)",
+  "productList": "Product List",
+  "totalPaymentAmount": "Total Payment Amount",
+  "continuePayment": "Continue Payment / Checkout",
+  "allBranches": "All Branches",
+  "noInvoicesFound": "No invoices found",
+  "timeRange": "Time Range",
+  "allBranchesCombined": "All branches (Combined)",
+  "store": "Store",
+  "profit": "Profit",
+  "invoiceCountLabel": "{count} invoices",
+  "@invoiceCountLabel": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "returnsCountLabel": "0 returns - 0",
+  "loans": "Loans",
+  "shipping": "Shipping",
+  "staff": "Staff",
+  "taxAndAccounting": "Tax & Accounting",
+  "revenue": "Revenue",
+  "noData": "No data to display",
+  "noTransactions": "No transactions in this period",
+  "ordersCount": "({count} orders)",
+  "@ordersCount": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "inventoryValue": "Inventory Value",
+  "goodsCount": "{count} products",
+  "@goodsCount": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "inventoryLoadError": "Inventory load error: {error}",
+  "@inventoryLoadError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "topSelling": "Top Selling Products",
+  "byRevenue": "By Revenue",
+  "byQuantity": "By Quantity",
+  "noSalesData": "No sales data available",
+  "soldQty": "Sold: {count}",
+  "@soldQty": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "update": "Update"
 }

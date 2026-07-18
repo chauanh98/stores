@@ -1,4 +1,5 @@
 import 'package:firebase_database/firebase_database.dart';
+
 import '../../domain/entities/customer.dart';
 import '../../domain/entities/product.dart';
 import '../../domain/entities/purchase.dart';
@@ -22,15 +23,18 @@ class SampleDataSeeder {
         'phone': customer.phone,
         'email': customer.email,
         'address': customer.address,
-        'purchases': customer.purchases.map((purchase) => {
-          'productId': purchase.productId,
-          'quantity': purchase.quantity,
-          'purchaseDate': purchase.purchaseDate.toIso8601String(),
-          'warranty': {
-            'months': purchase.warranty.months,
-            'expireDate': purchase.warranty.expireDate.toIso8601String(),
-          },
-        }).toList(),
+        'purchases': customer.purchases
+            .map((purchase) => {
+                  'productId': purchase.productId,
+                  'quantity': purchase.quantity,
+                  'purchaseDate': purchase.purchaseDate.toIso8601String(),
+                  'warranty': {
+                    'months': purchase.warranty.months,
+                    'expireDate':
+                        purchase.warranty.expireDate.toIso8601String(),
+                  },
+                })
+            .toList(),
       });
     }
 

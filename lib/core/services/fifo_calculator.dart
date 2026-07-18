@@ -21,9 +21,10 @@ class FifoCalculator {
   static final Map<String, List<InventoryLot>> _inventoryTracker = {};
 
   /// Khởi tạo inventory tracker từ các giao dịch import
-  static void initializeInventoryTracker(List<InventoryTransaction> importTransactions) {
+  static void initializeInventoryTracker(
+      List<InventoryTransaction> importTransactions) {
     _inventoryTracker.clear();
-    
+
     // Lọc và sắp xếp các giao dịch import
     final imports = importTransactions
         .where((t) => t.type == TransactionType.import)
@@ -79,7 +80,8 @@ class FifoCalculator {
 
     // Nếu không đủ inventory để tính cost
     if (remainingQuantity > 0) {
-      print('Warning: Not enough inventory for product $productId, remaining: $remainingQuantity');
+      print(
+          'Warning: Not enough inventory for product $productId, remaining: $remainingQuantity');
       // Có thể dùng giá trung bình hoặc giá cuối cùng
       final lastLot = inventoryLots.last;
       totalCost += remainingQuantity * lastLot.importPrice;
@@ -119,7 +121,8 @@ class FifoCalculator {
 
     // Nếu không đủ inventory
     if (remainingQuantity > 0) {
-      print('Warning: Not enough inventory for product $productId, remaining: $remainingQuantity');
+      print(
+          'Warning: Not enough inventory for product $productId, remaining: $remainingQuantity');
       final lastLot = inventoryLots.last;
       totalCost += remainingQuantity * lastLot.importPrice;
     }

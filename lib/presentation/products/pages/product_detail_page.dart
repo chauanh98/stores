@@ -1,17 +1,26 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart' hide Category;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:stores/presentation/common/widgets/loading_indicator.dart';
 
-import '../../inventories/pages/inter_store_transfer_page.dart';
-import '../../../application/products/products_providers.dart';
-import '../../../application/inventory/inventory_providers.dart';
 import '../../../application/auth/auth_providers.dart';
+import '../../../application/inventory/inventory_providers.dart';
+import '../../../application/products/categories_providers.dart';
+import '../../../application/products/products_providers.dart';
 import '../../../application/reports/overview_providers.dart';
 import '../../../core/constants/product_categories.dart';
+import '../../../domain/entities/category.dart';
 import '../../../domain/entities/product.dart';
-import '../../../core/constants/app_constants.dart';
+import '../../common/widgets/loading_indicator.dart';
+import '../../inventories/pages/inter_store_transfer_page.dart';
+import 'select_brand_page.dart';
+import 'select_category_page.dart';
 
 class ProductDetailPage extends ConsumerStatefulWidget {
   final Product product;
@@ -31,16 +40,37 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
   late Product _currentProduct;
   int _txFilterIndex = 0; // 0: All, 1: Imports, 2: Exports
 
+  // Collapsible section states for Details Page
+  bool _showDetailsDesc = false;
+  bool _showDetailsStockLimits = false;
+  bool _showDetailsOther = false;
+
+  // Controllers for Edit Form
   late TextEditingController _nameController;
   late TextEditingController _codeController;
   late TextEditingController _barcodeController;
   late TextEditingController _brandController;
-  late TextEditingController _modelController;
   late TextEditingController _priceController;
   late TextEditingController _costPriceController;
-  late TextEditingController _branch1StockController;
-  late TextEditingController _branch2StockController;
-  late String _selectedCategory;
+  late TextEditingController _stockController;
+  late TextEditingController _descriptionController;
+  late TextEditingController _minStockController;
+  late TextEditingController _maxStockController;
+  late TextEditingController _noteTemplateController;
+  late TextEditingController _componentsController;
+
+  Category? _selectedCategory;
+  String _selectedCategoryPath = '';
+
+  // Edit Image Upload State
+  File? _newImageFile;
+  Uint8List? _newImageBytes;
+  bool _clearCurrentImage = false;
+
+  // Attributes & Units states for Edit Form
+  List<Map<String, String>> _attributes = [];
+  List<Map<String, dynamic>> _units = [];
+  bool _sellDirectly = true;
 
   @override
   void initState() {
@@ -52,14 +82,53 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
   void _initializeControllers() {
     _nameController = TextEditingController(text: _currentProduct.name);
     _codeController = TextEditingController(text: _currentProduct.code);
-    _barcodeController = TextEditingController(text: _currentProduct.barcode ?? '');
-    _brandController = TextEditingController(text: _currentProduct.brand);
-    _modelController = TextEditingController(text: _currentProduct.model);
-    _priceController = TextEditingController(text: _currentProduct.price.toStringAsFixed(0));
-    _costPriceController = TextEditingController(text: _currentProduct.costPrice.toStringAsFixed(0));
-    _branch1StockController = TextEditingController(text: (_currentProduct.branchStocks['branch_1'] ?? 0).toString());
-    _branch2StockController = TextEditingController(text: (_currentProduct.branchStocks['branch_2'] ?? 0).toString());
-    _selectedCategory = _currentProduct.category;
+    _barcodeController =
+        TextEditingController(text: _currentProduct.barcode ?? '');
+    _brandController = TextEditingController(text: _currentProduct.brand ?? '');
+    _priceController =
+        TextEditingController(text: _currentProduct.price.toStringAsFixed(0));
+    _costPriceController = TextEditingController(
+        text: _currentProduct.costPrice.toStringAsFixed(0));
+    _stockController =
+        TextEditingController(text: _currentProduct.stock.toString());
+    _descriptionController =
+        TextEditingController(text: _currentProduct.description ?? '');
+
+    // Parse stock limits if available
+    _minStockController = TextEditingController();
+    _maxStockController = TextEditingController();
+
+    _noteTemplateController =
+        TextEditingController(text: _currentProduct.noteTemplate ?? '');
+    _componentsController =
+        TextEditingController(text: _currentProduct.components ?? '');
+
+    _selectedCategoryPath =
+        _currentProduct.category3Levels ?? _currentProduct.category;
+
+    // Parse model field as attributes (stored as "key:value, key:value")
+    _attributes = [];
+    if (_currentProduct.model != null && _currentProduct.model!.isNotEmpty) {
+      try {
+        final pairs = _currentProduct.model!.split(', ');
+        for (final pair in pairs) {
+          final parts = pair.split(':');
+          if (parts.length == 2) {
+            _attributes.add({'name': parts[0], 'value': parts[1]});
+          }
+        }
+      } catch (_) {}
+    }
+
+    _units = [];
+    if (_currentProduct.unit != null && _currentProduct.unit!.isNotEmpty) {
+      _units
+          .add({'name': _currentProduct.unit, 'price': _currentProduct.price});
+    }
+
+    _clearCurrentImage = false;
+    _newImageFile = null;
+    _newImageBytes = null;
   }
 
   @override
@@ -68,11 +137,14 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
     _codeController.dispose();
     _barcodeController.dispose();
     _brandController.dispose();
-    _modelController.dispose();
     _priceController.dispose();
     _costPriceController.dispose();
-    _branch1StockController.dispose();
-    _branch2StockController.dispose();
+    _stockController.dispose();
+    _descriptionController.dispose();
+    _minStockController.dispose();
+    _maxStockController.dispose();
+    _noteTemplateController.dispose();
+    _componentsController.dispose();
     super.dispose();
   }
 
@@ -84,7 +156,8 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6F9),
       appBar: AppBar(
-        title: Text(_isEditing ? l10n.editProduct : l10n.productDetail),
+        title: Text(_isEditing ? 'Thông tin cơ bản' : l10n.productDetail,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         backgroundColor: Colors.white,
         actions: [
           if (!_isEditing) ...[
@@ -92,15 +165,22 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
               icon: const Icon(Icons.swap_horiz),
               onPressed: () {
                 Navigator.of(context).push(MaterialPageRoute(
-                  builder: (context) => InterStoreTransferPage(product: _currentProduct),
+                  builder: (context) =>
+                      InterStoreTransferPage(product: _currentProduct),
                 ));
               },
               tooltip: l10n.transferProduct,
             ),
-            IconButton(
-              icon: const Icon(Icons.edit_outlined),
-              onPressed: () => setState(() => _isEditing = true),
-              tooltip: l10n.edit,
+            TextButton(
+              onPressed: () {
+                _initializeControllers();
+                setState(() => _isEditing = true);
+              },
+              child: const Text('Sửa',
+                  style: TextStyle(
+                      color: Color(0xFF0067AC),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16)),
             ),
             IconButton(
               icon: const Icon(Icons.delete_outline, color: Colors.red),
@@ -108,10 +188,13 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
               tooltip: l10n.delete,
             ),
           ] else ...[
-            IconButton(
-              icon: const Icon(Icons.save_outlined),
+            TextButton(
               onPressed: _isLoading ? null : _saveProduct,
-              tooltip: l10n.save,
+              child: const Text('Lưu',
+                  style: TextStyle(
+                      color: Color(0xFF0067AC),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16)),
             ),
             IconButton(
               icon: const Icon(Icons.close),
@@ -122,26 +205,83 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
         ],
       ),
       body: _isLoading
-          ? const Center(child: LoadingIndicator())
+          ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (!_isEditing) ...[
-                    // MÀN HÌNH XEM CHI TIẾT
+                    // 1. Details Page View
                     _buildProductHeader(context),
                     const SizedBox(height: 12),
                     _buildBasicInfoCard(context, currencyFormat),
                     const SizedBox(height: 12),
                     _buildBranchStockCard(context),
                     const SizedBox(height: 12),
-                    _buildAssistantCard(context),
-                    const SizedBox(height: 12),
+
+                    // Collapsible description
+                    _buildDetailsActionRow(
+                      icon: Icons.notes,
+                      label: 'Mô tả',
+                      onTap: () =>
+                          setState(() => _showDetailsDesc = !_showDetailsDesc),
+                      isToggled: _showDetailsDesc,
+                    ),
+                    if (_showDetailsDesc) ...[
+                      const SizedBox(height: 8),
+                      _buildDetailsCollapsibleCard(
+                          _currentProduct.description ?? 'Không có mô tả'),
+                    ],
+                    const SizedBox(height: 8),
+
+                    // Collapsible stock limits
+                    _buildDetailsActionRow(
+                      icon: Icons.notifications_active_outlined,
+                      label: 'Định mức tồn kho',
+                      onTap: () => setState(() =>
+                          _showDetailsStockLimits = !_showDetailsStockLimits),
+                      isToggled: _showDetailsStockLimits,
+                    ),
+                    if (_showDetailsStockLimits) ...[
+                      const SizedBox(height: 8),
+                      _buildDetailsCollapsibleCard(
+                          'Tồn tối thiểu: 0 • Tồn tối đa: 999,999,999'),
+                    ],
+                    const SizedBox(height: 8),
+
+                    // Transaction list (Thẻ kho)
                     _buildStockCardSection(context, currencyFormat),
+                    const SizedBox(height: 12),
+
+                    // Direct Selling switch
+                    Card(
+                      color: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        side: const BorderSide(color: Color(0xFFE2E8F0)),
+                      ),
+                      child: SwitchListTile(
+                        value: _sellDirectly,
+                        onChanged: (v) => _toggleSellDirectly(v),
+                        title: const Text(
+                          'Bán trực tiếp',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: Colors.black87),
+                        ),
+                        subtitle: const Text(
+                            'Cho phép sản phẩm bán trực tiếp tại quầy POS',
+                            style: TextStyle(fontSize: 11)),
+                        activeColor: const Color(0xFF0067AC),
+                      ),
+                    ),
+                    const SizedBox(height: 48),
                   ] else ...[
-                    // MÀN HÌNH CHỈNH SỬA
-                    _buildEditForm(l10n),
+                    // 2. Edit Form View
+                    _buildEditForm(),
                   ],
                 ],
               ),
@@ -160,14 +300,25 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
       padding: const EdgeInsets.all(16),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 28,
-            backgroundColor: const Color(0xFF0067AC).withOpacity(0.08),
-            child: Icon(
-              ProductCategories.getCategoryIcon(_currentProduct.category),
-              color: const Color(0xFF0067AC),
-              size: 28,
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(8),
             ),
+            child: _currentProduct.imageUrl != null &&
+                    _currentProduct.imageUrl!.isNotEmpty
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(_currentProduct.imageUrl!,
+                        fit: BoxFit.cover),
+                  )
+                : Icon(
+                    ProductCategories.getCategoryIcon(_currentProduct.category),
+                    color: const Color(0xFF0067AC),
+                    size: 28,
+                  ),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -178,16 +329,8 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                   _currentProduct.name,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
-                        fontSize: 18,
+                        fontSize: 16,
                       ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${_currentProduct.brand} • ${_currentProduct.model}',
-                  style: const TextStyle(
-                    color: Colors.black54,
-                    fontSize: 13,
-                  ),
                 ),
               ],
             ),
@@ -197,7 +340,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
     );
   }
 
-  // Thẻ thông tin tài chính & định danh cơ bản
+  // Basic Info Card
   Widget _buildBasicInfoCard(BuildContext context, NumberFormat format) {
     return Container(
       decoration: BoxDecoration(
@@ -212,11 +355,13 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
           const Divider(height: 1, color: Color(0xFFEEEEEE)),
           _buildDetailRow('Mã vạch', _currentProduct.barcode ?? '—', true),
           const Divider(height: 1, color: Color(0xFFEEEEEE)),
-          _buildDetailRow('Giá vốn', '${format.format(_currentProduct.costPrice)} đ', false),
+          _buildDetailRow('Giá vốn',
+              '${format.format(_currentProduct.costPrice)} đ', false),
           const Divider(height: 1, color: Color(0xFFEEEEEE)),
-          _buildDetailRow('Giá bán', '${format.format(_currentProduct.price)} đ', false),
+          _buildDetailRow(
+              'Giá bán', '${format.format(_currentProduct.price)} đ', false),
           const Divider(height: 1, color: Color(0xFFEEEEEE)),
-          _buildDetailRow('Nhóm hàng', _currentProduct.category, false),
+          _buildDetailRow('Nhóm hàng', _selectedCategoryPath, false),
         ],
       ),
     );
@@ -228,16 +373,29 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(color: Colors.black54, fontSize: 14)),
+          Text(label,
+              style: const TextStyle(color: Colors.black54, fontSize: 13)),
           Row(
             children: [
               Text(
                 value,
-                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Colors.black87),
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: Colors.black87),
               ),
               if (isCopyable && value != '—') ...[
                 const SizedBox(width: 6),
-                const Icon(Icons.copy_outlined, size: 14, color: Colors.black38),
+                GestureDetector(
+                  onTap: () {
+                    Clipboard.setData(ClipboardData(text: value));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Đã sao chép: $value')),
+                    );
+                  },
+                  child: const Icon(Icons.copy_outlined,
+                      size: 14, color: Color(0xFF0067AC)),
+                )
               ]
             ],
           )
@@ -246,7 +404,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
     );
   }
 
-  // Thẻ tồn kho chi nhánh
+  // Branch Stock Card
   Widget _buildBranchStockCard(BuildContext context) {
     return InkWell(
       onTap: () => _showBranchStockBottomSheet(context),
@@ -265,12 +423,15 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
               children: [
                 const Text(
                   'Tồn kho',
-                  style: TextStyle(fontSize: 14, color: Colors.black54),
+                  style: TextStyle(fontSize: 13, color: Colors.black54),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Tổng tồn: ${_currentProduct.stock}',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      color: Colors.black87),
                 )
               ],
             ),
@@ -278,7 +439,10 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
               children: const [
                 Text(
                   'Chi tiết',
-                  style: TextStyle(color: Color(0xFF0067AC), fontSize: 13, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                      color: Color(0xFF0067AC),
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold),
                 ),
                 SizedBox(width: 4),
                 Icon(Icons.chevron_right, color: Color(0xFF0067AC), size: 18),
@@ -290,57 +454,58 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
     );
   }
 
-  // Thẻ Trợ lý phân tích (KiotViet Assistant Mock)
-  Widget _buildAssistantCard(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE1E2E4)),
+  Widget _buildDetailsActionRow({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    required bool isToggled,
+  }) {
+    return Card(
+      color: Colors.white,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: const BorderSide(color: Color(0xFFE2E8F0)),
       ),
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: Colors.teal.withOpacity(0.08),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.psychology_outlined, color: Colors.teal),
-              ),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Trợ lý ${AppConstants.appName}',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87),
-                  ),
-                  const SizedBox(height: 2),
-                  const Text(
-                    'Xem phân tích hiệu quả bán hàng',
-                    style: TextStyle(color: Colors.black54, fontSize: 12),
-                  )
-                ],
-              )
-            ],
-          ),
-          const Icon(Icons.chevron_right, color: Colors.black38)
-        ],
+      margin: EdgeInsets.zero,
+      child: ListTile(
+        leading: Icon(icon, color: const Color(0xFF0067AC), size: 20),
+        title: Text(label,
+            style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87)),
+        trailing: Icon(
+            isToggled ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+            size: 20),
+        onTap: onTap,
+        dense: true,
       ),
     );
   }
 
-  // Thẻ kho (Nhật ký giao dịch)
+  Widget _buildDetailsCollapsibleCard(String text) {
+    return Card(
+      color: Colors.white,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: const BorderSide(color: Color(0xFFE2E8F0)),
+      ),
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Text(text,
+            style: const TextStyle(fontSize: 13, color: Colors.black87)),
+      ),
+    );
+  }
+
   Widget _buildStockCardSection(BuildContext context, NumberFormat format) {
     return Consumer(
       builder: (context, ref, child) {
-        final txAsync = ref.watch(transactionsByProductProvider(_currentProduct.id));
+        final txAsync =
+            ref.watch(transactionsByProductProvider(_currentProduct.id));
         return Container(
           decoration: BoxDecoration(
             color: Colors.white,
@@ -356,13 +521,23 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                 children: [
                   const Text(
                     'Thẻ kho',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87),
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: Colors.black87),
                   ),
                   SegmentedButton<int>(
                     segments: const [
-                      ButtonSegment(value: 0, label: Text('Tất cả', style: TextStyle(fontSize: 11))),
-                      ButtonSegment(value: 1, label: Text('Nhập', style: TextStyle(fontSize: 11))),
-                      ButtonSegment(value: 2, label: Text('Xuất', style: TextStyle(fontSize: 11))),
+                      ButtonSegment(
+                          value: 0,
+                          label:
+                              Text('Tất cả', style: TextStyle(fontSize: 10))),
+                      ButtonSegment(
+                          value: 1,
+                          label: Text('Nhập', style: TextStyle(fontSize: 10))),
+                      ButtonSegment(
+                          value: 2,
+                          label: Text('Xuất', style: TextStyle(fontSize: 10))),
                     ],
                     selected: {_txFilterIndex},
                     onSelectionChanged: (set) {
@@ -375,7 +550,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               txAsync.when(
                 data: (txs) {
                   final filtered = txs.where((t) {
@@ -387,9 +562,11 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
 
                   if (filtered.isEmpty) {
                     return const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 24.0),
+                      padding: EdgeInsets.symmetric(vertical: 16.0),
                       child: Center(
-                        child: Text('Chưa có lịch sử giao dịch', style: TextStyle(color: Colors.black38)),
+                        child: Text('Chưa có lịch sử giao dịch',
+                            style:
+                                TextStyle(color: Colors.black38, fontSize: 12)),
                       ),
                     );
                   }
@@ -398,40 +575,50 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: filtered.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF0F0F0)),
+                    separatorBuilder: (_, __) =>
+                        const Divider(height: 1, color: Color(0xFFF0F0F0)),
                     itemBuilder: (context, index) {
                       final tx = filtered[index];
                       final isImport = tx.type.name == 'import';
                       return ListTile(
                         contentPadding: EdgeInsets.zero,
                         leading: Container(
-                          width: 36,
-                          height: 36,
+                          width: 32,
+                          height: 32,
                           decoration: BoxDecoration(
-                            color: isImport ? Colors.green.withOpacity(0.08) : Colors.red.withOpacity(0.08),
+                            color: isImport
+                                ? Colors.green.withOpacity(0.08)
+                                : Colors.red.withOpacity(0.08),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
                             isImport ? Icons.call_received : Icons.call_made,
                             color: isImport ? Colors.green : Colors.red,
-                            size: 18,
+                            size: 16,
                           ),
                         ),
                         title: Text(
                           '${DateFormat('dd/MM/yyyy HH:mm').format(tx.date)}',
-                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.black87),
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                              color: Colors.black87),
                         ),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              isImport ? 'Nhập kho hàng loạt' : 'Bán hàng (Đơn ${tx.note})',
-                              style: const TextStyle(color: Colors.black54, fontSize: 11),
+                              isImport
+                                  ? 'Nhập kho hàng loạt'
+                                  : 'Bán hàng (Đơn ${tx.note})',
+                              style: const TextStyle(
+                                  color: Colors.black54, fontSize: 11),
                             ),
                             if (tx.importPrice != null)
                               Text(
                                 'Giá nhập: ${format.format(tx.importPrice)} đ',
-                                style: const TextStyle(color: Colors.black45, fontSize: 11),
+                                style: const TextStyle(
+                                    color: Colors.black45, fontSize: 11),
                               ),
                           ],
                         ),
@@ -440,7 +627,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                           style: TextStyle(
                             color: isImport ? Colors.green : Colors.red,
                             fontWeight: FontWeight.w800,
-                            fontSize: 14,
+                            fontSize: 13,
                           ),
                         ),
                       );
@@ -448,7 +635,9 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                   );
                 },
                 loading: () => const Center(child: LoadingIndicator()),
-                error: (e, _) => Center(child: Text('Lỗi tải thẻ kho: $e')),
+                error: (e, _) => Center(
+                    child: Text('Lỗi tải thẻ kho: $e',
+                        style: const TextStyle(fontSize: 12))),
               )
             ],
           ),
@@ -457,7 +646,6 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
     );
   }
 
-  // Bottom Sheet hiển thị tồn kho chi tiết
   void _showBranchStockBottomSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -469,53 +657,357 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
         ),
       ),
       builder: (context) {
-        final currentStoreId = ref.read(currentStoreIdProvider);
-        final mockBranches = getMockBranches(currentStoreId);
-        final b1Name = mockBranches.firstWhere((b) => b.id == 'branch_1').name;
-        final b2Name = mockBranches.firstWhere((b) => b.id == 'branch_2').name;
+        return Consumer(
+          builder: (context, ref, child) {
+            final branches = ref.watch(branchesProvider);
+            final b1Name = branches.firstWhere((b) => b.id == 'branch_1').name;
+            final b2Name = branches.firstWhere((b) => b.id == 'branch_2').name;
 
-        return Container(
-          padding: const EdgeInsets.only(top: 16, bottom: 32, left: 16, right: 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            return Container(
+              padding: const EdgeInsets.only(
+                  top: 16, bottom: 32, left: 16, right: 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Tồn kho chi tiết',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Tồn kho chi tiết',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      )
+                    ],
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
-                  )
+                  const Divider(color: Color(0xFFEEEEEE)),
+                  ListTile(
+                    title: Text(b1Name, style: const TextStyle(fontSize: 14)),
+                    trailing: Text(
+                      '${_currentProduct.branchStocks['branch_1'] ?? 0}',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                  ),
+                  const Divider(height: 1, color: Color(0xFFF0F0F0)),
+                  ListTile(
+                    title: Text(b2Name, style: const TextStyle(fontSize: 14)),
+                    trailing: Text(
+                      '${_currentProduct.branchStocks['branch_2'] ?? 0}',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                  ),
+                  const Divider(height: 1, color: Color(0xFFF0F0F0)),
+                  ListTile(
+                    title: const Text('Tổng cộng toàn hệ thống',
+                        style: TextStyle(
+                            fontSize: 14, fontWeight: FontWeight.bold)),
+                    trailing: Text(
+                      '${_currentProduct.stock}',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          color: Color(0xFF0067AC)),
+                    ),
+                  ),
                 ],
               ),
-              const Divider(color: Color(0xFFEEEEEE)),
-              ListTile(
-                title: Text(b1Name, style: const TextStyle(fontSize: 14)),
-                trailing: Text(
-                  '${_currentProduct.branchStocks['branch_1'] ?? 0}',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // Toggle "Bán trực tiếp" directly from details
+  void _toggleSellDirectly(bool v) async {
+    setState(() {
+      _sellDirectly = v;
+      _isLoading = true;
+    });
+
+    try {
+      final updated = _currentProduct.copyWith(
+        type: v ? 'Hàng hóa' : 'Dịch vụ', // Map direct selling switch to type
+      );
+      await ref.read(productRepositoryProvider).upsert(updated);
+      ref.invalidate(productListProvider);
+      setState(() {
+        _currentProduct = updated;
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Đã cập nhật cấu hình bán trực tiếp!'),
+            backgroundColor: Colors.green),
+      );
+    } catch (e) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi: $e')),
+      );
+    }
+  }
+
+  // ----------------------------------------------------
+  // EDIT FORM VIEW SECTION
+  // ----------------------------------------------------
+
+  Widget _buildEditForm() {
+    return Column(
+      children: [
+        // Image Editor Card
+        _buildImageEditorCard(),
+        const SizedBox(height: 16),
+
+        // Fields Card
+        Card(
+          color: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+            side: const BorderSide(color: Color(0xFFE2E8F0)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                _buildEditField(_codeController, 'Mã hàng', Icons.tag,
+                    trailingIcon: Icons.qr_code_scanner),
+                const SizedBox(height: 16),
+                _buildEditField(_barcodeController, 'Mã vạch', Icons.qr_code,
+                    trailingIcon: Icons.qr_code_scanner),
+                const SizedBox(height: 16),
+                _buildEditField(_nameController, 'Tên hàng *', Icons.label,
+                    required: true),
+                const SizedBox(height: 16),
+                _buildCategorySelector(),
+                const SizedBox(height: 16),
+                _buildBrandSelector(),
+                const SizedBox(height: 16),
+                _buildEditField(_costPriceController, 'Giá vốn', Icons.download,
+                    isNumber: true, hint: '0'),
+                const SizedBox(height: 16),
+                _buildEditField(_priceController, 'Giá bán', Icons.upload,
+                    isNumber: true, hint: '0'),
+                const SizedBox(height: 16),
+                _buildEditField(_stockController, 'Tồn kho', Icons.inventory_2,
+                    isNumber: true, hint: '0'),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Description
+        _buildEditActionRow(
+          icon: Icons.notes,
+          label: 'Nhập mô tả',
+          onTap: () => setState(() => _showDetailsDesc = !_showDetailsDesc),
+          isToggled: _showDetailsDesc,
+        ),
+        if (_showDetailsDesc) ...[
+          const SizedBox(height: 8),
+          _buildEditCollapsibleInput(
+              _descriptionController, 'Nhập mô tả sản phẩm...',
+              maxLines: 3),
+        ],
+        const SizedBox(height: 8),
+
+        // Attributes
+        _buildEditActionRow(
+          icon: Icons.style,
+          label: 'Sửa thuộc tính',
+          onTap: _showAttributesDialog,
+          trailingWidget: _attributes.isNotEmpty
+              ? Chip(label: Text('${_attributes.length} thuộc tính'))
+              : null,
+        ),
+        if (_attributes.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          _buildAttributesList(),
+        ],
+        const SizedBox(height: 8),
+
+        // Units
+        _buildEditActionRow(
+          icon: Icons.straighten,
+          label: 'Sửa đơn vị tính',
+          onTap: _showUnitsDialog,
+          trailingWidget: _units.isNotEmpty
+              ? Chip(label: Text('${_units.length} ĐVT'))
+              : null,
+        ),
+        if (_units.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          _buildUnitsList(),
+        ],
+        const SizedBox(height: 8),
+
+        // Stock Limits
+        _buildEditActionRow(
+          icon: Icons.notifications_active_outlined,
+          label: 'Sửa định mức tồn kho',
+          onTap: () => setState(
+              () => _showDetailsStockLimits = !_showDetailsStockLimits),
+          isToggled: _showDetailsStockLimits,
+        ),
+        if (_showDetailsStockLimits) ...[
+          const SizedBox(height: 8),
+          _buildStockLimitsInputs(),
+        ],
+        const SizedBox(height: 8),
+
+        // Switch sell directly
+        Card(
+          color: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+            side: const BorderSide(color: Color(0xFFE2E8F0)),
+          ),
+          child: SwitchListTile(
+            value: _sellDirectly,
+            onChanged: (v) => setState(() => _sellDirectly = v),
+            title: const Text(
+              'Bán trực tiếp',
+              style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: Colors.black87),
+            ),
+            subtitle: const Text('Cho phép sản phẩm bán trực tiếp tại quầy POS',
+                style: TextStyle(fontSize: 11)),
+            activeColor: const Color(0xFF0067AC),
+          ),
+        ),
+        const SizedBox(height: 48),
+      ],
+    );
+  }
+
+  Widget _buildImageEditorCard() {
+    final showCurrentImage = _currentProduct.imageUrl != null &&
+        _currentProduct.imageUrl!.isNotEmpty &&
+        !_clearCurrentImage;
+
+    return GestureDetector(
+      onTap: _showImageSourceSheet,
+      child: Card(
+        color: Colors.white,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: const BorderSide(color: Color(0xFFE2E8F0)),
+        ),
+        child: Container(
+          height: 140,
+          width: double.infinity,
+          alignment: Alignment.center,
+          child: showCurrentImage ||
+                  _newImageFile != null ||
+                  _newImageBytes != null
+              ? Stack(
+                  children: [
+                    Positioned.fill(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: _newImageFile != null
+                            ? Image.file(_newImageFile!, fit: BoxFit.cover)
+                            : _newImageBytes != null
+                                ? Image.memory(_newImageBytes!,
+                                    fit: BoxFit.cover)
+                                : Image.network(_currentProduct.imageUrl!,
+                                    fit: BoxFit.cover),
+                      ),
+                    ),
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: GestureDetector(
+                        onTap: () => setState(() {
+                          _newImageFile = null;
+                          _newImageBytes = null;
+                          if (_currentProduct.imageUrl != null) {
+                            _clearCurrentImage = true;
+                          }
+                        }),
+                        child: CircleAvatar(
+                          radius: 14,
+                          backgroundColor: Colors.black.withOpacity(0.5),
+                          child: const Icon(Icons.close,
+                              color: Colors.white, size: 16),
+                        ),
+                      ),
+                    )
+                  ],
+                )
+              : Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0067AC).withOpacity(0.06),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.camera_alt,
+                          color: Color(0xFF0067AC), size: 28),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Thay đổi ảnh sản phẩm',
+                      style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.black54,
+                          fontWeight: FontWeight.bold),
+                    )
+                  ],
                 ),
+        ),
+      ),
+    );
+  }
+
+  void _showImageSourceSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(16),
+          topRight: Radius.circular(16),
+        ),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.image, color: Color(0xFF0067AC)),
+                title: const Text('Chọn ảnh trên máy'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickImageFromFile();
+                },
               ),
-              const Divider(height: 1, color: Color(0xFFF0F0F0)),
               ListTile(
-                title: Text(b2Name, style: const TextStyle(fontSize: 14)),
-                trailing: Text(
-                  '${_currentProduct.branchStocks['branch_2'] ?? 0}',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                ),
-              ),
-              const Divider(height: 1, color: Color(0xFFF0F0F0)),
-              ListTile(
-                title: const Text('Tổng cộng toàn hệ thống', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-                trailing: Text(
-                  '${_currentProduct.stock}',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0067AC)),
-                ),
+                leading: const Icon(Icons.camera_alt, color: Colors.orange),
+                title: const Text('Chụp ảnh mới'),
+                onTap: () {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content:
+                            Text('Tính năng máy ảnh đang được khởi động...')),
+                  );
+                },
               ),
             ],
           ),
@@ -524,152 +1016,441 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
     );
   }
 
-  // MÀN HÌNH CHỈNH SỬA SẢN PHẨM
-  Widget _buildEditForm(AppLocalizations l10n) {
-    return Form(
-      child: Column(
-        children: [
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE1E2E4)),
-            ),
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                _buildEditField(_nameController, 'Tên sản phẩm', Icons.label),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(child: _buildEditField(_codeController, 'Mã hàng SKU', Icons.qr_code)),
-                    const SizedBox(width: 12),
-                    Expanded(child: _buildEditField(_barcodeController, 'Mã vạch (Barcode)', Icons.barcode_reader, required: false)),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(child: _buildEditField(_brandController, l10n.brand, Icons.business)),
-                    const SizedBox(width: 12),
-                    Expanded(child: _buildEditField(_modelController, l10n.model, Icons.model_training)),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(child: _buildEditField(_costPriceController, 'Giá vốn', Icons.shopping_basket_outlined, isNumber: true)),
-                    const SizedBox(width: 12),
-                    Expanded(child: _buildEditField(_priceController, 'Giá bán', Icons.attach_money, isNumber: true)),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                _buildCategoryDropdown(l10n),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          // Cài đặt tồn kho cho các chi nhánh trực tiếp khi edit
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE1E2E4)),
-            ),
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Cập nhật tồn kho chi nhánh',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87),
-                ),
-                const SizedBox(height: 12),
-                _buildEditField(_branch1StockController, 'Cửa hàng Hà Nội', Icons.store, isNumber: true),
-                const SizedBox(height: 12),
-                _buildEditField(_branch2StockController, 'Cửa hàng TP.HCM', Icons.store, isNumber: true),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
+  void _pickImageFromFile() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(type: FileType.image);
+      if (result != null && result.files.isNotEmpty) {
+        final file = result.files.first;
+        if (kIsWeb) {
+          setState(() {
+            _newImageBytes = file.bytes;
+            _clearCurrentImage = true;
+          });
+        } else {
+          setState(() {
+            _newImageFile = File(file.path!);
+            _clearCurrentImage = true;
+          });
+        }
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi chọn ảnh: $e')),
+      );
+    }
   }
 
   Widget _buildEditField(
-    TextEditingController controller,
-    String label,
-    IconData icon, {
-    bool isNumber = false,
-    bool required = true,
-  }) {
-    final l10n = AppLocalizations.of(context)!;
-
+      TextEditingController controller, String label, IconData icon,
+      {bool required = false,
+      bool isNumber = false,
+      IconData? trailingIcon,
+      String? hint}) {
     return TextFormField(
       controller: controller,
+      keyboardType: isNumber ? TextInputType.number : TextInputType.text,
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon),
+        hintText: hint,
+        prefixIcon: Icon(icon, color: Colors.black45),
+        suffixIcon: trailingIcon != null
+            ? IconButton(
+                icon: Icon(trailingIcon, color: const Color(0xFF0067AC)),
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text('Đang khởi động camera quét mã...')),
+                  );
+                },
+              )
+            : null,
         border: const OutlineInputBorder(),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       ),
-      keyboardType: isNumber ? TextInputType.number : TextInputType.text,
-      validator: (value) {
-        if (required && (value == null || value.trim().isEmpty)) {
-          return '${l10n.pleaseEnter} $label';
-        }
-        if (isNumber && value != null && value.isNotEmpty) {
-          final number = double.tryParse(value);
-          if (number == null) {
-            return l10n.pleaseEnterValidNumber;
-          }
+      validator: (v) {
+        if (required && (v == null || v.trim().isEmpty)) {
+          return 'Vui lòng nhập $label';
         }
         return null;
       },
     );
   }
 
-  Widget _buildCategoryDropdown(AppLocalizations l10n) {
-    return DropdownButtonFormField<String>(
-      value: _selectedCategory,
-      decoration: const InputDecoration(
-        labelText: 'Nhóm hàng',
-        prefixIcon: Icon(Icons.category),
-        border: OutlineInputBorder(),
-        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+  Widget _buildCategorySelector() {
+    return InkWell(
+      onTap: _navigateToCategorySelect,
+      child: InputDecorator(
+        decoration: const InputDecoration(
+          labelText: 'Nhóm hàng *',
+          prefixIcon: Icon(Icons.category, color: Colors.black45),
+          border: OutlineInputBorder(),
+          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Text(
+                _selectedCategoryPath.isNotEmpty
+                    ? _selectedCategoryPath
+                    : 'Chọn nhóm hàng',
+                style: TextStyle(
+                  color: _selectedCategoryPath.isNotEmpty
+                      ? Colors.black87
+                      : Colors.black38,
+                  fontSize: 14,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: Colors.black54),
+          ],
+        ),
       ),
-      items: ProductCategories.categories.map((category) {
-        return DropdownMenuItem(
-          value: category,
-          child: Row(
-            children: [
-              Icon(ProductCategories.getCategoryIcon(category)),
-              const SizedBox(width: 8),
-              Text(category),
-            ],
+    );
+  }
+
+  void _navigateToCategorySelect() async {
+    final selected = await Navigator.push<Category>(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            SelectCategoryPage(initialCategory: _selectedCategory),
+      ),
+    );
+
+    if (selected != null) {
+      final categories = ref.read(categoryListProvider).value ?? [];
+      final path = <String>[selected.name];
+      var current = selected;
+      while (current.parentId != null) {
+        final parent = categories.firstWhere(
+          (c) => c.id == current.parentId,
+          orElse: () => Category(id: '', name: ''),
+        );
+        if (parent.id.isEmpty) break;
+        path.insert(0, parent.name);
+        current = parent;
+      }
+
+      setState(() {
+        _selectedCategory = selected;
+        _selectedCategoryPath = path.join(' >> ');
+      });
+    }
+  }
+
+  Widget _buildBrandSelector() {
+    return InkWell(
+      onTap: _navigateToBrandSelect,
+      child: InputDecorator(
+        decoration: const InputDecoration(
+          labelText: 'Thương hiệu',
+          prefixIcon: Icon(Icons.business, color: Colors.black45),
+          border: OutlineInputBorder(),
+          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Text(
+                _brandController.text.isNotEmpty
+                    ? _brandController.text
+                    : 'Chọn thương hiệu',
+                style: TextStyle(
+                  color: _brandController.text.isNotEmpty
+                      ? Colors.black87
+                      : Colors.black38,
+                  fontSize: 14,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: Colors.black54),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _navigateToBrandSelect() async {
+    final selected = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            SelectBrandPage(initialBrand: _brandController.text),
+      ),
+    );
+
+    if (selected != null) {
+      setState(() {
+        _brandController.text = selected;
+      });
+    }
+  }
+
+  Widget _buildEditActionRow({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    bool? isToggled,
+    Widget? trailingWidget,
+  }) {
+    return Card(
+      color: Colors.white,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: const BorderSide(color: Color(0xFFE2E8F0)),
+      ),
+      margin: EdgeInsets.zero,
+      child: ListTile(
+        leading: Icon(icon, color: const Color(0xFF0067AC), size: 20),
+        title: Text(label,
+            style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87)),
+        trailing: trailingWidget ??
+            (isToggled != null
+                ? Icon(isToggled
+                    ? Icons.keyboard_arrow_up
+                    : Icons.keyboard_arrow_down)
+                : const Icon(Icons.chevron_right)),
+        onTap: onTap,
+        dense: true,
+      ),
+    );
+  }
+
+  Widget _buildEditCollapsibleInput(
+      TextEditingController controller, String hint,
+      {int maxLines = 1}) {
+    return Card(
+      color: Colors.white,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: const BorderSide(color: Color(0xFFE2E8F0)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: TextFormField(
+          controller: controller,
+          maxLines: maxLines,
+          decoration: InputDecoration(
+            hintText: hint,
+            border: const OutlineInputBorder(),
+            contentPadding: const EdgeInsets.all(12),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStockLimitsInputs() {
+    return Card(
+      color: Colors.white,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: const BorderSide(color: Color(0xFFE2E8F0)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            Expanded(
+              child: TextFormField(
+                controller: _minStockController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                    labelText: 'Tồn ít nhất', border: OutlineInputBorder()),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: TextFormField(
+                controller: _maxStockController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                    labelText: 'Tồn nhiều nhất', border: OutlineInputBorder()),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAttributesList() {
+    return Column(
+      children: _attributes.map((attr) {
+        return Card(
+          color: Colors.white,
+          margin: const EdgeInsets.only(bottom: 6),
+          child: ListTile(
+            title: Text('${attr['name']}: ${attr['value']}',
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            trailing: IconButton(
+              icon:
+                  const Icon(Icons.delete_outline, color: Colors.red, size: 18),
+              onPressed: () {
+                setState(() {
+                  _attributes.remove(attr);
+                });
+              },
+            ),
+            dense: true,
           ),
         );
       }).toList(),
-      onChanged: (value) {
-        if (value != null) {
-          setState(() => _selectedCategory = value);
-        }
+    );
+  }
+
+  void _showAttributesDialog() {
+    final nameController = TextEditingController();
+    final valueController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Thêm thuộc tính'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(
+                    labelText: 'Tên thuộc tính (Ví dụ: Màu sắc, Kích thước...)',
+                    border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: valueController,
+                decoration: const InputDecoration(
+                    labelText: 'Giá trị (Ví dụ: Đỏ, Xanh, L, XL...)',
+                    border: OutlineInputBorder()),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Hủy'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final name = nameController.text.trim();
+                final val = valueController.text.trim();
+                if (name.isNotEmpty && val.isNotEmpty) {
+                  setState(() {
+                    _attributes.add({'name': name, 'value': val});
+                  });
+                }
+                Navigator.pop(context);
+              },
+              style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF0067AC)),
+              child: const Text('Thêm'),
+            )
+          ],
+        );
       },
     );
   }
 
-  String _formatPrice(double price) {
-    return NumberFormat.currency(locale: 'vi_VN', symbol: 'đ').format(price);
+  Widget _buildUnitsList() {
+    return Column(
+      children: _units.map((unit) {
+        return Card(
+          color: Colors.white,
+          margin: const EdgeInsets.only(bottom: 6),
+          child: ListTile(
+            title: Text('${unit['name']}',
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            subtitle: Text('Giá bán: ${unit['price']} đ'),
+            trailing: IconButton(
+              icon:
+                  const Icon(Icons.delete_outline, color: Colors.red, size: 18),
+              onPressed: () {
+                setState(() {
+                  _units.remove(unit);
+                });
+              },
+            ),
+            dense: true,
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  void _showUnitsDialog() {
+    final nameController = TextEditingController();
+    final priceController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Thêm đơn vị tính'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(
+                    labelText: 'Tên đơn vị (Ví dụ: Cái, Hộp, Thùng...)',
+                    border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: priceController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                    labelText: 'Giá bán quy đổi', border: OutlineInputBorder()),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Hủy'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final name = nameController.text.trim();
+                final price =
+                    double.tryParse(priceController.text.trim()) ?? 0.0;
+                if (name.isNotEmpty) {
+                  setState(() {
+                    _units.add({'name': name, 'price': price});
+                  });
+                }
+                Navigator.pop(context);
+              },
+              style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF0067AC)),
+              child: const Text('Thêm'),
+            )
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _saveProduct() async {
     final l10n = AppLocalizations.of(context)!;
-
-    // Validate form
     if (_nameController.text.trim().isEmpty ||
         _codeController.text.trim().isEmpty ||
-        _brandController.text.trim().isEmpty ||
-        _modelController.text.trim().isEmpty ||
         _priceController.text.trim().isEmpty ||
         _costPriceController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -680,8 +1461,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
 
     final price = double.tryParse(_priceController.text.trim());
     final costPrice = double.tryParse(_costPriceController.text.trim());
-    final branch1Stock = int.tryParse(_branch1StockController.text.trim()) ?? 0;
-    final branch2Stock = int.tryParse(_branch2StockController.text.trim()) ?? 0;
+    final stock = int.tryParse(_stockController.text.trim()) ?? 0;
 
     if (price == null || costPrice == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -693,25 +1473,70 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
     setState(() => _isLoading = true);
 
     try {
+      final storeId = ref.read(currentStoreIdProvider);
+      String? imageUrl = _currentProduct.imageUrl;
+
+      // Handle image deletion and upload
+      if (_clearCurrentImage) {
+        if (_currentProduct.imageUrl != null &&
+            _currentProduct.imageUrl!.isNotEmpty) {
+          try {
+            await FirebaseStorage.instance
+                .refFromURL(_currentProduct.imageUrl!)
+                .delete();
+          } catch (_) {}
+          imageUrl = null;
+        }
+      }
+
+      if (_newImageFile != null || _newImageBytes != null) {
+        final storageRef = FirebaseStorage.instance
+            .ref('stores/$storeId/products/${_currentProduct.id}.jpg');
+        if (kIsWeb && _newImageBytes != null) {
+          await storageRef.putData(_newImageBytes!);
+        } else if (_newImageFile != null) {
+          await storageRef.putFile(_newImageFile!);
+        }
+        imageUrl = await storageRef.getDownloadURL();
+      }
+
+      // Convert attributes list to model field string
+      final modelString =
+          _attributes.map((a) => '${a['name']}:${a['value']}').join(', ');
+      final categoryName = _selectedCategory?.name ?? _currentProduct.category;
+
       final updatedProduct = Product(
         id: _currentProduct.id,
         name: _nameController.text.trim(),
         code: _codeController.text.trim(),
-        barcode: _barcodeController.text.trim().isEmpty ? null : _barcodeController.text.trim(),
+        barcode: _barcodeController.text.trim().isEmpty
+            ? null
+            : _barcodeController.text.trim(),
         brand: _brandController.text.trim(),
-        model: _modelController.text.trim(),
+        model: modelString,
         price: price,
         costPrice: costPrice,
         branchStocks: {
-          'branch_1': branch1Stock,
-          'branch_2': branch2Stock,
+          'branch_1': stock,
+          'branch_2': 0,
         },
-        category: _selectedCategory,
+        category: categoryName,
+        category3Levels: _selectedCategoryPath,
+        unit: _units.isNotEmpty ? _units.first['name'] : _currentProduct.unit,
+        description: _descriptionController.text.trim().isNotEmpty
+            ? _descriptionController.text.trim()
+            : null,
+        noteTemplate: _noteTemplateController.text.trim().isNotEmpty
+            ? _noteTemplateController.text.trim()
+            : null,
+        components: _componentsController.text.trim().isNotEmpty
+            ? _componentsController.text.trim()
+            : null,
+        imageUrl: imageUrl,
+        type: _sellDirectly ? 'Hàng hóa' : 'Dịch vụ',
       );
 
       await ref.read(productRepositoryProvider).upsert(updatedProduct);
-
-      // Invalidate product providers to refresh UI
       ref.invalidate(productListProvider);
 
       if (mounted) {
@@ -720,13 +1545,13 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
           _isEditing = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.updated)),
+          SnackBar(content: Text(l10n.updated), backgroundColor: Colors.green),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          SnackBar(content: Text('Lỗi cập nhật: $e')),
         );
       }
     } finally {
@@ -759,6 +1584,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
               Navigator.of(context).pop();
               await _deleteProduct();
             },
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
             child: Text(l10n.delete),
           ),
         ],
@@ -771,19 +1597,29 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
     setState(() => _isLoading = true);
 
     try {
+      // Delete image from storage first
+      if (_currentProduct.imageUrl != null &&
+          _currentProduct.imageUrl!.isNotEmpty) {
+        try {
+          await FirebaseStorage.instance
+              .refFromURL(_currentProduct.imageUrl!)
+              .delete();
+        } catch (_) {}
+      }
+
       await ref.read(productRepositoryProvider).delete(_currentProduct.id);
       ref.invalidate(productListProvider);
 
       if (mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.updated)),
+          SnackBar(content: Text(l10n.updated), backgroundColor: Colors.green),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          SnackBar(content: Text('Lỗi xóa sản phẩm: $e')),
         );
       }
     } finally {

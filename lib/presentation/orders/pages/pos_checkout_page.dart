@@ -1,19 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:stores/core/theme/app_colors.dart';
 import 'package:stores/presentation/common/widgets/loading_indicator.dart';
 
+import '../../../application/auth/auth_providers.dart';
 import '../../../application/customers/customers_providers.dart';
+import '../../../application/inventory/inventory_providers.dart';
 import '../../../application/orders/cart_providers.dart';
 import '../../../application/orders/orders_providers.dart';
 import '../../../application/products/products_providers.dart';
-import '../../../application/inventory/inventory_providers.dart';
-import '../../../application/auth/auth_providers.dart';
 import '../../../domain/entities/customer.dart';
+import '../../../domain/entities/inventory_transaction.dart';
 import '../../../domain/entities/order.dart';
 import '../../../domain/entities/order_item.dart';
-import '../../../domain/entities/inventory_transaction.dart';
+import '../../../domain/entities/purchase.dart';
 import '../../../domain/entities/transaction_type.dart';
+import '../../../domain/entities/warranty.dart';
 
 class POSCheckoutPage extends ConsumerStatefulWidget {
   final Customer? initialCustomer;
@@ -66,17 +70,21 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
     final cart = ref.watch(cartProvider);
     final totalAmount = ref.watch(cartTotalAmountProvider);
     final user = ref.watch(authProvider);
+    final l10n = AppLocalizations.of(context)!;
 
-    final discountAmount = _isDiscountPercent ? (totalAmount * _discount / 100) : _discount;
+    final discountAmount =
+        _isDiscountPercent ? (totalAmount * _discount / 100) : _discount;
     final netPay = (totalAmount - discountAmount).clamp(0.0, double.infinity);
-    final returnChange = (_customerPayment - netPay).clamp(0.0, double.infinity);
+    final returnChange =
+        (_customerPayment - netPay).clamp(0.0, double.infinity);
 
     final currencyFormat = NumberFormat('#,###', 'vi_VN');
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6F9),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Thanh toán', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(l10n.checkout,
+            style: const TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.white,
       ),
       body: _isSaving
@@ -91,11 +99,12 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                   const SizedBox(height: 12),
 
                   // 2. Danh sách sản phẩm mua
-                  _buildOrderItemsCard(cart, currencyFormat),
+                  _buildOrderItemsCard(context, cart, currencyFormat),
                   const SizedBox(height: 12),
 
                   // 3. Thông tin thanh toán (Tiền hàng, giảm giá, khách đưa)
-                  _buildPaymentDetailsCard(totalAmount, netPay, returnChange, currencyFormat),
+                  _buildPaymentDetailsCard(context, totalAmount, netPay,
+                      returnChange, currencyFormat),
                   const SizedBox(height: 24),
                 ],
               ),
@@ -106,11 +115,12 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
 
   // 1. Card chọn khách hàng
   Widget _buildCustomerSelectorCard(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFE1E2E4)),
+        border: Border.all(color: AppColors.border),
       ),
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -119,19 +129,26 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Khách hàng',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87),
+              Text(
+                l10n.customers,
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: Colors.black87),
               ),
               InkWell(
                 onTap: () => _showCustomerListBottomSheet(context),
                 child: Row(
-                  children: const [
+                  children: [
                     Text(
-                      'Thay đổi',
-                      style: TextStyle(color: Color(0xFF0067AC), fontSize: 13, fontWeight: FontWeight.bold),
+                      l10n.change,
+                      style: const TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold),
                     ),
-                    Icon(Icons.chevron_right, color: Color(0xFF0067AC), size: 16),
+                    const Icon(Icons.chevron_right,
+                        color: AppColors.primary, size: 16),
                   ],
                 ),
               ),
@@ -141,27 +158,34 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
           Row(
             children: [
               CircleAvatar(
-                backgroundColor: const Color(0xFF0067AC).withOpacity(0.06),
-                child: const Icon(Icons.person, color: Color(0xFF0067AC)),
+                backgroundColor: AppColors.primary.withOpacity(0.06),
+                child: const Icon(Icons.person, color: AppColors.primary),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: _selectedCustomer == null
-                    ? const Text(
-                        'Khách lẻ',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.black87),
+                    ? Text(
+                        l10n.retailCustomer,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                            color: Colors.black87),
                       )
                     : Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             _selectedCustomer!.name,
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.black87),
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                                color: Colors.black87),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             '${_selectedCustomer!.phone} • ${_selectedCustomer!.address}',
-                            style: const TextStyle(color: Colors.black54, fontSize: 12),
+                            style: const TextStyle(
+                                color: Colors.black54, fontSize: 12),
                           )
                         ],
                       ),
@@ -173,22 +197,27 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
     );
   }
 
-  Widget _buildOrderItemsCard(Map<String, CartItem> cart, NumberFormat format) {
+  Widget _buildOrderItemsCard(
+      BuildContext context, Map<String, CartItem> cart, NumberFormat format) {
     final user = ref.read(authProvider);
+    final l10n = AppLocalizations.of(context)!;
 
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE1E2E4)),
+        border: Border.all(color: AppColors.border),
       ),
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Thông tin đơn hàng',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87),
+          Text(
+            l10n.orderInfo,
+            style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                color: Colors.black87),
           ),
           const SizedBox(height: 12),
           ListView.separated(
@@ -199,7 +228,9 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
             itemBuilder: (context, index) {
               final item = cart.values.elementAt(index);
               return InkWell(
-                onTap: user?.isAdmin == true ? () => _showEditPriceDialog(context, ref, item) : null,
+                onTap: user?.isAdmin == true
+                    ? () => _showEditPriceDialog(context, ref, item)
+                    : null,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 4.0),
                   child: Row(
@@ -214,29 +245,39 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                                 Flexible(
                                   child: Text(
                                     item.product.name,
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87),
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                        color: Colors.black87),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
                                 if (user?.isAdmin == true) ...[
                                   const SizedBox(width: 6),
-                                  const Icon(Icons.edit_outlined, size: 13, color: Color(0xFF0067AC)),
+                                  const Icon(Icons.edit_outlined,
+                                      size: 13, color: AppColors.primary),
                                 ]
                               ],
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              'Số lượng: ${item.quantity} x ${format.format(item.price)} đ' +
-                                  (item.customPrice != null ? ' (Gốc: ${format.format(item.product.price)}đ)' : ''),
-                              style: const TextStyle(color: Colors.black54, fontSize: 11),
+                              '${l10n.quantity}: ${item.quantity} x ${format.format(item.price)} đ' +
+                                  (item.customPrice != null
+                                      ? ' (Gốc: ${format.format(item.product.price)}đ)'
+                                      : ''),
+                              style: const TextStyle(
+                                  color: Colors.black54, fontSize: 11),
                             ),
                           ],
                         ),
                       ),
                       Text(
                         '${format.format(item.total)} đ',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: Colors.black87),
                       )
                     ],
                   ),
@@ -249,36 +290,41 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
     );
   }
 
-  void _showEditPriceDialog(BuildContext context, WidgetRef ref, CartItem item) {
-    final controller = TextEditingController(text: item.price.toStringAsFixed(0));
+  void _showEditPriceDialog(
+      BuildContext context, WidgetRef ref, CartItem item) {
+    final controller =
+        TextEditingController(text: item.price.toStringAsFixed(0));
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('Thay đổi giá: ${item.product.name}'),
+          title: Text('${l10n.changePrice}: ${item.product.name}'),
           content: TextField(
             controller: controller,
-            decoration: const InputDecoration(
-              labelText: 'Giá bán mới',
+            decoration: InputDecoration(
+              labelText: l10n.newPrice,
               suffixText: 'đ',
-              border: OutlineInputBorder(),
+              border: const OutlineInputBorder(),
             ),
             keyboardType: TextInputType.number,
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Hủy'),
+              child: Text(l10n.cancel),
             ),
             FilledButton(
               onPressed: () {
                 final newPrice = double.tryParse(controller.text.trim());
                 if (newPrice != null && newPrice >= 0) {
-                  ref.read(cartProvider.notifier).updatePrice(item.product.id, newPrice);
+                  ref
+                      .read(cartProvider.notifier)
+                      .updatePrice(item.product.id, newPrice);
                 }
                 Navigator.pop(context);
               },
-              child: const Text('Cập nhật'),
+              child: Text(l10n.update),
             ),
           ],
         );
@@ -288,22 +334,25 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
 
   // 3. Card thông tin thanh toán chi tiết
   Widget _buildPaymentDetailsCard(
+    BuildContext context,
     double totalAmount,
     double netPay,
     double returnChange,
     NumberFormat format,
   ) {
     final user = ref.watch(authProvider);
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFE1E2E4)),
+        border: Border.all(color: AppColors.border),
       ),
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          _buildSummaryDetailRow('Tổng tiền hàng', '${format.format(totalAmount)} đ', false),
+          _buildSummaryDetailRow(l10n.totalProductAmount,
+              '${format.format(totalAmount)} đ', false),
           const SizedBox(height: 12),
           // Dòng giảm giá chiết khấu
           Row(
@@ -311,7 +360,9 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
             children: [
               Row(
                 children: [
-                  const Text('Giảm giá đơn hàng', style: TextStyle(color: Colors.black54, fontSize: 13)),
+                  Text(l10n.orderDiscount,
+                      style:
+                          const TextStyle(color: Colors.black54, fontSize: 13)),
                   if (user?.isAdmin == true) ...[
                     const SizedBox(width: 8),
                     ToggleButtons(
@@ -321,11 +372,16 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                           _isDiscountPercent = index == 1;
                         });
                       },
-                      constraints: const BoxConstraints(minWidth: 32, minHeight: 24),
+                      constraints:
+                          const BoxConstraints(minWidth: 32, minHeight: 24),
                       borderRadius: BorderRadius.circular(4),
                       children: const [
-                        Text('đ', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                        Text('%', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                        Text('đ',
+                            style: TextStyle(
+                                fontSize: 11, fontWeight: FontWeight.bold)),
+                        Text('%',
+                            style: TextStyle(
+                                fontSize: 11, fontWeight: FontWeight.bold)),
                       ],
                     ),
                   ]
@@ -338,13 +394,15 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                   controller: _discountController,
                   enabled: user?.isAdmin == true,
                   decoration: InputDecoration(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                     border: const OutlineInputBorder(),
                     suffixText: _isDiscountPercent ? '%' : 'đ',
                   ),
                   keyboardType: TextInputType.number,
                   textAlign: TextAlign.right,
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.bold),
                   onChanged: (v) {
                     setState(() {
                       _discount = double.tryParse(v) ?? 0.0;
@@ -355,26 +413,31 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
             ],
           ),
           const SizedBox(height: 12),
-          _buildSummaryDetailRow('Khách cần trả', '${format.format(netPay)} đ', true, color: const Color(0xFF0067AC)),
+          _buildSummaryDetailRow(
+              l10n.amountToPay, '${format.format(netPay)} đ', true,
+              color: AppColors.primary),
           const SizedBox(height: 12),
           // Dòng nhập tiền khách đưa
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Khách đưa', style: TextStyle(color: Colors.black54, fontSize: 13)),
+              Text(l10n.amountPaid,
+                  style: const TextStyle(color: Colors.black54, fontSize: 13)),
               SizedBox(
                 width: 120,
                 height: 36,
                 child: TextField(
                   controller: _paymentController,
                   decoration: InputDecoration(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                     border: const OutlineInputBorder(),
                     hintText: format.format(netPay),
                   ),
                   keyboardType: TextInputType.number,
                   textAlign: TextAlign.right,
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.bold),
                   onChanged: (v) {
                     setState(() {
                       _customerPayment = double.tryParse(v) ?? 0.0;
@@ -385,17 +448,23 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
             ],
           ),
           const SizedBox(height: 12),
-          _buildSummaryDetailRow('Tiền thừa trả khách', '${format.format(returnChange)} đ', false, color: Colors.green),
+          _buildSummaryDetailRow(
+              l10n.changeDue, '${format.format(returnChange)} đ', false,
+              color: Colors.green),
           const SizedBox(height: 12),
           // Phương thức thanh toán
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Phương thức', style: TextStyle(color: Colors.black54, fontSize: 13)),
+              Text(l10n.paymentMethod,
+                  style: const TextStyle(color: Colors.black54, fontSize: 13)),
               DropdownButtonHideUnderline(
                 child: DropdownButton<String>(
                   value: _paymentMethod,
-                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87, fontSize: 13),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                      fontSize: 13),
                   onChanged: (v) {
                     if (v != null) {
                       setState(() {
@@ -403,9 +472,10 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                       });
                     }
                   },
-                  items: const [
-                    DropdownMenuItem(value: 'cash', child: Text('Tiền mặt')),
-                    DropdownMenuItem(value: 'transfer', child: Text('Chuyển khoản')),
+                  items: [
+                    DropdownMenuItem(value: 'cash', child: Text(l10n.cash)),
+                    DropdownMenuItem(
+                        value: 'transfer', child: Text(l10n.transfer)),
                   ],
                 ),
               )
@@ -416,11 +486,13 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
     );
   }
 
-  Widget _buildSummaryDetailRow(String label, String value, bool isBold, {Color? color}) {
+  Widget _buildSummaryDetailRow(String label, String value, bool isBold,
+      {Color? color}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(color: Colors.black54, fontSize: 13)),
+        Text(label,
+            style: const TextStyle(color: Colors.black54, fontSize: 13)),
         Text(
           value,
           style: TextStyle(
@@ -434,7 +506,9 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
   }
 
   // 4. Thanh hành động dưới cùng
-  Widget _buildBottomActionsBar(BuildContext context, double netPay, Map<String, CartItem> cart) {
+  Widget _buildBottomActionsBar(
+      BuildContext context, double netPay, Map<String, CartItem> cart) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -454,12 +528,15 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
             child: OutlinedButton(
               onPressed: () => _confirmSaveDraft(context, netPay, cart),
               style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Color(0xFF0067AC)),
-                foregroundColor: const Color(0xFF0067AC),
+                side: const BorderSide(color: AppColors.primary),
+                foregroundColor: AppColors.primary,
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
               ),
-              child: const Text('Lưu tạm', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              child: Text(l10n.saveDraft,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 14)),
             ),
           ),
           const SizedBox(width: 12),
@@ -468,12 +545,15 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
             child: ElevatedButton(
               onPressed: () => _processPayment(netPay, cart),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0067AC),
+                backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
               ),
-              child: const Text('Thanh toán', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              child: Text(l10n.checkout,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 14)),
             ),
           )
         ],
@@ -483,6 +563,7 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
 
   // Hộp thoại Bottom Sheet tìm kiếm khách hàng
   void _showCustomerListBottomSheet(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
@@ -497,19 +578,22 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
           builder: (context, ref, child) {
             final customersAsync = ref.watch(customerListNotifierProvider);
             return Container(
-              padding: const EdgeInsets.only(top: 16, bottom: 24, left: 16, right: 16),
+              padding: const EdgeInsets.only(
+                  top: 16, bottom: 24, left: 16, right: 16),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        'Chọn khách hàng',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      Text(
+                        l10n.selectCustomer,
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.add_circle_outline, color: Color(0xFF0067AC), size: 28),
+                        icon: const Icon(Icons.add_circle_outline,
+                            color: AppColors.primary, size: 28),
                         onPressed: () {
                           Navigator.pop(context);
                           _showAddCustomerDialog(context);
@@ -517,7 +601,7 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                       )
                     ],
                   ),
-                  const Divider(color: Color(0xFFEEEEEE)),
+                  const Divider(color: AppColors.divider),
                   customersAsync.when(
                     data: (customers) {
                       return Flexible(
@@ -527,7 +611,9 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                           itemBuilder: (context, idx) {
                             if (idx == 0) {
                               return ListTile(
-                                title: const Text('Khách lẻ', style: TextStyle(fontWeight: FontWeight.bold)),
+                                title: Text(l10n.retailCustomer,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold)),
                                 onTap: () {
                                   setState(() {
                                     _selectedCustomer = null;
@@ -538,8 +624,11 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                             }
                             final customer = customers[idx - 1];
                             return ListTile(
-                              title: Text(customer.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                              subtitle: Text('${customer.phone} • ${customer.address}'),
+                              title: Text(customer.name,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold)),
+                              subtitle: Text(
+                                  '${customer.phone} • ${customer.address}'),
                               onTap: () {
                                 setState(() {
                                   _selectedCustomer = customer;
@@ -552,7 +641,8 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                       );
                     },
                     loading: () => const Center(child: LoadingIndicator()),
-                    error: (e, _) => Center(child: Text('Lỗi tải khách hàng: $e')),
+                    error: (e, _) =>
+                        Center(child: Text('${l10n.notFound}: $e')),
                   )
                 ],
               ),
@@ -570,12 +660,14 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
     final phoneController = TextEditingController();
     final addressController = TextEditingController();
     final emailController = TextEditingController();
+    final l10n = AppLocalizations.of(context)!;
 
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('Thêm khách hàng', style: TextStyle(fontWeight: FontWeight.bold)),
+          title: Text(l10n.addNewCustomer,
+              style: const TextStyle(fontWeight: FontWeight.bold)),
           content: SingleChildScrollView(
             child: Form(
               key: formKey,
@@ -584,26 +676,38 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                 children: [
                   TextFormField(
                     controller: nameController,
-                    decoration: const InputDecoration(labelText: 'Họ và tên *', border: OutlineInputBorder()),
-                    validator: (v) => v == null || v.trim().isEmpty ? 'Vui lòng nhập tên' : null,
+                    decoration: InputDecoration(
+                        labelText: l10n.fullNameRequired,
+                        border: const OutlineInputBorder()),
+                    validator: (v) => v == null || v.trim().isEmpty
+                        ? l10n.pleaseEnterName
+                        : null,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: phoneController,
-                    decoration: const InputDecoration(labelText: 'Số điện thoại *', border: OutlineInputBorder()),
+                    decoration: InputDecoration(
+                        labelText: l10n.phoneNumberRequired,
+                        border: const OutlineInputBorder()),
                     keyboardType: TextInputType.phone,
-                    validator: (v) => v == null || v.trim().isEmpty ? 'Vui lòng nhập số điện thoại' : null,
+                    validator: (v) => v == null || v.trim().isEmpty
+                        ? l10n.pleaseEnterName
+                        : null, // Vẫn dùng placeholder này tạm thời
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: emailController,
-                    decoration: const InputDecoration(labelText: 'Email', border: OutlineInputBorder()),
+                    decoration: InputDecoration(
+                        labelText: l10n.email,
+                        border: const OutlineInputBorder()),
                     keyboardType: TextInputType.emailAddress,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: addressController,
-                    decoration: const InputDecoration(labelText: 'Địa chỉ', border: OutlineInputBorder()),
+                    decoration: InputDecoration(
+                        labelText: l10n.address,
+                        border: const OutlineInputBorder()),
                     maxLines: 2,
                   ),
                 ],
@@ -612,22 +716,30 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Hủy'),
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(l10n.cancel),
             ),
             FilledButton(
               onPressed: () async {
                 if (formKey.currentState!.validate()) {
+                  final currentUser = ref.read(authProvider);
+                  final activeBranchName =
+                      await ref.read(currentStoreNameProvider.future);
+
                   final newCust = Customer(
-                    id: 'customer_${DateTime.now().millisecondsSinceEpoch}',
+                    id: DateTime.now().millisecondsSinceEpoch.toString(),
                     name: nameController.text.trim(),
                     phone: phoneController.text.trim(),
                     email: emailController.text.trim(),
                     address: addressController.text.trim(),
                     purchases: const [],
+                    branch: activeBranchName,
+                    createdAt: DateTime.now().toIso8601String(),
+                    createdBy: currentUser?.username ?? 'admin',
+                    status: '1',
                   );
 
-                  Navigator.pop(context);
+                  Navigator.pop(dialogContext);
                   setState(() => _isSaving = true);
 
                   try {
@@ -637,19 +749,25 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                       _selectedCustomer = newCust;
                       _isSaving = false;
                     });
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Thêm khách hàng thành công!'), backgroundColor: Colors.green),
-                    );
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                            content: Text(l10n.addCustomerSuccess),
+                            backgroundColor: Colors.green),
+                      );
+                    }
                   } catch (e) {
                     setState(() => _isSaving = false);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Lỗi: $e')),
-                    );
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Lỗi: $e')),
+                      );
+                    }
                   }
                 }
               },
-              style: FilledButton.styleFrom(backgroundColor: const Color(0xFF0067AC)),
-              child: const Text('Lưu'),
+              style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
+              child: Text(l10n.save),
             )
           ],
         );
@@ -658,25 +776,27 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
   }
 
   // Popup xác nhận Lưu tạm đơn hàng nháp
-  void _confirmSaveDraft(BuildContext context, double netPay, Map<String, CartItem> cart) {
+  void _confirmSaveDraft(
+      BuildContext context, double netPay, Map<String, CartItem> cart) {
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Lưu đơn nháp'),
-          content: const Text('Bạn có muốn lưu đơn hàng này vào danh sách lưu tạm không?'),
+          title: Text(l10n.saveDraftTitle),
+          content: Text(l10n.saveDraftConfirm),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Không'),
+              child: Text(l10n.no),
             ),
             FilledButton(
               onPressed: () async {
                 Navigator.pop(context);
                 await _submitOrder(netPay, cart, isDraft: true);
               },
-              style: FilledButton.styleFrom(backgroundColor: const Color(0xFF0067AC)),
-              child: const Text('Lưu tạm'),
+              style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
+              child: Text(l10n.saveDraft),
             )
           ],
         );
@@ -685,17 +805,19 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
   }
 
   // Xử lý thực hiện Thanh toán đơn hàng chính thức
-  Future<void> _processPayment(double netPay, Map<String, CartItem> cart) async {
+  Future<void> _processPayment(
+      double netPay, Map<String, CartItem> cart) async {
     await _submitOrder(netPay, cart, isDraft: false);
   }
 
   // Submit Order lên Firebase và thực hiện logic kho
-  Future<void> _submitOrder(double netPay, Map<String, CartItem> cart, {required bool isDraft}) async {
+  Future<void> _submitOrder(double netPay, Map<String, CartItem> cart,
+      {required bool isDraft}) async {
     setState(() => _isSaving = true);
 
     try {
       final now = DateTime.now();
-      
+
       // Sử dụng lại mã đơn tạm cũ nếu đang lên đơn từ một đơn tạm
       final activeOrderId = ref.read(activeOrderIdProvider);
       final id = activeOrderId ?? 'HD_${now.millisecondsSinceEpoch}';
@@ -706,7 +828,8 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
           productName: item.product.name,
           quantity: item.quantity,
           price: item.price,
-          warrantyMonths: 12, // Mặc định 12 tháng bảo hành
+          warrantyMonths: 12,
+          // Mặc định 12 tháng bảo hành
           purchaseDate: now,
         );
       }).toList();
@@ -728,6 +851,39 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
       // 1) Lưu đơn hàng
       await ref.read(orderRepositoryProvider).create(order);
 
+      // 2) Cập nhật lịch sử mua hàng & doanh thu cho Customer (nếu không phải Khách lẻ & không phải đơn nháp)
+      if (customerId != 'khach_le' && !isDraft) {
+        final customerRepo = ref.read(customerRepositoryProvider);
+        final customer = await customerRepo.fetchById(customerId);
+        if (customer != null) {
+          final newPurchases = List<Purchase>.from(customer.purchases);
+          for (final item in orderItems) {
+            newPurchases.add(Purchase(
+              productId: item.productId,
+              quantity: item.quantity,
+              purchaseDate: item.purchaseDate,
+              warranty: Warranty(
+                months: item.warrantyMonths,
+                expireDate: DateTime(
+                  item.purchaseDate.year,
+                  item.purchaseDate.month + item.warrantyMonths,
+                  item.purchaseDate.day,
+                ),
+              ),
+            ));
+          }
+          final double currentTotalSales = customer.totalSales ?? 0.0;
+          final double currentNetSales = customer.netSales ?? 0.0;
+          final updatedCustomer = customer.copyWith(
+            purchases: newPurchases,
+            totalSales: currentTotalSales + netPay,
+            netSales: currentNetSales + netPay,
+            lastTransactionDate: now.toIso8601String(),
+          );
+          await customerRepo.upsert(updatedCustomer);
+        }
+      }
+
       // Nếu KHÔNG phải đơn nháp (Đơn chính thức) -> Trừ tồn kho và ghi nhận Xuất kho
       if (!isDraft) {
         final productRepo = ref.read(productRepositoryProvider);
@@ -738,9 +894,11 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
           // Trừ stock chi nhánh xuất kho được chọn
           final branchStocks = Map<String, int>.from(item.product.branchStocks);
           final currentStock = branchStocks[selectedBranch] ?? 0;
-          branchStocks[selectedBranch] = (currentStock - item.quantity).clamp(0, 99999);
+          branchStocks[selectedBranch] =
+              (currentStock - item.quantity).clamp(0, 99999);
 
-          final updatedProduct = item.product.copyWith(branchStocks: branchStocks);
+          final updatedProduct =
+              item.product.copyWith(branchStocks: branchStocks);
           await productRepo.upsert(updatedProduct);
 
           // Ghi nhận lịch sử giao dịch kho
@@ -750,7 +908,8 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
             type: TransactionType.export,
             quantity: item.quantity,
             date: now,
-            note: id, // Mã hoá đơn
+            note: id,
+            // Mã hoá đơn
             importPrice: null,
           ));
         }
@@ -759,6 +918,7 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
       // Refresh providers
       ref.invalidate(productListProvider);
       ref.invalidate(orderRepositoryProvider);
+      ref.invalidate(customerListNotifierProvider);
 
       // Reset activeOrderIdProvider nếu là đơn hoàn thành
       if (!isDraft) {
@@ -771,10 +931,11 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
       setState(() => _isSaving = false);
 
       if (mounted) {
+        final l10n = AppLocalizations.of(context)!;
         Navigator.of(context).popUntil((route) => route.isFirst);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(isDraft ? 'Đơn hàng nháp đã được lưu!' : 'Thanh toán đơn hàng thành công!'),
+            content: Text(isDraft ? l10n.draftSaved : l10n.paymentSuccess),
             backgroundColor: Colors.green,
           ),
         );

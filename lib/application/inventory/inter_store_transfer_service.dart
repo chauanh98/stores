@@ -5,6 +5,7 @@ import '../../domain/entities/product.dart';
 
 class InterStoreTransferService {
   InterStoreTransferService(this._db);
+
   final FirebaseDatabase _db;
 
   Future<String?> transferProduct({
@@ -25,7 +26,8 @@ class InterStoreTransferService {
 
       // 1. Deduct from source store product
       final newSourceStock = product.stock - quantity;
-      updates['stores/$sourceStoreId/products/${product.id}/stock'] = newSourceStock;
+      updates['stores/$sourceStoreId/products/${product.id}/stock'] =
+          newSourceStock;
 
       // 2. Add Export transaction to source store
       final exportTxId = 'tx_${timestamp}_export';
@@ -39,22 +41,24 @@ class InterStoreTransferService {
       };
 
       // 3. Add to target store product
-      final targetProductSnap = await _db.ref('stores/$targetStoreId/products/${product.id}').get();
+      final targetProductSnap =
+          await _db.ref('stores/$targetStoreId/products/${product.id}').get();
       int currentTargetStock = 0;
       if (targetProductSnap.exists && targetProductSnap.value != null) {
-         final map = Map<dynamic, dynamic>.from(targetProductSnap.value as Map);
-         currentTargetStock = (map['stock'] ?? 0) as int;
-         updates['stores/$targetStoreId/products/${product.id}/stock'] = currentTargetStock + quantity;
+        final map = Map<dynamic, dynamic>.from(targetProductSnap.value as Map);
+        currentTargetStock = (map['stock'] ?? 0) as int;
+        updates['stores/$targetStoreId/products/${product.id}/stock'] =
+            currentTargetStock + quantity;
       } else {
-         updates['stores/$targetStoreId/products/${product.id}'] = {
-           'id': product.id,
-           'name': product.name,
-           'brand': product.brand,
-           'model': product.model,
-           'price': product.price,
-           'stock': quantity,
-           'category': product.category,
-         };
+        updates['stores/$targetStoreId/products/${product.id}'] = {
+          'id': product.id,
+          'name': product.name,
+          'brand': product.brand,
+          'model': product.model,
+          'price': product.price,
+          'stock': quantity,
+          'category': product.category,
+        };
       }
 
       // 4. Add Import transaction to target store
@@ -76,6 +80,7 @@ class InterStoreTransferService {
   }
 }
 
-final interStoreTransferServiceProvider = Provider<InterStoreTransferService>((ref) {
+final interStoreTransferServiceProvider =
+    Provider<InterStoreTransferService>((ref) {
   return InterStoreTransferService(FirebaseDatabase.instance);
 });

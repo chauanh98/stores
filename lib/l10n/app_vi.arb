@@ -257,5 +257,187 @@
       }
     }
   },
-  "update": "Cập nhật"
+  "update": "Cập nhật",
+  "basicInfo": "THÔNG TIN CƠ BẢN",
+  "customerCode": "Mã khách hàng",
+  "branch": "Chi nhánh",
+  "transactionHistory": "Lịch sử giao dịch",
+  "customerDebt": "Công nợ",
+  "addressSection": "ĐỊA CHỈ",
+  "contactSection": "LIÊN HỆ",
+  "customerGroupSection": "NHÓM KHÁCH HÀNG",
+  "invoiceInfoSection": "THÔNG TIN XUẤT HOÁ ĐƠN",
+  "customerType": "Loại khách",
+  "buyerName": "Tên người mua",
+  "taxCode": "Mã số thuế",
+  "companyName": "Tên công ty",
+  "debtToCollect": "Nợ cần thu",
+  "transactions": "Giao dịch",
+  "totalSalesAndReturns": "Tổng bán - Tổng trả",
+  "debtAdjustmentTitle": "Điều chỉnh công nợ",
+  "currentDebt": "Nợ hiện tại",
+  "adjustedDebtValue": "Giá trị nợ điều chỉnh",
+  "createReceipt": "Lập phiếu thu",
+  "createQr": "Tạo QR",
+  "receiptAmount": "Số tiền thu (đ)",
+  "allTime": "Tất cả thời gian",
+  "excelActions": "Thao tác Excel",
+  "createdTimeLabel": "Thời gian tạo: {time}",
+  "@createdTimeLabel": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "noCustomersFound": "Chưa có khách hàng nào",
+  "totalSales": "Tổng bán",
+  "deleteCustomerConfirm": "Bạn có chắc chắn muốn xoá khách hàng \"{name}\"?",
+  "@deleteCustomerConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteCustomerTitle": "Xoá khách hàng",
+  "customerDeleted": "Đã xoá khách hàng",
+  "copyPhoneSuccess": "Đã sao chép SĐT: {phone}",
+  "@copyPhoneSuccess": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "copyCodeSuccess": "Đã sao chép Mã: {code}",
+  "@copyCodeSuccess": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "copyCustomerCodeSuccess": "Đã sao chép Mã KH: {code}",
+  "@copyCustomerCodeSuccess": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "cannotSms": "Không thể mở ứng dụng SMS cho {phone}",
+  "@cannotSms": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "cannotCall": "Không thể gọi tới {phone}",
+  "@cannotCall": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "notUpdated": "Chưa cập nhật địa chỉ",
+  "notCategorized": "Chưa phân nhóm",
+  "individual": "Cá nhân",
+  "noPhone": "Chưa có SĐT",
+  "noPhoneAvailable": "Chưa có",
+  "noTransactionsYet": "Chưa có giao dịch nào",
+  "copyInvoiceCodeSuccess": "Đã sao chép mã hoá đơn: {id}",
+  "@copyInvoiceCodeSuccess": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "invoice": "Hóa đơn",
+  "payment": "Thanh toán",
+  "adjustment": "Điều chỉnh",
+  "remainingDebtLabel": "Nợ còn: {amount}",
+  "@remainingDebtLabel": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "noDebtData": "Chưa có dữ liệu công nợ",
+  "createReceiptTitle": "Lập phiếu thu nợ",
+  "saveReceipt": "Lưu phiếu thu",
+  "invalidAmount": "Số tiền không hợp lệ",
+  "receiptCreatedSuccess": "Đã lập phiếu thu {amount} đ",
+  "@receiptCreatedSuccess": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "pleaseEnterAdjustedDebt": "Vui lòng nhập giá trị nợ mới",
+  "invalidDebtValue": "Giá trị nợ không hợp lệ",
+  "debtUpdateSuccess": "Cập nhật nợ thành công",
+  "debtAdjustmentNoteHint": "Ghi chú điều chỉnh",
+  "debtAdjustmentHint": "Nhập giá trị nợ mới (ví dụ: 1.000.000)",
+  "paymentNoteDefault": "Thanh toán nợ",
+  "adjustmentNoteDefault": "Điều chỉnh công nợ",
+  "qrTitle": "Mã QR Thanh toán",
+  "amountToPayLabel": "Số tiền cần thanh toán: {amount} đ",
+  "@amountToPayLabel": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "performedBy": "Người thực hiện",
+  "createdBy": "Người lập đơn",
+  "roleSupervisor": "Giám sát / Chủ chuỗi",
+  "roleAdmin": "Quản lý Cửa hàng",
+  "roleStaff": "Nhân viên Bán hàng",
+  "onlySupervisorCanEditRole": "Chỉ Giám sát mới được đổi vai trò",
+  "onlySupervisorCanAssignStore": "Chỉ Giám sát mới được gán chi nhánh",
+  "cancelDraftOrder": "Hủy đơn nháp",
+  "confirmCancelDraftOrder": "Bạn có chắc chắn muốn hủy đơn hàng lưu tạm này không?",
+  "draftOrderCancelled": "Đã hủy đơn nháp",
+  "transferDetails": "Chi tiết chuyển kho",
+  "exportingStore": "Cửa hàng xuất",
+  "noOtherStoreToTransfer": "Không có cửa hàng khác để chuyển.",
+  "enterQuantityHint": "Nhập số lượng...",
+  "displayNameLabel": "Họ tên hiển thị",
+  "displayNameHint": "Họ tên hiển thị (VD: Nguyễn Văn A)",
+  "walkInCustomerDebtNotAllowed": "Khách lẻ không thể ghi nợ. Vui lòng chọn hoặc tạo khách hàng!",
+  "accountManagement": "Quản lý tài khoản",
+  "noAccountsFound": "Không có tài khoản nào.",
+  "addAccount": "Thêm tài khoản mới",
+  "editAccount": "Chỉnh sửa tài khoản",
+  "confirmDeleteAccountTitle": "Xác nhận xóa",
+  "accountDeletedSuccess": "Đã xóa tài khoản thành công!",
+  "productNotFoundInSystem": "Sản phẩm không còn tồn tại trên hệ thống",
+  "settingsTitle": "Cài Đặt & Chuyển Đổi",
+  "logout": "Đăng xuất",
+  "confirmLogout": "Bạn có chắc chắn muốn đăng xuất?",
+  "moreOptions": "Nhiều hơn",
+  "loginTitle": "Đăng Nhập",
+  "usernameLabel": "Tên đăng nhập",
+  "passwordLabel": "Mật khẩu",
+  "pleaseEnterCredentials": "Vui lòng nhập tài khoản và mật khẩu.",
+  "newProductTitle": "Hàng hóa mới",
+  "addAttributeTitle": "Thêm thuộc tính",
+  "addUnitTitle": "Thêm đơn vị tính",
+  "pickImageFromGallery": "Chọn ảnh từ thư viện",
+  "takeNewPhoto": "Chụp ảnh mới",
+  "newCategoryTitle": "Nhóm hàng mới",
+  "parentCategoryLabel": "Nhóm cha",
+  "newBrandTitle": "Thương hiệu mới",
+  "selectCategoryTitle": "Chọn nhóm hàng",
+  "noBrandFound": "Không tìm thấy thương hiệu nào",
+  "noCategoryFound": "Chưa có nhóm hàng nào",
+  "logoutAccount": "Đăng xuất tài khoản",
+  "confirmLogoutApp": "Bạn có chắc chắn muốn đăng xuất khỏi ứng dụng?"
 }

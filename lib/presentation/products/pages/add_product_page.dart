@@ -6,11 +6,15 @@ import 'package:flutter/foundation.dart' hide Category;
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import 'package:stores/core/theme/app_colors.dart';
 
 import '../../../application/auth/auth_providers.dart';
 import '../../../application/products/categories_providers.dart';
 import '../../../application/products/products_providers.dart';
+import '../../../core/utils/combo_helper.dart';
 import '../../../domain/entities/category.dart';
+import '../../../domain/entities/combo_component.dart';
 import '../../../domain/entities/product.dart';
 import 'select_category_page.dart';
 
@@ -51,6 +55,10 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
   final _noteTemplateController = TextEditingController();
   final _componentsController = TextEditingController();
 
+  // Combo Product States
+  bool _isCombo = false;
+  List<ComboComponent> _comboComponents = [];
+
   // Attributes & Units states
   final List<Map<String, String>> _attributes = [];
   final List<Map<String, dynamic>> _units = [];
@@ -78,7 +86,7 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
     final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6F9),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.close),
@@ -93,7 +101,7 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
             child: const Text(
               'Lưu',
               style: TextStyle(
-                  color: Color(0xFF0067AC),
+                  color: AppColors.primary,
                   fontWeight: FontWeight.bold,
                   fontSize: 16),
             ),
@@ -122,7 +130,7 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
-                        side: const BorderSide(color: Color(0xFFE2E8F0)),
+                        side: const BorderSide(color: AppColors.borderLight),
                       ),
                       child: Padding(
                         padding: const EdgeInsets.all(16),
@@ -152,10 +160,39 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
                             _buildField(
                                 _priceController, 'Giá bán', Icons.upload,
                                 isNumber: true, hint: '0'),
-                            const SizedBox(height: 16),
-                            _buildField(
-                                _stockController, 'Tồn kho', Icons.inventory_2,
-                                isNumber: true, hint: '0'),
+                            if (!_isCombo) ...[
+                              const SizedBox(height: 16),
+                              _buildField(_stockController, 'Tồn kho',
+                                  Icons.inventory_2,
+                                  isNumber: true, hint: '0'),
+                            ] else ...[
+                              const SizedBox(height: 16),
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withOpacity(0.06),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                      color:
+                                          AppColors.primary.withOpacity(0.2)),
+                                ),
+                                child: const Row(
+                                  children: [
+                                    Icon(Icons.info_outline,
+                                        color: AppColors.primary, size: 20),
+                                    SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'Tồn kho của Combo không cần nhập, hệ thống sẽ tự động tính dựa trên số lượng linh kiện thành phần.',
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.black87),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -233,13 +270,17 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
                     ],
                     const SizedBox(height: 16),
 
+                    // Combo Product Card
+                    _buildComboSectionCard(),
+                    const SizedBox(height: 16),
+
                     // 4. Bottom Switch Direct Sell
                     Card(
                       color: Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
-                        side: const BorderSide(color: Color(0xFFE2E8F0)),
+                        side: const BorderSide(color: AppColors.borderLight),
                       ),
                       child: SwitchListTile(
                         value: _sellDirectly,
@@ -254,7 +295,7 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
                         subtitle: const Text(
                             'Cho phép sản phẩm bán trực tiếp tại quầy POS',
                             style: TextStyle(fontSize: 11)),
-                        activeColor: const Color(0xFF0067AC),
+                        activeColor: AppColors.primary,
                       ),
                     ),
                     const SizedBox(height: 48),
@@ -274,7 +315,7 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),
-          side: const BorderSide(color: Color(0xFFE2E8F0)),
+          side: const BorderSide(color: AppColors.borderLight),
         ),
         child: Container(
           height: 140,
@@ -316,11 +357,11 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF0067AC).withOpacity(0.06),
+                        color: AppColors.primary.withOpacity(0.06),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(Icons.camera_alt,
-                          color: Color(0xFF0067AC), size: 28),
+                          color: AppColors.primary, size: 28),
                     ),
                     const SizedBox(height: 8),
                     const Text(
@@ -354,7 +395,7 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: const Icon(Icons.image, color: Color(0xFF0067AC)),
+                leading: const Icon(Icons.image, color: AppColors.primary),
                 title: const Text('Chọn ảnh trên máy'),
                 onTap: () {
                   Navigator.pop(context);
@@ -419,7 +460,7 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
         prefixIcon: Icon(icon, color: Colors.black45),
         suffixIcon: trailingIcon != null
             ? IconButton(
-                icon: Icon(trailingIcon, color: const Color(0xFF0067AC)),
+                icon: Icon(trailingIcon, color: AppColors.primary),
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -521,11 +562,11 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
-        side: const BorderSide(color: Color(0xFFE2E8F0)),
+        side: const BorderSide(color: AppColors.borderLight),
       ),
       margin: EdgeInsets.zero,
       child: ListTile(
-        leading: Icon(icon, color: const Color(0xFF0067AC)),
+        leading: Icon(icon, color: AppColors.primary),
         title: Text(label,
             style: const TextStyle(
                 fontSize: 13,
@@ -550,7 +591,7 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
-        side: const BorderSide(color: Color(0xFFE2E8F0)),
+        side: const BorderSide(color: AppColors.borderLight),
       ),
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -573,7 +614,7 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
-        side: const BorderSide(color: Color(0xFFE2E8F0)),
+        side: const BorderSide(color: AppColors.borderLight),
       ),
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -608,7 +649,7 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
-        side: const BorderSide(color: Color(0xFFE2E8F0)),
+        side: const BorderSide(color: AppColors.borderLight),
       ),
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -702,8 +743,7 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
                 }
                 Navigator.pop(context);
               },
-              style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF0067AC)),
+              style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
               child: const Text('Thêm'),
             )
           ],
@@ -723,7 +763,8 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
             title: Text('${unit['name']}',
                 style:
                     const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-            subtitle: Text('Giá bán: ${unit['price']} đ'),
+            subtitle: Text(
+                'Giá bán: ${NumberFormat('#,###', 'vi_VN').format(unit['price'])} đ'),
             trailing: IconButton(
               icon:
                   const Icon(Icons.delete_outline, color: Colors.red, size: 18),
@@ -785,11 +826,362 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
                 }
                 Navigator.pop(context);
               },
-              style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF0067AC)),
+              style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
               child: const Text('Thêm'),
             )
           ],
+        );
+      },
+    );
+  }
+
+  // Combo Section Card Builder
+  Widget _buildComboSectionCard() {
+    final allProducts = ref.watch(productListProvider).value ?? [];
+    final double suggestedCost = ComboHelper.calculateSuggestedCostPrice(
+      components: _comboComponents,
+      allProducts: allProducts,
+    );
+
+    return Card(
+      color: Colors.white,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(
+          color: _isCombo ? AppColors.primary : AppColors.borderLight,
+          width: _isCombo ? 1.5 : 1.0,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              value: _isCombo,
+              onChanged: (v) {
+                setState(() {
+                  _isCombo = v;
+                  if (v && _comboComponents.isNotEmpty) {
+                    _costPriceController.text =
+                        suggestedCost.toStringAsFixed(0);
+                  }
+                });
+              },
+              title: const Row(
+                children: [
+                  Icon(Icons.widgets, color: AppColors.primary, size: 20),
+                  SizedBox(width: 8),
+                  Text(
+                    'Sản phẩm Combo / Bộ',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+              subtitle: const Text(
+                'Tồn kho được tính tự động dựa trên số lượng linh kiện thành phần',
+                style: TextStyle(fontSize: 11, color: Colors.black54),
+              ),
+              activeColor: AppColors.primary,
+            ),
+            if (_isCombo) ...[
+              const Divider(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Danh sách thành phần (${_comboComponents.length})',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: _showAddComponentSheet,
+                    icon: const Icon(Icons.add_circle_outline, size: 18),
+                    label: const Text('Thêm linh kiện'),
+                  ),
+                ],
+              ),
+              if (_comboComponents.isEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: const Column(
+                    children: [
+                      Icon(Icons.widgets_outlined,
+                          color: Colors.black38, size: 32),
+                      SizedBox(height: 4),
+                      Text(
+                        'Chưa có linh kiện nào trong Combo',
+                        style: TextStyle(fontSize: 12, color: Colors.black54),
+                      ),
+                      Text(
+                        'Nhấn "Thêm linh kiện" để chọn các sản phẩm thành phần',
+                        style: TextStyle(fontSize: 11, color: Colors.black38),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                Column(
+                  children: _comboComponents.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final comp = entry.value;
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppColors.borderLight),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  comp.productName,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                Text(
+                                  'Mã: ${comp.productCode}',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.black54,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Row(
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.remove_circle_outline,
+                                    size: 20),
+                                onPressed: comp.quantity > 1
+                                    ? () {
+                                        setState(() {
+                                          _comboComponents[index] =
+                                              comp.copyWith(
+                                            quantity: comp.quantity - 1,
+                                          );
+                                        });
+                                      }
+                                    : null,
+                              ),
+                              Text(
+                                '${comp.quantity}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.add_circle_outline,
+                                    size: 20),
+                                onPressed: () {
+                                  setState(() {
+                                    _comboComponents[index] = comp.copyWith(
+                                      quantity: comp.quantity + 1,
+                                    );
+                                  });
+                                },
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline,
+                                    color: Colors.red, size: 20),
+                                onPressed: () {
+                                  setState(() {
+                                    _comboComponents.removeAt(index);
+                                  });
+                                },
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+              if (_comboComponents.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.amber.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.lightbulb_outline,
+                          color: Colors.amber, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Giá vốn gợi ý: ${NumberFormat('#,###', 'vi_VN').format(suggestedCost)} đ',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _costPriceController.text =
+                                suggestedCost.toStringAsFixed(0);
+                          });
+                        },
+                        child: const Text('Áp dụng',
+                            style: TextStyle(fontSize: 12)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAddComponentSheet() {
+    final allProducts = ref.read(productListProvider).value ?? [];
+    // Only show non-combo products as eligible components
+    final eligibleProducts = allProducts.where((p) => !p.isCombo).toList();
+
+    String searchQuery = '';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final filtered = eligibleProducts.where((p) {
+              final query = searchQuery.toLowerCase();
+              return p.name.toLowerCase().contains(query) ||
+                  p.code.toLowerCase().contains(query);
+            }).toList();
+
+            return DraggableScrollableSheet(
+              initialChildSize: 0.7,
+              minChildSize: 0.4,
+              maxChildSize: 0.9,
+              expand: false,
+              builder: (context, scrollController) {
+                return Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Chọn linh kiện thành phần',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        onChanged: (v) => setModalState(() => searchQuery = v),
+                        decoration: const InputDecoration(
+                          hintText: 'Tìm theo tên hoặc mã hàng...',
+                          prefixIcon: Icon(Icons.search),
+                          border: OutlineInputBorder(),
+                          contentPadding:
+                              EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Expanded(
+                        child: filtered.isEmpty
+                            ? const Center(
+                                child: Text('Không tìm thấy sản phẩm hợp lệ'),
+                              )
+                            : ListView.builder(
+                                controller: scrollController,
+                                itemCount: filtered.length,
+                                itemBuilder: (context, index) {
+                                  final p = filtered[index];
+                                  final isAlreadyAdded = _comboComponents
+                                      .any((c) => c.productId == p.id);
+
+                                  return ListTile(
+                                    title: Text(p.name,
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold)),
+                                    subtitle: Text(
+                                        'Mã: ${p.code} | Giá vốn: ${NumberFormat('#,###', 'vi_VN').format(p.costPrice)} đ'),
+                                    trailing: isAlreadyAdded
+                                        ? const Icon(Icons.check_circle,
+                                            color: Colors.green)
+                                        : ElevatedButton(
+                                            onPressed: () {
+                                              setState(() {
+                                                _comboComponents.add(
+                                                  ComboComponent(
+                                                    productId: p.id,
+                                                    productCode: p.code,
+                                                    productName: p.name,
+                                                    quantity: 1,
+                                                    costPrice: p.costPrice,
+                                                  ),
+                                                );
+                                              });
+                                              setModalState(() {});
+                                            },
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor:
+                                                  AppColors.primary,
+                                              foregroundColor: Colors.white,
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 12),
+                                            ),
+                                            child: const Text('Chọn'),
+                                          ),
+                                  );
+                                },
+                              ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
         );
       },
     );
@@ -862,6 +1254,8 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
         noteTemplate: note.isNotEmpty ? note : null,
         components: components.isNotEmpty ? components : null,
         imageUrl: imageUrl,
+        isCombo: _isCombo,
+        comboComponents: _isCombo ? _comboComponents : const [],
       );
 
       await ref.read(productRepositoryProvider).upsert(product);

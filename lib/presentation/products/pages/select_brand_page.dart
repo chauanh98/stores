@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:stores/core/theme/app_colors.dart';
 
 import '../../../application/products/products_providers.dart';
 
@@ -42,14 +43,14 @@ class _SelectBrandPageState extends ConsumerState<SelectBrandPage> {
     final productsAsync = ref.watch(productListProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: AppColors.surface,
       appBar: AppBar(
         title: const Text('Thương hiệu',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         backgroundColor: Colors.white,
         actions: [
           IconButton(
-            icon: const Icon(Icons.add, color: Color(0xFF0067AC), size: 28),
+            icon: const Icon(Icons.add, color: AppColors.primary, size: 28),
             tooltip: 'Thêm thương hiệu mới',
             onPressed: _showAddBrandDialog,
           ),
@@ -80,11 +81,11 @@ class _SelectBrandPageState extends ConsumerState<SelectBrandPage> {
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  borderSide: const BorderSide(color: AppColors.borderLight),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: Color(0xFF0067AC)),
+                  borderSide: const BorderSide(color: AppColors.primary),
                 ),
               ),
               onChanged: (v) => setState(() => _searchQuery = v.trim()),
@@ -121,27 +122,28 @@ class _SelectBrandPageState extends ConsumerState<SelectBrandPage> {
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   itemCount: filtered.length,
                   separatorBuilder: (_, __) =>
-                      const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                      const Divider(height: 1, color: AppColors.surfaceLight),
                   itemBuilder: (context, idx) {
                     final brand = filtered[idx];
                     final isSelected =
                         widget.initialBrand?.trim() == brand.trim();
 
                     return ListTile(
-                      tileColor:
-                          isSelected ? const Color(0xFFE0F2FE) : Colors.white,
+                      tileColor: isSelected
+                          ? AppColors.surfaceHighlight
+                          : Colors.white,
                       title: Text(
                         brand,
                         style: TextStyle(
                           fontWeight:
                               isSelected ? FontWeight.bold : FontWeight.normal,
                           color: isSelected
-                              ? const Color(0xFF0369A1)
+                              ? AppColors.primaryDark
                               : Colors.black87,
                         ),
                       ),
                       trailing: isSelected
-                          ? const Icon(Icons.check, color: Color(0xFF0067AC))
+                          ? const Icon(Icons.check, color: AppColors.primary)
                           : null,
                       onTap: () {
                         Navigator.pop(context, brand);
@@ -188,8 +190,7 @@ class _SelectBrandPageState extends ConsumerState<SelectBrandPage> {
                   Navigator.pop(context);
                 }
               },
-              style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF0067AC)),
+              style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
               child: const Text('Thêm'),
             ),
           ],

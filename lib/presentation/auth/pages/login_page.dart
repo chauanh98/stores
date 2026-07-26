@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../application/auth/auth_providers.dart';
@@ -17,11 +18,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   String? _error;
 
   Future<void> _login() async {
+    final l10n = AppLocalizations.of(context)!;
     final username = _username.text.trim();
     final password = _password.text;
 
     if (username.isEmpty || password.isEmpty) {
-      setState(() => _error = 'Vui lòng nhập tài khoản và mật khẩu.');
+      setState(() => _error = l10n.pleaseEnterCredentials);
       return;
     }
 
@@ -43,6 +45,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
       body: Center(
         child: SingleChildScrollView(
@@ -57,7 +61,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'Đăng Nhập',
+                      l10n.loginTitle,
                       style: Theme.of(context).textTheme.headlineMedium,
                     ),
                     const SizedBox(height: 32),
@@ -70,10 +74,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     ],
                     TextField(
                       controller: _username,
-                      decoration: const InputDecoration(
-                        labelText: 'Tên đăng nhập',
-                        prefixIcon: Icon(Icons.person),
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: l10n.usernameLabel,
+                        prefixIcon: const Icon(Icons.person),
+                        border: const OutlineInputBorder(),
                       ),
                       textInputAction: TextInputAction.next,
                     ),
@@ -81,10 +85,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     TextField(
                       controller: _password,
                       obscureText: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Mật khẩu',
-                        prefixIcon: Icon(Icons.lock),
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: l10n.passwordLabel,
+                        prefixIcon: const Icon(Icons.lock),
+                        border: const OutlineInputBorder(),
                       ),
                       onSubmitted: (_) => _login(),
                     ),
@@ -97,7 +101,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         child: _isLoading
                             ? const CircularProgressIndicator(
                                 color: Colors.white)
-                            : const Text('Đăng Nhập'),
+                            : Text(l10n.loginTitle),
                       ),
                     ),
                   ],

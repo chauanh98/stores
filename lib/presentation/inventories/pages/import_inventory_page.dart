@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:stores/presentation/common/widgets/loading_indicator.dart';
 
+import '../../../application/auth/auth_providers.dart';
 import '../../../application/inventory/inventory_providers.dart';
 import '../../../application/products/products_providers.dart';
 import '../../../domain/entities/inventory_transaction.dart';
@@ -315,6 +316,8 @@ class _ImportInventoryPageState extends ConsumerState<ImportInventoryPage> {
       final productRepo = ref.read(productRepositoryProvider);
       final inventoryRepo = ref.read(inventoryRepositoryProvider);
 
+      final currentUser = ref.read(authProvider);
+
       for (final item in _items) {
         final product = products.firstWhere((p) => p.id == item.productId);
 
@@ -345,6 +348,8 @@ class _ImportInventoryPageState extends ConsumerState<ImportInventoryPage> {
           date: now,
           note: 'Import - ${product.name}',
           importPrice: item.importPrice,
+          createdBy: currentUser?.username,
+          createdByName: currentUser?.name,
         ));
       }
 
@@ -445,10 +450,12 @@ class _ProductAutocompleteState extends State<_ProductAutocomplete> {
       displayStringForOption: (product) =>
           '${product.name} • ${product.brand ?? ''} • ${product.model ?? ''}',
       optionsBuilder: (textEditingValue) {
+        final nonComboProducts =
+            widget.products.where((p) => !p.isCombo).toList();
         if (textEditingValue.text.isEmpty) {
-          return widget.products;
+          return nonComboProducts;
         }
-        return widget.products.where((product) {
+        return nonComboProducts.where((product) {
           final query = textEditingValue.text.toLowerCase();
           return product.name.toLowerCase().contains(query) ||
               (product.brand ?? '').toLowerCase().contains(query) ||

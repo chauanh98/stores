@@ -26,9 +26,8 @@ final customerOrdersProvider =
   return ref.watch(orderRepositoryProvider).watchByCustomer(customerId);
 });
 
-final allOrdersProvider = StreamProvider<List<Order>>((ref) {
-  return ref.watch(orderRepositoryProvider).watchAll();
-});
+// allOrdersProvider đã bị xóa vì không được dùng ở đâu
+// và tạo listener .onValue trên TOÀN BỘ node orders - rất lãng phí bandwidth
 
 final ordersByDateRangeProvider =
     StreamProvider.family<List<Order>, DateTimeRange>((ref, range) {

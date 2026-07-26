@@ -7,6 +7,11 @@ class OrderModel {
   final List<OrderItemModel> items;
   final double total;
   final String status;
+  final double amountPaid;
+  final double debtAmount;
+  final String paymentMethod;
+  final String? createdBy;
+  final String? createdByName;
 
   const OrderModel({
     required this.id,
@@ -15,6 +20,11 @@ class OrderModel {
     required this.items,
     required this.total,
     this.status = 'completed',
+    this.amountPaid = 0.0,
+    this.debtAmount = 0.0,
+    this.paymentMethod = 'cash',
+    this.createdBy,
+    this.createdByName,
   });
 
   Map<String, dynamic> toMap() => {
@@ -24,6 +34,11 @@ class OrderModel {
         'total': total,
         'items': items.map((e) => e.toMap()).toList(),
         'status': status,
+        'amountPaid': amountPaid,
+        'debtAmount': debtAmount,
+        'paymentMethod': paymentMethod,
+        if (createdBy != null) 'createdBy': createdBy,
+        if (createdByName != null) 'createdByName': createdByName,
       };
 
   factory OrderModel.fromMap(Map<dynamic, dynamic> map) => OrderModel(
@@ -36,5 +51,14 @@ class OrderModel {
                 OrderItemModel.fromMap(Map<String, dynamic>.from(e as Map)))
             .toList(),
         status: map['status']?.toString() ?? 'completed',
+        amountPaid: map['amountPaid'] != null
+            ? (map['amountPaid'] as num).toDouble()
+            : (map['total'] as num).toDouble(),
+        debtAmount: map['debtAmount'] != null
+            ? (map['debtAmount'] as num).toDouble()
+            : 0.0,
+        paymentMethod: map['paymentMethod']?.toString() ?? 'cash',
+        createdBy: map['createdBy']?.toString(),
+        createdByName: map['createdByName']?.toString(),
       );
 }

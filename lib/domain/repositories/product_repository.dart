@@ -3,6 +3,8 @@ import '../entities/product.dart';
 abstract class ProductRepository {
   Stream<List<Product>> watchAll();
 
+  Future<List<Product>> fetchAll();
+
   Future<Product?> fetchById(String id);
 
   Future<void> upsert(Product product);

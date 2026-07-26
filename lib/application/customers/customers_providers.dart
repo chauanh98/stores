@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/datasources/firebase/customer_remote_data_source.dart';
 import '../../data/repositories/customer_repository_impl.dart';
 import '../../domain/entities/customer.dart';
+import '../../domain/entities/customer_debt_transaction.dart';
 import '../../domain/repositories/customer_repository.dart';
 import '../reports/overview_providers.dart';
 import 'customer_list_notifier.dart';
@@ -23,21 +24,62 @@ final customerListNotifierProvider =
   CustomerListNotifier.new,
 );
 
+final customerDebtTransactionsProvider =
+    StreamProvider.family<List<CustomerDebtTransaction>, String>(
+        (ref, customerId) {
+  final ds = ref.watch(customerRemoteDataSourceProvider);
+  return ds.watchDebtTransactions(customerId).map((list) {
+    return list.map((m) => CustomerDebtTransaction.fromMap(m)).toList();
+  });
+});
+
 final customerSearchQueryProvider =
     StateProvider.autoDispose<String>((ref) => '');
 
 DateTime? _parseCustomerDate(String? dateStr) {
   if (dateStr == null || dateStr.isEmpty) return null;
-  return DateTime.tryParse(dateStr);
+  final parsedIso = DateTime.tryParse(dateStr);
+  if (parsedIso != null) return parsedIso;
+
+  try {
+    final parts = dateStr.trim().split(' ');
+    final dateParts = parts[0].split('/');
+    if (dateParts.length == 3) {
+      final day = int.parse(dateParts[0]);
+      final month = int.parse(dateParts[1]);
+      final year = int.parse(dateParts[2]);
+      int hour = 0;
+      int minute = 0;
+      if (parts.length > 1) {
+        final timeParts = parts[1].split(':');
+        if (timeParts.length >= 2) {
+          hour = int.parse(timeParts[0]);
+          minute = int.parse(timeParts[1]);
+        }
+      }
+      return DateTime(year, month, day, hour, minute);
+    }
+  } catch (_) {}
+
+  final numVal = int.tryParse(dateStr);
+  if (numVal != null) {
+    return DateTime.fromMillisecondsSinceEpoch(numVal);
+  }
+
+  return null;
+}
+
+DateTime? _getCustomerEffectiveDate(Customer c) {
+  return _parseCustomerDate(c.createdAt) ??
+      _parseCustomerDate(c.lastTransactionDate);
 }
 
 String _formatCustomerDate(String? dateStr) {
-  if (dateStr == null || dateStr.isEmpty) return 'Không rõ ngày tạo';
-  final dt = DateTime.tryParse(dateStr);
+  final dt = _parseCustomerDate(dateStr);
   if (dt != null) {
     return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
   }
-  return dateStr;
+  return 'Chưa rõ ngày';
 }
 
 List<Customer> _filterCustomers(List<Customer> customers, String query) {
@@ -64,7 +106,7 @@ final processedCustomersProvider =
 
     if (activeRange != null) {
       filtered = filtered.where((c) {
-        final date = _parseCustomerDate(c.createdAt);
+        final date = _getCustomerEffectiveDate(c);
         if (date == null) return false;
         return !date.isBefore(activeRange.start) &&
             !date.isAfter(activeRange.end);
@@ -73,8 +115,8 @@ final processedCustomersProvider =
 
     final sorted = List<Customer>.from(filtered)
       ..sort((a, b) {
-        final ad = _parseCustomerDate(a.createdAt);
-        final bd = _parseCustomerDate(b.createdAt);
+        final ad = _getCustomerEffectiveDate(a);
+        final bd = _getCustomerEffectiveDate(b);
         if (ad == null && bd == null) return 0;
         if (ad == null) return 1;
         if (bd == null) return -1;
@@ -83,7 +125,8 @@ final processedCustomersProvider =
 
     final grouped = <String, List<Customer>>{};
     for (final customer in sorted) {
-      final dateKey = _formatCustomerDate(customer.createdAt);
+      final dateKey = _formatCustomerDate(
+          customer.createdAt ?? customer.lastTransactionDate);
       grouped.putIfAbsent(dateKey, () => []).add(customer);
     }
 

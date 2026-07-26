@@ -26,15 +26,20 @@ class CustomerRemoteDataSource {
     return [];
   }
 
+  /// Optimized: bỏ _ref.get() vì onChildAdded đã fire cho mọi child hiện tại
+  /// Tránh download data 2 lần khi khởi tạo
   Stream<List<Map>> watchAll() {
     final controller = StreamController<List<Map>>();
     final Map<String, Map> cache = {};
-    bool initialLoaded = false;
+    Timer? debounceTimer;
 
-    void safeEmit() {
-      if (initialLoaded && !controller.isClosed) {
-        controller.add(cache.values.toList());
-      }
+    void debouncedEmit() {
+      debounceTimer?.cancel();
+      debounceTimer = Timer(const Duration(milliseconds: 100), () {
+        if (!controller.isClosed) {
+          controller.add(cache.values.toList());
+        }
+      });
     }
 
     final addSub = _ref.onChildAdded.listen((event) {
@@ -44,7 +49,7 @@ class CustomerRemoteDataSource {
         final id = map['id']?.toString();
         if (id != null) {
           cache[id] = map;
-          safeEmit();
+          debouncedEmit();
         }
       }
     });
@@ -56,7 +61,10 @@ class CustomerRemoteDataSource {
         final id = map['id']?.toString();
         if (id != null) {
           cache[id] = map;
-          safeEmit();
+          // Emit ngay cho change events (không debounce)
+          if (!controller.isClosed) {
+            controller.add(cache.values.toList());
+          }
         }
       }
     });
@@ -68,31 +76,15 @@ class CustomerRemoteDataSource {
         final id = map['id']?.toString();
         if (id != null) {
           cache.remove(id);
-          safeEmit();
-        }
-      }
-    });
-
-    _ref.get().then((snap) {
-      final value = snap.value;
-      if (value != null) {
-        final initialList = _parseSnapshot(value);
-        for (final item in initialList) {
-          final id = item['id']?.toString();
-          if (id != null) {
-            cache[id] = item;
+          if (!controller.isClosed) {
+            controller.add(cache.values.toList());
           }
         }
-      }
-      initialLoaded = true;
-      safeEmit();
-    }).catchError((err) {
-      if (!controller.isClosed) {
-        controller.addError(err);
       }
     });
 
     controller.onCancel = () {
+      debounceTimer?.cancel();
       addSub.cancel();
       changeSub.cancel();
       removeSub.cancel();
@@ -111,8 +103,38 @@ class CustomerRemoteDataSource {
   }
 
   Future<void> upsert(String id, Map<String, dynamic> map) {
-    return _ref.child(id).set(map);
+    return _ref.child(id).update(map);
   }
 
   Future<void> delete(String id) => _ref.child(id).remove();
+
+  Future<void> saveDebtTransaction(
+      String customerId, Map<String, dynamic> map) {
+    final id = map['id']?.toString() ??
+        DateTime.now().millisecondsSinceEpoch.toString();
+    return _ref.child(customerId).child('debt_transactions').child(id).set(map);
+  }
+
+  Stream<List<Map>> watchDebtTransactions(String customerId) {
+    return _ref
+        .child(customerId)
+        .child('debt_transactions')
+        .onValue
+        .map((event) {
+      final val = event.snapshot.value;
+      if (val is Map) {
+        return val.values
+            .where((e) => e != null)
+            .map<Map>((e) => Map.from(e as Map))
+            .toList();
+      }
+      if (val is List) {
+        return val
+            .where((e) => e != null)
+            .map<Map>((e) => Map.from(e as Map))
+            .toList();
+      }
+      return <Map>[];
+    });
+  }
 }

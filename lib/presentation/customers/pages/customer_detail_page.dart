@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:stores/core/constants/product_categories.dart';
-import 'package:stores/presentation/common/widgets/error_view.dart';
-import 'package:stores/presentation/common/widgets/loading_indicator.dart';
+import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../application/customers/customers_providers.dart';
-import '../../../application/products/products_providers.dart';
+import '../../../application/orders/orders_providers.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../domain/entities/customer.dart';
-import '../../../domain/entities/product.dart';
-import '../../../domain/entities/purchase.dart';
+import '../../../domain/entities/customer_debt_transaction.dart';
+import '../../../domain/entities/order.dart';
 import '../../orders/pages/create_order_page.dart';
+import 'customer_debt_page.dart';
+import 'customer_transactions_page.dart';
 
 class CustomerDetailPage extends ConsumerStatefulWidget {
   final Customer customer;
@@ -52,7 +55,9 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final currencyFormat = NumberFormat('#,###', 'vi_VN');
     final customersAsync = ref.watch(customerListNotifierProvider);
+
     final c = customersAsync.maybeWhen(
       data: (list) => list.firstWhere(
         (x) => x.id == widget.customer.id,
@@ -61,22 +66,21 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
       orElse: () => widget.customer,
     );
 
+    final ordersAsync = ref.watch(customerOrdersProvider(c.id));
+    final debtTxsAsync = ref.watch(customerDebtTransactionsProvider(c.id));
+
+    final orders = ordersAsync.value ?? <Order>[];
+    final debtTxs = debtTxsAsync.value ?? <CustomerDebtTransaction>[];
+
+    final displayTotalSales = c.effectiveTotalSales(orders);
+    final displayCurrentDebt = c.effectiveCurrentDebt(orders, debtTxs);
+
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text(_isEditing ? l10n.edit : l10n.customerDetail),
+        backgroundColor: Colors.white,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.receipt_long),
-            tooltip: l10n.createOrder,
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) =>
-                      CreateOrderPage(selectedCustomerId: widget.customer.id),
-                ),
-              );
-            },
-          ),
           if (_isEditing)
             IconButton(
               icon: const Icon(Icons.save),
@@ -84,78 +88,524 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
               onPressed: _isLoading ? null : _saveCustomer,
             )
           else
-            IconButton(
-              icon: const Icon(Icons.edit),
-              tooltip: l10n.edit,
-              onPressed: () => setState(() => _isEditing = true),
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert),
+              onSelected: (value) {
+                if (value == 'edit') {
+                  setState(() => _isEditing = true);
+                } else if (value == 'create_order') {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => CreateOrderPage(selectedCustomerId: c.id),
+                    ),
+                  );
+                } else if (value == 'delete') {
+                  _showDeleteConfirmDialog(context, c);
+                }
+              },
+              itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                PopupMenuItem<String>(
+                  value: 'edit',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.edit,
+                          color: AppColors.primary, size: 20),
+                      const SizedBox(width: 8),
+                      Text(l10n.edit),
+                    ],
+                  ),
+                ),
+                PopupMenuItem<String>(
+                  value: 'create_order',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.receipt_long,
+                          color: Colors.blue, size: 20),
+                      const SizedBox(width: 8),
+                      Text(l10n.createOrder),
+                    ],
+                  ),
+                ),
+                PopupMenuItem<String>(
+                  value: 'delete',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.delete, color: Colors.red, size: 20),
+                      const SizedBox(width: 8),
+                      Text(l10n.delete),
+                    ],
+                  ),
+                ),
+              ],
             ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: _isEditing
-                    ? Form(
-                        key: _formKey,
-                        child: Column(
+      body: _isEditing
+          ? SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  children: [
+                    _field(_name, l10n.name, Icons.person),
+                    const SizedBox(height: 12),
+                    _field(_phone, l10n.phone, Icons.phone,
+                        keyboard: TextInputType.phone),
+                    const SizedBox(height: 12),
+                    _field(_email, l10n.email, Icons.email,
+                        keyboard: TextInputType.emailAddress, required: false),
+                    const SizedBox(height: 12),
+                    _field(_address, l10n.address, Icons.location_on,
+                        maxLines: 2, required: false),
+                  ],
+                ),
+              ),
+            )
+          : SingleChildScrollView(
+              padding: const EdgeInsets.only(bottom: 24),
+              child: Column(
+                children: [
+                  // 1. THÔNG TIN CƠ BẢN
+                  _buildSectionContainer(
+                    headerTitle: l10n.basicInfo,
+                    onEditTap: () => setState(() => _isEditing = true),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Avatar + Name
+                        Row(
                           children: [
-                            _field(_name, l10n.name, Icons.person),
-                            const SizedBox(height: 12),
-                            _field(_phone, l10n.phone, Icons.phone,
-                                keyboard: TextInputType.phone),
-                            const SizedBox(height: 12),
-                            _field(_email, l10n.email, Icons.email,
-                                keyboard: TextInputType.emailAddress,
-                                required: false),
-                            const SizedBox(height: 12),
-                            _field(_address, l10n.address, Icons.location_on,
-                                maxLines: 2, required: false),
+                            CircleAvatar(
+                              radius: 24,
+                              backgroundColor:
+                                  AppColors.primary.withOpacity(0.12),
+                              child: Text(
+                                c.name.isNotEmpty
+                                    ? c.name[0].toUpperCase()
+                                    : '?',
+                                style: const TextStyle(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 20,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Text(
+                                c.name,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            ),
                           ],
                         ),
-                      )
-                    : Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _infoRow(context, Icons.person, l10n.name, c.name),
-                          _infoRow(context, Icons.phone, l10n.phone, c.phone),
-                          _infoRow(context, Icons.email, l10n.email, c.email),
-                          _infoRow(context, Icons.location_on, l10n.address,
-                              c.address),
-                          if (c.branch != null && c.branch!.isNotEmpty)
-                            _infoRow(
-                                context, Icons.store, 'Chi nhánh', c.branch!),
-                          if (c.createdAt != null && c.createdAt!.isNotEmpty)
-                            _infoRow(context, Icons.calendar_today,
-                                l10n.createdAt, _formatDateString(c.createdAt)),
-                        ],
+                        const SizedBox(height: 16),
+
+                        // Số điện thoại + Gọi/SMS/Copy
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  l10n.phone,
+                                  style: const TextStyle(
+                                      fontSize: 12, color: Colors.black54),
+                                ),
+                                const SizedBox(height: 2),
+                                Row(
+                                  children: [
+                                    Text(
+                                      c.phone.isNotEmpty
+                                          ? c.phone
+                                          : l10n.noPhoneAvailable,
+                                      style: const TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.black87,
+                                      ),
+                                    ),
+                                    if (c.phone.isNotEmpty) ...[
+                                      const SizedBox(width: 4),
+                                      InkWell(
+                                        onTap: () {
+                                          Clipboard.setData(
+                                              ClipboardData(text: c.phone));
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            SnackBar(
+                                                content: Text(
+                                                    l10n.copyPhoneSuccess(
+                                                        c.phone))),
+                                          );
+                                        },
+                                        child: const Padding(
+                                          padding: EdgeInsets.all(4.0),
+                                          child: Icon(Icons.copy_rounded,
+                                              size: 15, color: Colors.black45),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ],
+                            ),
+                            Row(
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.chat_bubble_outline,
+                                      color: AppColors.primary, size: 20),
+                                  onPressed: () async {
+                                    if (c.phone.isEmpty) return;
+                                    final cleanPhone =
+                                        c.phone.replaceAll(RegExp(r'\s+'), '');
+                                    final uri = Uri.parse('sms:$cleanPhone');
+                                    if (await canLaunchUrl(uri)) {
+                                      await launchUrl(uri);
+                                    } else {
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          SnackBar(
+                                              content: Text(
+                                                  l10n.cannotSms(cleanPhone))),
+                                        );
+                                      }
+                                    }
+                                  },
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.phone_outlined,
+                                      color: AppColors.primary, size: 20),
+                                  onPressed: () async {
+                                    if (c.phone.isEmpty) return;
+                                    final cleanPhone =
+                                        c.phone.replaceAll(RegExp(r'\s+'), '');
+                                    final uri = Uri.parse('tel:$cleanPhone');
+                                    if (await canLaunchUrl(uri)) {
+                                      await launchUrl(uri);
+                                    } else {
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          SnackBar(
+                                              content: Text(
+                                                  l10n.cannotCall(cleanPhone))),
+                                        );
+                                      }
+                                    }
+                                  },
+                                ),
+                              ],
+                            )
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Mã KH + Chi nhánh
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    l10n.customerCode,
+                                    style: const TextStyle(
+                                        fontSize: 12, color: Colors.black54),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        c.id,
+                                        style: const TextStyle(
+                                            fontSize: 14,
+                                            color: Colors.black87),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      InkWell(
+                                        onTap: () {
+                                          Clipboard.setData(
+                                              ClipboardData(text: c.id));
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            SnackBar(
+                                                content: Text(l10n
+                                                    .copyCustomerCodeSuccess(
+                                                        c.id))),
+                                          );
+                                        },
+                                        child: const Padding(
+                                          padding: EdgeInsets.all(4.0),
+                                          child: Icon(Icons.copy_rounded,
+                                              size: 15, color: Colors.black45),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    l10n.branch,
+                                    style: const TextStyle(
+                                        fontSize: 12, color: Colors.black54),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    c.branch ?? 'Chi nhánh Thới Bình',
+                                    style: const TextStyle(
+                                        fontSize: 14, color: Colors.black87),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        const Divider(color: AppColors.divider, height: 1),
+
+                        // Row 1: Lịch sử giao dịch
+                        InkWell(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    CustomerTransactionsPage(customer: c),
+                              ),
+                            );
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  l10n.transactionHistory,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                                Row(
+                                  children: [
+                                    Text(
+                                      currencyFormat.format(displayTotalSales),
+                                      style: const TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.black87,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    const Icon(Icons.chevron_right,
+                                        color: Colors.black38, size: 20),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const Divider(color: AppColors.divider, height: 1),
+
+                        // Row 2: Công nợ
+                        InkWell(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => CustomerDebtPage(customer: c),
+                              ),
+                            );
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  l10n.customerDebt,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                                Row(
+                                  children: [
+                                    Text(
+                                      currencyFormat.format(displayCurrentDebt),
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.bold,
+                                        color: displayCurrentDebt > 0
+                                            ? Colors.red
+                                            : Colors.black87,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    const Icon(Icons.chevron_right,
+                                        color: Colors.black38, size: 20),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // 2. ĐỊA CHỈ
+                  _buildSectionContainer(
+                    headerTitle: l10n.addressSection,
+                    onEditTap: () => setState(() => _isEditing = true),
+                    child: Text(
+                      c.address.isNotEmpty ? c.address : l10n.notUpdated,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: c.address.isNotEmpty
+                            ? Colors.black87
+                            : Colors.black45,
                       ),
+                    ),
+                  ),
+
+                  // 3. LIÊN HỆ
+                  _buildSectionContainer(
+                    headerTitle: l10n.contactSection,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildDetailText(l10n.email, c.email),
+                        _buildDetailText('Facebook', c.facebook),
+                      ],
+                    ),
+                  ),
+
+                  // 4. NHÓM KHÁCH HÀNG
+                  _buildSectionContainer(
+                    headerTitle: l10n.customerGroupSection,
+                    child: Text(
+                      c.group?.isNotEmpty == true
+                          ? c.group!
+                          : l10n.notCategorized,
+                      style:
+                          const TextStyle(fontSize: 14, color: Colors.black87),
+                    ),
+                  ),
+
+                  // 5. THÔNG TIN XUẤT HOÁ ĐƠN
+                  _buildSectionContainer(
+                    headerTitle: l10n.invoiceInfoSection,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildDetailText(
+                            l10n.customerType, c.type ?? l10n.individual),
+                        _buildDetailText(l10n.buyerName, c.name),
+                        _buildDetailText(l10n.phone, c.phone),
+                        _buildDetailText(l10n.taxCode, c.taxCode),
+                        _buildDetailText(l10n.companyName, c.company),
+                        _buildDetailText(l10n.note, c.notes),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 16),
-            _PurchasesSection(purchases: c.purchases),
-          ],
-        ),
+    );
+  }
+
+  Widget _buildSectionContainer({
+    required String headerTitle,
+    VoidCallback? onEditTap,
+    required Widget child,
+  }) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.all(16),
+      color: Colors.white,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                headerTitle,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black54,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              if (onEditTap != null)
+                InkWell(
+                  onTap: onEditTap,
+                  child: Text(
+                    AppLocalizations.of(context)!.edit,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          child,
+        ],
       ),
     );
   }
 
-  String _formatDateString(String? dateStr) {
-    if (dateStr == null || dateStr.isEmpty) return '';
-    try {
-      final dateTime = DateTime.tryParse(dateStr);
-      if (dateTime != null) {
-        return '${dateTime.day.toString().padLeft(2, '0')}/${dateTime.month.toString().padLeft(2, '0')}/${dateTime.year}';
-      }
-    } catch (_) {}
-    return dateStr;
+  Widget _buildDetailText(String label, String? value) {
+    if (value == null || value.trim().isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 13, color: Colors.black54),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _field(
-    TextEditingController c,
+    TextEditingController controller,
     String label,
     IconData icon, {
     TextInputType keyboard = TextInputType.text,
@@ -163,10 +613,9 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
     bool required = true,
   }) {
     final l10n = AppLocalizations.of(context)!;
-    final isNumber = keyboard == TextInputType.phone;
 
     return TextFormField(
-      controller: c,
+      controller: controller,
       maxLines: maxLines,
       keyboardType: keyboard,
       decoration: InputDecoration(
@@ -176,59 +625,16 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
       ),
       validator: (value) {
         final text = value?.trim() ?? '';
-
         if (required && text.isEmpty) {
           return '${l10n.pleaseEnter} $label';
         }
-
-        if (isNumber && text.isNotEmpty) {
-          // Enforce Vietnam mobile format: 10 digits starting with 03/05/07/08/09
-          final vnPhoneRegex = RegExp(r'^(03|05|07|08|09)\d{8}$');
-          if (!vnPhoneRegex.hasMatch(text)) {
-            return l10n.pleaseEnterValidNumber;
-          }
-        }
-
-        if (keyboard == TextInputType.emailAddress && text.isNotEmpty) {
-          final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
-          if (!emailRegex.hasMatch(text)) {
-            return l10n.pleaseEnterValidEmail;
-          }
-        }
-
         return null;
       },
     );
   }
 
-  Widget _infoRow(
-      BuildContext context, IconData icon, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon,
-              size: 18, color: Theme.of(context).colorScheme.onSurfaceVariant),
-          const SizedBox(width: 8),
-          Expanded(
-            child:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(label,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant)),
-              const SizedBox(height: 2),
-              Text(value, style: Theme.of(context).textTheme.bodyMedium),
-            ]),
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> _saveCustomer() async {
     final l10n = AppLocalizations.of(context)!;
-    // Validate form
     if (!_formKey.currentState!.validate()) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n.pleaseFillAllField)),
@@ -245,266 +651,51 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
         address: _address.text.trim(),
       );
       await ref.read(customerRepositoryProvider).upsert(updated);
-      // Refresh customers list and navigate back to the list page
       await ref.read(customerListNotifierProvider.notifier).refresh();
       if (mounted) {
+        setState(() => _isEditing = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(l10n.updated)),
         );
-        Navigator.of(context).pop();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Error: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('${AppLocalizations.of(context)!.importError}: $e')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
-}
 
-class _PurchasesSection extends ConsumerWidget {
-  final List<Purchase> purchases;
-
-  const _PurchasesSection({required this.purchases});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final productsAsync = ref.watch(productListProvider);
+  void _showDeleteConfirmDialog(BuildContext context, Customer c) {
     final l10n = AppLocalizations.of(context)!;
-
-    if (purchases.isEmpty) {
-      return Card(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(children: [
-            Icon(Icons.shopping_cart_outlined,
-                size: 48, color: theme.colorScheme.onSurfaceVariant),
-            const SizedBox(height: 8),
-            Text(l10n.noPurchases, style: theme.textTheme.titleMedium),
-          ]),
-        ),
-      );
-    }
-
-    return productsAsync.when(
-      data: (products) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: purchases.map((purchase) {
-            final product = products.firstWhere(
-              (p) => p.id == purchase.productId,
-              orElse: () => _unknownProduct(purchase.productId),
-            );
-
-            final now = DateTime.now();
-            final isWarrantyActive = purchase.warranty.expireDate.isAfter(now);
-            final daysUntilExpiry =
-                purchase.warranty.expireDate.difference(now).inDays;
-            final monthsUntilExpiry = (daysUntilExpiry / 30).floor();
-
-            return Card(
-              margin: const EdgeInsets.only(bottom: 12),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Header with product + status
-                    Row(
-                      children: [
-                        Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.primaryContainer,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Icon(
-                            ProductCategories.getCategoryIcon(product.category),
-                            color: theme.colorScheme.onPrimaryContainer,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(product.name,
-                                  style: theme.textTheme.titleMedium
-                                      ?.copyWith(fontWeight: FontWeight.w600)),
-                              Text(
-                                '${product.brand ?? ''} • ${product.model ?? ''}',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.onSurfaceVariant),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: isWarrantyActive
-                                ? Colors.green.withOpacity(0.1)
-                                : Colors.red.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                                color: isWarrantyActive
-                                    ? Colors.green
-                                    : Colors.red),
-                          ),
-                          child: Text(
-                            isWarrantyActive
-                                ? l10n.warrantyActive
-                                : l10n.warrantyExpired,
-                            style: TextStyle(
-                              color: isWarrantyActive
-                                  ? Colors.green[700]
-                                  : Colors.red[700],
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    // Details rows
-                    Row(
-                      children: [
-                        Expanded(
-                            child: _detailItem(
-                                context,
-                                l10n.purchasedOn,
-                                _fmt(purchase.purchaseDate),
-                                Icons.calendar_today)),
-                        Expanded(
-                            child: _detailItem(context, l10n.quantity,
-                                '${purchase.quantity}', Icons.shopping_cart)),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                            child: _detailItem(
-                                context,
-                                l10n.warranty,
-                                '${purchase.warranty.months} ${l10n.months}',
-                                Icons.verified_user)),
-                        Expanded(
-                            child: _detailItem(
-                                context,
-                                l10n.warrantyExpiresIn,
-                                _fmt(purchase.warranty.expireDate),
-                                Icons.schedule)),
-                      ],
-                    ),
-
-                    // Warranty status message
-                    const SizedBox(height: 10),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: (isWarrantyActive ? Colors.green : Colors.red)
-                            .withOpacity(0.06),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                            color:
-                                (isWarrantyActive ? Colors.green : Colors.red)
-                                    .withOpacity(0.3)),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                              isWarrantyActive
-                                  ? Icons.check_circle
-                                  : Icons.cancel,
-                              size: 18,
-                              color: isWarrantyActive
-                                  ? Colors.green[700]
-                                  : Colors.red[700]),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              isWarrantyActive
-                                  ? (daysUntilExpiry > 30
-                                      ? '${l10n.warrantyActive} $monthsUntilExpiry ${l10n.months}'
-                                      : '${l10n.warrantyActive} $daysUntilExpiry ${l10n.days}')
-                                  : '${l10n.expiresOn} ${_fmt(purchase.warranty.expireDate)}',
-                              style: TextStyle(
-                                color: isWarrantyActive
-                                    ? Colors.green[700]
-                                    : Colors.red[700],
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }).toList(),
-        );
-      },
-      loading: () => const LoadingIndicator(),
-      error: (e, _) => ErrorView(e),
-    );
-  }
-
-  String _fmt(DateTime d) =>
-      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
-
-  Product _unknownProduct(String id) => Product(
-        id: id,
-        name: 'Unknown Product',
-        code: 'unknown_$id',
-        brand: 'Unknown',
-        model: 'Unknown',
-        price: 0,
-        costPrice: 0,
-        branchStocks: const {},
-        category: 'Other',
-      );
-
-  Widget _detailItem(
-      BuildContext context, String label, String value, IconData icon) {
-    final theme = Theme.of(context);
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 16, color: theme.colorScheme.onSurfaceVariant),
-        const SizedBox(width: 6),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                value,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(l10n.deleteCustomerTitle),
+        content: Text(l10n.deleteCustomerConfirm(c.name)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(l10n.cancel),
           ),
-        ),
-      ],
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              Navigator.pop(context);
+              await ref.read(customerRepositoryProvider).delete(c.id);
+              if (context.mounted) {
+                Navigator.pop(context); // back to list
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(l10n.customerDeleted)),
+                );
+              }
+            },
+            child: Text(l10n.delete),
+          ),
+        ],
+      ),
     );
   }
 }

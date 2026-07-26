@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
+import '../../../core/theme/app_colors.dart';
 import '../../../domain/entities/inventory_transaction.dart';
 import '../../../domain/entities/product.dart';
 
@@ -32,13 +33,13 @@ class ImportDetailPage extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.green.withOpacity(0.08),
-                        border: Border.all(color: Colors.green),
+                        color: AppColors.successLight,
+                        border: Border.all(color: AppColors.success),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(l10n.import,
-                          style: TextStyle(
-                              color: Colors.green[700],
+                          style: const TextStyle(
+                              color: AppColors.success,
                               fontWeight: FontWeight.w600)),
                     ),
                   ],
@@ -52,6 +53,8 @@ class ImportDetailPage extends StatelessWidget {
                 if (tx.importPrice != null)
                   _row(theme, l10n.importPrice,
                       tx.importPrice!.toStringAsFixed(0)),
+                _row(theme, l10n.performedBy,
+                    tx.createdByName ?? tx.createdBy ?? '—'),
                 if (tx.note.isNotEmpty) _row(theme, l10n.note, tx.note),
               ],
             ),

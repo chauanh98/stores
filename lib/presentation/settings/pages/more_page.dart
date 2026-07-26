@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:stores/core/theme/app_colors.dart';
 
 import '../../../application/auth/auth_providers.dart';
 import '../../../application/reports/overview_providers.dart';
@@ -11,6 +13,7 @@ class MorePage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
     final user = ref.watch(authProvider);
     final currentStore = ref.watch(currentStoreIdProvider);
     final storeNamesAsync = ref.watch(availableStoresProvider);
@@ -25,10 +28,10 @@ class MorePage extends ConsumerWidget {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6F9),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Nhiều hơn',
-            style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(l10n.moreOptions,
+            style: const TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.white,
       ),
       body: ListView(
@@ -41,7 +44,7 @@ class MorePage extends ConsumerWidget {
               children: [
                 CircleAvatar(
                   radius: 30,
-                  backgroundColor: const Color(0xFF0067AC),
+                  backgroundColor: AppColors.primary,
                   child: Text(
                     (user?.username ?? 'K').substring(0, 1).toUpperCase(),
                     style: const TextStyle(
@@ -68,8 +71,7 @@ class MorePage extends ConsumerWidget {
                                 height: 16,
                                 child:
                                     CircularProgressIndicator(strokeWidth: 2)),
-                            error: (_, __) =>
-                                const Text('Lỗi tải tên cửa hàng'),
+                            error: (_, __) => Text('${l10n.importError}'),
                           ),
                       const SizedBox(height: 4),
                       Text(
@@ -81,7 +83,7 @@ class MorePage extends ConsumerWidget {
                       Text(
                         'Chi nhánh: $branchName',
                         style: const TextStyle(
-                            color: Color(0xFF0067AC),
+                            color: AppColors.primary,
                             fontSize: 12,
                             fontWeight: FontWeight.w500),
                       )
@@ -99,13 +101,14 @@ class MorePage extends ConsumerWidget {
             context,
             'GIAO DỊCH',
             [
-              _MenuItem(Icons.storefront_outlined, 'Bán hàng',
-                  const Color(0xFF0067AC), () {
+              _MenuItem(
+                  Icons.storefront_outlined, 'Bán hàng', AppColors.primary, () {
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                     content: Text(
                         'Hãy dùng Tab Bán hàng ở thanh điều hướng dưới!')));
               }),
-              _MenuItem(Icons.receipt_long_outlined, 'Hoá đơn', Colors.orange,
+              _MenuItem(
+                  Icons.receipt_long_outlined, 'Hoá đơn', AppColors.warning,
                   () {
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                     content:
@@ -113,8 +116,11 @@ class MorePage extends ConsumerWidget {
               }),
               _MenuItem(Icons.assignment_outlined, 'Đặt hàng', Colors.teal,
                   () => _showMockMessage(context, 'Đặt hàng')),
-              _MenuItem(Icons.assignment_return_outlined, 'Trả hàng',
-                  Colors.red, () => _showMockMessage(context, 'Trả hàng')),
+              _MenuItem(
+                  Icons.assignment_return_outlined,
+                  'Trả hàng',
+                  AppColors.danger,
+                  () => _showMockMessage(context, 'Trả hàng')),
               _MenuItem(Icons.account_balance_wallet_outlined, 'Sổ quỹ',
                   Colors.blue, () => _showMockMessage(context, 'Sổ quỹ')),
             ],
@@ -126,16 +132,20 @@ class MorePage extends ConsumerWidget {
             context,
             'HÀNG HOÁ',
             [
-              _MenuItem(Icons.inventory_2_outlined, 'Hàng hoá',
-                  const Color(0xFF0067AC), () {
+              _MenuItem(
+                  Icons.inventory_2_outlined, 'Hàng hoá', AppColors.primary,
+                  () {
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                     content: Text(
                         'Hãy dùng Tab Hàng hoá ở thanh điều hướng dưới!')));
               }),
               _MenuItem(Icons.check_box_outlined, 'Kiểm kho', Colors.teal,
                   () => _showMockMessage(context, 'Kiểm kho')),
-              _MenuItem(Icons.call_received_outlined, 'Nhập hàng',
-                  Colors.orange, () => _showMockMessage(context, 'Nhập hàng')),
+              _MenuItem(
+                  Icons.call_received_outlined,
+                  'Nhập hàng',
+                  AppColors.warning,
+                  () => _showMockMessage(context, 'Nhập hàng')),
             ],
           ),
           const SizedBox(height: 12),
@@ -145,8 +155,7 @@ class MorePage extends ConsumerWidget {
             context,
             'ĐỐI TÁC',
             [
-              _MenuItem(
-                  Icons.people_outline, 'Khách hàng', const Color(0xFF0067AC),
+              _MenuItem(Icons.people_outline, 'Khách hàng', AppColors.primary,
                   () {
                 Navigator.of(context).push(
                   MaterialPageRoute(
@@ -162,16 +171,16 @@ class MorePage extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
 
-          // 5. Thiết lập hệ thống (Chỉ dành cho Admin)
-          if (user?.isAdmin == true) ...[
+          // 5. Thiết lập hệ thống (Chỉ dành cho Admin/Supervisor)
+          if (user?.isAdmin == true || user?.isSupervisor == true) ...[
             _buildMenuSection(
               context,
-              'HỆ THỐNG (ADMIN)',
+              'HỆ THỐNG',
               [
                 _MenuItem(
                   Icons.people_alt_outlined,
-                  'Tài khoản',
-                  const Color(0xFF0067AC),
+                  l10n.accountManagement,
+                  AppColors.primary,
                   () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
@@ -185,8 +194,8 @@ class MorePage extends ConsumerWidget {
             const SizedBox(height: 12),
           ],
 
-          // 6. Chuyển đổi cửa hàng (Chỉ dành cho Admin)
-          if (user?.isAdmin == true) ...[
+          // 6. Chuyển đổi cửa hàng (Chỉ dành cho Admin/Supervisor)
+          if (user?.isAdmin == true || user?.isSupervisor == true) ...[
             Container(
               color: Colors.white,
               padding: const EdgeInsets.all(16),
@@ -194,7 +203,7 @@ class MorePage extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'CHUYỂN ĐỔI CỬA HÀNG (ADMIN)',
+                    'CHUYỂN ĐỔI CỬA HÀNG',
                     style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 12,
@@ -237,16 +246,17 @@ class MorePage extends ConsumerWidget {
             const SizedBox(height: 12),
           ],
 
-          // 6. Cài đặt chung & Đăng xuất
+          // 7. Cài đặt chung & Đăng xuất
           Container(
             color: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: ListTile(
-              leading: const Icon(Icons.logout, color: Colors.red),
-              title: const Text('Đăng xuất tài khoản',
-                  style: TextStyle(
-                      color: Colors.red, fontWeight: FontWeight.bold)),
-              trailing: const Icon(Icons.chevron_right, color: Colors.red),
+              leading: const Icon(Icons.logout, color: AppColors.danger),
+              title: Text(l10n.logoutAccount,
+                  style: const TextStyle(
+                      color: AppColors.danger, fontWeight: FontWeight.bold)),
+              trailing:
+                  const Icon(Icons.chevron_right, color: AppColors.danger),
               onTap: () => _showLogoutDialog(context, ref),
             ),
           ),
@@ -327,22 +337,22 @@ class MorePage extends ConsumerWidget {
   }
 
   void _showLogoutDialog(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text('Đăng xuất'),
-        content: const Text('Bạn có chắc chắn muốn đăng xuất khỏi ứng dụng?'),
+        title: Text(l10n.logout),
+        content: Text(l10n.confirmLogoutApp),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(c), child: const Text('Hủy')),
+              onPressed: () => Navigator.pop(c), child: Text(l10n.cancel)),
           FilledButton(
             onPressed: () {
               Navigator.pop(c);
               ref.read(authProvider.notifier).logout();
             },
-            style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF0067AC)),
-            child: const Text('Đăng xuất'),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+            child: Text(l10n.logout),
           ),
         ],
       ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -11,10 +12,14 @@ import '../../../application/inventory/inventory_providers.dart';
 import '../../../application/orders/cart_providers.dart';
 import '../../../application/orders/orders_providers.dart';
 import '../../../application/products/products_providers.dart';
+import '../../../core/utils/combo_helper.dart';
+import '../../../core/utils/currency_input_formatter.dart';
 import '../../../domain/entities/customer.dart';
+import '../../../domain/entities/customer_debt_transaction.dart';
 import '../../../domain/entities/inventory_transaction.dart';
 import '../../../domain/entities/order.dart';
 import '../../../domain/entities/order_item.dart';
+import '../../../domain/entities/product.dart';
 import '../../../domain/entities/purchase.dart';
 import '../../../domain/entities/transaction_type.dart';
 import '../../../domain/entities/warranty.dart';
@@ -269,6 +274,17 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                               style: const TextStyle(
                                   color: Colors.black54, fontSize: 11),
                             ),
+                            if (item.product.isCombo &&
+                                item.product.comboComponents.isNotEmpty) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                'Gồm: ${item.product.comboComponents.map((c) => "${c.quantity * item.quantity}x ${c.productName}").join(", ")}',
+                                style: const TextStyle(
+                                    color: AppColors.primary,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500),
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -423,26 +439,116 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
             children: [
               Text(l10n.amountPaid,
                   style: const TextStyle(color: Colors.black54, fontSize: 13)),
-              SizedBox(
-                width: 120,
-                height: 36,
-                child: TextField(
-                  controller: _paymentController,
-                  decoration: InputDecoration(
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                    border: const OutlineInputBorder(),
-                    hintText: format.format(netPay),
+              Row(
+                children: [
+                  SizedBox(
+                    width: 150,
+                    height: 42,
+                    child: TextField(
+                      controller: _paymentController,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        CurrencyInputFormatter(),
+                      ],
+                      decoration: InputDecoration(
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 8),
+                        border: const OutlineInputBorder(),
+                        hintText: format.format(netPay),
+                        suffixIcon: _paymentController.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear, size: 16),
+                                onPressed: () {
+                                  _paymentController.clear();
+                                  setState(() {
+                                    _customerPayment = 0.0;
+                                  });
+                                },
+                              )
+                            : null,
+                      ),
+                      textAlign: TextAlign.right,
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.bold),
+                      onTap: () {
+                        if (_paymentController.text.isNotEmpty) {
+                          _paymentController.selection = TextSelection(
+                            baseOffset: 0,
+                            extentOffset: _paymentController.text.length,
+                          );
+                        }
+                      },
+                      onChanged: (v) {
+                        final raw = v.replaceAll('.', '').replaceAll(',', '');
+                        setState(() {
+                          _customerPayment = double.tryParse(raw) ?? 0.0;
+                        });
+                      },
+                    ),
                   ),
-                  keyboardType: TextInputType.number,
-                  textAlign: TextAlign.right,
-                  style: const TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.bold),
-                  onChanged: (v) {
-                    setState(() {
-                      _customerPayment = double.tryParse(v) ?? 0.0;
-                    });
-                  },
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          // Nút bấm nhanh [Trả đủ] và [Xóa]
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              InkWell(
+                onTap: () {
+                  final text = format.format(netPay);
+                  _paymentController.text = text;
+                  _paymentController.selection =
+                      TextSelection.collapsed(offset: text.length);
+                  setState(() {
+                    _customerPayment = netPay;
+                  });
+                },
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(4),
+                    border:
+                        Border.all(color: AppColors.primary.withOpacity(0.3)),
+                  ),
+                  child: const Text(
+                    'Trả đủ',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              InkWell(
+                onTap: () {
+                  _paymentController.clear();
+                  setState(() {
+                    _customerPayment = 0.0;
+                  });
+                },
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: const Text(
+                    'Xóa',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -813,6 +919,7 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
   // Submit Order lên Firebase và thực hiện logic kho
   Future<void> _submitOrder(double netPay, Map<String, CartItem> cart,
       {required bool isDraft}) async {
+    final l10n = AppLocalizations.of(context)!;
     setState(() => _isSaving = true);
 
     try {
@@ -837,8 +944,106 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
       final customerId = _selectedCustomer?.id ?? 'khach_le';
       final customerName = _selectedCustomer?.name ?? 'Khách lẻ';
 
+      final double paidAmount;
+      if (isDraft) {
+        paidAmount = 0.0;
+      } else if (_paymentController.text.trim().isEmpty) {
+        paidAmount = netPay;
+      } else {
+        paidAmount = _customerPayment.clamp(0.0, netPay);
+      }
+      final double debtAmount =
+          isDraft ? 0.0 : (netPay - paidAmount).clamp(0.0, netPay);
+
+      if (debtAmount > 0 && customerId == 'khach_le' && !isDraft) {
+        setState(() => _isSaving = false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(l10n.walkInCustomerDebtNotAllowed),
+              backgroundColor: AppColors.warning,
+            ),
+          );
+        }
+        return;
+      }
+
+      // Tối ưu Firebase: Chỉ fetch đúng các sản phẩm liên quan có trong giỏ hàng
+      final Map<String, Product> freshCartProducts = {};
+
+      if (!isDraft) {
+        final productRepo = ref.read(productRepositoryProvider);
+        final selectedBranch = ref.read(selectedPOSBranchProvider);
+        final l10n = AppLocalizations.of(context)!;
+
+        // 1) Gom tất cả Product ID cần fetch (gồm cả linh kiện nếu là Combo)
+        final Set<String> neededProductIds = {};
+        for (final item in cart.values) {
+          neededProductIds.add(item.product.id);
+          if (item.product.isCombo && item.product.comboComponents.isNotEmpty) {
+            for (final comp in item.product.comboComponents) {
+              neededProductIds.add(comp.productId);
+            }
+          }
+        }
+
+        // 2) Fetch song song cực nhanh chỉ đúng các sản phẩm cần kiểm tra
+        final fetchedList = await Future.wait(
+          neededProductIds.map((pId) => productRepo.fetchById(pId)),
+        );
+
+        for (final p in fetchedList) {
+          if (p != null) {
+            freshCartProducts[p.id] = p;
+          }
+        }
+
+        final relatedProducts = freshCartProducts.values.toList();
+
+        // 3) Kiểm tra tồn kho khả dụng thời điểm hiện tại
+        for (final item in cart.values) {
+          final currentProduct =
+              freshCartProducts[item.product.id] ?? item.product;
+
+          final availableStock = ComboHelper.getAvailableStock(
+            product: currentProduct,
+            branchId: selectedBranch,
+            allProducts: relatedProducts,
+          );
+
+          if (availableStock <= 0) {
+            setState(() => _isSaving = false);
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content:
+                      Text('${currentProduct.name} - ${l10n.outOfStockMsg}'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+            return;
+          }
+
+          if (item.quantity > availableStock) {
+            setState(() => _isSaving = false);
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                      '${currentProduct.name} - ${l10n.notEnoughStock} (Còn: $availableStock, Cần: ${item.quantity})'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+            return;
+          }
+        }
+      }
+
+      final currentUser = ref.read(authProvider);
+
       // Tạo đối tượng hoá đơn/đơn hàng
-      // Lưu ý: Ta có thể tuỳ biến hoặc mở rộng thuộc tính hoặc lưu dạng Map phù hợp
       final order = Order(
         id: id,
         customerId: customerId,
@@ -846,12 +1051,17 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
         items: orderItems,
         total: netPay,
         status: isDraft ? 'draft' : 'completed',
+        amountPaid: paidAmount,
+        debtAmount: debtAmount,
+        paymentMethod: _paymentMethod,
+        createdBy: currentUser?.username,
+        createdByName: currentUser?.name,
       );
 
       // 1) Lưu đơn hàng
       await ref.read(orderRepositoryProvider).create(order);
 
-      // 2) Cập nhật lịch sử mua hàng & doanh thu cho Customer (nếu không phải Khách lẻ & không phải đơn nháp)
+      // 2) Cập nhật lịch sử mua hàng & công nợ cho Customer (nếu không phải Khách lẻ & không phải đơn nháp)
       if (customerId != 'khach_le' && !isDraft) {
         final customerRepo = ref.read(customerRepositoryProvider);
         final customer = await customerRepo.fetchById(customerId);
@@ -874,13 +1084,37 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
           }
           final double currentTotalSales = customer.totalSales ?? 0.0;
           final double currentNetSales = customer.netSales ?? 0.0;
+          final double currentDebt = customer.displayCurrentDebt;
+          final double newDebt = currentDebt + debtAmount;
+
           final updatedCustomer = customer.copyWith(
             purchases: newPurchases,
             totalSales: currentTotalSales + netPay,
             netSales: currentNetSales + netPay,
+            currentDebt: newDebt,
             lastTransactionDate: now.toIso8601String(),
           );
           await customerRepo.upsert(updatedCustomer);
+
+          // Nếu có công nợ phát sinh từ đơn này, lưu giao dịch công nợ
+          if (debtAmount > 0) {
+            final currencyFormat = NumberFormat('#,###', 'vi_VN');
+            final debtTx = CustomerDebtTransaction(
+              id: 'DEBT_${now.millisecondsSinceEpoch}',
+              code: id,
+              customerId: customerId,
+              date: now,
+              amount: debtAmount,
+              remainingDebt: newDebt,
+              type: DebtTransactionType.invoice,
+              note:
+                  'Nợ đơn hàng $id (Đã trả: ${currencyFormat.format(paidAmount)}đ, Nợ: ${currencyFormat.format(debtAmount)}đ)',
+            );
+
+            await ref
+                .read(customerRemoteDataSourceProvider)
+                .saveDebtTransaction(customerId, debtTx.toMap());
+          }
         }
       }
 
@@ -891,27 +1125,66 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
         final selectedBranch = ref.read(selectedPOSBranchProvider);
 
         for (final item in cart.values) {
-          // Trừ stock chi nhánh xuất kho được chọn
-          final branchStocks = Map<String, int>.from(item.product.branchStocks);
-          final currentStock = branchStocks[selectedBranch] ?? 0;
-          branchStocks[selectedBranch] =
-              (currentStock - item.quantity).clamp(0, 99999);
+          if (item.product.isCombo && item.product.comboComponents.isNotEmpty) {
+            // Trừ kho từng linh kiện thành phần của Combo
+            for (final comp in item.product.comboComponents) {
+              final childProduct = freshCartProducts[comp.productId] ??
+                  await productRepo.fetchById(comp.productId);
+              if (childProduct != null) {
+                final childBranchStocks =
+                    Map<String, int>.from(childProduct.branchStocks);
+                final currentChildStock =
+                    childBranchStocks[selectedBranch] ?? 0;
+                final qtyToDeduct = item.quantity * comp.quantity;
+                childBranchStocks[selectedBranch] =
+                    (currentChildStock - qtyToDeduct).clamp(0, 99999);
 
-          final updatedProduct =
-              item.product.copyWith(branchStocks: branchStocks);
-          await productRepo.upsert(updatedProduct);
+                final updatedChild =
+                    childProduct.copyWith(branchStocks: childBranchStocks);
+                await productRepo.upsert(updatedChild);
 
-          // Ghi nhận lịch sử giao dịch kho
-          await inventoryRepo.record(InventoryTransaction(
-            id: 'export_${now.millisecondsSinceEpoch}_${item.product.id}',
-            productId: item.product.id,
-            type: TransactionType.export,
-            quantity: item.quantity,
-            date: now,
-            note: id,
-            // Mã hoá đơn
-            importPrice: null,
-          ));
+                // Ghi nhận lịch sử giao dịch kho cho linh kiện
+                await inventoryRepo.record(InventoryTransaction(
+                  id: 'export_${now.millisecondsSinceEpoch}_${childProduct.id}',
+                  productId: childProduct.id,
+                  type: TransactionType.export,
+                  quantity: qtyToDeduct,
+                  date: now,
+                  note: '$id (Combo: ${item.product.name})',
+                  importPrice: null,
+                  createdBy: currentUser?.username,
+                  createdByName: currentUser?.name,
+                ));
+              }
+            }
+          } else {
+            // Trừ stock sản phẩm đơn lẻ thông thường (Tái sử dụng freshCartProducts đã fetch ở bước 1)
+            final freshProduct = freshCartProducts[item.product.id] ??
+                await productRepo.fetchById(item.product.id) ??
+                item.product;
+            final branchStocks =
+                Map<String, int>.from(freshProduct.branchStocks);
+            final currentStock = branchStocks[selectedBranch] ?? 0;
+            branchStocks[selectedBranch] =
+                (currentStock - item.quantity).clamp(0, 99999);
+
+            final updatedProduct =
+                freshProduct.copyWith(branchStocks: branchStocks);
+            await productRepo.upsert(updatedProduct);
+
+            // Ghi nhận lịch sử giao dịch kho
+            await inventoryRepo.record(InventoryTransaction(
+              id: 'export_${now.millisecondsSinceEpoch}_${freshProduct.id}',
+              productId: freshProduct.id,
+              type: TransactionType.export,
+              quantity: item.quantity,
+              date: now,
+              note: id,
+              importPrice: null,
+              createdBy: currentUser?.username,
+              createdByName: currentUser?.name,
+            ));
+          }
         }
       }
 

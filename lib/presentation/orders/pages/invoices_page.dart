@@ -14,6 +14,9 @@ import '../../../application/products/products_providers.dart';
 import '../../../application/reports/overview_providers.dart';
 import '../../../domain/entities/customer.dart';
 import '../../../domain/entities/order.dart';
+import '../../../domain/entities/product.dart';
+import '../../customers/pages/customer_detail_page.dart';
+import '../../products/pages/product_detail_page.dart';
 import 'pos_checkout_page.dart';
 
 class InvoicesPage extends ConsumerStatefulWidget {
@@ -199,10 +202,11 @@ class _InvoicesPageState extends ConsumerState<InvoicesPage> {
                                     final customerName = _getCustomerName(
                                         context, customers, order.customerId);
 
-                                    // Mô phỏng phương thức thanh toán dựa trên mã đơn
-                                    final isCash = order.id.hashCode % 3 != 0;
+                                    // Phương thức thanh toán đọc từ Firebase
+                                    final isTransfer =
+                                        order.paymentMethod == 'transfer';
                                     final paymentMethodStr =
-                                        isCash ? l10n.cash : l10n.transfer;
+                                        isTransfer ? l10n.transfer : l10n.cash;
 
                                     return InkWell(
                                       onTap: () =>
@@ -467,6 +471,7 @@ class _InvoicesPageState extends ConsumerState<InvoicesPage> {
     final l10n = AppLocalizations.of(context)!;
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.only(
@@ -478,75 +483,87 @@ class _InvoicesPageState extends ConsumerState<InvoicesPage> {
         return Consumer(
           builder: (consumerContext, sheetRef, child) {
             final activeType = sheetRef.watch(invoicesTimeRangeTypeProvider);
-            return Container(
-              padding: const EdgeInsets.only(top: 16, bottom: 24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16.0, vertical: 8.0),
-                    child: Text(
-                      l10n.timeRange,
-                      style: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  const Divider(color: AppColors.divider),
-                  ...OverviewTimeRange.values.map((type) {
-                    final isSelected = activeType == type;
-                    return ListTile(
-                      title: Text(
-                        type.label,
-                        style: TextStyle(
-                          color:
-                              isSelected ? AppColors.primary : Colors.black87,
-                          fontWeight:
-                              isSelected ? FontWeight.bold : FontWeight.normal,
+            return SafeArea(
+              child: SingleChildScrollView(
+                child: Container(
+                  padding: const EdgeInsets.only(top: 16, bottom: 24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16.0, vertical: 8.0),
+                        child: Text(
+                          l10n.timeRange,
+                          style: const TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold),
                         ),
                       ),
-                      trailing: isSelected
-                          ? const Icon(Icons.check, color: AppColors.primary)
-                          : null,
-                      onTap: () async {
-                        Navigator.pop(consumerContext);
-                        if (type == OverviewTimeRange.custom) {
-                          final initialRange =
-                              ref.read(invoicesCustomDateRangeProvider);
-                          final now = DateTime.now();
-                          // Chuẩn hóa initialRange về start of day để tránh lỗi của Flutter date picker
-                          final normalizedInitialRange = DateTimeRange(
-                            start: DateTime(
-                                initialRange.start.year,
-                                initialRange.start.month,
-                                initialRange.start.day),
-                            end: DateTime(initialRange.end.year,
-                                initialRange.end.month, initialRange.end.day),
-                          );
-                          final pickedRange = await showDateRangePicker(
-                            context: context,
-                            firstDate: DateTime(2020),
-                            lastDate: DateTime(now.year, now.month, now.day),
-                            initialDateRange: normalizedInitialRange,
-                          );
-                          if (pickedRange != null) {
-                            ref
-                                .read(invoicesCustomDateRangeProvider.notifier)
-                                .state = pickedRange;
-                            ref
-                                .read(invoicesTimeRangeTypeProvider.notifier)
-                                .state = OverviewTimeRange.custom;
-                          }
-                        } else {
-                          ref
-                              .read(invoicesTimeRangeTypeProvider.notifier)
-                              .state = type;
-                        }
-                      },
-                    );
-                  }).toList(),
-                ],
+                      const Divider(color: AppColors.divider),
+                      ...OverviewTimeRange.values.map((type) {
+                        final isSelected = activeType == type;
+                        return ListTile(
+                          title: Text(
+                            type.label,
+                            style: TextStyle(
+                              color: isSelected
+                                  ? AppColors.primary
+                                  : Colors.black87,
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                            ),
+                          ),
+                          trailing: isSelected
+                              ? const Icon(Icons.check,
+                                  color: AppColors.primary)
+                              : null,
+                          onTap: () async {
+                            Navigator.pop(consumerContext);
+                            if (type == OverviewTimeRange.custom) {
+                              final initialRange =
+                                  ref.read(invoicesCustomDateRangeProvider);
+                              final now = DateTime.now();
+                              // Chuẩn hóa initialRange về start of day để tránh lỗi của Flutter date picker
+                              final normalizedInitialRange = DateTimeRange(
+                                start: DateTime(
+                                    initialRange.start.year,
+                                    initialRange.start.month,
+                                    initialRange.start.day),
+                                end: DateTime(
+                                    initialRange.end.year,
+                                    initialRange.end.month,
+                                    initialRange.end.day),
+                              );
+                              final pickedRange = await showDateRangePicker(
+                                context: context,
+                                firstDate: DateTime(2020),
+                                lastDate:
+                                    DateTime(now.year, now.month, now.day),
+                                initialDateRange: normalizedInitialRange,
+                              );
+                              if (pickedRange != null) {
+                                ref
+                                    .read(invoicesCustomDateRangeProvider
+                                        .notifier)
+                                    .state = pickedRange;
+                                ref
+                                    .read(
+                                        invoicesTimeRangeTypeProvider.notifier)
+                                    .state = OverviewTimeRange.custom;
+                              }
+                            } else {
+                              ref
+                                  .read(invoicesTimeRangeTypeProvider.notifier)
+                                  .state = type;
+                            }
+                          },
+                        );
+                      }).toList(),
+                    ],
+                  ),
+                ),
               ),
             );
           },
@@ -682,7 +699,22 @@ class _InvoicesPageState extends ConsumerState<InvoicesPage> {
           topRight: Radius.circular(16),
         ),
       ),
-      builder: (context) {
+      builder: (sheetContext) {
+        final customers =
+            ref.read(customerListNotifierProvider).value ?? <Customer>[];
+        Customer? targetCustomer;
+        if (order.customerId != 'khach_le') {
+          for (final c in customers) {
+            if (c.id == order.customerId) {
+              targetCustomer = c;
+              break;
+            }
+          }
+        }
+
+        final products = ref.read(productListProvider).value ?? <Product>[];
+        final productMap = {for (final p in products) p.id: p};
+
         return Container(
           padding: const EdgeInsets.all(16),
           constraints: BoxConstraints(
@@ -714,7 +746,22 @@ class _InvoicesPageState extends ConsumerState<InvoicesPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildDetailRow(l10n.invoiceId, order.id),
-                      _buildDetailRow(l10n.customers, customerName),
+                      if (targetCustomer != null)
+                        _buildClickableDetailRow(
+                          label: l10n.customers,
+                          value: customerName,
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => CustomerDetailPage(
+                                    customer: targetCustomer!),
+                              ),
+                            );
+                          },
+                        )
+                      else
+                        _buildDetailRow(l10n.customers, customerName),
                       _buildDetailRow(
                           l10n.createdTime,
                           DateFormat('dd/MM/yyyy HH:mm')
@@ -726,6 +773,14 @@ class _InvoicesPageState extends ConsumerState<InvoicesPage> {
                             ? Colors.orange
                             : Colors.green,
                       ),
+                      _buildDetailRow(
+                        l10n.paymentMethod,
+                        order.paymentMethod == 'transfer'
+                            ? l10n.transfer
+                            : l10n.cash,
+                      ),
+                      _buildDetailRow(l10n.createdBy,
+                          order.createdByName ?? order.createdBy ?? '—'),
                       const SizedBox(height: 16),
                       Text(
                         l10n.productList,
@@ -736,35 +791,73 @@ class _InvoicesPageState extends ConsumerState<InvoicesPage> {
                       ),
                       const SizedBox(height: 8),
                       ...order.items.map((item) {
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4.0),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      item.productName,
-                                      style: const TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w500),
-                                    ),
-                                    Text(
-                                      '${item.quantity} x ${currencyFormat.format(item.price)} đ',
-                                      style: const TextStyle(
-                                          fontSize: 11, color: Colors.black54),
-                                    )
-                                  ],
+                        final matchingProduct = productMap[item.productId];
+                        return InkWell(
+                          onTap: () {
+                            if (matchingProduct != null) {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ProductDetailPage(
+                                      product: matchingProduct),
                                 ),
-                              ),
-                              Text(
-                                '${currencyFormat.format(item.price * item.quantity)} đ',
-                                style: const TextStyle(
-                                    fontSize: 13, fontWeight: FontWeight.bold),
-                              )
-                            ],
+                              );
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(l10n.productNotFoundInSystem),
+                                ),
+                              );
+                            }
+                          },
+                          borderRadius: BorderRadius.circular(6),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 6.0, horizontal: 4.0),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              item.productName,
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w600,
+                                                color: AppColors.primary,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          const Icon(Icons.chevron_right,
+                                              size: 16,
+                                              color: AppColors.primary),
+                                        ],
+                                      ),
+                                      Text(
+                                        '${item.quantity} x ${currencyFormat.format(item.price)} đ',
+                                        style: const TextStyle(
+                                            fontSize: 11,
+                                            color: Colors.black54),
+                                      )
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '${currencyFormat.format(item.price * item.quantity)} đ',
+                                  style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold),
+                                )
+                              ],
+                            ),
                           ),
                         );
                       }).toList(),
@@ -786,61 +879,98 @@ class _InvoicesPageState extends ConsumerState<InvoicesPage> {
                           )
                         ],
                       ),
+                      if (order.amountPaid > 0 || order.debtAmount > 0) ...[
+                        const SizedBox(height: 8),
+                        _buildDetailRow('Đã thanh toán',
+                            '${currencyFormat.format(order.amountPaid)} đ'),
+                        if (order.debtAmount > 0)
+                          _buildDetailRow('Ghi nợ đơn hàng',
+                              '${currencyFormat.format(order.debtAmount)} đ',
+                              textColor: Colors.red),
+                      ],
                       const SizedBox(height: 24),
                     ],
                   ),
                 ),
               ),
               if (order.status == 'draft') ...[
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: FilledButton(
-                    onPressed: () {
-                      Navigator.pop(context); // Đóng Bottom Sheet
-
-                      // Nạp lại đơn hàng nháp vào giỏ hàng
-                      final products =
-                          ref.read(productListProvider).value ?? [];
-                      ref
-                          .read(cartProvider.notifier)
-                          .populateCart(order.items, products);
-
-                      // Set mã đơn tạm đang hoạt động
-                      ref.read(activeOrderIdProvider.notifier).state = order.id;
-
-                      // Tìm khách hàng
-                      final customers =
-                          ref.read(customerListNotifierProvider).value ?? [];
-                      Customer? customer;
-                      for (final c in customers) {
-                        if (c.id == order.customerId) {
-                          customer = c;
-                          break;
-                        }
-                      }
-
-                      // Điều hướng trực tiếp sang màn hình thanh toán
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => POSCheckoutPage(
-                            initialCustomer: customer,
+                Row(
+                  children: [
+                    Expanded(
+                      child: SizedBox(
+                        height: 48,
+                        child: OutlinedButton(
+                          onPressed: () =>
+                              _showCancelDraftDialog(context, ref, order.id),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: AppColors.danger),
+                            foregroundColor: AppColors.danger,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: Text(
+                            l10n.cancelDraftOrder,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 14),
                           ),
                         ),
-                      );
-                    },
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8)),
+                      ),
                     ),
-                    child: Text(
-                      l10n.continuePayment,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 14),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: SizedBox(
+                        height: 48,
+                        child: FilledButton(
+                          onPressed: () {
+                            Navigator.pop(context); // Đóng Bottom Sheet
+
+                            // Nạp lại đơn hàng nháp vào giỏ hàng
+                            final products =
+                                ref.read(productListProvider).value ?? [];
+                            ref
+                                .read(cartProvider.notifier)
+                                .populateCart(order.items, products);
+
+                            // Set mã đơn tạm đang hoạt động
+                            ref.read(activeOrderIdProvider.notifier).state =
+                                order.id;
+
+                            // Tìm khách hàng
+                            final customers =
+                                ref.read(customerListNotifierProvider).value ??
+                                    [];
+                            Customer? customer;
+                            for (final c in customers) {
+                              if (c.id == order.customerId) {
+                                customer = c;
+                                break;
+                              }
+                            }
+
+                            // Điều hướng trực tiếp sang màn hình thanh toán
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => POSCheckoutPage(
+                                  initialCustomer: customer,
+                                ),
+                              ),
+                            );
+                          },
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: Text(
+                            l10n.continuePayment,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 14),
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 )
               ]
             ],
@@ -866,6 +996,88 @@ class _InvoicesPageState extends ConsumerState<InvoicesPage> {
               color: textColor ?? Colors.black87,
             ),
           )
+        ],
+      ),
+    );
+  }
+
+  Widget _buildClickableDetailRow({
+    required String label,
+    required String value,
+    required VoidCallback onTap,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label,
+              style: const TextStyle(fontSize: 13, color: Colors.black54)),
+          InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(4),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              child: Row(
+                children: [
+                  Text(
+                    value,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  const Icon(Icons.chevron_right,
+                      size: 16, color: AppColors.primary),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCancelDraftDialog(
+      BuildContext context, WidgetRef ref, String orderId) {
+    final l10n = AppLocalizations.of(context)!;
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.cancelDraftOrder),
+        content: Text(l10n.confirmCancelDraftOrder),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+            onPressed: () async {
+              Navigator.pop(dialogContext); // pop dialog
+              Navigator.pop(context); // pop bottom sheet
+              try {
+                await ref.read(orderRepositoryProvider).delete(orderId);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(l10n.draftOrderCancelled),
+                      backgroundColor: AppColors.danger,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Lỗi khi hủy đơn: $e')),
+                  );
+                }
+              }
+            },
+            child: Text(l10n.delete),
+          ),
         ],
       ),
     );

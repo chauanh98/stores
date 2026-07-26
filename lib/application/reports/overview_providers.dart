@@ -101,8 +101,7 @@ final invoicesActiveDateRangeProvider = Provider<DateTimeRange>((ref) {
 // --- Customer Date Range Providers ---
 // Null means "All time"
 final customerTimeRangeTypeProvider =
-    StateProvider.autoDispose<OverviewTimeRange?>(
-        (ref) => OverviewTimeRange.thisMonth);
+    StateProvider.autoDispose<OverviewTimeRange?>((ref) => null);
 final customerCustomDateRangeProvider =
     StateProvider.autoDispose<DateTimeRange>(
         (ref) => OverviewTimeRange.thisMonth.getRange());

@@ -27,6 +27,8 @@ Product _mapToProduct(Map m) {
     noteTemplate: model.noteTemplate,
     components: model.components,
     imageUrl: model.imageUrl,
+    isCombo: model.isCombo,
+    comboComponents: model.comboComponents,
   );
 }
 
@@ -42,6 +44,12 @@ class ProductRepositoryImpl implements ProductRepository {
         }
         return await Isolate.run(() => list.map(_mapToProduct).toList());
       });
+
+  @override
+  Future<List<Product>> fetchAll() async {
+    final list = await _ds.fetchAll();
+    return list.map(_mapToProduct).toList();
+  }
 
   @override
   Future<Product?> fetchById(String id) async {
@@ -66,6 +74,8 @@ class ProductRepositoryImpl implements ProductRepository {
       noteTemplate: model.noteTemplate,
       components: model.components,
       imageUrl: model.imageUrl,
+      isCombo: model.isCombo,
+      comboComponents: model.comboComponents,
     );
   }
 
@@ -89,6 +99,8 @@ class ProductRepositoryImpl implements ProductRepository {
       noteTemplate: product.noteTemplate,
       components: product.components,
       imageUrl: product.imageUrl,
+      isCombo: product.isCombo,
+      comboComponents: product.comboComponents,
     ).toMap();
     return _ds.upsert(product.id, map);
   }

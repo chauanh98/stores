@@ -257,5 +257,187 @@
       }
     }
   },
-  "update": "Update"
+  "update": "Update",
+  "basicInfo": "BASIC INFORMATION",
+  "customerCode": "Customer Code",
+  "branch": "Branch",
+  "transactionHistory": "Transaction History",
+  "customerDebt": "Customer Debt",
+  "addressSection": "ADDRESS",
+  "contactSection": "CONTACT",
+  "customerGroupSection": "CUSTOMER GROUP",
+  "invoiceInfoSection": "INVOICE INFORMATION",
+  "customerType": "Customer Type",
+  "buyerName": "Buyer Name",
+  "taxCode": "Tax Code",
+  "companyName": "Company Name",
+  "debtToCollect": "Debt to Collect",
+  "transactions": "Transactions",
+  "totalSalesAndReturns": "Total Sales - Total Returns",
+  "debtAdjustmentTitle": "Debt Adjustment",
+  "currentDebt": "Current Debt",
+  "adjustedDebtValue": "Adjusted Debt Value",
+  "createReceipt": "Create Receipt",
+  "createQr": "Create QR",
+  "receiptAmount": "Receipt Amount (VND)",
+  "allTime": "All Time",
+  "excelActions": "Excel Actions",
+  "createdTimeLabel": "Created time: {time}",
+  "@createdTimeLabel": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "noCustomersFound": "No customers found",
+  "totalSales": "Total Sales",
+  "deleteCustomerConfirm": "Are you sure you want to delete customer \"{name}\"?",
+  "@deleteCustomerConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteCustomerTitle": "Delete Customer",
+  "customerDeleted": "Customer deleted",
+  "copyPhoneSuccess": "Copied phone: {phone}",
+  "@copyPhoneSuccess": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "copyCodeSuccess": "Copied code: {code}",
+  "@copyCodeSuccess": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "copyCustomerCodeSuccess": "Copied customer code: {code}",
+  "@copyCustomerCodeSuccess": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "cannotSms": "Cannot open SMS app for {phone}",
+  "@cannotSms": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "cannotCall": "Cannot call {phone}",
+  "@cannotCall": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "notUpdated": "Address not updated",
+  "notCategorized": "Uncategorized",
+  "individual": "Individual",
+  "noPhone": "No Phone",
+  "noPhoneAvailable": "None",
+  "noTransactionsYet": "No transactions yet",
+  "copyInvoiceCodeSuccess": "Copied invoice code: {id}",
+  "@copyInvoiceCodeSuccess": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "invoice": "Invoice",
+  "payment": "Payment",
+  "adjustment": "Adjustment",
+  "remainingDebtLabel": "Remaining debt: {amount}",
+  "@remainingDebtLabel": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "noDebtData": "No debt data available",
+  "createReceiptTitle": "Create Debt Receipt",
+  "saveReceipt": "Save Receipt",
+  "invalidAmount": "Invalid amount",
+  "receiptCreatedSuccess": "Created receipt {amount} VND",
+  "@receiptCreatedSuccess": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "pleaseEnterAdjustedDebt": "Please enter new debt value",
+  "invalidDebtValue": "Invalid debt value",
+  "debtUpdateSuccess": "Debt updated successfully",
+  "debtAdjustmentNoteHint": "Adjustment note",
+  "debtAdjustmentHint": "Enter new debt value (e.g. 1,000,000)",
+  "paymentNoteDefault": "Debt payment",
+  "adjustmentNoteDefault": "Debt adjustment",
+  "qrTitle": "Payment QR Code",
+  "amountToPayLabel": "Amount to pay: {amount} VND",
+  "@amountToPayLabel": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "performedBy": "Performed by",
+  "createdBy": "Created by",
+  "roleSupervisor": "Supervisor / Chain Owner",
+  "roleAdmin": "Store Manager",
+  "roleStaff": "Sales Staff",
+  "onlySupervisorCanEditRole": "Only Supervisor can change roles",
+  "onlySupervisorCanAssignStore": "Only Supervisor can assign branches",
+  "cancelDraftOrder": "Cancel Draft Order",
+  "confirmCancelDraftOrder": "Are you sure you want to cancel this draft order?",
+  "draftOrderCancelled": "Draft order cancelled",
+  "transferDetails": "Transfer details",
+  "exportingStore": "Source store",
+  "noOtherStoreToTransfer": "No other store available for transfer.",
+  "enterQuantityHint": "Enter quantity...",
+  "displayNameLabel": "Display Name",
+  "displayNameHint": "Display name (e.g. John Doe)",
+  "walkInCustomerDebtNotAllowed": "Walk-in customers cannot borrow debt. Please select or create a customer!",
+  "accountManagement": "Account Management",
+  "noAccountsFound": "No accounts found.",
+  "addAccount": "Add New Account",
+  "editAccount": "Edit Account",
+  "confirmDeleteAccountTitle": "Confirm Delete",
+  "accountDeletedSuccess": "Account deleted successfully!",
+  "productNotFoundInSystem": "Product no longer exists in system",
+  "settingsTitle": "Settings & Switch",
+  "logout": "Log out",
+  "confirmLogout": "Are you sure you want to log out?",
+  "moreOptions": "More Options",
+  "loginTitle": "Login",
+  "usernameLabel": "Username",
+  "passwordLabel": "Password",
+  "pleaseEnterCredentials": "Please enter username and password.",
+  "newProductTitle": "New Product",
+  "addAttributeTitle": "Add Attribute",
+  "addUnitTitle": "Add Unit",
+  "pickImageFromGallery": "Pick image from gallery",
+  "takeNewPhoto": "Take new photo",
+  "newCategoryTitle": "New Category",
+  "parentCategoryLabel": "Parent Category",
+  "newBrandTitle": "New Brand",
+  "selectCategoryTitle": "Select Category",
+  "noBrandFound": "No brands found",
+  "noCategoryFound": "No categories found",
+  "logoutAccount": "Log out account",
+  "confirmLogoutApp": "Are you sure you want to log out of app?"
 }

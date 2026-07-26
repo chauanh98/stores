@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../application/auth/auth_providers.dart';
 import '../../../application/inventory/inter_store_transfer_service.dart';
+import '../../../application/products/products_providers.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../domain/entities/product.dart';
 
 class InterStoreTransferPage extends ConsumerStatefulWidget {
@@ -62,7 +64,7 @@ class _InterStoreTransferPageState
                       size: 64, color: colorScheme.outline),
                   const SizedBox(height: 16),
                   Text(
-                    'Không có cửa hàng khác để chuyển.',
+                    l10n.noOtherStoreToTransfer,
                     style: TextStyle(color: colorScheme.onSurfaceVariant),
                   ),
                 ],
@@ -152,7 +154,7 @@ class _InterStoreTransferPageState
 
                   // Transfer Details Section
                   Text(
-                    'Chi tiết chuyển kho',
+                    l10n.transferDetails,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
@@ -173,7 +175,7 @@ class _InterStoreTransferPageState
                         children: [
                           // Source Store (Read-only)
                           _buildModernField(
-                            label: 'Cửa hàng xuất',
+                            label: l10n.exportingStore,
                             child: TextFormField(
                               initialValue: sourceStoreName,
                               readOnly: true,
@@ -247,7 +249,7 @@ class _InterStoreTransferPageState
                               decoration: InputDecoration(
                                 prefixIcon: const Icon(
                                     Icons.production_quantity_limits),
-                                hintText: 'Nhập số lượng...',
+                                hintText: l10n.enterQuantityHint,
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -346,12 +348,22 @@ class _InterStoreTransferPageState
       final quantity = int.parse(_quantityController.text.trim());
       final currentStoreId = ref.read(currentStoreIdProvider);
       final transferService = ref.read(interStoreTransferServiceProvider);
+      final storesMap = ref.read(availableStoresProvider).value ?? {};
+      final sourceStoreName = storesMap[currentStoreId] ?? currentStoreId;
+      final targetStoreName =
+          storesMap[_selectedTargetStoreId!] ?? _selectedTargetStoreId!;
+
+      final currentUser = ref.read(authProvider);
 
       final error = await transferService.transferProduct(
         sourceStoreId: currentStoreId,
         targetStoreId: _selectedTargetStoreId!,
         product: widget.product,
         quantity: quantity,
+        sourceStoreName: sourceStoreName,
+        targetStoreName: targetStoreName,
+        createdBy: currentUser?.username,
+        createdByName: currentUser?.name,
       );
 
       if (mounted) {
@@ -364,6 +376,7 @@ class _InterStoreTransferPageState
             ),
           );
         } else {
+          ref.invalidate(productListProvider);
           Navigator.of(context).pop();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -376,7 +389,7 @@ class _InterStoreTransferPageState
                 ],
               ),
               behavior: SnackBarBehavior.floating,
-              backgroundColor: Colors.green.shade600,
+              backgroundColor: AppColors.success,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),
             ),

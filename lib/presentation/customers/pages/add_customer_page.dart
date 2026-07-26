@@ -146,7 +146,7 @@ class _AddCustomerPageState extends ConsumerState<AddCustomerPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Error: $e')));
+            .showSnackBar(SnackBar(content: Text('${l10n.importError}: $e')));
       }
     } finally {
       if (mounted) setState(() => _saving = false);

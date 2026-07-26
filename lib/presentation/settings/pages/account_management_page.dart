@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:stores/core/theme/app_colors.dart';
 
 import '../../../application/auth/auth_providers.dart';
 import '../../../domain/entities/user_account.dart';
 import '../../common/widgets/error_view.dart';
 import '../../common/widgets/loading_indicator.dart';
+import '../../common/widgets/scroll_aware_fab.dart';
 
 class AccountManagementPage extends ConsumerStatefulWidget {
   const AccountManagementPage({super.key});
@@ -15,17 +18,26 @@ class AccountManagementPage extends ConsumerStatefulWidget {
 }
 
 class _AccountManagementPageState extends ConsumerState<AccountManagementPage> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final accountsAsync = ref.watch(accountsListProvider);
     final storesAsync = ref.watch(availableStoresProvider);
     final currentUser = ref.watch(authProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6F9),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Quản lý tài khoản',
-            style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(l10n.accountManagement,
+            style: const TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black87,
         elevation: 0.5,
@@ -33,12 +45,13 @@ class _AccountManagementPageState extends ConsumerState<AccountManagementPage> {
       body: accountsAsync.when(
         data: (accounts) {
           if (accounts.isEmpty) {
-            return const Center(child: Text('Không có tài khoản nào.'));
+            return Center(child: Text(l10n.noAccountsFound));
           }
 
           return storesAsync.when(
             data: (storeNames) {
               return ListView.separated(
+                controller: _scrollController,
                 padding: const EdgeInsets.all(16),
                 itemCount: accounts.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 12),
@@ -52,23 +65,29 @@ class _AccountManagementPageState extends ConsumerState<AccountManagementPage> {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFE1E2E4)),
+                      border: Border.all(color: AppColors.border),
                     ),
                     padding: const EdgeInsets.all(16),
                     child: Row(
                       children: [
                         CircleAvatar(
                           radius: 22,
-                          backgroundColor: account.isAdmin
-                              ? const Color(0xFF0067AC).withOpacity(0.1)
-                              : Colors.orange.withOpacity(0.1),
+                          backgroundColor: account.isSupervisor
+                              ? Colors.purple.withOpacity(0.1)
+                              : (account.isAdmin
+                                  ? AppColors.primary.withOpacity(0.1)
+                                  : Colors.orange.withOpacity(0.1)),
                           child: Icon(
-                            account.isAdmin
-                                ? Icons.admin_panel_settings
-                                : Icons.person_outline,
-                            color: account.isAdmin
-                                ? const Color(0xFF0067AC)
-                                : Colors.orange,
+                            account.isSupervisor
+                                ? Icons.verified_user
+                                : (account.isAdmin
+                                    ? Icons.admin_panel_settings
+                                    : Icons.person_outline),
+                            color: account.isSupervisor
+                                ? Colors.purple
+                                : (account.isAdmin
+                                    ? AppColors.primary
+                                    : Colors.orange),
                           ),
                         ),
                         const SizedBox(width: 16),
@@ -78,12 +97,14 @@ class _AccountManagementPageState extends ConsumerState<AccountManagementPage> {
                             children: [
                               Row(
                                 children: [
-                                  Text(
-                                    account.username,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 15,
-                                      color: Colors.black87,
+                                  Expanded(
+                                    child: Text(
+                                      account.name,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15,
+                                        color: Colors.black87,
+                                      ),
                                     ),
                                   ),
                                   if (isMe) ...[
@@ -106,6 +127,15 @@ class _AccountManagementPageState extends ConsumerState<AccountManagementPage> {
                                   ]
                                 ],
                               ),
+                              if (account.displayName != null &&
+                                  account.displayName!.isNotEmpty) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  '@${account.username}',
+                                  style: const TextStyle(
+                                      fontSize: 12, color: Colors.black45),
+                                ),
+                              ],
                               const SizedBox(height: 6),
                               Row(
                                 children: [
@@ -113,20 +143,27 @@ class _AccountManagementPageState extends ConsumerState<AccountManagementPage> {
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 8, vertical: 3),
                                     decoration: BoxDecoration(
-                                      color: account.isAdmin
-                                          ? const Color(0xFF0067AC)
-                                              .withOpacity(0.06)
-                                          : Colors.orange.withOpacity(0.06),
+                                      color: account.isSupervisor
+                                          ? Colors.purple.withOpacity(0.08)
+                                          : (account.isAdmin
+                                              ? AppColors.primary
+                                                  .withOpacity(0.06)
+                                              : AppColors.warning
+                                                  .withOpacity(0.06)),
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: Text(
-                                      account.isAdmin
-                                          ? 'Quản trị viên'
-                                          : 'Nhân viên',
+                                      account.isSupervisor
+                                          ? l10n.roleSupervisor
+                                          : (account.isAdmin
+                                              ? l10n.roleAdmin
+                                              : l10n.roleStaff),
                                       style: TextStyle(
-                                        color: account.isAdmin
-                                            ? const Color(0xFF0067AC)
-                                            : Colors.orange,
+                                        color: account.isSupervisor
+                                            ? AppColors.supervisor
+                                            : (account.isAdmin
+                                                ? AppColors.primary
+                                                : AppColors.warning),
                                         fontSize: 11,
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -187,19 +224,28 @@ class _AccountManagementPageState extends ConsumerState<AccountManagementPage> {
         loading: () => const Center(child: LoadingIndicator()),
         error: (e, _) => Center(child: ErrorView(e)),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAccountFormDialog(context),
-        backgroundColor: const Color(0xFF0067AC),
-        foregroundColor: Colors.white,
-        child: const Icon(Icons.add),
+      floatingActionButton: ScrollAwareFab(
+        scrollController: _scrollController,
+        child: FloatingActionButton(
+          onPressed: () => _showAccountFormDialog(context),
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          child: const Icon(Icons.add),
+        ),
       ),
     );
   }
 
   void _showAccountFormDialog(BuildContext context, {UserAccount? account}) {
+    final l10n = AppLocalizations.of(context)!;
+    final currentUser = ref.read(authProvider);
+    final isSupervisor = currentUser?.isSupervisor ?? false;
+
     final isEdit = account != null;
     final usernameController =
         TextEditingController(text: account?.username ?? '');
+    final displayNameController =
+        TextEditingController(text: account?.displayName ?? '');
     final passwordController = TextEditingController();
     String selectedRole = account?.role ?? 'nhanvien';
 
@@ -217,7 +263,7 @@ class _AccountManagementPageState extends ConsumerState<AccountManagementPage> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              title: Text(isEdit ? 'Chỉnh sửa tài khoản' : 'Thêm tài khoản mới',
+              title: Text(isEdit ? l10n.editAccount : l10n.addAccount,
                   style: const TextStyle(fontWeight: FontWeight.bold)),
               content: SingleChildScrollView(
                 child: Form(
@@ -225,6 +271,17 @@ class _AccountManagementPageState extends ConsumerState<AccountManagementPage> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      // Display Name
+                      TextFormField(
+                        controller: displayNameController,
+                        decoration: const InputDecoration(
+                          labelText: 'Họ tên hiển thị (VD: Nguyễn Văn A)',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.badge_outlined),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
                       // Username
                       TextFormField(
                         controller: usernameController,
@@ -283,51 +340,72 @@ class _AccountManagementPageState extends ConsumerState<AccountManagementPage> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Role Dropdown
+                      // Role Dropdown (Chỉ Supervisor mới có quyền đổi)
                       DropdownButtonFormField<String>(
                         value: selectedRole,
-                        decoration: const InputDecoration(
+                        isExpanded: true,
+                        decoration: InputDecoration(
                           labelText: 'Vai trò',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.security),
+                          border: const OutlineInputBorder(),
+                          prefixIcon: const Icon(Icons.security),
+                          helperText: isSupervisor
+                              ? null
+                              : l10n.onlySupervisorCanEditRole,
                         ),
-                        items: const [
+                        items: [
                           DropdownMenuItem(
-                              value: 'nhanvien', child: Text('Nhân viên')),
+                              value: 'nhanvien',
+                              child: Text(l10n.roleStaff,
+                                  overflow: TextOverflow.ellipsis)),
                           DropdownMenuItem(
-                              value: 'admin', child: Text('Quản trị viên')),
+                              value: 'admin',
+                              child: Text(l10n.roleAdmin,
+                                  overflow: TextOverflow.ellipsis)),
+                          DropdownMenuItem(
+                              value: 'supervisor',
+                              child: Text(l10n.roleSupervisor,
+                                  overflow: TextOverflow.ellipsis)),
                         ],
-                        onChanged: (value) {
-                          if (value != null) {
-                            setDialogState(() {
-                              selectedRole = value;
-                            });
-                          }
-                        },
+                        onChanged: isSupervisor
+                            ? (value) {
+                                if (value != null) {
+                                  setDialogState(() {
+                                    selectedRole = value;
+                                  });
+                                }
+                              }
+                            : null,
                       ),
                       const SizedBox(height: 16),
 
-                      // Store Dropdown
+                      // Store Dropdown (Chỉ Supervisor mới có quyền đổi/gán cửa hàng)
                       DropdownButtonFormField<String>(
                         value: selectedStoreId,
-                        decoration: const InputDecoration(
+                        isExpanded: true,
+                        decoration: InputDecoration(
                           labelText: 'Gán cửa hàng',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.store),
+                          border: const OutlineInputBorder(),
+                          prefixIcon: const Icon(Icons.store),
+                          helperText: isSupervisor
+                              ? null
+                              : l10n.onlySupervisorCanAssignStore,
                         ),
                         items: stores.entries.map((e) {
                           return DropdownMenuItem(
                             value: e.key,
-                            child: Text(e.value),
+                            child:
+                                Text(e.value, overflow: TextOverflow.ellipsis),
                           );
                         }).toList(),
-                        onChanged: (value) {
-                          if (value != null) {
-                            setDialogState(() {
-                              selectedStoreId = value;
-                            });
-                          }
-                        },
+                        onChanged: isSupervisor
+                            ? (value) {
+                                if (value != null) {
+                                  setDialogState(() {
+                                    selectedStoreId = value;
+                                  });
+                                }
+                              }
+                            : null,
                       ),
                     ],
                   ),
@@ -336,7 +414,7 @@ class _AccountManagementPageState extends ConsumerState<AccountManagementPage> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Hủy'),
+                  child: Text(l10n.cancel),
                 ),
                 FilledButton(
                   onPressed: () async {
@@ -345,6 +423,7 @@ class _AccountManagementPageState extends ConsumerState<AccountManagementPage> {
 
                       // Chuẩn bị dữ liệu lưu
                       final Map<String, dynamic> data = {
+                        'displayName': displayNameController.text.trim(),
                         'role': selectedRole,
                         'storeId': selectedStoreId,
                       };
@@ -391,7 +470,7 @@ class _AccountManagementPageState extends ConsumerState<AccountManagementPage> {
                               content: Text(isEdit
                                   ? 'Cập nhật tài khoản thành công!'
                                   : 'Tạo tài khoản thành công!'),
-                              backgroundColor: Colors.green,
+                              backgroundColor: AppColors.success,
                             ),
                           );
                         }
@@ -400,8 +479,8 @@ class _AccountManagementPageState extends ConsumerState<AccountManagementPage> {
                           Navigator.pop(context); // Tắt màn hình loading
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('Lỗi: $e'),
-                              backgroundColor: Colors.red,
+                              content: Text('${l10n.importError}: $e'),
+                              backgroundColor: AppColors.danger,
                             ),
                           );
                         }
@@ -409,8 +488,8 @@ class _AccountManagementPageState extends ConsumerState<AccountManagementPage> {
                     }
                   },
                   style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF0067AC)),
-                  child: const Text('Lưu'),
+                      backgroundColor: AppColors.primary),
+                  child: Text(l10n.save),
                 ),
               ],
             );
@@ -421,18 +500,19 @@ class _AccountManagementPageState extends ConsumerState<AccountManagementPage> {
   }
 
   void _confirmDeleteAccount(BuildContext context, String username) {
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Xác nhận xóa',
-              style: TextStyle(fontWeight: FontWeight.bold)),
+          title: Text(l10n.confirmDeleteAccountTitle,
+              style: const TextStyle(fontWeight: FontWeight.bold)),
           content: Text(
               'Bạn có chắc chắn muốn xóa tài khoản "$username" khỏi hệ thống? Hành động này không thể hoàn tác.'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Hủy'),
+              child: Text(l10n.cancel),
             ),
             FilledButton(
               onPressed: () async {
@@ -454,9 +534,9 @@ class _AccountManagementPageState extends ConsumerState<AccountManagementPage> {
                   if (context.mounted) {
                     Navigator.pop(context); // Tắt loading
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Đã xóa tài khoản thành công!'),
-                        backgroundColor: Colors.green,
+                      SnackBar(
+                        content: Text(l10n.accountDeletedSuccess),
+                        backgroundColor: AppColors.success,
                       ),
                     );
                   }
@@ -466,14 +546,14 @@ class _AccountManagementPageState extends ConsumerState<AccountManagementPage> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text('Lỗi khi xóa: $e'),
-                        backgroundColor: Colors.red,
+                        backgroundColor: AppColors.danger,
                       ),
                     );
                   }
                 }
               },
-              style: FilledButton.styleFrom(backgroundColor: Colors.redAccent),
-              child: const Text('Xóa'),
+              style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+              child: Text(l10n.delete),
             ),
           ],
         );

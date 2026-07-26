@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:stores/core/theme/app_colors.dart';
 import 'package:stores/presentation/common/widgets/loading_indicator.dart';
 
 import '../../../application/inventory/inventory_providers.dart';
@@ -15,6 +16,7 @@ import '../../../domain/entities/inventory_transaction.dart';
 import '../../../domain/entities/product.dart';
 import '../../../domain/entities/transaction_type.dart';
 import '../../common/widgets/error_view.dart';
+import '../../common/widgets/scroll_aware_fab.dart';
 import '../../inventories/pages/import_inventory_page.dart';
 import '../widgets/product_tile.dart';
 import 'add_product_page.dart';
@@ -100,7 +102,7 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                   value: 'import_excel',
                   child: Row(
                     children: [
-                      const Icon(Icons.upload_file, color: Color(0xFF0067AC)),
+                      const Icon(Icons.upload_file, color: AppColors.primary),
                       const SizedBox(width: 8),
                       Text(l10n.importExcel),
                     ],
@@ -147,15 +149,15 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                 filled: true,
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: Color(0xFFE1E2E4)),
+                  borderSide: const BorderSide(color: AppColors.border),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: Color(0xFF0067AC)),
+                  borderSide: const BorderSide(color: AppColors.primary),
                 ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: Color(0xFFE1E2E4)),
+                  borderSide: const BorderSide(color: AppColors.border),
                 ),
                 contentPadding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -174,7 +176,7 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
               return Container(
                 decoration: const BoxDecoration(
                   color: Colors.white,
-                  border: Border(bottom: BorderSide(color: Color(0xFFEEEEEE))),
+                  border: Border(bottom: BorderSide(color: AppColors.divider)),
                 ),
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -185,11 +187,11 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                       child: DropdownButton<String>(
                         value: selectedCategory,
                         style: const TextStyle(
-                            color: Color(0xFF0067AC),
+                            color: AppColors.primary,
                             fontWeight: FontWeight.bold,
                             fontSize: 13),
                         icon: const Icon(Icons.arrow_drop_down,
-                            color: Color(0xFF0067AC), size: 18),
+                            color: AppColors.primary, size: 18),
                         onChanged: (v) {
                           if (v != null) {
                             ref
@@ -262,12 +264,15 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        heroTag: 'addProductFab',
-        backgroundColor: const Color(0xFF0067AC),
-        foregroundColor: Colors.white,
-        onPressed: _navigateToAddProduct,
-        child: const Icon(Icons.add),
+      floatingActionButton: ScrollAwareFab(
+        scrollController: _scrollController,
+        child: FloatingActionButton(
+          heroTag: 'addProductFab',
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          onPressed: _navigateToAddProduct,
+          child: const Icon(Icons.add),
+        ),
       ),
     );
   }
@@ -466,7 +471,7 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
   Widget _buildTotalSummaryCard(
       int count, int totalStock, AppLocalizations l10n) {
     return Container(
-      color: const Color(0xFFE3F2FD),
+      color: AppColors.surfaceInfo,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -483,7 +488,7 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
             style: const TextStyle(
                 fontWeight: FontWeight.w800,
                 fontSize: 15,
-                color: Color(0xFF0067AC)),
+                color: AppColors.primary),
           )
         ],
       ),

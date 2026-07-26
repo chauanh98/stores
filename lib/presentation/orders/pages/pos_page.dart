@@ -9,6 +9,7 @@ import 'package:stores/presentation/common/widgets/loading_indicator.dart';
 import '../../../application/auth/auth_providers.dart';
 import '../../../application/orders/cart_providers.dart';
 import '../../../application/products/products_providers.dart';
+import '../../../core/utils/combo_helper.dart';
 import '../../../domain/entities/product.dart';
 import 'pos_checkout_page.dart';
 
@@ -149,6 +150,11 @@ class _POSPageState extends ConsumerState<POSPage> {
                     final product = filtered[index];
                     final cartItem = cart[product.id];
                     final quantityInCart = cartItem?.quantity ?? 0;
+                    final effectiveStock = ComboHelper.getAvailableStock(
+                      product: product,
+                      branchId: 'branch_1',
+                      allProducts: products,
+                    );
 
                     return Container(
                       decoration: BoxDecoration(
@@ -164,8 +170,12 @@ class _POSPageState extends ConsumerState<POSPage> {
                             radius: 24,
                             backgroundColor:
                                 AppColors.primary.withOpacity(0.06),
-                            child: const Icon(Icons.shopping_bag_outlined,
-                                color: AppColors.primary, size: 22),
+                            child: Icon(
+                                product.isCombo
+                                    ? Icons.widgets_outlined
+                                    : Icons.shopping_bag_outlined,
+                                color: AppColors.primary,
+                                size: 22),
                           ),
                           const SizedBox(width: 12),
                           // Thông tin chi tiết sản phẩm
@@ -173,14 +183,41 @@ class _POSPageState extends ConsumerState<POSPage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  product.name,
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                      color: Colors.black87),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        product.name,
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
+                                            color: Colors.black87),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    if (product.isCombo) ...[
+                                      const SizedBox(width: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.primary
+                                              .withOpacity(0.1),
+                                          borderRadius:
+                                              BorderRadius.circular(4),
+                                        ),
+                                        child: const Text(
+                                          'COMBO',
+                                          style: TextStyle(
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.bold,
+                                            color: AppColors.primary,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
@@ -188,6 +225,20 @@ class _POSPageState extends ConsumerState<POSPage> {
                                   style: const TextStyle(
                                       color: Colors.black54, fontSize: 11),
                                 ),
+                                if (product.isCombo &&
+                                    product.comboComponents.isNotEmpty) ...[
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Gồm: ${product.comboComponents.map((c) => "${c.quantity}x ${c.productName}").join(", ")}',
+                                    style: const TextStyle(
+                                      color: AppColors.primary,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
                                 const SizedBox(height: 4),
                                 Row(
                                   children: [
@@ -200,12 +251,17 @@ class _POSPageState extends ConsumerState<POSPage> {
                                     ),
                                     const SizedBox(width: 8),
                                     Text(
-                                      '${l10n.stockLabel}: ${product.stock}',
+                                      product.isCombo
+                                          ? 'Tồn bộ: $effectiveStock'
+                                          : '${l10n.stockLabel}: $effectiveStock',
                                       style: TextStyle(
-                                        color: product.stock == 0
+                                        color: effectiveStock == 0
                                             ? Colors.red
                                             : Colors.black45,
                                         fontSize: 11,
+                                        fontWeight: product.isCombo
+                                            ? FontWeight.bold
+                                            : FontWeight.normal,
                                       ),
                                     ),
                                   ],
@@ -215,7 +271,8 @@ class _POSPageState extends ConsumerState<POSPage> {
                           ),
                           const SizedBox(width: 8),
                           // Nút thêm/bớt số lượng
-                          _buildCartControl(product, quantityInCart, l10n),
+                          _buildCartControl(
+                              product, quantityInCart, effectiveStock, l10n),
                         ],
                       ),
                     );
@@ -236,12 +293,12 @@ class _POSPageState extends ConsumerState<POSPage> {
   }
 
   // Widget quản lý thêm/bớt số lượng
-  Widget _buildCartControl(
-      Product product, int quantityInCart, AppLocalizations l10n) {
+  Widget _buildCartControl(Product product, int quantityInCart,
+      int effectiveStock, AppLocalizations l10n) {
     if (quantityInCart == 0) {
       return InkWell(
         onTap: () {
-          if (product.stock <= 0) {
+          if (effectiveStock <= 0) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(l10n.outOfStockAlert)),
             );
@@ -286,9 +343,9 @@ class _POSPageState extends ConsumerState<POSPage> {
         // Nút cộng
         GestureDetector(
           onTap: () {
-            if (quantityInCart >= product.stock) {
+            if (quantityInCart >= effectiveStock) {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(l10n.stockLimitAlert(product.stock))),
+                SnackBar(content: Text(l10n.stockLimitAlert(effectiveStock))),
               );
               return;
             }

@@ -1,3 +1,5 @@
+import '../../domain/entities/combo_component.dart';
+
 class ProductModel {
   final String id;
   final String name;
@@ -19,6 +21,10 @@ class ProductModel {
   final String? components;
   final String? imageUrl;
 
+  // Combo fields
+  final bool isCombo;
+  final List<ComboComponent> comboComponents;
+
   const ProductModel({
     required this.id,
     required this.name,
@@ -37,6 +43,8 @@ class ProductModel {
     this.noteTemplate,
     this.components,
     this.imageUrl,
+    this.isCombo = false,
+    this.comboComponents = const [],
   });
 
   Map<String, dynamic> toMap() => {
@@ -57,6 +65,8 @@ class ProductModel {
         'noteTemplate': noteTemplate,
         'components': components,
         'imageUrl': imageUrl,
+        'isCombo': isCombo,
+        'comboComponents': comboComponents.map((c) => c.toMap()).toList(),
       };
 
   factory ProductModel.fromMap(Map<dynamic, dynamic> map) {
@@ -77,6 +87,14 @@ class ProductModel {
         ? (map['costPrice'] as num).toDouble()
         : ((map['price'] as num? ?? 0).toDouble() * 0.7);
 
+    // Read comboComponents
+    List<ComboComponent> comboComps = [];
+    if (map['comboComponents'] != null && map['comboComponents'] is List) {
+      comboComps = (map['comboComponents'] as List)
+          .map((item) => ComboComponent.fromMap(item as Map))
+          .toList();
+    }
+
     return ProductModel(
       id: map['id'] as String? ?? '',
       name: map['name'] as String? ?? '',
@@ -95,6 +113,8 @@ class ProductModel {
       noteTemplate: map['noteTemplate'] as String?,
       components: map['components'] as String?,
       imageUrl: map['imageUrl'] as String?,
+      isCombo: map['isCombo'] as bool? ?? false,
+      comboComponents: comboComps,
     );
   }
 }

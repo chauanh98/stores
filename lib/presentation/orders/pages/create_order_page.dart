@@ -10,6 +10,7 @@ import '../../../application/customers/customers_providers.dart';
 import '../../../application/inventory/inventory_providers.dart';
 import '../../../application/orders/orders_providers.dart';
 import '../../../application/products/products_providers.dart';
+import '../../../core/utils/combo_helper.dart';
 import '../../../domain/entities/customer.dart';
 import '../../../domain/entities/inventory_transaction.dart';
 import '../../../domain/entities/order.dart';
@@ -334,15 +335,21 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
       }
 
       final p = products.firstWhere((e) => e.id == i.productId);
-      if (p.stock <= 0) {
+      final effectiveStock = ComboHelper.getAvailableStock(
+        product: p,
+        branchId: 'branch_1',
+        allProducts: products,
+      );
+
+      if (effectiveStock <= 0) {
         ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('${p.name} - ${l10n.outOfStockMsg}')));
         return;
       }
-      if (i.quantity > p.stock) {
+      if (i.quantity > effectiveStock) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content:
-                Text('${p.name} - ${l10n.notEnoughStock} (Tồn: ${p.stock})')));
+            content: Text(
+                '${p.name} - ${l10n.notEnoughStock} (Tồn: $effectiveStock)')));
         return;
       }
     }
@@ -372,6 +379,9 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
         createdAt: now,
         items: orderItems,
         total: total,
+        amountPaid: total,
+        debtAmount: 0.0,
+        paymentMethod: 'cash',
       );
 
       // 1) Create order
@@ -411,23 +421,51 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
       for (final i in orderItems) {
         final p = products.firstWhere((e) => e.id == i.productId);
 
-        final branchStocks = Map<String, int>.from(p.branchStocks);
-        final currentBranchStock = branchStocks['branch_1'] ?? 0;
-        branchStocks['branch_1'] =
-            (currentBranchStock - i.quantity).clamp(0, 99999);
+        if (p.isCombo && p.comboComponents.isNotEmpty) {
+          for (final comp in p.comboComponents) {
+            final childProduct = await productRepo.fetchById(comp.productId);
+            if (childProduct != null) {
+              final childBranchStocks =
+                  Map<String, int>.from(childProduct.branchStocks);
+              final currentChildStock = childBranchStocks['branch_1'] ?? 0;
+              final qtyToDeduct = i.quantity * comp.quantity;
+              childBranchStocks['branch_1'] =
+                  (currentChildStock - qtyToDeduct).clamp(0, 99999);
 
-        final updatedProduct = p.copyWith(branchStocks: branchStocks);
-        await productRepo.upsert(updatedProduct);
+              final updatedChild =
+                  childProduct.copyWith(branchStocks: childBranchStocks);
+              await productRepo.upsert(updatedChild);
 
-        await inventoryRepo.record(InventoryTransaction(
-          id: '${id}_${i.productId}',
-          productId: i.productId,
-          type: TransactionType.export,
-          quantity: i.quantity,
-          date: now,
-          note: 'Order $id',
-          importPrice: null,
-        ));
+              await inventoryRepo.record(InventoryTransaction(
+                id: '${id}_${childProduct.id}',
+                productId: childProduct.id,
+                type: TransactionType.export,
+                quantity: qtyToDeduct,
+                date: now,
+                note: 'Order $id (Combo: ${p.name})',
+                importPrice: null,
+              ));
+            }
+          }
+        } else {
+          final branchStocks = Map<String, int>.from(p.branchStocks);
+          final currentBranchStock = branchStocks['branch_1'] ?? 0;
+          branchStocks['branch_1'] =
+              (currentBranchStock - i.quantity).clamp(0, 99999);
+
+          final updatedProduct = p.copyWith(branchStocks: branchStocks);
+          await productRepo.upsert(updatedProduct);
+
+          await inventoryRepo.record(InventoryTransaction(
+            id: '${id}_${i.productId}',
+            productId: i.productId,
+            type: TransactionType.export,
+            quantity: i.quantity,
+            date: now,
+            note: 'Order $id',
+            importPrice: null,
+          ));
+        }
       }
 
       // 4) Refresh các provider để cập nhật UI

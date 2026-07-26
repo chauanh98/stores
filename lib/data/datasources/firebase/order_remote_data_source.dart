@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_database/firebase_database.dart';
 
 class OrderRemoteDataSource {
@@ -10,6 +12,10 @@ class OrderRemoteDataSource {
 
   Future<void> create(String id, Map<String, dynamic> map) {
     return _ref.child(id).set(map);
+  }
+
+  Future<void> delete(String id) {
+    return _ref.child(id).remove();
   }
 
   Stream<List<Map<String, dynamic>>> watchByCustomer(String customerId) {
@@ -25,14 +31,65 @@ class OrderRemoteDataSource {
     });
   }
 
-  // Thêm method để lấy tất cả orders
+  /// Optimized: dùng onChildAdded/Changed/Removed thay vì onValue
+  /// để chỉ download delta thay vì toàn bộ node orders
   Stream<List<Map<String, dynamic>>> watchAll() {
-    return _ref.onValue.map((event) {
-      final data = event.snapshot.value as Map? ?? {};
-      return data.values
-          .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e as Map))
-          .toList();
+    final controller = StreamController<List<Map<String, dynamic>>>();
+    final Map<String, Map<String, dynamic>> cache = {};
+    bool initialLoaded = false;
+
+    void safeEmit() {
+      if (initialLoaded && !controller.isClosed) {
+        controller.add(cache.values.toList());
+      }
+    }
+
+    final addSub = _ref.onChildAdded.listen((event) {
+      final val = event.snapshot.value;
+      if (val is Map) {
+        cache[event.snapshot.key!] = Map<String, dynamic>.from(val);
+        safeEmit();
+      }
     });
+
+    final changeSub = _ref.onChildChanged.listen((event) {
+      final val = event.snapshot.value;
+      if (val is Map) {
+        cache[event.snapshot.key!] = Map<String, dynamic>.from(val);
+        safeEmit();
+      }
+    });
+
+    final removeSub = _ref.onChildRemoved.listen((event) {
+      cache.remove(event.snapshot.key);
+      safeEmit();
+    });
+
+    _ref.get().then((snap) {
+      final value = snap.value;
+      if (value != null && value is Map) {
+        final map = Map<String, dynamic>.from(value);
+        for (final entry in map.entries) {
+          if (entry.value is Map) {
+            cache[entry.key] = Map<String, dynamic>.from(entry.value as Map);
+          }
+        }
+      }
+      initialLoaded = true;
+      safeEmit();
+    }).catchError((err) {
+      if (!controller.isClosed) {
+        controller.addError(err);
+      }
+    });
+
+    controller.onCancel = () {
+      addSub.cancel();
+      changeSub.cancel();
+      removeSub.cancel();
+    };
+
+    return controller.stream;
   }
 
   // Lấy orders theo khoảng thời gian

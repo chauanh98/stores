@@ -28,8 +28,18 @@ class OrderRepositoryImpl implements OrderRepository {
               ))
           .toList(),
       status: order.status,
+      amountPaid: order.amountPaid,
+      debtAmount: order.debtAmount,
+      paymentMethod: order.paymentMethod,
+      createdBy: order.createdBy,
+      createdByName: order.createdByName,
     );
     return ds.create(order.id, model.toMap());
+  }
+
+  @override
+  Future<void> delete(String orderId) {
+    return ds.delete(orderId);
   }
 
   @override
@@ -71,6 +81,11 @@ class OrderRepositoryImpl implements OrderRepository {
               ))
           .toList(),
       status: om.status,
+      amountPaid: om.amountPaid,
+      debtAmount: om.debtAmount,
+      paymentMethod: om.paymentMethod,
+      createdBy: om.createdBy,
+      createdByName: om.createdByName,
     );
   }
 }

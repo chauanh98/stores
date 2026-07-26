@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:stores/core/theme/app_colors.dart';
 
 import '../../../application/auth/auth_providers.dart';
 
@@ -8,13 +10,14 @@ class SettingsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
     final user = ref.watch(authProvider);
     final currentStore = ref.watch(currentStoreIdProvider);
     final storeNamesAsync = ref.watch(availableStoresProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Cài Đặt & Chuyển Đổi'),
+        title: Text(l10n.settingsTitle),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -22,29 +25,31 @@ class SettingsPage extends ConsumerWidget {
           Card(
             child: ListTile(
               leading: const Icon(Icons.person),
-              title: Text(user?.username ?? 'Khách'),
+              title: Text(user?.name ?? user?.username ?? 'Account'),
               subtitle: Text(
-                  'Vai trò: ${user?.role == 'admin' ? 'Quản trị viên' : 'Nhân viên'}'),
+                  'Vai trò: ${user?.isSupervisor ? l10n.roleSupervisor : (user?.isAdmin ? l10n.roleAdmin : l10n.roleStaff)}'),
               trailing: TextButton.icon(
-                icon: const Icon(Icons.logout, color: Colors.red),
-                label: const Text('Đăng xuất',
-                    style: TextStyle(color: Colors.red)),
+                icon: const Icon(Icons.logout, color: AppColors.danger),
+                label: Text(l10n.logout,
+                    style: const TextStyle(color: AppColors.danger)),
                 onPressed: () {
                   showDialog(
                     context: context,
                     builder: (c) => AlertDialog(
-                      title: const Text('Đăng xuất'),
-                      content: const Text('Bạn có chắc chắn muốn đăng xuất?'),
+                      title: Text(l10n.logout),
+                      content: Text(l10n.confirmLogout),
                       actions: [
                         TextButton(
                             onPressed: () => Navigator.pop(c),
-                            child: const Text('Hủy')),
+                            child: Text(l10n.cancel)),
                         FilledButton(
+                          style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.danger),
                           onPressed: () {
                             Navigator.pop(c);
                             ref.read(authProvider.notifier).logout();
                           },
-                          child: const Text('Đăng xuất'),
+                          child: Text(l10n.logout),
                         ),
                       ],
                     ),
@@ -54,7 +59,7 @@ class SettingsPage extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 16),
-          if (user?.isAdmin == true)
+          if (user?.isAdmin == true || user?.isSupervisor == true)
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
@@ -62,7 +67,7 @@ class SettingsPage extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Chuyển Đổi Nhanh Cửa Hàng (Dành cho Admin)',
+                      'Chuyển Đổi Nhanh Cửa Hàng',
                       style: Theme.of(context)
                           .textTheme
                           .titleMedium

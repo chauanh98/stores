@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:stores/core/theme/app_colors.dart';
 
 import '../../../application/auth/auth_providers.dart';
 import '../../../application/inventory/inventory_providers.dart';
@@ -154,7 +155,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
     final currencyFormat = NumberFormat('#,###', 'vi_VN');
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6F9),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text(_isEditing ? 'Thông tin cơ bản' : l10n.productDetail,
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
@@ -178,7 +179,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
               },
               child: const Text('Sửa',
                   style: TextStyle(
-                      color: Color(0xFF0067AC),
+                      color: AppColors.primary,
                       fontWeight: FontWeight.bold,
                       fontSize: 16)),
             ),
@@ -192,7 +193,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
               onPressed: _isLoading ? null : _saveProduct,
               child: const Text('Lưu',
                   style: TextStyle(
-                      color: Color(0xFF0067AC),
+                      color: AppColors.primary,
                       fontWeight: FontWeight.bold,
                       fontSize: 16)),
             ),
@@ -216,6 +217,10 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                     _buildProductHeader(context),
                     const SizedBox(height: 12),
                     _buildBasicInfoCard(context, currencyFormat),
+                    if (_currentProduct.isCombo) ...[
+                      const SizedBox(height: 12),
+                      _buildComboComponentsCard(context, currencyFormat),
+                    ],
                     const SizedBox(height: 12),
                     _buildBranchStockCard(context),
                     const SizedBox(height: 12),
@@ -260,7 +265,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
-                        side: const BorderSide(color: Color(0xFFE2E8F0)),
+                        side: const BorderSide(color: AppColors.borderLight),
                       ),
                       child: SwitchListTile(
                         value: _sellDirectly,
@@ -275,7 +280,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                         subtitle: const Text(
                             'Cho phép sản phẩm bán trực tiếp tại quầy POS',
                             style: TextStyle(fontSize: 11)),
-                        activeColor: const Color(0xFF0067AC),
+                        activeColor: AppColors.primary,
                       ),
                     ),
                     const SizedBox(height: 48),
@@ -295,7 +300,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE1E2E4)),
+        border: Border.all(color: AppColors.border),
       ),
       padding: const EdgeInsets.all(16),
       child: Row(
@@ -304,7 +309,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
             width: 56,
             height: 56,
             decoration: BoxDecoration(
-              color: const Color(0xFFF1F5F9),
+              color: AppColors.surfaceLight,
               borderRadius: BorderRadius.circular(8),
             ),
             child: _currentProduct.imageUrl != null &&
@@ -316,7 +321,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                   )
                 : Icon(
                     ProductCategories.getCategoryIcon(_currentProduct.category),
-                    color: const Color(0xFF0067AC),
+                    color: AppColors.primary,
                     size: 28,
                   ),
           ),
@@ -325,12 +330,40 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  _currentProduct.name,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _currentProduct.name,
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
                       ),
+                    ),
+                    if (_currentProduct.isCombo) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                              color: AppColors.primary.withOpacity(0.3)),
+                        ),
+                        child: const Text(
+                          'COMBO',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),
@@ -346,22 +379,194 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE1E2E4)),
+        border: Border.all(color: AppColors.border),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Column(
         children: [
           _buildDetailRow('Mã hàng', _currentProduct.code, true),
-          const Divider(height: 1, color: Color(0xFFEEEEEE)),
+          const Divider(height: 1, color: AppColors.divider),
           _buildDetailRow('Mã vạch', _currentProduct.barcode ?? '—', true),
-          const Divider(height: 1, color: Color(0xFFEEEEEE)),
+          const Divider(height: 1, color: AppColors.divider),
           _buildDetailRow('Giá vốn',
               '${format.format(_currentProduct.costPrice)} đ', false),
-          const Divider(height: 1, color: Color(0xFFEEEEEE)),
+          const Divider(height: 1, color: AppColors.divider),
           _buildDetailRow(
               'Giá bán', '${format.format(_currentProduct.price)} đ', false),
-          const Divider(height: 1, color: Color(0xFFEEEEEE)),
+          const Divider(height: 1, color: AppColors.divider),
           _buildDetailRow('Nhóm hàng', _selectedCategoryPath, false),
+        ],
+      ),
+    );
+  }
+
+  // Combo Components Card
+  Widget _buildComboComponentsCard(BuildContext context, NumberFormat format) {
+    if (!_currentProduct.isCombo || _currentProduct.comboComponents.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final allProducts = ref.watch(productListProvider).value ?? [];
+    final Map<String, Product> productMap = {
+      for (final p in allProducts) p.id: p
+    };
+
+    double totalComponentsCost = 0.0;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.widgets_outlined,
+                  color: AppColors.primary, size: 20),
+              const SizedBox(width: 8),
+              const Text(
+                'Thành phần trong Combo',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                  color: Colors.black87,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${_currentProduct.comboComponents.length} món',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Divider(height: 1, color: AppColors.divider),
+          const SizedBox(height: 8),
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _currentProduct.comboComponents.length,
+            separatorBuilder: (_, __) =>
+                const Divider(height: 1, color: AppColors.dividerLight),
+            itemBuilder: (context, index) {
+              final comp = _currentProduct.comboComponents[index];
+              final child = productMap[comp.productId];
+              final childCost = child?.costPrice ?? comp.costPrice ?? 0.0;
+              totalComponentsCost += childCost * comp.quantity;
+
+              final stockB1 = child?.branchStocks['branch_1'] ?? 0;
+              final stockB2 = child?.branchStocks['branch_2'] ?? 0;
+
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        'x${comp.quantity}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            comp.productName,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Mã: ${comp.productCode} • Giá vốn lẻ: ${format.format(childCost)} đ',
+                            style: const TextStyle(
+                              color: Colors.black54,
+                              fontSize: 11,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Tồn kho linh kiện: CN1: $stockB1 | CN2: $stockB2',
+                            style: const TextStyle(
+                              color: Colors.black45,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      '${format.format(childCost * comp.quantity)} đ',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Tổng giá vốn gợi ý linh kiện:',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                Text(
+                  '${format.format(totalComponentsCost)} đ',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -394,7 +599,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                     );
                   },
                   child: const Icon(Icons.copy_outlined,
-                      size: 14, color: Color(0xFF0067AC)),
+                      size: 14, color: AppColors.primary),
                 )
               ]
             ],
@@ -412,7 +617,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFE1E2E4)),
+          border: Border.all(color: AppColors.border),
         ),
         padding: const EdgeInsets.all(16),
         child: Row(
@@ -440,12 +645,12 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                 Text(
                   'Chi tiết',
                   style: TextStyle(
-                      color: Color(0xFF0067AC),
+                      color: AppColors.primary,
                       fontSize: 13,
                       fontWeight: FontWeight.bold),
                 ),
                 SizedBox(width: 4),
-                Icon(Icons.chevron_right, color: Color(0xFF0067AC), size: 18),
+                Icon(Icons.chevron_right, color: AppColors.primary, size: 18),
               ],
             )
           ],
@@ -465,11 +670,11 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
-        side: const BorderSide(color: Color(0xFFE2E8F0)),
+        side: const BorderSide(color: AppColors.borderLight),
       ),
       margin: EdgeInsets.zero,
       child: ListTile(
-        leading: Icon(icon, color: const Color(0xFF0067AC), size: 20),
+        leading: Icon(icon, color: AppColors.primary, size: 20),
         title: Text(label,
             style: const TextStyle(
                 fontSize: 13,
@@ -490,7 +695,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
-        side: const BorderSide(color: Color(0xFFE2E8F0)),
+        side: const BorderSide(color: AppColors.borderLight),
       ),
       margin: EdgeInsets.zero,
       child: Padding(
@@ -502,6 +707,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
   }
 
   Widget _buildStockCardSection(BuildContext context, NumberFormat format) {
+    final l10n = AppLocalizations.of(context)!;
     return Consumer(
       builder: (context, ref, child) {
         final txAsync =
@@ -510,7 +716,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE1E2E4)),
+            border: Border.all(color: AppColors.border),
           ),
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -576,7 +782,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: filtered.length,
                     separatorBuilder: (_, __) =>
-                        const Divider(height: 1, color: Color(0xFFF0F0F0)),
+                        const Divider(height: 1, color: AppColors.dividerLight),
                     itemBuilder: (context, index) {
                       final tx = filtered[index];
                       final isImport = tx.type.name == 'import';
@@ -608,9 +814,19 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              isImport
-                                  ? 'Nhập kho hàng loạt'
-                                  : 'Bán hàng (Đơn ${tx.note})',
+                              tx.note.isNotEmpty
+                                  ? (tx.note.contains('Chuyển') ||
+                                          tx.note.contains('Nhận')
+                                      ? tx.note
+                                      : (isImport
+                                          ? tx.note
+                                          : 'Bán hàng (Mã đơn: ${tx.note})'))
+                                  : (isImport ? 'Nhập kho' : 'Xuất kho'),
+                              style: const TextStyle(
+                                  color: Colors.black54, fontSize: 11),
+                            ),
+                            Text(
+                              '${l10n.performedBy}: ${tx.createdByName ?? tx.createdBy ?? '—'}',
                               style: const TextStyle(
                                   color: Colors.black54, fontSize: 11),
                             ),
@@ -684,7 +900,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                       )
                     ],
                   ),
-                  const Divider(color: Color(0xFFEEEEEE)),
+                  const Divider(color: AppColors.divider),
                   ListTile(
                     title: Text(b1Name, style: const TextStyle(fontSize: 14)),
                     trailing: Text(
@@ -693,7 +909,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                           fontWeight: FontWeight.bold, fontSize: 14),
                     ),
                   ),
-                  const Divider(height: 1, color: Color(0xFFF0F0F0)),
+                  const Divider(height: 1, color: AppColors.dividerLight),
                   ListTile(
                     title: Text(b2Name, style: const TextStyle(fontSize: 14)),
                     trailing: Text(
@@ -702,7 +918,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                           fontWeight: FontWeight.bold, fontSize: 14),
                     ),
                   ),
-                  const Divider(height: 1, color: Color(0xFFF0F0F0)),
+                  const Divider(height: 1, color: AppColors.dividerLight),
                   ListTile(
                     title: const Text('Tổng cộng toàn hệ thống',
                         style: TextStyle(
@@ -712,7 +928,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                       style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
-                          color: Color(0xFF0067AC)),
+                          color: AppColors.primary),
                     ),
                   ),
                 ],
@@ -771,7 +987,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
-            side: const BorderSide(color: Color(0xFFE2E8F0)),
+            side: const BorderSide(color: AppColors.borderLight),
           ),
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -795,9 +1011,37 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                 const SizedBox(height: 16),
                 _buildEditField(_priceController, 'Giá bán', Icons.upload,
                     isNumber: true, hint: '0'),
-                const SizedBox(height: 16),
-                _buildEditField(_stockController, 'Tồn kho', Icons.inventory_2,
-                    isNumber: true, hint: '0'),
+                if (!_currentProduct.isCombo) ...[
+                  const SizedBox(height: 16),
+                  _buildEditField(
+                      _stockController, 'Tồn kho', Icons.inventory_2,
+                      isNumber: true, hint: '0'),
+                ] else ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.06),
+                      borderRadius: BorderRadius.circular(8),
+                      border:
+                          Border.all(color: AppColors.primary.withOpacity(0.2)),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.info_outline,
+                            color: AppColors.primary, size: 20),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Tồn kho của Combo được tự động tính theo số lượng linh kiện thành phần.',
+                            style:
+                                TextStyle(fontSize: 12, color: Colors.black87),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -869,7 +1113,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
-            side: const BorderSide(color: Color(0xFFE2E8F0)),
+            side: const BorderSide(color: AppColors.borderLight),
           ),
           child: SwitchListTile(
             value: _sellDirectly,
@@ -883,7 +1127,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
             ),
             subtitle: const Text('Cho phép sản phẩm bán trực tiếp tại quầy POS',
                 style: TextStyle(fontSize: 11)),
-            activeColor: const Color(0xFF0067AC),
+            activeColor: AppColors.primary,
           ),
         ),
         const SizedBox(height: 48),
@@ -903,7 +1147,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),
-          side: const BorderSide(color: Color(0xFFE2E8F0)),
+          side: const BorderSide(color: AppColors.borderLight),
         ),
         child: Container(
           height: 140,
@@ -953,11 +1197,11 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF0067AC).withOpacity(0.06),
+                        color: AppColors.primary.withOpacity(0.06),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(Icons.camera_alt,
-                          color: Color(0xFF0067AC), size: 28),
+                          color: AppColors.primary, size: 28),
                     ),
                     const SizedBox(height: 8),
                     const Text(
@@ -990,7 +1234,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: const Icon(Icons.image, color: Color(0xFF0067AC)),
+                leading: const Icon(Icons.image, color: AppColors.primary),
                 title: const Text('Chọn ảnh trên máy'),
                 onTap: () {
                   Navigator.pop(context);
@@ -1055,7 +1299,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
         prefixIcon: Icon(icon, color: Colors.black45),
         suffixIcon: trailingIcon != null
             ? IconButton(
-                icon: Icon(trailingIcon, color: const Color(0xFF0067AC)),
+                icon: Icon(trailingIcon, color: AppColors.primary),
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -1205,11 +1449,11 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
-        side: const BorderSide(color: Color(0xFFE2E8F0)),
+        side: const BorderSide(color: AppColors.borderLight),
       ),
       margin: EdgeInsets.zero,
       child: ListTile(
-        leading: Icon(icon, color: const Color(0xFF0067AC), size: 20),
+        leading: Icon(icon, color: AppColors.primary, size: 20),
         title: Text(label,
             style: const TextStyle(
                 fontSize: 13,
@@ -1235,7 +1479,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
-        side: const BorderSide(color: Color(0xFFE2E8F0)),
+        side: const BorderSide(color: AppColors.borderLight),
       ),
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -1258,7 +1502,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
-        side: const BorderSide(color: Color(0xFFE2E8F0)),
+        side: const BorderSide(color: AppColors.borderLight),
       ),
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -1356,8 +1600,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                 }
                 Navigator.pop(context);
               },
-              style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF0067AC)),
+              style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
               child: const Text('Thêm'),
             )
           ],
@@ -1437,8 +1680,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                 }
                 Navigator.pop(context);
               },
-              style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF0067AC)),
+              style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
               child: const Text('Thêm'),
             )
           ],
@@ -1534,6 +1776,8 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
             : null,
         imageUrl: imageUrl,
         type: _sellDirectly ? 'Hàng hóa' : 'Dịch vụ',
+        isCombo: _currentProduct.isCombo,
+        comboComponents: _currentProduct.comboComponents,
       );
 
       await ref.read(productRepositoryProvider).upsert(updatedProduct);

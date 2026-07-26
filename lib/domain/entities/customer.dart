@@ -1,5 +1,8 @@
 import 'package:stores/domain/entities/purchase.dart';
 
+import 'customer_debt_transaction.dart';
+import 'order.dart';
+
 class Customer {
   final String id;
   final String name;
@@ -111,4 +114,29 @@ class Customer {
         netSales: netSales ?? this.netSales,
         status: status ?? this.status,
       );
+
+  double get displayTotalSales => totalSales ?? 0.0;
+
+  double get displayCurrentDebt => currentDebt ?? 0.0;
+
+  double effectiveTotalSales(List<Order> orders) {
+    if (totalSales != null && totalSales! > 0) {
+      return totalSales!;
+    }
+    final orderSum = orders.fold<double>(0.0, (sum, o) => sum + o.total);
+    return orderSum > 0 ? orderSum : (totalSales ?? 0.0);
+  }
+
+  double effectiveCurrentDebt(
+      List<Order> orders, List<CustomerDebtTransaction> debtTxs) {
+    if (debtTxs.isNotEmpty) {
+      final sorted = List<CustomerDebtTransaction>.from(debtTxs)
+        ..sort((a, b) => b.date.compareTo(a.date));
+      return sorted.first.remainingDebt;
+    }
+    if (currentDebt != null) {
+      return currentDebt!;
+    }
+    return orders.fold<double>(0.0, (sum, o) => sum + o.total);
+  }
 }

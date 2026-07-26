@@ -249,7 +249,8 @@ class _ImportListTile extends StatelessWidget {
           product.name.isEmpty ? '#${tx.id.substring(0, 6)}' : product.name,
           style: theme.textTheme.titleMedium
               ?.copyWith(fontWeight: FontWeight.w600)),
-      subtitle: Text('${_fmt(tx.date)} • ${tx.quantity}'),
+      subtitle: Text(
+          '${_fmt(tx.date)} • SL: ${tx.quantity} • NV: ${tx.createdByName ?? tx.createdBy ?? '—'}'),
       trailing: const Icon(Icons.chevron_right),
       onTap: () {
         Navigator.of(context).push(

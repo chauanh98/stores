@@ -615,10 +615,10 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
         final colors = [
           AppColors.primary,
           AppColors.secondary,
-          const Color(0xFFF39C12), // Orange
-          const Color(0xFF9B59B6), // Purple
-          const Color(0xFFE74C3C), // Red
-          const Color(0xFF1ABC9C), // Teal
+          AppColors.chartOrange, // Orange
+          AppColors.chartPurple, // Purple
+          AppColors.chartRed, // Red
+          AppColors.chartTeal, // Teal
         ];
         return colors[index % colors.length];
     }

@@ -24,6 +24,8 @@ class InventoryRepositoryImpl implements InventoryRepository {
             date: model.date,
             note: model.note,
             importPrice: model.importPrice,
+            createdBy: model.createdBy,
+            createdByName: model.createdByName,
           );
         }).toList();
       });
@@ -38,6 +40,8 @@ class InventoryRepositoryImpl implements InventoryRepository {
       date: tx.date,
       note: tx.note,
       importPrice: tx.importPrice,
+      createdBy: tx.createdBy,
+      createdByName: tx.createdByName,
     ).toMap();
     return _ds.record(tx.id, map);
   }
@@ -56,6 +60,8 @@ class InventoryRepositoryImpl implements InventoryRepository {
           date: model.date,
           note: model.note,
           importPrice: model.importPrice,
+          createdBy: model.createdBy,
+          createdByName: model.createdByName,
         );
       }).toList();
     });

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:stores/core/theme/app_colors.dart';
 
 import '../../../application/products/categories_providers.dart';
 import '../../../domain/entities/category.dart';
@@ -26,15 +28,17 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: AppColors.surface,
       appBar: AppBar(
-        title: const Text('Nhóm hàng mới',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        title: Text(l10n.newCategoryTitle,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         backgroundColor: Colors.white,
         actions: [
           IconButton(
-            icon: const Icon(Icons.save, color: Color(0xFF0067AC)),
+            icon: const Icon(Icons.save, color: AppColors.primary),
             onPressed: _isSaving ? null : _saveCategory,
           ),
         ],
@@ -51,16 +55,16 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
-                        side: const BorderSide(color: Color(0xFFE2E8F0)),
+                        side: const BorderSide(color: AppColors.borderLight),
                       ),
                       child: Padding(
                         padding: const EdgeInsets.all(16.0),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'Thông tin nhóm hàng',
-                              style: TextStyle(
+                            Text(
+                              l10n.category,
+                              style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 14,
                                   color: Colors.black87),
@@ -69,15 +73,15 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
                             // Tên nhóm
                             TextFormField(
                               controller: _nameController,
-                              decoration: const InputDecoration(
-                                labelText: 'Tên nhóm *',
-                                border: OutlineInputBorder(),
-                                contentPadding: EdgeInsets.symmetric(
+                              decoration: InputDecoration(
+                                labelText: '${l10n.category} *',
+                                border: const OutlineInputBorder(),
+                                contentPadding: const EdgeInsets.symmetric(
                                     horizontal: 16, vertical: 12),
                               ),
                               validator: (v) {
                                 if (v == null || v.trim().isEmpty) {
-                                  return 'Vui lòng nhập tên nhóm hàng';
+                                  return '${l10n.pleaseEnter} ${l10n.category}';
                                 }
                                 return null;
                               },
@@ -86,12 +90,11 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
                             // Nhóm cha
                             ListTile(
                               contentPadding: EdgeInsets.zero,
-                              title: const Text('Nhóm cha',
-                                  style: TextStyle(
+                              title: Text(l10n.parentCategoryLabel,
+                                  style: const TextStyle(
                                       fontSize: 13, color: Colors.black54)),
                               subtitle: Text(
-                                _parentCategory?.name ??
-                                    'Không chọn (Nhóm gốc)',
+                                _parentCategory?.name ?? l10n.notFound,
                                 style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                     color: Colors.black87,
@@ -127,6 +130,7 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
   }
 
   void _saveCategory() async {
+    final l10n = AppLocalizations.of(context)!;
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSaving = true);
 
@@ -149,16 +153,15 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Thêm nhóm hàng thành công!'),
-              backgroundColor: Colors.green),
+          SnackBar(
+              content: Text(l10n.save), backgroundColor: AppColors.success),
         );
         Navigator.pop(context, category);
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi: $e')),
+          SnackBar(content: Text('${l10n.importError}: $e')),
         );
       }
     } finally {

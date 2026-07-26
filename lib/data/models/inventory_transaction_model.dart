@@ -6,6 +6,8 @@ class InventoryTransactionModel {
   final DateTime date;
   final String note;
   final double? importPrice;
+  final String? createdBy;
+  final String? createdByName;
 
   const InventoryTransactionModel({
     required this.id,
@@ -15,6 +17,8 @@ class InventoryTransactionModel {
     required this.date,
     required this.note,
     this.importPrice,
+    this.createdBy,
+    this.createdByName,
   });
 
   Map<String, dynamic> toMap() => {
@@ -25,6 +29,8 @@ class InventoryTransactionModel {
         'date': date.toIso8601String(),
         'note': note,
         'importPrice': importPrice,
+        if (createdBy != null) 'createdBy': createdBy,
+        if (createdByName != null) 'createdByName': createdByName,
       };
 
   factory InventoryTransactionModel.fromMap(Map<dynamic, dynamic> map) =>
@@ -38,5 +44,7 @@ class InventoryTransactionModel {
         importPrice: map['importPrice'] == null
             ? null
             : (map['importPrice'] as num).toDouble(),
+        createdBy: map['createdBy']?.toString(),
+        createdByName: map['createdByName']?.toString(),
       );
 }

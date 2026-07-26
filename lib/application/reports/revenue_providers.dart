@@ -49,28 +49,23 @@ final revenueByDateProvider =
   final endOfDay = DateTime(date.year, date.month, date.day, 23, 59, 59, 999);
   final ordersStream = orderDs.watchByDateRange(startOfDay, endOfDay);
 
+  // Optimized: cache inventory & products bên ngoài vòng lặp
+  // Chỉ fetch 1 lần thay vì mỗi lần orders stream emit
+  List<Map>? cachedInventory;
+  List<Map>? cachedProducts;
+
   await for (final orders in ordersStream) {
-    // Debug: In ra số lượng orders
-    print(
-        'RevenueProvider: Found ${orders.length} orders for date ${date.toIso8601String()}');
-
-    // Lấy dữ liệu inventory và products snapshot hiện tại để tính bằng Future fetchAll()
-    final inventory = await inventoryDs.fetchAll();
-    final products = await productDs.fetchAll();
-
-    print(
-        'RevenueProvider: Found ${inventory.length} inventory transactions, ${products.length} products');
+    // Fetch inventory & products 1 lần duy nhất
+    cachedInventory ??= await inventoryDs.fetchAll();
+    cachedProducts ??= await productDs.fetchAll();
 
     // Tính toán báo cáo trực tiếp với dữ liệu đã lấy được
     final report = repository.calculateRevenueReport(
       orders: orders,
-      inventoryTransactions: inventory,
-      products: products,
+      inventoryTransactions: cachedInventory,
+      products: cachedProducts,
       date: date,
     );
-
-    print(
-        'RevenueProvider: Generated report with revenue: ${report.totalRevenue}, cost: ${report.totalCost}, profit: ${report.profit}');
 
     yield report;
   }
@@ -78,7 +73,6 @@ final revenueByDateProvider =
 
 final revenueByDateRangeProvider =
     StreamProvider.family<RevenueSummary, DateTimeRange>((ref, range) async* {
-  final repository = ref.watch(revenueRepositoryProvider);
   final selectedBranches = ref.watch(selectedBranchesProvider);
   final currentStoreId = ref.watch(currentStoreIdProvider);
   final storeFilter = ref.watch(selectedStoreFilterProvider);
@@ -125,9 +119,6 @@ final revenueByDateRangeProvider =
   final end =
       DateTime(range.end.year, range.end.month, range.end.day, 23, 59, 59, 999);
 
-  print(
-      'DEBUG_REVENUE: Starting multi-store provider for targets $targetStoreIds, range: $start to $end');
-
   // Tạo combined stream để gộp các update của nhiều store
   final controller = StreamController<List<Map<String, dynamic>>>();
   final List<StreamSubscription> subscriptions = [];
@@ -160,24 +151,13 @@ final revenueByDateRangeProvider =
     controller.close();
   });
 
+  // Optimized: cache inventory & products cho mỗi store
+  // Chỉ fetch 1 lần, không re-fetch mỗi lần orders stream emit
+  final Map<String, List<Map>> inventoryCache = {};
+  final Map<String, List<Map>> productsCache = {};
+
   try {
-    await for (final combinedOrders in controller.stream) {
-      print(
-          'DEBUG_REVENUE: Combined stream emitted ${combinedOrders.length} total orders');
-
-      // Lọc orders theo chi nhánh chọn (chỉ lấy hóa đơn hoàn thành completed và thuộc chi nhánh lọc)
-      final filteredOrders = combinedOrders.where((order) {
-        final status = order['status']?.toString() ?? 'completed';
-        if (status != 'completed') return false;
-
-        // Nếu là Admin, việc lọc theo chi nhánh đã được thực hiện bằng cách chỉ chọn query store tương ứng ở bước trên!
-        if (user?.isAdmin == true) return true;
-
-        // Nhân viên thường: Chỉ được xem chi nhánh chính branch_1 của cửa hàng hiện tại
-        const simulatedBranchId = 'branch_1';
-        return selectedBranches.contains(simulatedBranchId);
-      }).toList();
-
+    await for (final _ in controller.stream) {
       // Tính toán summary cho từng store riêng biệt, rồi gộp lại để đảm bảo FIFO chuẩn xác từng store
       final List<RevenueSummary> summaries = [];
 
@@ -195,21 +175,26 @@ final revenueByDateRangeProvider =
           return selectedBranches.contains(simulatedBranchId);
         }).toList();
 
-        final inventoryDs =
-            InventoryRemoteDataSource(FirebaseDatabase.instance, storeId);
-        final productDs =
-            ProductRemoteDataSource(FirebaseDatabase.instance, storeId);
+        // Optimized: cache inventory & products per store - chỉ fetch 1 lần
+        if (!inventoryCache.containsKey(storeId)) {
+          final inventoryDs =
+              InventoryRemoteDataSource(FirebaseDatabase.instance, storeId);
+          inventoryCache[storeId] = await inventoryDs.fetchAll();
+        }
+        if (!productsCache.containsKey(storeId)) {
+          final productDs =
+              ProductRemoteDataSource(FirebaseDatabase.instance, storeId);
+          productsCache[storeId] = await productDs.fetchAll();
+        }
 
-        print('DEBUG_REVENUE: Fetching inventory for store $storeId...');
-        final inventory = await inventoryDs.fetchAll();
-        print('DEBUG_REVENUE: Fetching products for store $storeId...');
-        final products = await productDs.fetchAll();
+        final inventory = inventoryCache[storeId]!;
+        final products = productsCache[storeId]!;
 
         // Tạo repo cho storeId này để tính toán chuẩn xác độc lập
         final storeRepo = RevenueRepositoryImpl(
           OrderRemoteDataSource(FirebaseDatabase.instance, storeId),
-          inventoryDs,
-          productDs,
+          InventoryRemoteDataSource(FirebaseDatabase.instance, storeId),
+          ProductRemoteDataSource(FirebaseDatabase.instance, storeId),
         );
 
         final storeSummary = storeRepo.calculateRevenueSummary(
@@ -225,12 +210,10 @@ final revenueByDateRangeProvider =
       // Merge các summaries lại
       final mergedSummary =
           mergeRevenueSummaries(summaries, range.start, range.end);
-      print(
-          'DEBUG_REVENUE: Aggregation done. Combined Revenue: ${mergedSummary.totalRevenue}, Profit: ${mergedSummary.totalProfit}');
       yield mergedSummary;
     }
   } catch (e, stack) {
-    print('DEBUG_REVENUE_ERROR: Error in multi-store provider: $e');
+    print('Revenue provider error: $e');
     print(stack);
     rethrow;
   }

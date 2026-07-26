@@ -122,14 +122,22 @@ final availableStoresProvider =
     final nameSnap = await db.child('name').get();
     final addrSnap = await db.child('address').get();
 
-    if (nameSnap.exists && nameSnap.value != null && nameSnap.value != "") {
+    if (nameSnap.exists &&
+        nameSnap.value != null &&
+        nameSnap.value.toString().isNotEmpty) {
       result[id] = nameSnap.value.toString();
     } else if (addrSnap.exists &&
         addrSnap.value != null &&
-        addrSnap.value != "") {
+        addrSnap.value.toString().isNotEmpty) {
       result[id] = addrSnap.value.toString();
     } else {
-      result[id] = id;
+      if (id == 'store_001') {
+        result[id] = 'Chi nhánh Thới Bình';
+      } else if (id == 'store_002') {
+        result[id] = 'Chi nhánh Đông Thắng';
+      } else {
+        result[id] = 'Chi nhánh $id';
+      }
     }
   }
   return result;

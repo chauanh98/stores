@@ -26,7 +26,9 @@ final productListProvider = StreamProvider.autoDispose<List<Product>>((ref) {
 });
 
 // Provider quản lý danh sách sản phẩm gộp từ nhiều cửa hàng cho Admin
-final allStoresProductsProvider = StreamProvider<List<Product>>((ref) {
+// Optimized: thêm autoDispose để tự hủy listener khi không cần
+final allStoresProductsProvider =
+    StreamProvider.autoDispose<List<Product>>((ref) {
   final storeFilter = ref.watch(selectedStoreFilterProvider);
   final currentStoreId = ref.watch(currentStoreIdProvider);
   final selectedBranches = ref.watch(selectedBranchesProvider);

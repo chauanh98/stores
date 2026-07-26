@@ -1,3 +1,5 @@
+import 'combo_component.dart';
+
 class Product {
   final String id;
   final String name;
@@ -20,6 +22,10 @@ class Product {
   final String? components;
   final String? imageUrl;
 
+  // Combo fields
+  final bool isCombo;
+  final List<ComboComponent> comboComponents;
+
   const Product({
     required this.id,
     required this.name,
@@ -38,6 +44,8 @@ class Product {
     this.noteTemplate,
     this.components,
     this.imageUrl,
+    this.isCombo = false,
+    this.comboComponents = const [],
   });
 
   // Tính tổng tồn của tất cả chi nhánh
@@ -60,6 +68,8 @@ class Product {
     String? noteTemplate,
     String? components,
     String? imageUrl,
+    bool? isCombo,
+    List<ComboComponent>? comboComponents,
   }) =>
       Product(
         id: id,
@@ -79,5 +89,7 @@ class Product {
         noteTemplate: noteTemplate ?? this.noteTemplate,
         components: components ?? this.components,
         imageUrl: imageUrl ?? this.imageUrl,
+        isCombo: isCombo ?? this.isCombo,
+        comboComponents: comboComponents ?? this.comboComponents,
       );
 }

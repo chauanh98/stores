@@ -8,6 +8,8 @@ class InventoryTransaction {
   final DateTime date;
   final String note;
   final double? importPrice;
+  final String? createdBy;
+  final String? createdByName;
 
   const InventoryTransaction({
     required this.id,
@@ -17,5 +19,7 @@ class InventoryTransaction {
     required this.date,
     required this.note,
     this.importPrice,
+    this.createdBy,
+    this.createdByName,
   });
 }

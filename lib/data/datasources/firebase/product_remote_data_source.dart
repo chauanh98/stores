@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_database/firebase_database.dart';
 
 class ProductRemoteDataSource {
@@ -25,9 +27,69 @@ class ProductRemoteDataSource {
     return [];
   }
 
-  Stream<List<Map>> watchAll() => _ref.onValue.map((event) {
-        return _parseSnapshot(event.snapshot.value);
-      });
+  /// Optimized: dùng onChildAdded/Changed/Removed thay vì onValue
+  /// để chỉ download delta (bản ghi thay đổi) thay vì toàn bộ node
+  Stream<List<Map>> watchAll() {
+    final controller = StreamController<List<Map>>();
+    final Map<String, Map> cache = {};
+    bool initialLoaded = false;
+
+    void safeEmit() {
+      if (initialLoaded && !controller.isClosed) {
+        controller.add(cache.values.toList());
+      }
+    }
+
+    final addSub = _ref.onChildAdded.listen((event) {
+      final val = event.snapshot.value;
+      if (val is Map) {
+        cache[event.snapshot.key!] = Map.from(val);
+        safeEmit();
+      }
+    });
+
+    final changeSub = _ref.onChildChanged.listen((event) {
+      final val = event.snapshot.value;
+      if (val is Map) {
+        cache[event.snapshot.key!] = Map.from(val);
+        safeEmit();
+      }
+    });
+
+    final removeSub = _ref.onChildRemoved.listen((event) {
+      cache.remove(event.snapshot.key);
+      safeEmit();
+    });
+
+    // Dùng get() để load initial data 1 lần, sau đó onChildAdded sẽ bổ sung
+    // Cần đánh dấu initialLoaded sau khi get() xong
+    _ref.get().then((snap) {
+      final value = snap.value;
+      if (value != null) {
+        final initialList = _parseSnapshot(value);
+        for (final item in initialList) {
+          final id = item['id']?.toString();
+          if (id != null) {
+            cache[id] = item;
+          }
+        }
+      }
+      initialLoaded = true;
+      safeEmit();
+    }).catchError((err) {
+      if (!controller.isClosed) {
+        controller.addError(err);
+      }
+    });
+
+    controller.onCancel = () {
+      addSub.cancel();
+      changeSub.cancel();
+      removeSub.cancel();
+    };
+
+    return controller.stream;
+  }
 
   Future<List<Map>> fetchAll() async {
     final snap = await _ref.get();

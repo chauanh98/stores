@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:stores/core/theme/app_colors.dart';
 
 import '../../../application/products/categories_providers.dart';
 import '../../../domain/entities/category.dart';
@@ -30,14 +31,14 @@ class _SelectCategoryPageState extends ConsumerState<SelectCategoryPage> {
     final categoriesAsync = ref.watch(categoryListProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: AppColors.surface,
       appBar: AppBar(
         title: const Text('Chọn nhóm hàng',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         backgroundColor: Colors.white,
         actions: [
           IconButton(
-            icon: const Icon(Icons.add, color: Color(0xFF0067AC), size: 28),
+            icon: const Icon(Icons.add, color: AppColors.primary, size: 28),
             tooltip: 'Thêm nhóm mới',
             onPressed: () async {
               final newCat = await Navigator.push<Category>(
@@ -79,11 +80,11 @@ class _SelectCategoryPageState extends ConsumerState<SelectCategoryPage> {
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  borderSide: const BorderSide(color: AppColors.borderLight),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: Color(0xFF0067AC)),
+                  borderSide: const BorderSide(color: AppColors.primary),
                 ),
               ),
               onChanged: (v) => setState(() => _searchQuery = v.trim()),
@@ -165,9 +166,10 @@ class _SelectCategoryPageState extends ConsumerState<SelectCategoryPage> {
               bottom: 10,
             ),
             decoration: BoxDecoration(
-              border:
-                  const Border(bottom: BorderSide(color: Color(0xFFF1F5F9))),
-              color: isSelected ? const Color(0xFFE0F2FE) : Colors.transparent,
+              border: const Border(
+                  bottom: BorderSide(color: AppColors.surfaceLight)),
+              color:
+                  isSelected ? AppColors.surfaceHighlight : Colors.transparent,
               borderRadius: isSelected ? BorderRadius.circular(6) : null,
             ),
             child: Row(
@@ -201,7 +203,7 @@ class _SelectCategoryPageState extends ConsumerState<SelectCategoryPage> {
                       ? Icons.folder_outlined
                       : Icons.insert_drive_file_outlined,
                   size: 18,
-                  color: isSelected ? const Color(0xFF0284C7) : Colors.black45,
+                  color: isSelected ? AppColors.primaryMedium : Colors.black45,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -212,12 +214,12 @@ class _SelectCategoryPageState extends ConsumerState<SelectCategoryPage> {
                           isSelected ? FontWeight.bold : FontWeight.normal,
                       fontSize: 14,
                       color:
-                          isSelected ? const Color(0xFF0369A1) : Colors.black87,
+                          isSelected ? AppColors.primaryDark : Colors.black87,
                     ),
                   ),
                 ),
                 if (isSelected)
-                  const Icon(Icons.check, color: Color(0xFF0067AC), size: 18),
+                  const Icon(Icons.check, color: AppColors.primary, size: 18),
               ],
             ),
           ),
@@ -235,12 +237,12 @@ class _SelectCategoryPageState extends ConsumerState<SelectCategoryPage> {
   Widget _buildFlatCategoryItem(
       Category cat, String fullPath, bool isSelected) {
     return ListTile(
-      tileColor: isSelected ? const Color(0xFFE0F2FE) : Colors.white,
+      tileColor: isSelected ? AppColors.surfaceHighlight : Colors.white,
       title: Text(
         cat.name,
         style: TextStyle(
           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-          color: isSelected ? const Color(0xFF0369A1) : Colors.black87,
+          color: isSelected ? AppColors.primaryDark : Colors.black87,
         ),
       ),
       subtitle: Text(
@@ -248,7 +250,7 @@ class _SelectCategoryPageState extends ConsumerState<SelectCategoryPage> {
         style: const TextStyle(fontSize: 11, color: Colors.black45),
       ),
       trailing:
-          isSelected ? const Icon(Icons.check, color: Color(0xFF0067AC)) : null,
+          isSelected ? const Icon(Icons.check, color: AppColors.primary) : null,
       onTap: () {
         Navigator.pop(context, cat);
       },

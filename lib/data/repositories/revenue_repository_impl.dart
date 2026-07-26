@@ -24,13 +24,11 @@ class RevenueRepositoryImpl {
     final ordersStream = _orderDs.watchByDateRange(startOfDay, endOfDay);
     final orders = await ordersStream.first;
 
-    // Lấy inventory transactions
-    final inventoryStream = _inventoryDs.watchAll();
-    final inventoryTransactions = await inventoryStream.first;
+    // Lấy inventory transactions (dùng fetchAll() = .get() thay vì watchAll().first)
+    final inventoryTransactions = await _inventoryDs.fetchAll();
 
     // Lấy products
-    final productsStream = _productDs.watchAll();
-    final products = await productsStream.first;
+    final products = await _productDs.fetchAll();
 
     return calculateRevenueReport(
       orders: orders,
@@ -51,11 +49,9 @@ class RevenueRepositoryImpl {
     final ordersStream = _orderDs.watchByDateRange(startOfRange, endOfRange);
     final orders = await ordersStream.first;
 
-    final inventoryStream = _inventoryDs.watchAll();
-    final inventoryTransactions = await inventoryStream.first;
-
-    final productsStream = _productDs.watchAll();
-    final products = await productsStream.first;
+    // Dùng fetchAll() = .get() thay vì watchAll().first để tránh tạo listener rồi cancel
+    final inventoryTransactions = await _inventoryDs.fetchAll();
+    final products = await _productDs.fetchAll();
 
     return calculateRevenueSummary(
       orders: orders,
@@ -167,9 +163,7 @@ class RevenueRepositoryImpl {
       }
     }
 
-    // Khởi tạo FIFO Calculator với inventory tracking (chỉ đến ngày được tính)
-    print(
-        'RevenueRepository: Using ${inventoryTxs.length} inventory transactions (filtered from ${inventoryTransactions.length}) for date ${date.toIso8601String()}');
+    // Khởi tạo FIFO Calculator với inventory tracking
     FifoCalculator.resetInventoryTracker();
     FifoCalculator.initializeInventoryTracker(inventoryTxs);
 
@@ -183,22 +177,17 @@ class RevenueRepositoryImpl {
       return dateA.compareTo(dateB);
     });
 
-    // Debug: In ra thông tin orders
-    print('RevenueRepository: Processing ${sortedOrders.length} orders');
+    // Tính toán cho từng order theo thứ tự thời gian
 
     // Tính toán cho từng order theo thứ tự thời gian
     for (final orderMap in sortedOrders) {
       try {
         final orderModel = OrderModel.fromMap(orderMap);
-        print(
-            'RevenueRepository: Processing order ${orderModel.id} with ${orderModel.items.length} items, total: ${orderModel.total}');
         totalRevenue += orderModel.total;
 
         for (final itemModel in orderModel.items) {
           final product = productMap[itemModel.productId];
           if (product == null) {
-            print(
-                'RevenueRepository: Product ${itemModel.productId} not found in productMap');
             continue;
           }
 
@@ -206,8 +195,6 @@ class RevenueRepositoryImpl {
           // Fallback về giá hiện tại nếu OrderItem cũ không có trường price
           final actualPrice =
               itemModel.price ?? _toDouble(product['price']) ?? 0.0;
-          print(
-              'RevenueRepository: Item ${itemModel.productId} - quantity: ${itemModel.quantity}, price: ${itemModel.price}, actualPrice: $actualPrice');
 
           // Tính cost theo FIFO với inventory tracking
           final cost = FifoCalculator.calculateCostForSale(

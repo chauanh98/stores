@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_database/firebase_database.dart';
 
 class InventoryRemoteDataSource {
@@ -19,12 +21,64 @@ class InventoryRemoteDataSource {
     return _ref.child(id).set(map);
   }
 
-  // Thêm method để lấy tất cả inventory transactions
+  /// Optimized: dùng onChildAdded/Changed/Removed thay vì onValue
   Stream<List<Map>> watchAll() {
-    return _ref.onValue.map((event) {
-      final data = event.snapshot.value as Map? ?? {};
-      return data.values.map<Map>((e) => Map.from(e as Map)).toList();
+    final controller = StreamController<List<Map>>();
+    final Map<String, Map> cache = {};
+    bool initialLoaded = false;
+
+    void safeEmit() {
+      if (initialLoaded && !controller.isClosed) {
+        controller.add(cache.values.toList());
+      }
+    }
+
+    final addSub = _ref.onChildAdded.listen((event) {
+      final val = event.snapshot.value;
+      if (val is Map) {
+        cache[event.snapshot.key!] = Map.from(val);
+        safeEmit();
+      }
     });
+
+    final changeSub = _ref.onChildChanged.listen((event) {
+      final val = event.snapshot.value;
+      if (val is Map) {
+        cache[event.snapshot.key!] = Map.from(val);
+        safeEmit();
+      }
+    });
+
+    final removeSub = _ref.onChildRemoved.listen((event) {
+      cache.remove(event.snapshot.key);
+      safeEmit();
+    });
+
+    _ref.get().then((snap) {
+      final value = snap.value;
+      if (value != null && value is Map) {
+        final map = Map.from(value);
+        for (final entry in map.entries) {
+          if (entry.value is Map) {
+            cache[entry.key.toString()] = Map.from(entry.value as Map);
+          }
+        }
+      }
+      initialLoaded = true;
+      safeEmit();
+    }).catchError((err) {
+      if (!controller.isClosed) {
+        controller.addError(err);
+      }
+    });
+
+    controller.onCancel = () {
+      addSub.cancel();
+      changeSub.cancel();
+      removeSub.cancel();
+    };
+
+    return controller.stream;
   }
 
   Future<List<Map>> fetchAll() async {

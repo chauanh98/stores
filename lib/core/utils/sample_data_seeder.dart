@@ -1,5 +1,6 @@
 import 'package:firebase_database/firebase_database.dart';
 
+import '../../domain/entities/combo_component.dart';
 import '../../domain/entities/customer.dart';
 import '../../domain/entities/product.dart';
 import '../../domain/entities/purchase.dart';
@@ -288,9 +289,11 @@ class SampleDataSeeder {
         'brand': product.brand,
         'model': product.model,
         'price': product.price,
-        'costPrice': product.costPrice,
         'branchStocks': product.branchStocks,
         'category': product.category,
+        'isCombo': product.isCombo,
+        'comboComponents':
+            product.comboComponents.map((c) => c.toMap()).toList(),
       });
     }
 
@@ -370,6 +373,59 @@ class SampleDataSeeder {
         costPrice: 13000000,
         branchStocks: {'branch_1': 5, 'branch_2': 2},
         category: 'Tablet',
+      ),
+      Product(
+        id: 'product_007',
+        name: 'Bàn cabin lẻ',
+        code: 'BAN-CB',
+        barcode: '8806090000007',
+        brand: 'CabinFurn',
+        model: 'CB-TABLE-1',
+        price: 1000000,
+        costPrice: 700000,
+        branchStocks: {'branch_1': 10, 'branch_2': 5},
+        category: 'Bàn ghế',
+      ),
+      Product(
+        id: 'product_008',
+        name: 'Ghế cabin lẻ',
+        code: 'GHE-CB',
+        barcode: '8806090000008',
+        brand: 'CabinFurn',
+        model: 'CB-CHAIR-1',
+        price: 300000,
+        costPrice: 200000,
+        branchStocks: {'branch_1': 20, 'branch_2': 12},
+        category: 'Bàn ghế',
+      ),
+      Product(
+        id: 'product_009',
+        name: 'Bộ bàn cabin 6 ghế',
+        code: 'COMBO-CB6',
+        barcode: '8806090000009',
+        brand: 'CabinFurn',
+        model: 'CB-SET-6',
+        price: 2500000,
+        costPrice: 1900000,
+        branchStocks: {'branch_1': 0, 'branch_2': 0},
+        category: 'Bàn ghế',
+        isCombo: true,
+        comboComponents: [
+          ComboComponent(
+            productId: 'product_007',
+            productCode: 'BAN-CB',
+            productName: 'Bàn cabin lẻ',
+            quantity: 1,
+            costPrice: 700000,
+          ),
+          ComboComponent(
+            productId: 'product_008',
+            productCode: 'GHE-CB',
+            productName: 'Ghế cabin lẻ',
+            quantity: 6,
+            costPrice: 200000,
+          ),
+        ],
       ),
     ];
   }

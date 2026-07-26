@@ -13,6 +13,10 @@ class InterStoreTransferService {
     required String targetStoreId,
     required Product product,
     required int quantity,
+    String? sourceStoreName,
+    String? targetStoreName,
+    String? createdBy,
+    String? createdByName,
   }) async {
     try {
       if (quantity <= 0) return 'Số lượng phải lớn hơn 0';
@@ -24,10 +28,28 @@ class InterStoreTransferService {
       final isoDate = now.toIso8601String();
       final timestamp = now.millisecondsSinceEpoch;
 
-      // 1. Deduct from source store product
-      final newSourceStock = product.stock - quantity;
-      updates['stores/$sourceStoreId/products/${product.id}/stock'] =
-          newSourceStock;
+      String getStoreName(String id, String? name) {
+        if (name != null &&
+            name.isNotEmpty &&
+            name != id &&
+            !name.startsWith('store_')) {
+          return name;
+        }
+        if (id == 'store_001') return 'Chi nhánh Thới Bình';
+        if (id == 'store_002') return 'Chi nhánh Đông Thắng';
+        return 'Chi nhánh $id';
+      }
+
+      final sourceLabel = getStoreName(sourceStoreId, sourceStoreName);
+      final targetLabel = getStoreName(targetStoreId, targetStoreName);
+
+      // 1. Deduct from source store product's branchStocks
+      final sourceBranchStocks = Map<String, int>.from(product.branchStocks);
+      final sourceBranchStock = sourceBranchStocks['branch_1'] ?? product.stock;
+      sourceBranchStocks['branch_1'] =
+          (sourceBranchStock - quantity).clamp(0, 999999);
+      updates['stores/$sourceStoreId/products/${product.id}/branchStocks'] =
+          sourceBranchStocks;
 
       // 2. Add Export transaction to source store
       final exportTxId = 'tx_${timestamp}_export';
@@ -37,27 +59,47 @@ class InterStoreTransferService {
         'type': 'export',
         'quantity': quantity,
         'date': isoDate,
-        'note': 'Chuyển sang cửa hàng $targetStoreId',
+        'note': 'Chuyển hàng sang $targetLabel',
+        if (createdBy != null) 'createdBy': createdBy,
+        if (createdByName != null) 'createdByName': createdByName,
       };
 
-      // 3. Add to target store product
+      // 3. Add to target store product's branchStocks
       final targetProductSnap =
           await _db.ref('stores/$targetStoreId/products/${product.id}').get();
-      int currentTargetStock = 0;
+
       if (targetProductSnap.exists && targetProductSnap.value != null) {
         final map = Map<dynamic, dynamic>.from(targetProductSnap.value as Map);
-        currentTargetStock = (map['stock'] ?? 0) as int;
-        updates['stores/$targetStoreId/products/${product.id}/stock'] =
-            currentTargetStock + quantity;
+        Map<String, int> targetBranchStocks = {};
+        if (map['branchStocks'] != null && map['branchStocks'] is Map) {
+          targetBranchStocks = Map<String, int>.from(
+            (map['branchStocks'] as Map)
+                .map((k, v) => MapEntry(k.toString(), (v as num).toInt())),
+          );
+        }
+        final currentTargetStock = targetBranchStocks['branch_1'] ??
+            (map['stock'] as num? ?? 0).toInt();
+        targetBranchStocks['branch_1'] = currentTargetStock + quantity;
+
+        updates['stores/$targetStoreId/products/${product.id}/branchStocks'] =
+            targetBranchStocks;
       } else {
+        // Create new product record in target store
         updates['stores/$targetStoreId/products/${product.id}'] = {
           'id': product.id,
           'name': product.name,
+          'code': product.code,
+          'barcode': product.barcode,
           'brand': product.brand,
           'model': product.model,
           'price': product.price,
-          'stock': quantity,
+          'costPrice': product.costPrice,
+          'branchStocks': {'branch_1': quantity, 'branch_2': 0},
           'category': product.category,
+          'unit': product.unit,
+          'description': product.description,
+          'imageUrl': product.imageUrl,
+          'isCombo': product.isCombo,
         };
       }
 
@@ -69,7 +111,9 @@ class InterStoreTransferService {
         'type': 'import',
         'quantity': quantity,
         'date': isoDate,
-        'note': 'Nhận từ cửa hàng $sourceStoreId',
+        'note': 'Nhận chuyển kho từ $sourceLabel',
+        if (createdBy != null) 'createdBy': createdBy,
+        if (createdByName != null) 'createdByName': createdByName,
       };
 
       await _db.ref().update(updates);

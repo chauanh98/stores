@@ -44,7 +44,15 @@ class _AccountManagementPageState extends ConsumerState<AccountManagementPage> {
       ),
       body: accountsAsync.when(
         data: (accounts) {
-          if (accounts.isEmpty) {
+          // Nếu người dùng không phải Supervisor (ví dụ Admin), ẩn hoàn toàn các tài khoản Supervisor
+          final visibleAccounts = accounts.where((a) {
+            if (currentUser?.isSupervisor != true && a.isSupervisor) {
+              return false;
+            }
+            return true;
+          }).toList();
+
+          if (visibleAccounts.isEmpty) {
             return Center(child: Text(l10n.noAccountsFound));
           }
 
@@ -53,10 +61,10 @@ class _AccountManagementPageState extends ConsumerState<AccountManagementPage> {
               return ListView.separated(
                 controller: _scrollController,
                 padding: const EdgeInsets.all(16),
-                itemCount: accounts.length,
+                itemCount: visibleAccounts.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
-                  final account = accounts[index];
+                  final account = visibleAccounts[index];
                   final isMe = account.username == currentUser?.username;
                   final storeName =
                       storeNames[account.storeId] ?? account.storeId;
@@ -361,10 +369,11 @@ class _AccountManagementPageState extends ConsumerState<AccountManagementPage> {
                               value: 'admin',
                               child: Text(l10n.roleAdmin,
                                   overflow: TextOverflow.ellipsis)),
-                          DropdownMenuItem(
-                              value: 'supervisor',
-                              child: Text(l10n.roleSupervisor,
-                                  overflow: TextOverflow.ellipsis)),
+                          if (isSupervisor)
+                            DropdownMenuItem(
+                                value: 'supervisor',
+                                child: Text(l10n.roleSupervisor,
+                                    overflow: TextOverflow.ellipsis)),
                         ],
                         onChanged: isSupervisor
                             ? (value) {

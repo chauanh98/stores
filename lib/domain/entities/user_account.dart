@@ -32,9 +32,23 @@ class UserAccount {
     };
   }
 
-  bool get isSupervisor => role == 'supervisor';
+  bool get isSupervisor => role.toLowerCase().trim() == 'supervisor';
 
-  bool get isAdmin => role == 'admin' || role == 'supervisor';
+  bool get isAdmin => role.toLowerCase().trim() == 'admin' || isSupervisor;
 
-  bool get isStaff => role == 'nhanvien';
+  bool get isStaff => !isAdmin;
+
+  bool get canSwitchStore => isSupervisor;
+
+  bool get canManagePaymentConfig => isSupervisor;
+
+  bool get canManageProducts => isAdmin;
+
+  bool get canDeleteInvoice => isAdmin;
+
+  bool get canDeleteCustomer => isAdmin;
+
+  bool get canEditPriceAndDiscount => isAdmin;
+
+  bool get canViewCostPrice => isAdmin;
 }

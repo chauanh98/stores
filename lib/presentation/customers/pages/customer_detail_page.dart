@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../application/auth/auth_providers.dart';
 import '../../../application/customers/customers_providers.dart';
 import '../../../application/orders/orders_providers.dart';
 import '../../../core/theme/app_colors.dart';
@@ -75,6 +76,9 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
     final displayTotalSales = c.effectiveTotalSales(orders);
     final displayCurrentDebt = c.effectiveCurrentDebt(orders, debtTxs);
 
+    final user = ref.watch(authProvider);
+    final canDeleteCustomer = user?.canDeleteCustomer ?? false;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -126,16 +130,17 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
                     ],
                   ),
                 ),
-                PopupMenuItem<String>(
-                  value: 'delete',
-                  child: Row(
-                    children: [
-                      const Icon(Icons.delete, color: Colors.red, size: 20),
-                      const SizedBox(width: 8),
-                      Text(l10n.delete),
-                    ],
+                if (canDeleteCustomer)
+                  PopupMenuItem<String>(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        const Icon(Icons.delete, color: Colors.red, size: 20),
+                        const SizedBox(width: 8),
+                        Text(l10n.delete),
+                      ],
+                    ),
                   ),
-                ),
               ],
             ),
         ],

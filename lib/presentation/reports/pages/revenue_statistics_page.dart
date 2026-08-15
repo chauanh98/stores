@@ -224,6 +224,7 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
 
   Widget _buildSummaryCard(RevenueReport report) {
     final l10n = AppLocalizations.of(context)!;
+    final canViewCostPrice = ref.watch(authProvider)?.canViewCostPrice ?? false;
 
     return Card(
       child: Padding(
@@ -249,31 +250,35 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
                     Icons.attach_money,
                   ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildMetricCard(
-                    l10n.expense,
-                    NumberFormat.currency(locale: 'vi_VN', symbol: 'đ')
-                        .format(report.totalCost),
-                    Colors.red,
-                    Icons.shopping_cart,
+                if (canViewCostPrice) ...[
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildMetricCard(
+                      l10n.expense,
+                      NumberFormat.currency(locale: 'vi_VN', symbol: 'đ')
+                          .format(report.totalCost),
+                      Colors.red,
+                      Icons.shopping_cart,
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
             const SizedBox(height: 8),
             Row(
               children: [
-                Expanded(
-                  child: _buildMetricCard(
-                    l10n.profit,
-                    NumberFormat.currency(locale: 'vi_VN', symbol: 'đ')
-                        .format(report.profit),
-                    report.profit >= 0 ? Colors.blue : Colors.orange,
-                    Icons.trending_up,
+                if (canViewCostPrice) ...[
+                  Expanded(
+                    child: _buildMetricCard(
+                      l10n.profit,
+                      NumberFormat.currency(locale: 'vi_VN', symbol: 'đ')
+                          .format(report.profit),
+                      report.profit >= 0 ? Colors.blue : Colors.orange,
+                      Icons.trending_up,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
+                  const SizedBox(width: 8),
+                ],
                 Expanded(
                   child: _buildMetricCard(
                     l10n.orders,
@@ -292,6 +297,7 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
 
   Widget _buildSummaryOverviewCard(RevenueSummary summary) {
     final l10n = AppLocalizations.of(context)!;
+    final canViewCostPrice = ref.watch(authProvider)?.canViewCostPrice ?? false;
 
     return Card(
       child: Padding(
@@ -317,31 +323,35 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
                     Icons.attach_money,
                   ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildMetricCard(
-                    l10n.totalExpense,
-                    NumberFormat.currency(locale: 'vi_VN', symbol: 'đ')
-                        .format(summary.totalCost),
-                    Colors.red,
-                    Icons.shopping_cart,
+                if (canViewCostPrice) ...[
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildMetricCard(
+                      l10n.totalExpense,
+                      NumberFormat.currency(locale: 'vi_VN', symbol: 'đ')
+                          .format(summary.totalCost),
+                      Colors.red,
+                      Icons.shopping_cart,
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
             const SizedBox(height: 8),
             Row(
               children: [
-                Expanded(
-                  child: _buildMetricCard(
-                    l10n.totalProfit,
-                    NumberFormat.currency(locale: 'vi_VN', symbol: 'đ')
-                        .format(summary.totalProfit),
-                    summary.totalProfit >= 0 ? Colors.blue : Colors.orange,
-                    Icons.trending_up,
+                if (canViewCostPrice) ...[
+                  Expanded(
+                    child: _buildMetricCard(
+                      l10n.totalProfit,
+                      NumberFormat.currency(locale: 'vi_VN', symbol: 'đ')
+                          .format(summary.totalProfit),
+                      summary.totalProfit >= 0 ? Colors.blue : Colors.orange,
+                      Icons.trending_up,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
+                  const SizedBox(width: 8),
+                ],
                 Expanded(
                   child: _buildMetricCard(
                     l10n.totalOrders,
@@ -442,6 +452,7 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
 
   Widget _buildProductRevenueItem(ProductRevenue pr) {
     final l10n = AppLocalizations.of(context)!;
+    final canViewCostPrice = ref.watch(authProvider)?.canViewCostPrice ?? false;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -480,29 +491,31 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
                       ),
                   textAlign: TextAlign.right,
                 ),
-                // Giá vốn (FIFO) theo sản phẩm
-                Text(
-                  '${l10n.expense}: ${NumberFormat.currency(locale: 'vi_VN', symbol: 'đ').format(pr.cost)}',
-                  style: Theme.of(context).textTheme.bodySmall,
-                  textAlign: TextAlign.right,
-                ),
-                // Lãi theo sản phẩm
-                Text(
-                  '${l10n.profit}: ${NumberFormat.currency(locale: 'vi_VN', symbol: 'đ').format(pr.profit)}',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: pr.profit >= 0 ? Colors.green : Colors.red,
-                        fontWeight: FontWeight.w600,
-                      ),
-                  textAlign: TextAlign.right,
-                ),
-                // Tỷ suất lãi theo sản phẩm
-                Text(
-                  '${pr.profitMargin.toStringAsFixed(1)}%',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: pr.profit >= 0 ? Colors.green : Colors.red,
-                      ),
-                  textAlign: TextAlign.right,
-                ),
+                if (canViewCostPrice) ...[
+                  // Giá vốn (FIFO) theo sản phẩm
+                  Text(
+                    '${l10n.expense}: ${NumberFormat.currency(locale: 'vi_VN', symbol: 'đ').format(pr.cost)}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                    textAlign: TextAlign.right,
+                  ),
+                  // Lãi theo sản phẩm
+                  Text(
+                    '${l10n.profit}: ${NumberFormat.currency(locale: 'vi_VN', symbol: 'đ').format(pr.profit)}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: pr.profit >= 0 ? Colors.green : Colors.red,
+                          fontWeight: FontWeight.w600,
+                        ),
+                    textAlign: TextAlign.right,
+                  ),
+                  // Tỷ suất lãi theo sản phẩm
+                  Text(
+                    '${pr.profitMargin.toStringAsFixed(1)}%',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: pr.profit >= 0 ? Colors.green : Colors.red,
+                        ),
+                    textAlign: TextAlign.right,
+                  ),
+                ],
               ],
             ),
           ),
@@ -536,6 +549,7 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
 
   Widget _buildDailyReportItem(RevenueReport report) {
     final l10n = AppLocalizations.of(context)!;
+    final canViewCostPrice = ref.watch(authProvider)?.canViewCostPrice ?? false;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -563,15 +577,17 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
                     fontWeight: FontWeight.w600,
                   ),
             ),
-            const SizedBox(width: 16),
-            Text(
-              NumberFormat.currency(locale: 'vi_VN', symbol: 'đ')
-                  .format(report.profit),
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: report.profit >= 0 ? Colors.blue : Colors.red,
-                    fontWeight: FontWeight.w600,
-                  ),
-            ),
+            if (canViewCostPrice) ...[
+              const SizedBox(width: 16),
+              Text(
+                NumberFormat.currency(locale: 'vi_VN', symbol: 'đ')
+                    .format(report.profit),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: report.profit >= 0 ? Colors.blue : Colors.red,
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+            ],
             const SizedBox(width: 16),
             Text(
               '${report.totalOrders} ${l10n.orders}',

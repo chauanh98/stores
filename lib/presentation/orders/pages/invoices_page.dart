@@ -15,6 +15,8 @@ import '../../../application/reports/overview_providers.dart';
 import '../../../domain/entities/customer.dart';
 import '../../../domain/entities/order.dart';
 import '../../../domain/entities/product.dart';
+import '../../../application/settings/store_payment_config_providers.dart';
+import '../../../core/utils/invoice_print_helper.dart';
 import '../../customers/pages/customer_detail_page.dart';
 import '../../products/pages/product_detail_page.dart';
 import 'pos_checkout_page.dart';
@@ -862,65 +864,101 @@ class _InvoicesPageState extends ConsumerState<InvoicesPage> {
                         );
                       }).toList(),
                       const Divider(height: 24, color: AppColors.divider),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            l10n.totalPaymentAmount,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 14),
-                          ),
-                          Text(
-                            '${currencyFormat.format(order.total)} đ',
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: AppColors.primary),
-                          )
-                        ],
-                      ),
-                      if (order.amountPaid > 0 || order.debtAmount > 0) ...[
-                        const SizedBox(height: 8),
-                        _buildDetailRow('Đã thanh toán',
-                            '${currencyFormat.format(order.amountPaid)} đ'),
-                        if (order.debtAmount > 0)
-                          _buildDetailRow('Ghi nợ đơn hàng',
-                              '${currencyFormat.format(order.debtAmount)} đ',
-                              textColor: Colors.red),
-                      ],
+                      Builder(builder: (context) {
+                        final subtotal = order.items.fold(
+                            0.0, (sum, item) => sum + (item.price * item.quantity));
+                        final discount = (subtotal - order.total) > 0.5
+                            ? (subtotal - order.total)
+                            : 0.0;
+                        final remainingDebt = (order.total - order.amountPaid)
+                            .clamp(0.0, double.infinity);
+
+                        return Column(
+                          children: [
+                            if (discount > 0) ...[
+                              _buildDetailRow('Tổng cộng',
+                                  '${currencyFormat.format(subtotal)} đ'),
+                              _buildDetailRow('Giảm giá',
+                                  '${currencyFormat.format(discount)} đ',
+                                  textColor: AppColors.danger),
+                              _buildDetailRow(
+                                'Sau giảm',
+                                '${currencyFormat.format(order.total)} đ',
+                                textColor: AppColors.primary,
+                              ),
+                            ] else ...[
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    l10n.totalPaymentAmount,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14),
+                                  ),
+                                  Text(
+                                    '${currencyFormat.format(order.total)} đ',
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                        color: AppColors.primary),
+                                  )
+                                ],
+                              ),
+                            ],
+                            const SizedBox(height: 8),
+                            _buildDetailRow('Đã thanh toán (cọc)',
+                                '${currencyFormat.format(order.amountPaid)} đ'),
+                            const SizedBox(height: 4),
+                            _buildDetailRow(
+                              'Còn lại',
+                              '${currencyFormat.format(remainingDebt)} đ',
+                              textColor: remainingDebt > 0
+                                  ? AppColors.danger
+                                  : Colors.green,
+                            ),
+                          ],
+                        );
+                      }),
                       const SizedBox(height: 24),
                     ],
                   ),
                 ),
               ),
               if (order.status == 'draft') ...[
-                Row(
-                  children: [
-                    Expanded(
-                      child: SizedBox(
-                        height: 48,
-                        child: OutlinedButton(
-                          onPressed: () =>
-                              _showCancelDraftDialog(context, ref, order.id),
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: AppColors.danger),
-                            foregroundColor: AppColors.danger,
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8)),
-                          ),
-                          child: Text(
-                            l10n.cancelDraftOrder,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 14),
+                Builder(builder: (context) {
+                  final user = ref.watch(authProvider);
+                  final canDelete = user?.canDeleteInvoice ?? false;
+                  return Row(
+                    children: [
+                      if (canDelete) ...[
+                        Expanded(
+                          child: SizedBox(
+                            height: 48,
+                            child: OutlinedButton(
+                              onPressed: () =>
+                                  _showCancelDraftDialog(context, ref, order.id),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: AppColors.danger),
+                                foregroundColor: AppColors.danger,
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8)),
+                              ),
+                              child: Text(
+                                l10n.cancelDraftOrder,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 14),
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: SizedBox(
-                        height: 48,
-                        child: FilledButton(
+                        const SizedBox(width: 12),
+                      ],
+                      Expanded(
+                        child: SizedBox(
+                          height: 48,
+                          child: FilledButton(
                           onPressed: () {
                             Navigator.pop(context); // Đóng Bottom Sheet
 
@@ -971,8 +1009,40 @@ class _InvoicesPageState extends ConsumerState<InvoicesPage> {
                       ),
                     ),
                   ],
-                )
-              ]
+                );
+                }),
+                const SizedBox(height: 10),
+              ],
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    final config = ref.read(storePaymentConfigProvider);
+                    await InvoicePrintHelper.printInvoice(
+                      context,
+                      order,
+                      targetCustomer,
+                      config,
+                    );
+                  },
+                  icon: const Icon(Icons.print, color: AppColors.primary),
+                  label: const Text(
+                    'In Hóa Đơn',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: AppColors.primary, width: 1.5),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
         );

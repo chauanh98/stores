@@ -102,4 +102,13 @@ class AuthRemoteDataSource {
     }
     return null;
   }
+
+  Future<void> updatePassword(
+      String username, String oldPassword, String newPassword) async {
+    final currentPass = await getAccountPassword(username);
+    if (currentPass != null && currentPass != oldPassword) {
+      throw Exception('Mật khẩu hiện tại không chính xác');
+    }
+    await _ref.child(username).child('password').set(newPassword);
+  }
 }

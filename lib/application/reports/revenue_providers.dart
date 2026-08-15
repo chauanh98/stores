@@ -78,9 +78,9 @@ final revenueByDateRangeProvider =
   final storeFilter = ref.watch(selectedStoreFilterProvider);
   final user = ref.watch(authProvider);
 
-  // Xác định danh sách store cần lấy dữ liệu (Với Admin sẽ tự động ánh xạ từ chi nhánh chọn sang store thực tế)
+  // Xác định danh sách store cần lấy dữ liệu (Chỉ Supervisor mới được chuyển/xem dữ liệu các cửa hàng khác)
   final List<String> targetStoreIds = [];
-  if (user?.isAdmin == true) {
+  if (user?.canSwitchStore == true) {
     if (storeFilter == 'all') {
       final availableStores = ref.watch(availableStoresProvider).value ?? {};
       if (availableStores.isNotEmpty) {

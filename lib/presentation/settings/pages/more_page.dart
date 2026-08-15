@@ -194,8 +194,8 @@ class MorePage extends ConsumerWidget {
             const SizedBox(height: 12),
           ],
 
-          // 6. Chuyển đổi cửa hàng (Chỉ dành cho Admin/Supervisor)
-          if (user?.isAdmin == true || user?.isSupervisor == true) ...[
+          // 6. Chuyển đổi cửa hàng (Chỉ dành cho Supervisor)
+          if (user?.canSwitchStore == true) ...[
             Container(
               color: Colors.white,
               padding: const EdgeInsets.all(16),
@@ -250,14 +250,31 @@ class MorePage extends ConsumerWidget {
           Container(
             color: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: ListTile(
-              leading: const Icon(Icons.logout, color: AppColors.danger),
-              title: Text(l10n.logoutAccount,
-                  style: const TextStyle(
-                      color: AppColors.danger, fontWeight: FontWeight.bold)),
-              trailing:
-                  const Icon(Icons.chevron_right, color: AppColors.danger),
-              onTap: () => _showLogoutDialog(context, ref),
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.lock_reset, color: AppColors.primary),
+                  title: const Text('Đổi mật khẩu',
+                      style: TextStyle(
+                          color: Colors.black87, fontWeight: FontWeight.w600)),
+                  trailing: const Icon(Icons.chevron_right, color: Colors.black38),
+                  onTap: () {
+                    if (user?.username != null) {
+                      _showChangePasswordDialog(context, ref, user!.username);
+                    }
+                  },
+                ),
+                const Divider(height: 1, color: AppColors.dividerLight),
+                ListTile(
+                  leading: const Icon(Icons.logout, color: AppColors.danger),
+                  title: Text(l10n.logoutAccount,
+                      style: const TextStyle(
+                          color: AppColors.danger, fontWeight: FontWeight.bold)),
+                  trailing:
+                      const Icon(Icons.chevron_right, color: AppColors.danger),
+                  onTap: () => _showLogoutDialog(context, ref),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 32),
@@ -356,6 +373,131 @@ class MorePage extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+
+  void _showChangePasswordDialog(
+      BuildContext context, WidgetRef ref, String username) {
+    final oldPasswordController = TextEditingController();
+    final newPasswordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Đổi Mật Khẩu',
+              style: TextStyle(fontWeight: FontWeight.bold)),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: oldPasswordController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Mật khẩu hiện tại',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.lock_outline),
+                  ),
+                  validator: (v) => v == null || v.isEmpty
+                      ? 'Vui lòng nhập mật khẩu hiện tại'
+                      : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: newPasswordController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Mật khẩu mới',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.lock_reset),
+                  ),
+                  validator: (v) {
+                    if (v == null || v.isEmpty) {
+                      return 'Vui lòng nhập mật khẩu mới';
+                    }
+                    if (v.length < 4) {
+                      return 'Mật khẩu mới phải từ 4 ký tự trở lên';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: confirmPasswordController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Xác nhận mật khẩu mới',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.check_circle_outline),
+                  ),
+                  validator: (v) {
+                    if (v != newPasswordController.text) {
+                      return 'Xác nhận mật khẩu không khớp';
+                    }
+                    return null;
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Hủy'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                if (formKey.currentState?.validate() ?? false) {
+                  showDialog(
+                    context: dialogContext,
+                    barrierDismissible: false,
+                    builder: (_) =>
+                        const Center(child: CircularProgressIndicator()),
+                  );
+
+                  try {
+                    await ref
+                        .read(authRemoteDataSourceProvider)
+                        .updatePassword(
+                          username,
+                          oldPasswordController.text,
+                          newPasswordController.text,
+                        );
+                    if (context.mounted) {
+                      Navigator.pop(dialogContext); // dismiss loading
+                      Navigator.pop(dialogContext); // dismiss form
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Đổi mật khẩu thành công!'),
+                          backgroundColor: AppColors.success,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      Navigator.pop(dialogContext); // dismiss loading
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                              'Lỗi: ${e.toString().replaceAll('Exception: ', '')}'),
+                          backgroundColor: AppColors.danger,
+                        ),
+                      );
+                    }
+                  }
+                }
+              },
+              style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primary),
+              child: const Text('Lưu mật khẩu'),
+            ),
+          ],
+        );
+      },
     );
   }
 }

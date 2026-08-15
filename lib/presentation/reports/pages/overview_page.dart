@@ -333,6 +333,9 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
   // 2. Widget Bộ lọc nhanh
   Widget _buildFiltersBar(
       BuildContext context, String dateText, String branchText) {
+    final user = ref.watch(authProvider);
+    final canSwitchStore = user?.canSwitchStore ?? false;
+
     return Container(
       color: Colors.white,
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -358,24 +361,34 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
               ),
             ),
           ),
-          // Bộ lọc Chi nhánh
-          InkWell(
-            onTap: () => _showBranchFilterBottomSheet(context),
-            child: Row(
-              children: [
-                Text(
-                  branchText,
-                  style: const TextStyle(
-                    color: Colors.black87,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 15,
+          // Bộ lọc Chi nhánh (Chỉ Supervisor mới có quyền lọc chuyển đổi chi nhánh)
+          if (canSwitchStore)
+            InkWell(
+              onTap: () => _showBranchFilterBottomSheet(context),
+              child: Row(
+                children: [
+                  Text(
+                    branchText,
+                    style: const TextStyle(
+                      color: Colors.black87,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 15,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 4),
-                const Icon(Icons.arrow_drop_down, color: Colors.black54),
-              ],
+                  const SizedBox(width: 4),
+                  const Icon(Icons.arrow_drop_down, color: Colors.black54),
+                ],
+              ),
+            )
+          else
+            Text(
+              branchText,
+              style: const TextStyle(
+                color: Colors.black54,
+                fontWeight: FontWeight.w500,
+                fontSize: 14,
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -391,6 +404,8 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
   ) {
     final currencyFormat = NumberFormat('#,###', 'vi_VN');
     final l10n = AppLocalizations.of(context)!;
+    final user = ref.watch(authProvider);
+    final canViewCostPrice = user?.canViewCostPrice ?? false;
 
     return Container(
       decoration: BoxDecoration(
@@ -431,49 +446,50 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
                   ],
                 ),
               ),
-              // Cột phải: Lợi nhuận
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Text(
-                          l10n.profit,
-                          style: const TextStyle(
-                              color: Colors.black54, fontSize: 13),
-                        ),
-                        const SizedBox(width: 4),
-                        GestureDetector(
-                          onTap: () {
-                            ref.read(profitVisibilityProvider.notifier).state =
-                                !isProfitVisible;
-                          },
-                          child: Icon(
-                            isProfitVisible
-                                ? Icons.visibility_outlined
-                                : Icons.visibility_off_outlined,
-                            size: 16,
-                            color: Colors.black54,
+              // Cột phải: Lợi nhuận (Chỉ hiển thị cho Admin & Supervisor)
+              if (canViewCostPrice)
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Text(
+                            l10n.profit,
+                            style: const TextStyle(
+                                color: Colors.black54, fontSize: 13),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      isProfitVisible
-                          ? '${currencyFormat.format(profit)} đ'
-                          : '*** ***',
-                      style: const TextStyle(
-                        color: AppColors.secondary,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
+                          const SizedBox(width: 4),
+                          GestureDetector(
+                            onTap: () {
+                              ref.read(profitVisibilityProvider.notifier).state =
+                                  !isProfitVisible;
+                            },
+                            child: Icon(
+                              isProfitVisible
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
+                              size: 16,
+                              color: Colors.black54,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
-                ),
-              )
+                      const SizedBox(height: 4),
+                      Text(
+                        isProfitVisible
+                            ? '${currencyFormat.format(profit)} đ'
+                            : '*** ***',
+                        style: const TextStyle(
+                          color: AppColors.secondary,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
             ],
           ),
           const Divider(height: 24, color: AppColors.divider),
@@ -938,6 +954,8 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
   ) {
     final currencyFormat = NumberFormat('#,###', 'vi_VN');
     final l10n = AppLocalizations.of(context)!;
+    final user = ref.watch(authProvider);
+    final canViewCostPrice = user?.canViewCostPrice ?? false;
 
     return productsAsync.when(
       data: (products) {
@@ -984,14 +1002,15 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
                   )
                 ],
               ),
-              Text(
-                '${currencyFormat.format(totalInventoryValue)} đ',
-                style: const TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.black87,
+              if (canViewCostPrice)
+                Text(
+                  '${currencyFormat.format(totalInventoryValue)} đ',
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.black87,
+                  ),
                 ),
-              )
             ],
           ),
         );

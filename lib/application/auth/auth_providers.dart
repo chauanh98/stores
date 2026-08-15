@@ -77,10 +77,15 @@ final selectedStoreIdProvider = StateProvider<String?>((ref) => null);
 
 // A convenient provider just to get the current store id or empty string
 final currentStoreIdProvider = Provider<String>((ref) {
+  final user = ref.watch(authProvider);
+  // Nếu là Nhân viên hoặc Admin (không có quyền canSwitchStore), bắt buộc trả về storeId cá nhân
+  if (user != null && !user.canSwitchStore) {
+    return user.storeId.isNotEmpty ? user.storeId : 'store_001';
+  }
+
   final selected = ref.watch(selectedStoreIdProvider);
   if (selected != null) return selected;
 
-  final user = ref.watch(authProvider);
   return user?.storeId ?? 'store_001';
 });
 

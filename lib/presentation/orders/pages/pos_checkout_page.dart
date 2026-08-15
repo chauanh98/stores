@@ -12,8 +12,12 @@ import '../../../application/inventory/inventory_providers.dart';
 import '../../../application/orders/cart_providers.dart';
 import '../../../application/orders/orders_providers.dart';
 import '../../../application/products/products_providers.dart';
+import '../../../application/reports/overview_providers.dart';
 import '../../../core/utils/combo_helper.dart';
 import '../../../core/utils/currency_input_formatter.dart';
+import '../../../application/settings/store_payment_config_providers.dart';
+import '../../../core/utils/code_generator_helper.dart';
+import '../../../core/utils/invoice_print_helper.dart';
 import '../../../domain/entities/customer.dart';
 import '../../../domain/entities/customer_debt_transaction.dart';
 import '../../../domain/entities/inventory_transaction.dart';
@@ -74,7 +78,6 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
   Widget build(BuildContext context) {
     final cart = ref.watch(cartProvider);
     final totalAmount = ref.watch(cartTotalAmountProvider);
-    final user = ref.watch(authProvider);
     final l10n = AppLocalizations.of(context)!;
 
     final discountAmount =
@@ -832,8 +835,14 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                   final activeBranchName =
                       await ref.read(currentStoreNameProvider.future);
 
+                  final existingCusts =
+                      ref.read(customerListNotifierProvider).value ?? [];
+                  final custIds = existingCusts.map((c) => c.id).toList();
+                  final newCustId =
+                      CodeGeneratorHelper.generateNextCustomerCode(custIds);
+
                   final newCust = Customer(
-                    id: DateTime.now().millisecondsSinceEpoch.toString(),
+                    id: newCustId,
                     name: nameController.text.trim(),
                     phone: phoneController.text.trim(),
                     email: emailController.text.trim(),
@@ -927,7 +936,18 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
 
       // Sử dụng lại mã đơn tạm cũ nếu đang lên đơn từ một đơn tạm
       final activeOrderId = ref.read(activeOrderIdProvider);
-      final id = activeOrderId ?? 'HD_${now.millisecondsSinceEpoch}';
+      final String id;
+      if (activeOrderId != null && activeOrderId.isNotEmpty) {
+        id = activeOrderId;
+      } else {
+        final existingOrders = ref
+                .read(allBranchesOrdersByDateRangeProvider(
+                    OverviewTimeRange.thisMonth.getRange()))
+                .value ??
+            [];
+        final orderIds = existingOrders.map((o) => o.id).toList();
+        id = CodeGeneratorHelper.generateNextOrderCode(orderIds);
+      }
 
       final List<OrderItem> orderItems = cart.values.map((item) {
         return OrderItem(
@@ -942,7 +962,6 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
       }).toList();
 
       final customerId = _selectedCustomer?.id ?? 'khach_le';
-      final customerName = _selectedCustomer?.name ?? 'Khách lẻ';
 
       final double paidAmount;
       if (isDraft) {
@@ -1204,12 +1223,50 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
       setState(() => _isSaving = false);
 
       if (mounted) {
-        final l10n = AppLocalizations.of(context)!;
-        Navigator.of(context).popUntil((route) => route.isFirst);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(isDraft ? l10n.draftSaved : l10n.paymentSuccess),
-            backgroundColor: Colors.green,
+        final config = ref.read(storePaymentConfigProvider);
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogCtx) => AlertDialog(
+            title: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.green, size: 28),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    isDraft ? 'Đã lưu đơn nháp' : 'Thanh toán thành công',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            content: Text(
+              'Đơn hàng $id đã được tạo thành công.\nBạn có muốn in hóa đơn ngay bây giờ không?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(dialogCtx);
+                  Navigator.of(context).popUntil((route) => route.isFirst);
+                },
+                child: const Text('Về màn hình chính'),
+              ),
+              FilledButton.icon(
+                onPressed: () async {
+                  Navigator.pop(dialogCtx);
+                  Navigator.of(context).popUntil((route) => route.isFirst);
+                  await InvoicePrintHelper.printInvoice(
+                    context,
+                    order,
+                    _selectedCustomer,
+                    config,
+                  );
+                },
+                icon: const Icon(Icons.print),
+                label: const Text('In Hóa Đơn'),
+                style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
+              ),
+            ],
           ),
         );
       }

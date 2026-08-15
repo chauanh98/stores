@@ -153,6 +153,8 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final currencyFormat = NumberFormat('#,###', 'vi_VN');
+    final user = ref.watch(authProvider);
+    final canManageProducts = user?.canManageProducts ?? false;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -172,22 +174,24 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
               },
               tooltip: l10n.transferProduct,
             ),
-            TextButton(
-              onPressed: () {
-                _initializeControllers();
-                setState(() => _isEditing = true);
-              },
-              child: const Text('Sửa',
-                  style: TextStyle(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16)),
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete_outline, color: Colors.red),
-              onPressed: _showDeleteDialog,
-              tooltip: l10n.delete,
-            ),
+            if (canManageProducts) ...[
+              TextButton(
+                onPressed: () {
+                  _initializeControllers();
+                  setState(() => _isEditing = true);
+                },
+                child: const Text('Sửa',
+                    style: TextStyle(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16)),
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline, color: Colors.red),
+                onPressed: _showDeleteDialog,
+                tooltip: l10n.delete,
+              ),
+            ],
           ] else ...[
             TextButton(
               onPressed: _isLoading ? null : _saveProduct,
@@ -375,6 +379,9 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
 
   // Basic Info Card
   Widget _buildBasicInfoCard(BuildContext context, NumberFormat format) {
+    final user = ref.watch(authProvider);
+    final canViewCostPrice = user?.canViewCostPrice ?? false;
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -387,9 +394,11 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
           _buildDetailRow('Mã hàng', _currentProduct.code, true),
           const Divider(height: 1, color: AppColors.divider),
           _buildDetailRow('Mã vạch', _currentProduct.barcode ?? '—', true),
-          const Divider(height: 1, color: AppColors.divider),
-          _buildDetailRow('Giá vốn',
-              '${format.format(_currentProduct.costPrice)} đ', false),
+          if (canViewCostPrice) ...[
+            const Divider(height: 1, color: AppColors.divider),
+            _buildDetailRow('Giá vốn',
+                '${format.format(_currentProduct.costPrice)} đ', false),
+          ],
           const Divider(height: 1, color: AppColors.divider),
           _buildDetailRow(
               'Giá bán', '${format.format(_currentProduct.price)} đ', false),
@@ -405,6 +414,9 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
     if (!_currentProduct.isCombo || _currentProduct.comboComponents.isEmpty) {
       return const SizedBox.shrink();
     }
+
+    final user = ref.watch(authProvider);
+    final canViewCostPrice = user?.canViewCostPrice ?? false;
 
     final allProducts = ref.watch(productListProvider).value ?? [];
     final Map<String, Product> productMap = {
@@ -508,7 +520,9 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            'Mã: ${comp.productCode} • Giá vốn lẻ: ${format.format(childCost)} đ',
+                            canViewCostPrice
+                                ? 'Mã: ${comp.productCode} • Giá vốn lẻ: ${format.format(childCost)} đ'
+                                : 'Mã: ${comp.productCode}',
                             style: const TextStyle(
                               color: Colors.black54,
                               fontSize: 11,
@@ -525,48 +539,51 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                         ],
                       ),
                     ),
-                    Text(
-                      '${format.format(childCost * comp.quantity)} đ',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
-                        color: Colors.black87,
+                    if (canViewCostPrice)
+                      Text(
+                        '${format.format(childCost * comp.quantity)} đ',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                          color: Colors.black87,
+                        ),
                       ),
-                    ),
                   ],
                 ),
               );
             },
           ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.05),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Tổng giá vốn gợi ý linh kiện:',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+          if (canViewCostPrice) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Tổng giá vốn gợi ý linh kiện:',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
                   ),
-                ),
-                Text(
-                  '${format.format(totalComponentsCost)} đ',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
+                  Text(
+                    '${format.format(totalComponentsCost)} đ',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -830,7 +847,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                               style: const TextStyle(
                                   color: Colors.black54, fontSize: 11),
                             ),
-                            if (tx.importPrice != null)
+                            if (tx.importPrice != null && (ref.watch(authProvider)?.canViewCostPrice ?? false))
                               Text(
                                 'Giá nhập: ${format.format(tx.importPrice)} đ',
                                 style: const TextStyle(

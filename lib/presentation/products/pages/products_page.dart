@@ -9,6 +9,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:stores/core/theme/app_colors.dart';
 import 'package:stores/presentation/common/widgets/loading_indicator.dart';
 
+import '../../../application/auth/auth_providers.dart';
 import '../../../application/inventory/inventory_providers.dart';
 import '../../../application/products/products_providers.dart';
 import '../../../core/utils/excel_helper.dart';
@@ -66,11 +67,15 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
     final search = ref.watch(productSearchQueryProvider);
     final selectedCategory = ref.watch(productCategoryFilterProvider);
 
+    final user = ref.watch(authProvider);
+    final canManageProducts = user?.canManageProducts ?? false;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.products),
         actions: [
-          PopupMenuButton<String>(
+          if (canManageProducts)
+            PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert),
             tooltip: 'Thao tác sản phẩm',
             onSelected: (value) {
@@ -264,16 +269,18 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
           ),
         ],
       ),
-      floatingActionButton: ScrollAwareFab(
-        scrollController: _scrollController,
-        child: FloatingActionButton(
-          heroTag: 'addProductFab',
-          backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
-          onPressed: _navigateToAddProduct,
-          child: const Icon(Icons.add),
-        ),
-      ),
+      floatingActionButton: canManageProducts
+          ? ScrollAwareFab(
+              scrollController: _scrollController,
+              child: FloatingActionButton(
+                heroTag: 'addProductFab',
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                onPressed: _navigateToAddProduct,
+                child: const Icon(Icons.add),
+              ),
+            )
+          : null,
     );
   }
 

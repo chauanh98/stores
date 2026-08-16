@@ -123,11 +123,7 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
                           ),
 
                           const SizedBox(height: 16),
-                          // 4. Lưới các hành động nhanh
-                          _buildQuickActions(context),
-
-                          const SizedBox(height: 16),
-                          // 5. Section Doanh thu (Biểu đồ & Danh sách)
+                          // 4. Section Doanh thu (Biểu đồ & Danh sách)
                           _buildRevenueChartSection(context, dailyReports),
 
                           const SizedBox(height: 16),
@@ -164,9 +160,6 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
   // 1. Widget Header KiotViet
   Widget _buildHeader(BuildContext context) {
     final user = ref.watch(authProvider);
-    final storeFilter = ref.watch(selectedStoreFilterProvider);
-    final availableStoresAsync = ref.watch(availableStoresProvider);
-    final currentStoreId = ref.watch(currentStoreIdProvider);
     final l10n = AppLocalizations.of(context)!;
 
     return Container(
@@ -247,84 +240,6 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
               )
             ],
           ),
-          // Các Icon liên lạc, chuông báo, tin nhắn
-          Row(
-            children: [
-              // Hotline icon
-              IconButton(
-                icon: const Icon(Icons.phone_in_talk_outlined,
-                    color: Colors.black87),
-                onPressed: () {},
-              ),
-              // Notification icon với badge
-              Stack(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.notifications_none_outlined,
-                        color: Colors.black87),
-                    onPressed: () {},
-                  ),
-                  Positioned(
-                    right: 6,
-                    top: 6,
-                    child: Container(
-                      padding: const EdgeInsets.all(3),
-                      decoration: const BoxDecoration(
-                        color: Colors.red,
-                        shape: BoxShape.circle,
-                      ),
-                      constraints: const BoxConstraints(
-                        minWidth: 16,
-                        minHeight: 16,
-                      ),
-                      child: const Text(
-                        '99',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 8,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  )
-                ],
-              ),
-              // Email icon với badge
-              Stack(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.mail_outline, color: Colors.black87),
-                    onPressed: () {},
-                  ),
-                  Positioned(
-                    right: 6,
-                    top: 6,
-                    child: Container(
-                      padding: const EdgeInsets.all(3),
-                      decoration: const BoxDecoration(
-                        color: Colors.red,
-                        shape: BoxShape.circle,
-                      ),
-                      constraints: const BoxConstraints(
-                        minWidth: 16,
-                        minHeight: 16,
-                      ),
-                      child: const Text(
-                        '5',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 8,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  )
-                ],
-              ),
-            ],
-          )
         ],
       ),
     );
@@ -509,52 +424,7 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
     );
   }
 
-  // 4. Widget Lưới các hành động nhanh
-  Widget _buildQuickActions(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final actions = [
-      {'icon': Icons.account_balance_outlined, 'title': l10n.loans},
-      {'icon': Icons.local_shipping_outlined, 'title': l10n.shipping},
-      {'icon': Icons.qr_code_scanner, 'title': l10n.checkout},
-      {'icon': Icons.people_outline, 'title': l10n.staff},
-      {'icon': Icons.receipt_outlined, 'title': l10n.taxAndAccounting},
-    ];
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: actions.map((item) {
-        return Expanded(
-          child: Column(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.08),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  item['icon'] as IconData,
-                  color: AppColors.primary,
-                  size: 22,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                item['title'] as String,
-                style: const TextStyle(fontSize: 10, color: Colors.black87),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              )
-            ],
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  // 5. Section Doanh thu (Biểu đồ & Danh sách)
+  // 4. Section Doanh thu (Biểu đồ & Danh sách)
   Widget _buildRevenueChartSection(
       BuildContext context, List<RevenueReport> dailyReports) {
     final currencyFormat = NumberFormat('#,###', 'vi_VN');

@@ -5,9 +5,9 @@ import 'package:intl/intl.dart';
 import 'package:stores/core/theme/app_colors.dart';
 
 import '../../../application/products/products_providers.dart';
-import '../../../core/constants/product_categories.dart';
 import '../../../core/utils/combo_helper.dart';
 import '../../../domain/entities/product.dart';
+import '../../common/widgets/product_image_thumbnail.dart';
 import '../pages/product_detail_page.dart';
 
 class ProductTile extends ConsumerWidget {
@@ -28,12 +28,12 @@ class ProductTile extends ConsumerWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-          child: Icon(
-            ProductCategories.getCategoryIcon(product.category),
-            color: Theme.of(context).colorScheme.onPrimaryContainer,
-          ),
+        leading: ProductImageThumbnail(
+          imageUrl: product.imageUrl,
+          productName: product.name,
+          categoryName: product.category,
+          size: 46,
+          borderRadius: 8,
         ),
         title: Row(
           children: [

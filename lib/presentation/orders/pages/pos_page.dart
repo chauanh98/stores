@@ -11,6 +11,7 @@ import '../../../application/orders/cart_providers.dart';
 import '../../../application/products/products_providers.dart';
 import '../../../core/utils/combo_helper.dart';
 import '../../../domain/entities/product.dart';
+import '../../common/widgets/product_image_thumbnail.dart';
 import 'pos_checkout_page.dart';
 
 class POSPage extends ConsumerStatefulWidget {
@@ -36,7 +37,6 @@ class _POSPageState extends ConsumerState<POSPage> {
     final cart = ref.watch(cartProvider);
     final totalItems = ref.watch(cartTotalItemsProvider);
     final totalAmount = ref.watch(cartTotalAmountProvider);
-    final user = ref.watch(authProvider);
     final storeNameAsync = ref.watch(currentStoreNameProvider);
     final l10n = AppLocalizations.of(context)!;
 
@@ -70,20 +70,6 @@ class _POSPageState extends ConsumerState<POSPage> {
           ],
         ),
         backgroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.qr_code_scanner),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(l10n.barcodeScannerStarting)),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.filter_list),
-            onPressed: () {},
-          ),
-        ],
       ),
       body: Column(
         children: [
@@ -166,16 +152,12 @@ class _POSPageState extends ConsumerState<POSPage> {
                       child: Row(
                         children: [
                           // Icon/Ảnh sản phẩm
-                          CircleAvatar(
-                            radius: 24,
-                            backgroundColor:
-                                AppColors.primary.withOpacity(0.06),
-                            child: Icon(
-                                product.isCombo
-                                    ? Icons.widgets_outlined
-                                    : Icons.shopping_bag_outlined,
-                                color: AppColors.primary,
-                                size: 22),
+                          ProductImageThumbnail(
+                            imageUrl: product.imageUrl,
+                            productName: product.name,
+                            categoryName: product.category,
+                            size: 48,
+                            borderRadius: 8,
                           ),
                           const SizedBox(width: 12),
                           // Thông tin chi tiết sản phẩm

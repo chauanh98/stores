@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:stores/core/theme/app_colors.dart';
 import 'package:stores/presentation/common/widgets/error_view.dart';
 import 'package:stores/presentation/common/widgets/loading_indicator.dart';
+import 'package:stores/presentation/common/widgets/product_image_thumbnail.dart';
 
 import '../../../application/auth/auth_providers.dart';
 import '../../../application/customers/customers_providers.dart';
@@ -82,12 +83,6 @@ class _InvoicesPageState extends ConsumerState<InvoicesPage> {
         title: Text(l10n.invoicesTitle,
             style: const TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.filter_alt_outlined),
-            onPressed: () {},
-          )
-        ],
       ),
       body: Column(
         children: [
@@ -819,6 +814,14 @@ class _InvoicesPageState extends ConsumerState<InvoicesPage> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
+                                ProductImageThumbnail(
+                                  imageUrl: matchingProduct?.imageUrl,
+                                  productName: item.productName,
+                                  categoryName: matchingProduct?.category,
+                                  size: 36,
+                                  borderRadius: 6,
+                                ),
+                                const SizedBox(width: 10),
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment:

@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,6 +12,7 @@ import '../../../application/auth/auth_providers.dart';
 import '../../../application/inventory/inventory_providers.dart';
 import '../../../application/products/products_providers.dart';
 import '../../../core/utils/excel_helper.dart';
+import '../../../core/utils/sample_image_helper.dart';
 import '../../../domain/entities/inventory_transaction.dart';
 import '../../../domain/entities/product.dart';
 import '../../../domain/entities/transaction_type.dart';
@@ -89,6 +89,8 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                 _importProducts(context);
               } else if (value == 'export_excel') {
                 _exportProducts(context);
+              } else if (value == 'auto_assign_images') {
+                _autoAssignSampleImages(context);
               }
             },
             itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
@@ -96,34 +98,45 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                 value: 'import_inventory',
                 child: Row(
                   children: [
-                    const Icon(Icons.inventory_2, color: Colors.blueGrey),
+                    const Icon(Icons.inventory_2_outlined, color: Colors.blueGrey),
                     const SizedBox(width: 8),
                     Text(l10n.importProduct),
                   ],
                 ),
               ),
-              if (kIsWeb) ...[
-                PopupMenuItem<String>(
-                  value: 'import_excel',
-                  child: Row(
-                    children: [
-                      const Icon(Icons.upload_file, color: AppColors.primary),
-                      const SizedBox(width: 8),
-                      Text(l10n.importExcel),
-                    ],
-                  ),
+              PopupMenuItem<String>(
+                value: 'import_excel',
+                child: Row(
+                  children: [
+                    const Icon(Icons.upload_file, color: AppColors.primary),
+                    const SizedBox(width: 8),
+                    Text(l10n.importExcel),
+                  ],
                 ),
-                PopupMenuItem<String>(
-                  value: 'export_excel',
-                  child: Row(
-                    children: [
-                      const Icon(Icons.download, color: Colors.green),
-                      const SizedBox(width: 8),
-                      Text(l10n.exportExcel),
-                    ],
-                  ),
+              ),
+              PopupMenuItem<String>(
+                value: 'export_excel',
+                child: Row(
+                  children: [
+                    const Icon(Icons.download, color: Colors.green),
+                    const SizedBox(width: 8),
+                    Text(l10n.exportExcel),
+                  ],
                 ),
-              ],
+              ),
+              const PopupMenuDivider(),
+              const PopupMenuItem<String>(
+                value: 'auto_assign_images',
+                child: Row(
+                  children: [
+                    Icon(Icons.auto_awesome, color: Colors.amber),
+                    SizedBox(width: 8),
+                    Text('Tự động gán ảnh mẫu',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w600, color: Colors.black87)),
+                  ],
+                ),
+              ),
             ],
           ),
         ],
@@ -468,6 +481,123 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Lỗi xuất file: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _autoAssignSampleImages(BuildContext context) async {
+    final productsAsync = ref.read(productListProvider);
+    final allProducts = productsAsync.maybeWhen(
+      data: (list) => list,
+      orElse: () => <Product>[],
+    );
+
+    if (allProducts.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Không có sản phẩm nào trong hệ thống!')),
+      );
+      return;
+    }
+
+    final missingImageProducts = allProducts
+        .where((p) => p.imageUrl == null || p.imageUrl!.trim().isEmpty)
+        .toList();
+
+    if (missingImageProducts.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tất cả sản phẩm đều đã có ảnh! Không cần gán thêm.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      return;
+    }
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.auto_awesome, color: Colors.amber),
+            SizedBox(width: 8),
+            Text('Tự động gán ảnh mẫu',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Text(
+          'Tìm thấy ${missingImageProducts.length} sản phẩm chưa có ảnh.\n\nHệ thống sẽ phân tích tên và danh mục của từng sản phẩm để tự động gán đường dẫn ảnh mẫu sắc nét tương ứng từ CDN trực tuyến.\n\nCác sản phẩm đã có ảnh trước đó sẽ được giữ nguyên hoàn toàn. Bạn có muốn tiếp tục?',
+          style: const TextStyle(fontSize: 14, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Bắt đầu gán ảnh'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true || !mounted) return;
+
+    // Show Progress Dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          content: Row(
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(width: 20),
+              Expanded(
+                child: Text(
+                  'Đang gán ảnh cho ${missingImageProducts.length} sản phẩm...',
+                  style: const TextStyle(fontSize: 14),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    int count = 0;
+    try {
+      final repo = ref.read(productRepositoryProvider);
+      for (final p in missingImageProducts) {
+        final sampleUrl = SampleImageHelper.getSampleImageUrl(p);
+        final updated = p.copyWith(imageUrl: sampleUrl);
+        await repo.upsert(updated);
+        count++;
+      }
+
+      if (mounted) {
+        Navigator.of(context).pop(); // dismiss loading
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Đã tự động gán ảnh thành công cho $count sản phẩm!'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        if (Navigator.of(context).canPop()) {
+          Navigator.of(context).pop(); // dismiss loading
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Có lỗi xảy ra: $e (Đã gán được $count sản phẩm)'),
             backgroundColor: Colors.red,
           ),
         );

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:stores/presentation/common/widgets/loading_indicator.dart';
 
+import '../../../application/auth/auth_providers.dart';
 import '../../../application/reports/revenue_providers.dart';
 import '../../../domain/entities/revenue_report.dart';
 

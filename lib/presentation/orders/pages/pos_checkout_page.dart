@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:stores/core/theme/app_colors.dart';
 import 'package:stores/presentation/common/widgets/loading_indicator.dart';
+import 'package:stores/presentation/common/widgets/product_image_thumbnail.dart';
 
 import '../../../application/auth/auth_providers.dart';
 import '../../../application/customers/customers_providers.dart';
@@ -244,6 +245,14 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
+                      ProductImageThumbnail(
+                        imageUrl: item.product.imageUrl,
+                        productName: item.product.name,
+                        categoryName: item.product.category,
+                        size: 38,
+                        borderRadius: 6,
+                      ),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,

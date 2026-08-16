@@ -1,11 +1,11 @@
 import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart' hide Category;
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:stores/core/theme/app_colors.dart';
 
@@ -41,6 +41,7 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
   // Image Upload State
   File? _selectedImageFile;
   Uint8List? _imageBytes;
+  String? _onlineImageUrl;
   bool _isLoading = false;
 
   // Extra Sub-Sections Toggles
@@ -83,8 +84,6 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -106,10 +105,6 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
                   fontSize: 16),
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.more_vert),
-            onPressed: () {},
-          )
         ],
       ),
       body: _isLoading
@@ -136,12 +131,10 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
                         padding: const EdgeInsets.all(16),
                         child: Column(
                           children: [
-                            _buildField(_codeController, 'Mã hàng', Icons.tag,
-                                trailingIcon: Icons.qr_code_scanner),
+                            _buildField(_codeController, 'Mã hàng', Icons.tag),
                             const SizedBox(height: 16),
                             _buildField(
-                                _barcodeController, 'Mã vạch', Icons.qr_code,
-                                trailingIcon: Icons.qr_code_scanner),
+                                _barcodeController, 'Mã vạch', Icons.qr_code),
                             const SizedBox(height: 16),
                             _buildField(
                                 _nameController, 'Tên hàng *', Icons.label,
@@ -308,6 +301,10 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
 
   // Widget Image Picker Card
   Widget _buildImagePickerCard() {
+    final hasImage = _selectedImageFile != null ||
+        _imageBytes != null ||
+        (_onlineImageUrl != null && _onlineImageUrl!.isNotEmpty);
+
     return GestureDetector(
       onTap: _showImageSourceSheet,
       child: Card(
@@ -318,19 +315,43 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
           side: const BorderSide(color: AppColors.borderLight),
         ),
         child: Container(
-          height: 140,
+          height: 150,
           width: double.infinity,
           alignment: Alignment.center,
-          child: _selectedImageFile != null || _imageBytes != null
+          child: hasImage
               ? Stack(
                   children: [
                     Positioned.fill(
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(10),
-                        child: _imageBytes != null
-                            ? Image.memory(_imageBytes!, fit: BoxFit.cover)
-                            : Image.file(_selectedImageFile!,
-                                fit: BoxFit.cover),
+                        child: _onlineImageUrl != null &&
+                                _onlineImageUrl!.isNotEmpty
+                            ? Image.network(
+                                _onlineImageUrl!,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Container(
+                                  color: Colors.grey.shade100,
+                                  child: const Center(
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.broken_image,
+                                            color: Colors.redAccent, size: 36),
+                                        SizedBox(height: 4),
+                                        Text('Link ảnh không hợp lệ',
+                                            style: TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.redAccent)),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : _imageBytes != null
+                                ? Image.memory(_imageBytes!, fit: BoxFit.cover)
+                                : Image.file(_selectedImageFile!,
+                                    fit: BoxFit.cover),
                       ),
                     ),
                     Positioned(
@@ -340,12 +361,37 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
                         onTap: () => setState(() {
                           _selectedImageFile = null;
                           _imageBytes = null;
+                          _onlineImageUrl = null;
                         }),
                         child: CircleAvatar(
                           radius: 14,
-                          backgroundColor: Colors.black.withOpacity(0.5),
+                          backgroundColor: Colors.black.withOpacity(0.6),
                           child: const Icon(Icons.close,
                               color: Colors.white, size: 16),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      bottom: 8,
+                      left: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.6),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.edit,
+                                color: Colors.white, size: 12),
+                            const SizedBox(width: 4),
+                            Text(
+                              _onlineImageUrl != null ? 'Link Online' : 'Ảnh tải lên',
+                              style: const TextStyle(
+                                  color: Colors.white, fontSize: 11),
+                            ),
+                          ],
                         ),
                       ),
                     )
@@ -360,16 +406,21 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
                         color: AppColors.primary.withOpacity(0.06),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.camera_alt,
+                      child: const Icon(Icons.add_a_photo_outlined,
                           color: AppColors.primary, size: 28),
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'Tải ảnh sản phẩm',
+                      'Thêm ảnh sản phẩm',
                       style: TextStyle(
                           fontSize: 13,
-                          color: Colors.black54,
+                          color: Colors.black87,
                           fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 2),
+                    const Text(
+                      'Camera · Thư viện · Dán link web',
+                      style: TextStyle(fontSize: 11, color: Colors.black45),
                     )
                   ],
                 ),
@@ -391,57 +442,184 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
       ),
       builder: (context) {
         return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.image, color: AppColors.primary),
-                title: const Text('Chọn ảnh trên máy'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _pickImageFromFile();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.camera_alt, color: Colors.orange),
-                title: const Text('Chụp ảnh mới'),
-                onTap: () {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content:
-                            Text('Tính năng máy ảnh đang được khởi động...')),
-                  );
-                },
-              ),
-            ],
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const CircleAvatar(
+                    backgroundColor: Color(0xFFFFF3E0),
+                    child: Icon(Icons.camera_alt, color: Colors.orange, size: 20),
+                  ),
+                  title: const Text('Chụp ảnh từ Camera',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: const Text('Chụp ảnh trực tiếp sản phẩm tại quầy'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickImageFromCamera();
+                  },
+                ),
+                ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: AppColors.primary.withOpacity(0.1),
+                    child: const Icon(Icons.photo_library,
+                        color: AppColors.primary, size: 20),
+                  ),
+                  title: const Text('Chọn ảnh từ Thư viện',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: const Text('Tải ảnh có sẵn từ máy hoặc máy tính'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickImageFromFile();
+                  },
+                ),
+                ListTile(
+                  leading: const CircleAvatar(
+                    backgroundColor: Color(0xFFE6FFFA),
+                    child: Icon(Icons.link, color: Colors.teal, size: 20),
+                  ),
+                  title: const Text('Nhập / Dán Link ảnh Online',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: const Text('Dán link ảnh từ Google Images hoặc website'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showImageUrlDialog();
+                  },
+                ),
+              ],
+            ),
           ),
         );
       },
     );
   }
 
-  // Pick Image from file_picker
-  void _pickImageFromFile() async {
+  // Pick image using Camera
+  void _pickImageFromCamera() async {
     try {
-      final result = await FilePicker.platform.pickFiles(type: FileType.image);
-      if (result != null && result.files.isNotEmpty) {
-        final file = result.files.first;
+      final picker = ImagePicker();
+      final pickedFile = await picker.pickImage(
+        source: ImageSource.camera,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+      if (pickedFile != null) {
         if (kIsWeb) {
+          final bytes = await pickedFile.readAsBytes();
           setState(() {
-            _imageBytes = file.bytes;
+            _imageBytes = bytes;
+            _selectedImageFile = null;
+            _onlineImageUrl = null;
           });
         } else {
           setState(() {
-            _selectedImageFile = File(file.path!);
+            _selectedImageFile = File(pickedFile.path);
+            _imageBytes = null;
+            _onlineImageUrl = null;
           });
         }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi chọn ảnh: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi chụp ảnh: $e')),
+        );
+      }
     }
+  }
+
+  // Pick Image from Gallery / File
+  void _pickImageFromFile() async {
+    try {
+      final picker = ImagePicker();
+      final pickedFile = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+      if (pickedFile != null) {
+        if (kIsWeb) {
+          final bytes = await pickedFile.readAsBytes();
+          setState(() {
+            _imageBytes = bytes;
+            _selectedImageFile = null;
+            _onlineImageUrl = null;
+          });
+        } else {
+          setState(() {
+            _selectedImageFile = File(pickedFile.path);
+            _imageBytes = null;
+            _onlineImageUrl = null;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi chọn ảnh: $e')),
+        );
+      }
+    }
+  }
+
+  // Dialog for pasting image URL
+  void _showImageUrlDialog() {
+    final urlController = TextEditingController(text: _onlineImageUrl ?? '');
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Nhập Link Ảnh Online',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Dán link ảnh từ website nhà sản xuất, Google Images hoặc link online:',
+                style: TextStyle(fontSize: 13, color: Colors.black54),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: urlController,
+                decoration: const InputDecoration(
+                  labelText: 'URL hình ảnh (https://...)',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.link),
+                  hintText: 'https://example.com/product.jpg',
+                ),
+                keyboardType: TextInputType.url,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Hủy'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final url = urlController.text.trim();
+                if (url.isNotEmpty) {
+                  setState(() {
+                    _onlineImageUrl = url;
+                    _selectedImageFile = null;
+                    _imageBytes = null;
+                  });
+                }
+                Navigator.pop(dialogContext);
+              },
+              style:
+                  FilledButton.styleFrom(backgroundColor: AppColors.primary),
+              child: const Text('Xác nhận'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   // TextFormField builder helper
@@ -449,7 +627,6 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
       TextEditingController controller, String label, IconData icon,
       {bool required = false,
       bool isNumber = false,
-      IconData? trailingIcon,
       String? hint}) {
     return TextFormField(
       controller: controller,
@@ -458,17 +635,6 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
         labelText: label,
         hintText: hint,
         prefixIcon: Icon(icon, color: Colors.black45),
-        suffixIcon: trailingIcon != null
-            ? IconButton(
-                icon: Icon(trailingIcon, color: AppColors.primary),
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Đang khởi động camera quét mã...')),
-                  );
-                },
-              )
-            : null,
         border: const OutlineInputBorder(),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -1203,9 +1369,9 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
     try {
       final storeId = ref.read(currentStoreIdProvider);
       final productId = DateTime.now().millisecondsSinceEpoch.toString();
-      String? imageUrl;
+      String? imageUrl = _onlineImageUrl;
 
-      // Upload image to Firebase Storage if selected
+      // Upload image to Firebase Storage if local image selected
       if (_selectedImageFile != null || _imageBytes != null) {
         final storageRef = FirebaseStorage.instance
             .ref('stores/$storeId/products/$productId.jpg');

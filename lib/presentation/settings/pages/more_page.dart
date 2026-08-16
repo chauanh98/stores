@@ -6,7 +6,9 @@ import 'package:stores/core/theme/app_colors.dart';
 import '../../../application/auth/auth_providers.dart';
 import '../../../application/reports/overview_providers.dart';
 import '../../customers/pages/customers_page.dart';
+import '../../inventories/pages/import_inventory_page.dart';
 import 'account_management_page.dart';
+import 'store_payment_settings_page.dart';
 
 class MorePage extends ConsumerWidget {
   const MorePage({super.key});
@@ -96,82 +98,38 @@ class MorePage extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
 
-          // 2. Nhóm chức năng: Giao dịch
+          // 2. Nhóm chức năng: Nghiệp vụ mở rộng
           _buildMenuSection(
             context,
-            'GIAO DỊCH',
+            'QUẢN LÝ & TIỆN ÍCH',
             [
               _MenuItem(
-                  Icons.storefront_outlined, 'Bán hàng', AppColors.primary, () {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text(
-                        'Hãy dùng Tab Bán hàng ở thanh điều hướng dưới!')));
-              }),
+                Icons.people_outline,
+                'Khách hàng',
+                AppColors.primary,
+                () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                        builder: (context) => const CustomersPage()),
+                  );
+                },
+              ),
               _MenuItem(
-                  Icons.receipt_long_outlined, 'Hoá đơn', AppColors.warning,
-                  () {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content:
-                        Text('Hãy dùng Tab Hoá đơn ở thanh điều hướng dưới!')));
-              }),
-              _MenuItem(Icons.assignment_outlined, 'Đặt hàng', Colors.teal,
-                  () => _showMockMessage(context, 'Đặt hàng')),
-              _MenuItem(
-                  Icons.assignment_return_outlined,
-                  'Trả hàng',
-                  AppColors.danger,
-                  () => _showMockMessage(context, 'Trả hàng')),
-              _MenuItem(Icons.account_balance_wallet_outlined, 'Sổ quỹ',
-                  Colors.blue, () => _showMockMessage(context, 'Sổ quỹ')),
+                Icons.call_received_outlined,
+                'Nhập hàng',
+                AppColors.warning,
+                () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                        builder: (context) => const ImportInventoryPage()),
+                  );
+                },
+              ),
             ],
           ),
           const SizedBox(height: 12),
 
-          // 3. Nhóm chức năng: Hàng hoá
-          _buildMenuSection(
-            context,
-            'HÀNG HOÁ',
-            [
-              _MenuItem(
-                  Icons.inventory_2_outlined, 'Hàng hoá', AppColors.primary,
-                  () {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text(
-                        'Hãy dùng Tab Hàng hoá ở thanh điều hướng dưới!')));
-              }),
-              _MenuItem(Icons.check_box_outlined, 'Kiểm kho', Colors.teal,
-                  () => _showMockMessage(context, 'Kiểm kho')),
-              _MenuItem(
-                  Icons.call_received_outlined,
-                  'Nhập hàng',
-                  AppColors.warning,
-                  () => _showMockMessage(context, 'Nhập hàng')),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // 4. Nhóm chức năng: Đối tác
-          _buildMenuSection(
-            context,
-            'ĐỐI TÁC',
-            [
-              _MenuItem(Icons.people_outline, 'Khách hàng', AppColors.primary,
-                  () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                      builder: (context) => const CustomersPage()),
-                );
-              }),
-              _MenuItem(
-                  Icons.business_outlined,
-                  'Nhà cung cấp',
-                  Colors.blueGrey,
-                  () => _showMockMessage(context, 'Nhà cung cấp')),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // 5. Thiết lập hệ thống (Chỉ dành cho Admin/Supervisor)
+          // 3. Thiết lập hệ thống (Chỉ dành cho Admin/Supervisor)
           if (user?.isAdmin == true || user?.isSupervisor == true) ...[
             _buildMenuSection(
               context,
@@ -189,6 +147,20 @@ class MorePage extends ConsumerWidget {
                     );
                   },
                 ),
+                if (user?.isSupervisor == true)
+                  _MenuItem(
+                    Icons.qr_code_2,
+                    'Cấu hình VietQR',
+                    Colors.teal,
+                    () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              const StorePaymentSettingsPage(),
+                        ),
+                      );
+                    },
+                  ),
               ],
             ),
             const SizedBox(height: 12),
@@ -345,13 +317,6 @@ class MorePage extends ConsumerWidget {
     );
   }
 
-  void _showMockMessage(BuildContext context, String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-          content: Text(
-              'Chức năng "$feature" đang được phát triển trong các bản nâng cấp sau.')),
-    );
-  }
 
   void _showLogoutDialog(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;

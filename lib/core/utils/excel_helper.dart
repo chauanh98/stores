@@ -52,6 +52,14 @@ class ExcelHelper {
     'mô tả': 'description',
     'mẫu ghi chú': 'noteTemplate',
     'hàng thành phần': 'components',
+    'hình ảnh': 'imageUrl',
+    'ảnh': 'imageUrl',
+    'image': 'imageUrl',
+    'imageurl': 'imageUrl',
+    'link ảnh': 'imageUrl',
+    'hinh anh': 'imageUrl',
+    'anh': 'imageUrl',
+    'ảnh sản phẩm': 'imageUrl',
   };
 
   static String _cellValueToString(dynamic cellValue) {
@@ -257,6 +265,7 @@ class ExcelHelper {
 
       final category = getValue('category3Levels');
       final rootCategory = category.split('>>').first;
+      final rawImageUrl = getValue('imageUrl');
 
       products.add(Product(
         id: actualId,
@@ -278,6 +287,7 @@ class ExcelHelper {
         description: getValue('description'),
         noteTemplate: getValue('noteTemplate'),
         components: getValue('components'),
+        imageUrl: rawImageUrl.isNotEmpty ? rawImageUrl : null,
       ));
     }
 
@@ -400,7 +410,8 @@ class ExcelHelper {
       'ĐVT',
       'Mô tả',
       'Mẫu ghi chú',
-      'Hàng thành phần'
+      'Hàng thành phần',
+      'Hình ảnh'
     ];
 
     for (int i = 0; i < headers.length; i++) {
@@ -428,7 +439,8 @@ class ExcelHelper {
         p.unit ?? 'Cái',
         p.description ?? '',
         p.noteTemplate ?? '',
-        p.components ?? ''
+        p.components ?? '',
+        p.imageUrl ?? ''
       ];
 
       for (int col = 0; col < values.length; col++) {

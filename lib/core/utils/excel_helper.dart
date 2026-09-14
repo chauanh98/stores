@@ -1,13 +1,17 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:excel/excel.dart';
+import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:xml/xml.dart';
 
 import '../../domain/entities/customer.dart';
+import '../../domain/entities/order.dart';
 import '../../domain/entities/product.dart';
+
 
 class ExcelHelper {
   // Mapping headers of Customers to index
@@ -111,9 +115,12 @@ class ExcelHelper {
       }
       return value.toString();
     }
-    if (value is DateTime) return value.toIso8601String();
-    if (value is num)
+    if (value is DateTime) {
+      return value.toIso8601String();
+    }
+    if (value is num) {
       return _dateTimeFromSerial(value.toDouble()).toIso8601String();
+    }
     return value.toString();
   }
 
@@ -278,8 +285,11 @@ class ExcelHelper {
         // Default since Excel lacks model
         price: getDoubleValue('price', 0.0),
         costPrice: getDoubleValue('costPrice', 0.0),
-        branchStocks: {'branch_1': getIntValue('stock', 0)},
-        // Excel stock goes to branch_1
+        branchStocks: {
+          'store_001': getIntValue('stock', 0),
+          'store_002': 0,
+        },
+        // Excel default stock goes to canonical store_001 (Chi nhánh Đông Thắng)
         category: rootCategory.isNotEmpty ? rootCategory : 'Khác',
         type: getValue('type'),
         category3Levels: category,
@@ -297,7 +307,7 @@ class ExcelHelper {
   /// Export Customers to Excel file and return path
   static Future<File> exportCustomers(List<Customer> customers) async {
     final excel = Excel.createExcel();
-    final sheetName = 'Danh sách khách hàng';
+    const sheetName = 'Danh sách khách hàng';
     excel.rename(excel.getDefaultSheet()!, sheetName);
     final sheet = excel[sheetName];
 
@@ -393,7 +403,7 @@ class ExcelHelper {
   /// Export Products to Excel file and return path
   static Future<File> exportProducts(List<Product> products) async {
     final excel = Excel.createExcel();
-    final sheetName = 'Danh sách sản phẩm';
+    const sheetName = 'Danh sách sản phẩm';
     excel.rename(excel.getDefaultSheet()!, sheetName);
     final sheet = excel[sheetName];
 
@@ -463,6 +473,252 @@ class ExcelHelper {
     await file.writeAsBytes(bytes!);
     return file;
   }
+
+  /// Export Invoices to Excel byte array
+  static Future<Uint8List> exportInvoices(
+    List<Order> orders, {
+    String? storeName,
+    String? filterDescription,
+    DateTime? exportDate,
+    Map<String, Customer>? customerMap,
+    Map<String, String>? storeNames,
+    String? exportedBy,
+  }) async {
+    final excel = Excel.createExcel();
+    const sheetName = 'Danh sách hóa đơn';
+    final defaultSheet = excel.getDefaultSheet();
+    if (defaultSheet != null) {
+      excel.rename(defaultSheet, sheetName);
+    }
+    final sheet = excel[sheetName];
+
+    final now = exportDate ?? DateTime.now();
+    final dateFmt = DateFormat('dd/MM/yyyy HH:mm');
+    final numFmt = NumberFormat('#,###', 'vi_VN');
+
+    // 1. Calculate Aggregate KPI Totals
+    double totalSubtotal = 0.0;
+    double totalDiscount = 0.0;
+    double totalAmount = 0.0;
+    double totalPaid = 0.0;
+    double totalDebt = 0.0;
+
+    for (final o in orders) {
+      final subtotal = o.items.fold<double>(
+          0.0, (sum, item) => sum + (item.price * item.quantity));
+      final discount = (subtotal - o.total).clamp(0.0, double.infinity);
+      totalSubtotal += subtotal;
+      totalDiscount += discount;
+      totalAmount += o.total;
+      totalPaid += o.amountPaid;
+      totalDebt += o.remainingDebt;
+    }
+
+    int currentRow = 0;
+
+    // 2. Report Header Block
+    // Row 0: Title
+    final titleCell = sheet
+        .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow));
+    titleCell.value = TextCellValue('BÁO CÁO DANH SÁCH HÓA ĐƠN');
+    titleCell.cellStyle = CellStyle(
+      bold: true,
+      horizontalAlign: HorizontalAlign.Center,
+    );
+    currentRow++;
+
+    // Row 1: Store & Export Time
+    final storeLabel =
+        storeName != null && storeName.isNotEmpty ? storeName : 'Tất cả chi nhánh';
+    final metaRow1 = sheet
+        .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow));
+    metaRow1.value = TextCellValue(
+        'Chi nhánh: $storeLabel | Ngày xuất: ${dateFmt.format(now)}${exportedBy != null ? ' | Người xuất: $exportedBy' : ''}');
+    currentRow++;
+
+    // Row 2: Filter Description if any
+    if (filterDescription != null && filterDescription.isNotEmpty) {
+      final metaRow2 = sheet.cell(
+          CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow));
+      metaRow2.value = TextCellValue('Bộ lọc: $filterDescription');
+      currentRow++;
+    }
+
+    // Row 3: KPI Summary
+    final kpiCell = sheet
+        .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow));
+    kpiCell.value = TextCellValue(
+        'Tổng HĐ: ${orders.length} | Tiền hàng: ${numFmt.format(totalSubtotal)} đ | Giảm giá: ${numFmt.format(totalDiscount)} đ | Tổng cộng: ${numFmt.format(totalAmount)} đ | Đã thanh toán: ${numFmt.format(totalPaid)} đ | Còn nợ: ${numFmt.format(totalDebt)} đ');
+    currentRow += 2; // Add blank line before table
+
+    // 3. Table Column Headers
+    final headers = [
+      'STT',
+      'Mã HĐ',
+      'Thời gian',
+      'Mã KH',
+      'Tên khách hàng',
+      'SĐT',
+      'Người bán',
+      'Chi nhánh',
+      'Tiền hàng',
+      'Giảm giá',
+      'Tổng cộng',
+      'Đã thanh toán',
+      'Còn nợ',
+      'Phương thức TT',
+      'Trạng thái'
+    ];
+
+    for (int i = 0; i < headers.length; i++) {
+      final cell = sheet.cell(
+          CellIndex.indexByColumnRow(columnIndex: i, rowIndex: currentRow));
+      cell.value = TextCellValue(headers[i]);
+      cell.cellStyle = CellStyle(
+        bold: true,
+        horizontalAlign: HorizontalAlign.Center,
+      );
+    }
+    currentRow++;
+
+    // 4. Data Rows
+    for (int r = 0; r < orders.length; r++) {
+      final order = orders[r];
+      final customer = customerMap?[order.customerId];
+      final customerName = customer?.name ??
+          (order.customerId == 'khach_le' || order.customerId == 'walk_in'
+              ? 'Khách lẻ'
+              : (order.customerId.isNotEmpty ? order.customerId : 'Khách lẻ'));
+      final customerPhone = customer?.phone ?? '';
+
+      final sellerName = (order.createdByName != null &&
+              order.createdByName!.trim().isNotEmpty)
+          ? order.createdByName!
+          : (order.createdBy ?? '');
+
+      String branchName = '';
+      if (storeNames != null &&
+          order.storeId != null &&
+          storeNames.containsKey(order.storeId)) {
+        branchName = storeNames[order.storeId]!;
+      } else if (order.storeId == 'store_001' || order.storeId == 'branch_1') {
+        branchName = 'Chi nhánh Đông Thắng';
+      } else if (order.storeId == 'store_002' || order.storeId == 'branch_2') {
+        branchName = 'Chi nhánh Thới Bình';
+      } else {
+        branchName = order.storeId ?? storeName ?? '';
+      }
+
+      final subtotal = order.items.fold<double>(
+          0.0, (sum, item) => sum + (item.price * item.quantity));
+      final discount = (subtotal - order.total).clamp(0.0, double.infinity);
+
+      final paymentMethodLabel = order.paymentMethod == 'split'
+          ? 'Kết hợp'
+          : (order.paymentMethod == 'transfer' ? 'Chuyển khoản' : 'Tiền mặt');
+
+      String statusLabel;
+      if (order.isCancelled) {
+        statusLabel = 'Đã hủy';
+      } else if (order.status == 'returned') {
+        statusLabel = 'Đã trả hàng';
+      } else if (order.status == 'draft') {
+        statusLabel = 'Lưu tạm';
+      } else {
+        statusLabel = 'Đã thanh toán';
+      }
+
+      final rowValues = [
+        r + 1, // STT
+        order.id, // Mã HĐ
+        dateFmt.format(order.createdAt), // Thời gian
+        order.customerId, // Mã KH
+        customerName, // Tên KH
+        customerPhone, // SĐT
+        sellerName, // Người bán
+        branchName, // Chi nhánh
+        subtotal, // Tiền hàng
+        discount, // Giảm giá
+        order.total, // Tổng cộng
+        order.amountPaid, // Đã thanh toán
+        order.remainingDebt, // Còn nợ
+        paymentMethodLabel, // Phương thức TT
+        statusLabel, // Trạng thái
+      ];
+
+      for (int col = 0; col < rowValues.length; col++) {
+        final cell = sheet.cell(
+            CellIndex.indexByColumnRow(columnIndex: col, rowIndex: currentRow));
+        final val = rowValues[col];
+        if (val is double) {
+          cell.value = DoubleCellValue(val);
+        } else if (val is int) {
+          cell.value = IntCellValue(val);
+        } else {
+          cell.value = TextCellValue(val.toString());
+        }
+      }
+      currentRow++;
+    }
+
+    // 5. Grand Total Summary Row
+    final totalRowIndex = currentRow;
+    final totalLabelCell = sheet.cell(
+        CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: totalRowIndex));
+    totalLabelCell.value = TextCellValue('TỔNG CỘNG');
+    totalLabelCell.cellStyle = CellStyle(bold: true);
+
+    // Sum columns: 8 (Tiền hàng), 9 (Giảm giá), 10 (Tổng cộng), 11 (Đã thanh toán), 12 (Còn nợ)
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: totalRowIndex))
+      ..value = DoubleCellValue(totalSubtotal)
+      ..cellStyle = CellStyle(bold: true);
+
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: totalRowIndex))
+      ..value = DoubleCellValue(totalDiscount)
+      ..cellStyle = CellStyle(bold: true);
+
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 10, rowIndex: totalRowIndex))
+      ..value = DoubleCellValue(totalAmount)
+      ..cellStyle = CellStyle(bold: true);
+
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 11, rowIndex: totalRowIndex))
+      ..value = DoubleCellValue(totalPaid)
+      ..cellStyle = CellStyle(bold: true);
+
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 12, rowIndex: totalRowIndex))
+      ..value = DoubleCellValue(totalDebt)
+      ..cellStyle = CellStyle(bold: true);
+
+    final encoded = excel.encode();
+    return Uint8List.fromList(encoded ?? []);
+  }
+
+  /// Export Invoices to Excel file on disk for sharing
+  static Future<File> exportInvoicesToFile(
+    List<Order> orders, {
+    String? storeName,
+    String? filterDescription,
+    DateTime? exportDate,
+    Map<String, Customer>? customerMap,
+    Map<String, String>? storeNames,
+    String? exportedBy,
+  }) async {
+    final bytes = await exportInvoices(
+      orders,
+      storeName: storeName,
+      filterDescription: filterDescription,
+      exportDate: exportDate,
+      customerMap: customerMap,
+      storeNames: storeNames,
+      exportedBy: exportedBy,
+    );
+    final dir = await getTemporaryDirectory();
+    final timestamp = DateFormat('yyyyMMdd_HHmmss').format(exportDate ?? DateTime.now());
+    final file = File('${dir.path}/DanhSachHoaDon_$timestamp.xlsx');
+    await file.writeAsBytes(bytes);
+    return file;
+  }
+
 
   static String fixWorksheetXml(String xmlString) {
     try {

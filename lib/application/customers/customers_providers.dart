@@ -6,6 +6,7 @@ import '../../data/repositories/customer_repository_impl.dart';
 import '../../domain/entities/customer.dart';
 import '../../domain/entities/customer_debt_transaction.dart';
 import '../../domain/repositories/customer_repository.dart';
+import '../auth/auth_providers.dart';
 import '../reports/overview_providers.dart';
 import 'customer_list_notifier.dart';
 
@@ -35,6 +36,58 @@ final customerDebtTransactionsProvider =
 
 final customerSearchQueryProvider =
     StateProvider.autoDispose<String>((ref) => '');
+
+enum CustomerDebtFilter { all, inDebt, cleared }
+
+final customerDebtFilterProvider =
+    StateProvider.autoDispose<CustomerDebtFilter>(
+        (ref) => CustomerDebtFilter.all);
+
+final customerDebtCountsProvider =
+    Provider.autoDispose<Map<CustomerDebtFilter, int>>((ref) {
+  final customersAsync = ref.watch(customerListNotifierProvider);
+  final searchQuery = ref.watch(customerSearchQueryProvider);
+  final activeRange = ref.watch(customerActiveDateRangeProvider);
+  final user = ref.watch(authProvider);
+
+  return customersAsync.maybeWhen(
+    data: (customers) {
+      var scoped = customers;
+      if (user != null && user.isStaff) {
+        scoped =
+            scoped.where((c) => _matchesStaffStore(c, user.storeId)).toList();
+      }
+
+      var filtered = _filterCustomers(scoped, searchQuery);
+
+      if (activeRange != null) {
+        filtered = filtered.where((c) {
+          final date = _getCustomerEffectiveDate(c);
+          if (date == null) return false;
+          return !date.isBefore(activeRange.start) &&
+              !date.isAfter(activeRange.end);
+        }).toList();
+      }
+
+      final allCount = filtered.length;
+      final inDebtCount =
+          filtered.where((c) => (c.currentDebt ?? 0) > 0).length;
+      final clearedCount =
+          filtered.where((c) => (c.currentDebt ?? 0) <= 0).length;
+
+      return {
+        CustomerDebtFilter.all: allCount,
+        CustomerDebtFilter.inDebt: inDebtCount,
+        CustomerDebtFilter.cleared: clearedCount,
+      };
+    },
+    orElse: () => {
+      CustomerDebtFilter.all: 0,
+      CustomerDebtFilter.inDebt: 0,
+      CustomerDebtFilter.cleared: 0,
+    },
+  );
+});
 
 DateTime? _parseCustomerDate(String? dateStr) {
   if (dateStr == null || dateStr.isEmpty) return null;
@@ -95,14 +148,77 @@ List<Customer> _filterCustomers(List<Customer> customers, String query) {
   }).toList();
 }
 
+bool _matchesStaffStore(Customer c, String userStoreId) {
+  final userStore = userStoreId.trim().toLowerCase();
+  final custBranch = (c.branch ?? '').trim().toLowerCase();
+
+  // If customer has no branch specified, fallback default is store_001 / Chi nhánh Đông Thắng
+  if (custBranch.isEmpty) {
+    return userStore == 'store_001' ||
+        userStore.isEmpty ||
+        userStore == 'branch_1' ||
+        userStore == 'đt' ||
+        userStore == 'dt' ||
+        userStore.contains('đông thắng') ||
+        userStore.contains('dong thang');
+  }
+
+  // Exact ID match
+  if (custBranch == userStore) return true;
+
+  // Known branch alias matches: store_001 / Chi nhánh Đông Thắng (ĐT)
+  if (userStore == 'store_001' ||
+      userStore == 'branch_1' ||
+      userStore == 'đt' ||
+      userStore == 'dt' ||
+      userStore.contains('đông thắng') ||
+      userStore.contains('dong thang')) {
+    if (custBranch == 'store_001' ||
+        custBranch == 'branch_1' ||
+        custBranch == 'đt' ||
+        custBranch == 'dt' ||
+        custBranch.contains('đông thắng') ||
+        custBranch.contains('dong thang')) {
+      return true;
+    }
+  } else if (userStore == 'store_002' ||
+      userStore == 'branch_2' ||
+      userStore == 'tb' ||
+      userStore.contains('thới bình') ||
+      userStore.contains('thoi binh') ||
+      userStore.contains('thời bình')) {
+    if (custBranch == 'store_002' ||
+        custBranch == 'branch_2' ||
+        custBranch == 'tb' ||
+        custBranch.contains('thới bình') ||
+        custBranch.contains('thoi binh') ||
+        custBranch.contains('thời bình')) {
+      return true;
+    }
+  } else {
+    // Generic match on custom storeId
+    if (custBranch.contains(userStore)) return true;
+  }
+
+  return false;
+}
+
 final processedCustomersProvider =
     Provider.autoDispose<AsyncValue<List<dynamic>>>((ref) {
   final customersAsync = ref.watch(customerListNotifierProvider);
   final searchQuery = ref.watch(customerSearchQueryProvider);
   final activeRange = ref.watch(customerActiveDateRangeProvider);
+  final debtFilter = ref.watch(customerDebtFilterProvider);
+  final user = ref.watch(authProvider);
 
   return customersAsync.whenData((customers) {
-    var filtered = _filterCustomers(customers, searchQuery);
+    var scoped = customers;
+    if (user != null && user.isStaff) {
+      scoped =
+          scoped.where((c) => _matchesStaffStore(c, user.storeId)).toList();
+    }
+
+    var filtered = _filterCustomers(scoped, searchQuery);
 
     if (activeRange != null) {
       filtered = filtered.where((c) {
@@ -113,30 +229,68 @@ final processedCustomersProvider =
       }).toList();
     }
 
-    final sorted = List<Customer>.from(filtered)
-      ..sort((a, b) {
-        final ad = _getCustomerEffectiveDate(a);
-        final bd = _getCustomerEffectiveDate(b);
-        if (ad == null && bd == null) return 0;
-        if (ad == null) return 1;
-        if (bd == null) return -1;
-        return bd.compareTo(ad);
-      });
+    switch (debtFilter) {
+      case CustomerDebtFilter.all:
+        final sorted = List<Customer>.from(filtered)
+          ..sort((a, b) {
+            final ad = _getCustomerEffectiveDate(a);
+            final bd = _getCustomerEffectiveDate(b);
+            if (ad == null && bd == null) return 0;
+            if (ad == null) return 1;
+            if (bd == null) return -1;
+            return bd.compareTo(ad);
+          });
 
-    final grouped = <String, List<Customer>>{};
-    for (final customer in sorted) {
-      final dateKey = _formatCustomerDate(
-          customer.createdAt ?? customer.lastTransactionDate);
-      grouped.putIfAbsent(dateKey, () => []).add(customer);
+        final grouped = <String, List<Customer>>{};
+        for (final customer in sorted) {
+          final dateKey = _formatCustomerDate(
+              customer.createdAt ?? customer.lastTransactionDate);
+          grouped.putIfAbsent(dateKey, () => []).add(customer);
+        }
+
+        final listItems = <dynamic>[];
+        for (final entry in grouped.entries) {
+          listItems.add(entry.key);
+          listItems.addAll(entry.value);
+        }
+
+        return listItems;
+
+      case CustomerDebtFilter.inDebt:
+        final inDebtList =
+            filtered.where((c) => (c.currentDebt ?? 0) > 0).toList()
+              ..sort((a, b) =>
+                  b.displayCurrentDebt.compareTo(a.displayCurrentDebt));
+        return inDebtList;
+
+      case CustomerDebtFilter.cleared:
+        final clearedList =
+            filtered.where((c) => (c.currentDebt ?? 0) <= 0).toList();
+        final sorted = List<Customer>.from(clearedList)
+          ..sort((a, b) {
+            final ad = _getCustomerEffectiveDate(a);
+            final bd = _getCustomerEffectiveDate(b);
+            if (ad == null && bd == null) return 0;
+            if (ad == null) return 1;
+            if (bd == null) return -1;
+            return bd.compareTo(ad);
+          });
+
+        final grouped = <String, List<Customer>>{};
+        for (final customer in sorted) {
+          final dateKey = _formatCustomerDate(
+              customer.createdAt ?? customer.lastTransactionDate);
+          grouped.putIfAbsent(dateKey, () => []).add(customer);
+        }
+
+        final listItems = <dynamic>[];
+        for (final entry in grouped.entries) {
+          listItems.add(entry.key);
+          listItems.addAll(entry.value);
+        }
+
+        return listItems;
     }
-
-    final listItems = <dynamic>[];
-    for (final entry in grouped.entries) {
-      listItems.add(entry.key);
-      listItems.addAll(entry.value);
-    }
-
-    return listItems;
   });
 });
 

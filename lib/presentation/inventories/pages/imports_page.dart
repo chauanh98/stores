@@ -249,8 +249,24 @@ class _ImportListTile extends StatelessWidget {
           product.name.isEmpty ? '#${tx.id.substring(0, 6)}' : product.name,
           style: theme.textTheme.titleMedium
               ?.copyWith(fontWeight: FontWeight.w600)),
-      subtitle: Text(
-          '${_fmt(tx.date)} • SL: ${tx.quantity} • NV: ${tx.createdByName ?? tx.createdBy ?? '—'}'),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+              '${_fmt(tx.date)} • SL: ${tx.quantity} • NV: ${tx.createdByName ?? tx.createdBy ?? '—'}'),
+          if (tx.supplierName != null && tx.supplierName!.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                'NCC: ${tx.supplierName}${tx.supplierId != null && tx.supplierId!.isNotEmpty ? ' (${tx.supplierId})' : ''}',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+        ],
+      ),
       trailing: const Icon(Icons.chevron_right),
       onTap: () {
         Navigator.of(context).push(

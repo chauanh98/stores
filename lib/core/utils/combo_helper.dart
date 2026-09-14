@@ -11,7 +11,7 @@ class ComboHelper {
     required List<Product> allProducts,
   }) {
     if (!product.isCombo || product.comboComponents.isEmpty) {
-      return product.branchStocks[branchId] ?? 0;
+      return product.stockInBranch(branchId);
     }
 
     int maxCombos = 9999999;
@@ -26,8 +26,8 @@ class ComboHelper {
       }
       if (comp.quantity <= 0) continue;
 
-      // Tồn kho linh kiện tại chi nhánh
-      final childStock = child.branchStocks[branchId] ?? 0;
+      // Tồn kho linh kiện tại chi nhánh (sử dụng dynamic resolver)
+      final childStock = child.stockInBranch(branchId);
       final possible = childStock ~/ comp.quantity;
 
       if (possible < maxCombos) {
@@ -42,7 +42,7 @@ class ComboHelper {
   static int getTotalAvailableStock({
     required Product product,
     required List<Product> allProducts,
-    List<String> branchIds = const ['branch_1', 'branch_2'],
+    List<String> branchIds = const ['store_001', 'store_002'],
   }) {
     if (!product.isCombo) {
       return product.stock;

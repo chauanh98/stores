@@ -6,18 +6,31 @@ import '../auth/auth_providers.dart';
 
 final storePaymentConfigDataSourceProvider =
     Provider<StorePaymentConfigRemoteDataSource>((ref) {
-  return StorePaymentConfigRemoteDataSource(FirebaseDatabase.instance);
+  try {
+    return StorePaymentConfigRemoteDataSource(FirebaseDatabase.instance);
+  } catch (_) {
+    return StorePaymentConfigRemoteDataSource();
+  }
 });
 
 final storePaymentConfigStreamProvider =
     StreamProvider<StorePaymentConfig>((ref) {
-  final storeId = ref.watch(currentStoreIdProvider);
-  final ds = ref.watch(storePaymentConfigDataSourceProvider);
-  return ds.watchConfig(storeId);
+  try {
+    final storeId = ref.watch(currentStoreIdProvider);
+    final ds = ref.watch(storePaymentConfigDataSourceProvider);
+    return ds.watchConfig(storeId);
+  } catch (_) {
+    return const Stream.empty();
+  }
 });
 
 final storePaymentConfigProvider = Provider<StorePaymentConfig>((ref) {
-  final asyncVal = ref.watch(storePaymentConfigStreamProvider);
-  final storeId = ref.watch(currentStoreIdProvider);
-  return asyncVal.value ?? StorePaymentConfig(storeId: storeId);
+  try {
+    final asyncVal = ref.watch(storePaymentConfigStreamProvider);
+    final storeId = ref.watch(currentStoreIdProvider);
+    return asyncVal.value ?? StorePaymentConfig(storeId: storeId);
+  } catch (_) {
+    final storeId = ref.watch(currentStoreIdProvider);
+    return StorePaymentConfig(storeId: storeId);
+  }
 });

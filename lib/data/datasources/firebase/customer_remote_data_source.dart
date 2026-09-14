@@ -9,22 +9,6 @@ class CustomerRemoteDataSource {
 
   DatabaseReference get _ref => _db.ref('shared_customers');
 
-  List<Map> _parseSnapshot(dynamic value) {
-    if (value == null) return [];
-    if (value is List) {
-      return value
-          .where((e) => e != null)
-          .map<Map>((e) => Map.from(e as Map))
-          .toList();
-    }
-    if (value is Map) {
-      return value.values
-          .where((e) => e != null)
-          .map<Map>((e) => Map.from(e as Map))
-          .toList();
-    }
-    return [];
-  }
 
   /// Optimized: bỏ _ref.get() vì onChildAdded đã fire cho mọi child hiện tại
   /// Tránh download data 2 lần khi khởi tạo

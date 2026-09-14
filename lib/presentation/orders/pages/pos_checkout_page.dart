@@ -14,11 +14,13 @@ import '../../../application/orders/cart_providers.dart';
 import '../../../application/orders/orders_providers.dart';
 import '../../../application/products/products_providers.dart';
 import '../../../application/reports/overview_providers.dart';
-import '../../../core/utils/combo_helper.dart';
-import '../../../core/utils/currency_input_formatter.dart';
 import '../../../application/settings/store_payment_config_providers.dart';
 import '../../../core/utils/code_generator_helper.dart';
+import '../../../core/utils/combo_helper.dart';
+import '../../../core/utils/currency_input_formatter.dart';
 import '../../../core/utils/invoice_print_helper.dart';
+import '../../../core/utils/smart_cash_helper.dart';
+import '../../../core/utils/vietqr_helper.dart';
 import '../../../domain/entities/customer.dart';
 import '../../../domain/entities/customer_debt_transaction.dart';
 import '../../../domain/entities/inventory_transaction.dart';
@@ -26,6 +28,7 @@ import '../../../domain/entities/order.dart';
 import '../../../domain/entities/order_item.dart';
 import '../../../domain/entities/product.dart';
 import '../../../domain/entities/purchase.dart';
+import '../../../domain/entities/store_payment_config.dart';
 import '../../../domain/entities/transaction_type.dart';
 import '../../../domain/entities/warranty.dart';
 
@@ -33,12 +36,14 @@ class POSCheckoutPage extends ConsumerStatefulWidget {
   final Customer? initialCustomer;
   final double initialDiscount;
   final bool isDiscountPercent;
+  final String? initialNote;
 
   const POSCheckoutPage({
     super.key,
     this.initialCustomer,
     this.initialDiscount = 0.0,
     this.isDiscountPercent = false,
+    this.initialNote,
   });
 
   @override
@@ -51,11 +56,16 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
 
   final _discountController = TextEditingController(text: '0');
   final _paymentController = TextEditingController();
+  final _cashPaymentController = TextEditingController();
+  final _transferPaymentController = TextEditingController();
+  final _noteController = TextEditingController();
 
   double _discount = 0.0;
   bool _isDiscountPercent = false; // Chọn giảm giá theo % hoặc đ
   double _customerPayment = 0.0;
-  String _paymentMethod = 'cash'; // 'cash' hoặc 'transfer'
+  double _splitCashAmount = 0.0;
+  double _splitTransferAmount = 0.0;
+  String _paymentMethod = 'cash'; // 'cash', 'transfer', hoặc 'split'
 
   bool _isSaving = false;
 
@@ -66,12 +76,18 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
     _discount = widget.initialDiscount;
     _isDiscountPercent = widget.isDiscountPercent;
     _discountController.text = _discount.toStringAsFixed(0);
+    if (widget.initialNote != null && widget.initialNote!.isNotEmpty) {
+      _noteController.text = widget.initialNote!;
+    }
   }
 
   @override
   void dispose() {
     _discountController.dispose();
     _paymentController.dispose();
+    _cashPaymentController.dispose();
+    _transferPaymentController.dispose();
+    _noteController.dispose();
     super.dispose();
   }
 
@@ -79,13 +95,23 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
   Widget build(BuildContext context) {
     final cart = ref.watch(cartProvider);
     final totalAmount = ref.watch(cartTotalAmountProvider);
+    final paymentConfig = ref.watch(storePaymentConfigProvider);
     final l10n = AppLocalizations.of(context)!;
 
     final discountAmount =
         _isDiscountPercent ? (totalAmount * _discount / 100) : _discount;
     final netPay = (totalAmount - discountAmount).clamp(0.0, double.infinity);
-    final returnChange =
-        (_customerPayment - netPay).clamp(0.0, double.infinity);
+
+    final double actualPaid;
+    final double returnChange;
+    if (_paymentMethod == 'split') {
+      actualPaid = _splitCashAmount + _splitTransferAmount;
+      returnChange = (actualPaid - netPay).clamp(0.0, double.infinity);
+    } else {
+      actualPaid = _customerPayment;
+      returnChange =
+          (_customerPayment - netPay).clamp(0.0, double.infinity);
+    }
 
     final currencyFormat = NumberFormat('#,###', 'vi_VN');
 
@@ -111,9 +137,13 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                   _buildOrderItemsCard(context, cart, currencyFormat),
                   const SizedBox(height: 12),
 
-                  // 3. Thông tin thanh toán (Tiền hàng, giảm giá, khách đưa)
+                  // 3. Ghi chú đơn hàng
+                  _buildOrderNoteCard(context),
+                  const SizedBox(height: 12),
+
+                  // 4. Thông tin thanh toán (Tiền hàng, giảm giá, khách đưa)
                   _buildPaymentDetailsCard(context, totalAmount, netPay,
-                      returnChange, currencyFormat),
+                      returnChange, paymentConfig, currencyFormat),
                   const SizedBox(height: 24),
                 ],
               ),
@@ -195,7 +225,26 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                             '${_selectedCustomer!.phone} • ${_selectedCustomer!.address}',
                             style: const TextStyle(
                                 color: Colors.black54, fontSize: 12),
-                          )
+                          ),
+                          if (_selectedCustomer!.displayCurrentDebt > 0) ...[
+                            const SizedBox(height: 4),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppColors.dangerLight,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                'Nợ hiện tại: ${NumberFormat('#,###', 'vi_VN').format(_selectedCustomer!.displayCurrentDebt)}đ',
+                                style: const TextStyle(
+                                  color: AppColors.danger,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
               )
@@ -279,10 +328,7 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              '${l10n.quantity}: ${item.quantity} x ${format.format(item.price)} đ' +
-                                  (item.customPrice != null
-                                      ? ' (Gốc: ${format.format(item.product.price)}đ)'
-                                      : ''),
+                              '${l10n.quantity}: ${item.quantity} x ${format.format(item.price)} đ${item.customPrice != null ? ' (Gốc: ${format.format(item.product.price)}đ)' : ''}',
                               style: const TextStyle(
                                   color: Colors.black54, fontSize: 11),
                             ),
@@ -360,16 +406,8 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
     );
   }
 
-  // 3. Card thông tin thanh toán chi tiết
-  Widget _buildPaymentDetailsCard(
-    BuildContext context,
-    double totalAmount,
-    double netPay,
-    double returnChange,
-    NumberFormat format,
-  ) {
-    final user = ref.watch(authProvider);
-    final l10n = AppLocalizations.of(context)!;
+  // 3. Card Ghi chú đơn hàng
+  Widget _buildOrderNoteCard(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -378,6 +416,73 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
       ),
       padding: const EdgeInsets.all(16),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.notes, size: 18, color: Colors.black87),
+              SizedBox(width: 8),
+              Text(
+                'Ghi chú đơn hàng',
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: Colors.black87),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _noteController,
+            maxLines: 2,
+            decoration: InputDecoration(
+              hintText: 'Nhập ghi chú cho đơn hàng (nếu có)...',
+              hintStyle: const TextStyle(fontSize: 13, color: Colors.black38),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: AppColors.border),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: AppColors.border),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: AppColors.primary),
+              ),
+              filled: true,
+              fillColor: AppColors.background,
+            ),
+            style: const TextStyle(fontSize: 13),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 4. Card thông tin thanh toán chi tiết
+  Widget _buildPaymentDetailsCard(
+    BuildContext context,
+    double totalAmount,
+    double netPay,
+    double returnChange,
+    StorePaymentConfig paymentConfig,
+    NumberFormat format,
+  ) {
+    final user = ref.watch(authProvider);
+    final l10n = AppLocalizations.of(context)!;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.border),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildSummaryDetailRow(l10n.totalProductAmount,
               '${format.format(totalAmount)} đ', false),
@@ -444,133 +549,9 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
           _buildSummaryDetailRow(
               l10n.amountToPay, '${format.format(netPay)} đ', true,
               color: AppColors.primary),
-          const SizedBox(height: 12),
-          // Dòng nhập tiền khách đưa
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(l10n.amountPaid,
-                  style: const TextStyle(color: Colors.black54, fontSize: 13)),
-              Row(
-                children: [
-                  SizedBox(
-                    width: 150,
-                    height: 42,
-                    child: TextField(
-                      controller: _paymentController,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                        CurrencyInputFormatter(),
-                      ],
-                      decoration: InputDecoration(
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 8),
-                        border: const OutlineInputBorder(),
-                        hintText: format.format(netPay),
-                        suffixIcon: _paymentController.text.isNotEmpty
-                            ? IconButton(
-                                icon: const Icon(Icons.clear, size: 16),
-                                onPressed: () {
-                                  _paymentController.clear();
-                                  setState(() {
-                                    _customerPayment = 0.0;
-                                  });
-                                },
-                              )
-                            : null,
-                      ),
-                      textAlign: TextAlign.right,
-                      style: const TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.bold),
-                      onTap: () {
-                        if (_paymentController.text.isNotEmpty) {
-                          _paymentController.selection = TextSelection(
-                            baseOffset: 0,
-                            extentOffset: _paymentController.text.length,
-                          );
-                        }
-                      },
-                      onChanged: (v) {
-                        final raw = v.replaceAll('.', '').replaceAll(',', '');
-                        setState(() {
-                          _customerPayment = double.tryParse(raw) ?? 0.0;
-                        });
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          // Nút bấm nhanh [Trả đủ] và [Xóa]
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              InkWell(
-                onTap: () {
-                  final text = format.format(netPay);
-                  _paymentController.text = text;
-                  _paymentController.selection =
-                      TextSelection.collapsed(offset: text.length);
-                  setState(() {
-                    _customerPayment = netPay;
-                  });
-                },
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(4),
-                    border:
-                        Border.all(color: AppColors.primary.withOpacity(0.3)),
-                  ),
-                  child: const Text(
-                    'Trả đủ',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              InkWell(
-                onTap: () {
-                  _paymentController.clear();
-                  setState(() {
-                    _customerPayment = 0.0;
-                  });
-                },
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: const Text(
-                    'Xóa',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          _buildSummaryDetailRow(
-              l10n.changeDue, '${format.format(returnChange)} đ', false,
-              color: Colors.green),
-          const SizedBox(height: 12),
-          // Phương thức thanh toán
+          const SizedBox(height: 14),
+
+          // Phương thức thanh toán selector
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -587,6 +568,22 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                     if (v != null) {
                       setState(() {
                         _paymentMethod = v;
+                        if (v == 'split') {
+                          if (_splitCashAmount == 0 &&
+                              _splitTransferAmount == 0) {
+                            _splitCashAmount = 0.0;
+                            _splitTransferAmount = netPay;
+                            _cashPaymentController.text = '0';
+                            _transferPaymentController.text =
+                                format.format(netPay);
+                          }
+                        } else if (v == 'cash') {
+                          _customerPayment = netPay;
+                          _paymentController.text = format.format(netPay);
+                        } else if (v == 'transfer') {
+                          _customerPayment = netPay;
+                          _paymentController.text = format.format(netPay);
+                        }
                       });
                     }
                   },
@@ -594,11 +591,536 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                     DropdownMenuItem(value: 'cash', child: Text(l10n.cash)),
                     DropdownMenuItem(
                         value: 'transfer', child: Text(l10n.transfer)),
+                    const DropdownMenuItem(
+                        value: 'split', child: Text('Kết hợp (TM + CK)')),
                   ],
                 ),
               )
             ],
-          )
+          ),
+          const SizedBox(height: 12),
+
+          // Nhập tiền tương ứng từng phương thức
+          if (_paymentMethod == 'split') ...[
+            // 1. Tiền mặt trong Split mode
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Tiền mặt đưa',
+                    style: TextStyle(color: Colors.black54, fontSize: 13)),
+                SizedBox(
+                  width: 150,
+                  height: 40,
+                  child: TextField(
+                    controller: _cashPaymentController,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      CurrencyInputFormatter(),
+                    ],
+                    decoration: const InputDecoration(
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                      border: OutlineInputBorder(),
+                      hintText: '0',
+                    ),
+                    textAlign: TextAlign.right,
+                    style: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.bold),
+                    onTap: () {
+                      if (_cashPaymentController.text.isNotEmpty) {
+                        _cashPaymentController.selection = TextSelection(
+                          baseOffset: 0,
+                          extentOffset: _cashPaymentController.text.length,
+                        );
+                      }
+                    },
+                    onChanged: (v) {
+                      final raw = v.replaceAll('.', '').replaceAll(',', '');
+                      final cash = double.tryParse(raw) ?? 0.0;
+                      final transfer =
+                          (netPay - cash).clamp(0.0, double.infinity);
+                      setState(() {
+                        _splitCashAmount = cash;
+                        _splitTransferAmount = transfer;
+                        _transferPaymentController.text =
+                            format.format(transfer);
+                      });
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+
+            // 2. Chuyển khoản trong Split mode
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Chuyển khoản (VietQR)',
+                    style: TextStyle(color: Colors.black54, fontSize: 13)),
+                SizedBox(
+                  width: 150,
+                  height: 40,
+                  child: TextField(
+                    controller: _transferPaymentController,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      CurrencyInputFormatter(),
+                    ],
+                    decoration: const InputDecoration(
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                      border: OutlineInputBorder(),
+                      hintText: '0',
+                    ),
+                    textAlign: TextAlign.right,
+                    style: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.bold),
+                    onTap: () {
+                      if (_transferPaymentController.text.isNotEmpty) {
+                        _transferPaymentController.selection = TextSelection(
+                          baseOffset: 0,
+                          extentOffset:
+                              _transferPaymentController.text.length,
+                        );
+                      }
+                    },
+                    onChanged: (v) {
+                      final raw = v.replaceAll('.', '').replaceAll(',', '');
+                      final transfer = double.tryParse(raw) ?? 0.0;
+                      final cash =
+                          (netPay - transfer).clamp(0.0, double.infinity);
+                      setState(() {
+                        _splitTransferAmount = transfer;
+                        _splitCashAmount = cash;
+                        _cashPaymentController.text = format.format(cash);
+                      });
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+
+            // Nút thao tác nhanh split
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                InkWell(
+                  onTap: () {
+                    setState(() {
+                      _splitCashAmount = 0.0;
+                      _splitTransferAmount = netPay;
+                      _cashPaymentController.text = '0';
+                      _transferPaymentController.text = format.format(netPay);
+                    });
+                  },
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(
+                          color: AppColors.primary.withOpacity(0.3)),
+                    ),
+                    child: const Text(
+                      'CK toàn bộ',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                InkWell(
+                  onTap: () {
+                    setState(() {
+                      _splitCashAmount = netPay;
+                      _splitTransferAmount = 0.0;
+                      _cashPaymentController.text = format.format(netPay);
+                      _transferPaymentController.text = '0';
+                    });
+                  },
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(4),
+                      border:
+                          Border.all(color: Colors.green.withOpacity(0.3)),
+                    ),
+                    child: const Text(
+                      'TM toàn bộ',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                InkWell(
+                  onTap: () {
+                    _cashPaymentController.clear();
+                    _transferPaymentController.clear();
+                    setState(() {
+                      _splitCashAmount = 0.0;
+                      _splitTransferAmount = 0.0;
+                    });
+                  },
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: const Text(
+                      'Xóa',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ] else ...[
+            // Cash hoặc Transfer thông thường
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  _paymentMethod == 'transfer'
+                      ? 'Số tiền CK'
+                      : l10n.amountPaid,
+                  style: const TextStyle(color: Colors.black54, fontSize: 13),
+                ),
+                SizedBox(
+                  width: 150,
+                  height: 42,
+                  child: TextField(
+                    controller: _paymentController,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      CurrencyInputFormatter(),
+                    ],
+                    decoration: InputDecoration(
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 8),
+                      border: const OutlineInputBorder(),
+                      hintText: format.format(netPay),
+                      suffixIcon: _paymentController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, size: 16),
+                              onPressed: () {
+                                _paymentController.clear();
+                                setState(() {
+                                  _customerPayment = 0.0;
+                                });
+                              },
+                            )
+                          : null,
+                    ),
+                    textAlign: TextAlign.right,
+                    style: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.bold),
+                    onTap: () {
+                      if (_paymentController.text.isNotEmpty) {
+                        _paymentController.selection = TextSelection(
+                          baseOffset: 0,
+                          extentOffset: _paymentController.text.length,
+                        );
+                      }
+                    },
+                    onChanged: (v) {
+                      final raw = v.replaceAll('.', '').replaceAll(',', '');
+                      setState(() {
+                        _customerPayment = double.tryParse(raw) ?? 0.0;
+                      });
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+
+            // Nút bấm nhanh [Trả đủ] và [Xóa]
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                InkWell(
+                  onTap: () {
+                    final text = format.format(netPay);
+                    _paymentController.text = text;
+                    _paymentController.selection =
+                        TextSelection.collapsed(offset: text.length);
+                    setState(() {
+                      _customerPayment = netPay;
+                    });
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(
+                          color: AppColors.primary.withOpacity(0.3)),
+                    ),
+                    child: const Text(
+                      'Trả đủ',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                InkWell(
+                  onTap: () {
+                    _paymentController.clear();
+                    setState(() {
+                      _customerPayment = 0.0;
+                    });
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: const Text(
+                      'Xóa',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+
+          // Gợi ý mệnh giá tiền mặt thông minh (Quick Cash Chips)
+          _buildQuickCashChips(netPay, format),
+          const SizedBox(height: 12),
+
+          _buildSummaryDetailRow(
+              l10n.changeDue, '${format.format(returnChange)} đ', false,
+              color: Colors.green),
+
+          // Hiển thị VietQR preview khi chuyển khoản hoặc thanh toán kết hợp
+          if (_paymentMethod == 'transfer') ...[
+            _buildVietQRSection(
+              netPay,
+              'HD_POS',
+              paymentConfig,
+              format,
+            ),
+          ] else if (_paymentMethod == 'split' && _splitTransferAmount > 0) ...[
+            _buildVietQRSection(
+              _splitTransferAmount,
+              'HD_POS',
+              paymentConfig,
+              format,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickCashChips(double netPay, NumberFormat format) {
+    final suggestions =
+        SmartCashHelper.generateSmartCashSuggestions(netPay);
+    if (suggestions.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 10),
+        const Text(
+          'Gợi ý tiền mặt thông minh:',
+          style: TextStyle(
+              fontSize: 12,
+              color: Colors.black54,
+              fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 6),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: suggestions.map((suggestedAmount) {
+              final isExact = (suggestedAmount - netPay).abs() < 1;
+              final label = isExact
+                  ? '${format.format(suggestedAmount)} đ (Trả đủ)'
+                  : '${format.format(suggestedAmount)} đ';
+
+              return Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: ActionChip(
+                  backgroundColor: isExact
+                      ? AppColors.primary.withOpacity(0.12)
+                      : Colors.grey.withOpacity(0.08),
+                  side: BorderSide(
+                    color: isExact ? AppColors.primary : AppColors.border,
+                  ),
+                  label: Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: isExact ? FontWeight.bold : FontWeight.w600,
+                      color: isExact ? AppColors.primary : Colors.black87,
+                    ),
+                  ),
+                  onPressed: () {
+                    if (_paymentMethod == 'split') {
+                      final cash = suggestedAmount.clamp(0.0, netPay);
+                      final transfer =
+                          (netPay - cash).clamp(0.0, netPay);
+                      setState(() {
+                        _splitCashAmount = cash;
+                        _splitTransferAmount = transfer;
+                        _cashPaymentController.text = format.format(cash);
+                        _transferPaymentController.text =
+                            format.format(transfer);
+                      });
+                    } else {
+                      final text = format.format(suggestedAmount);
+                      _paymentController.text = text;
+                      _paymentController.selection =
+                          TextSelection.collapsed(offset: text.length);
+                      setState(() {
+                        _customerPayment = suggestedAmount;
+                      });
+                    }
+                  },
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildVietQRSection(
+    double amount,
+    String orderCode,
+    StorePaymentConfig config,
+    NumberFormat format,
+  ) {
+    if (config.accountNo.isEmpty || config.bankId.isEmpty || amount <= 0) {
+      return const SizedBox.shrink();
+    }
+
+    final qrUrl = VietQRHelper.buildVietQRImageUrl(
+      bankId: config.bankId,
+      accountNo: config.accountNo,
+      accountName: config.accountName,
+      amount: amount,
+      addInfo: orderCode,
+    );
+
+    return Container(
+      margin: const EdgeInsets.only(top: 14),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.blue.withOpacity(0.04),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.blue.withOpacity(0.2)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.qr_code_2,
+                      color: AppColors.primary, size: 20),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Mã VietQR (${format.format(amount)} đ)',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text(
+                  'Tự động khớp',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Center(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.network(
+                qrUrl,
+                height: 170,
+                errorBuilder: (_, __, ___) => Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.black12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    'Không thể nạp ảnh VietQR',
+                    style: TextStyle(fontSize: 12, color: Colors.black54),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            VietQRHelper.formatBankTransferInfo(
+              bankName: config.bankName,
+              accountNo: config.accountNo,
+              accountName: config.accountName,
+            ),
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 12,
+              color: Colors.black87,
+            ),
+          ),
         ],
       ),
     );
@@ -684,6 +1206,7 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
     final l10n = AppLocalizations.of(context)!;
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.only(
@@ -692,78 +1215,132 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
         ),
       ),
       builder: (context) {
-        return Consumer(
-          builder: (context, ref, child) {
-            final customersAsync = ref.watch(customerListNotifierProvider);
-            return Container(
-              padding: const EdgeInsets.only(
-                  top: 16, bottom: 24, left: 16, right: 16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        String searchQuery = '';
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Consumer(
+              builder: (context, ref, child) {
+                final customersAsync = ref.watch(customerListNotifierProvider);
+                return Container(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.8,
+                  ),
+                  padding: EdgeInsets.only(
+                    top: 16,
+                    bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+                    left: 16,
+                    right: 16,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        l10n.selectCustomer,
-                        style: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            l10n.selectCustomer,
+                            style: const TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.add_circle_outline,
+                                color: AppColors.primary, size: 28),
+                            onPressed: () {
+                              Navigator.pop(context);
+                              _showAddCustomerDialog(context);
+                            },
+                          )
+                        ],
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.add_circle_outline,
-                            color: AppColors.primary, size: 28),
-                        onPressed: () {
-                          Navigator.pop(context);
-                          _showAddCustomerDialog(context);
+                      const SizedBox(height: 8),
+                      TextField(
+                        decoration: InputDecoration(
+                          hintText: l10n.searchCustomersHint,
+                          prefixIcon: const Icon(Icons.search, size: 20),
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide:
+                                const BorderSide(color: AppColors.border),
+                          ),
+                        ),
+                        onChanged: (v) {
+                          setModalState(() {
+                            searchQuery = v.trim().toLowerCase();
+                          });
                         },
+                      ),
+                      const SizedBox(height: 8),
+                      const Divider(color: AppColors.divider),
+                      customersAsync.when(
+                        data: (customers) {
+                          final filteredCustomers = searchQuery.isEmpty
+                              ? customers
+                              : customers.where((c) =>
+                                  c.name.toLowerCase().contains(searchQuery) ||
+                                  c.phone.toLowerCase().contains(searchQuery) ||
+                                  c.address.toLowerCase().contains(searchQuery)).toList();
+
+                          return Flexible(
+                            child: ListView.builder(
+                              shrinkWrap: true,
+                              itemCount: filteredCustomers.length +
+                                  (searchQuery.isEmpty ? 1 : 0),
+                              itemBuilder: (context, idx) {
+                                if (searchQuery.isEmpty && idx == 0) {
+                                  return ListTile(
+                                    title: Text(l10n.retailCustomer,
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold)),
+                                    onTap: () {
+                                      setState(() {
+                                        _selectedCustomer = null;
+                                      });
+                                      Navigator.pop(context);
+                                    },
+                                  );
+                                }
+                                final customer = searchQuery.isEmpty
+                                    ? filteredCustomers[idx - 1]
+                                    : filteredCustomers[idx];
+                                return ListTile(
+                                  title: Text(customer.name,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold)),
+                                  subtitle: Text(
+                                      '${customer.phone} • ${customer.address}'),
+                                  trailing: (customer.displayCurrentDebt > 0)
+                                      ? Text(
+                                          'Nợ: ${NumberFormat('#,###', 'vi_VN').format(customer.displayCurrentDebt)}đ',
+                                          style: const TextStyle(
+                                            color: AppColors.danger,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        )
+                                      : null,
+                                  onTap: () {
+                                    setState(() {
+                                      _selectedCustomer = customer;
+                                    });
+                                    Navigator.pop(context);
+                                  },
+                                );
+                              },
+                            ),
+                          );
+                        },
+                        loading: () =>
+                            const Center(child: LoadingIndicator()),
+                        error: (e, _) =>
+                            Center(child: Text('${l10n.notFound}: $e')),
                       )
                     ],
                   ),
-                  const Divider(color: AppColors.divider),
-                  customersAsync.when(
-                    data: (customers) {
-                      return Flexible(
-                        child: ListView.builder(
-                          shrinkWrap: true,
-                          itemCount: customers.length + 1,
-                          itemBuilder: (context, idx) {
-                            if (idx == 0) {
-                              return ListTile(
-                                title: Text(l10n.retailCustomer,
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.bold)),
-                                onTap: () {
-                                  setState(() {
-                                    _selectedCustomer = null;
-                                  });
-                                  Navigator.pop(context);
-                                },
-                              );
-                            }
-                            final customer = customers[idx - 1];
-                            return ListTile(
-                              title: Text(customer.name,
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.bold)),
-                              subtitle: Text(
-                                  '${customer.phone} • ${customer.address}'),
-                              onTap: () {
-                                setState(() {
-                                  _selectedCustomer = customer;
-                                });
-                                Navigator.pop(context);
-                              },
-                            );
-                          },
-                        ),
-                      );
-                    },
-                    loading: () => const Center(child: LoadingIndicator()),
-                    error: (e, _) =>
-                        Center(child: Text('${l10n.notFound}: $e')),
-                  )
-                ],
-              ),
+                );
+              },
             );
           },
         );
@@ -840,6 +1417,8 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
             FilledButton(
               onPressed: () async {
                 if (formKey.currentState!.validate()) {
+                  final nav = Navigator.of(dialogContext);
+                  final scaffoldMessenger = ScaffoldMessenger.of(context);
                   final currentUser = ref.read(authProvider);
                   final activeBranchName =
                       await ref.read(currentStoreNameProvider.future);
@@ -863,30 +1442,29 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                     status: '1',
                   );
 
-                  Navigator.pop(dialogContext);
+                  nav.pop();
+                  if (!mounted) return;
                   setState(() => _isSaving = true);
 
                   try {
                     await ref.read(customerRepositoryProvider).upsert(newCust);
                     ref.invalidate(customerListNotifierProvider);
+                    if (!mounted) return;
                     setState(() {
                       _selectedCustomer = newCust;
                       _isSaving = false;
                     });
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                            content: Text(l10n.addCustomerSuccess),
-                            backgroundColor: Colors.green),
-                      );
-                    }
+                    scaffoldMessenger.showSnackBar(
+                      SnackBar(
+                          content: Text(l10n.addCustomerSuccess),
+                          backgroundColor: Colors.green),
+                    );
                   } catch (e) {
+                    if (!mounted) return;
                     setState(() => _isSaving = false);
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Lỗi: $e')),
-                      );
-                    }
+                    scaffoldMessenger.showSnackBar(
+                      SnackBar(content: Text('Lỗi: $e')),
+                    );
                   }
                 }
               },
@@ -973,13 +1551,47 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
       final customerId = _selectedCustomer?.id ?? 'khach_le';
 
       final double paidAmount;
+      final double? finalCashAmount;
+      final double? finalTransferAmount;
+
       if (isDraft) {
         paidAmount = 0.0;
-      } else if (_paymentController.text.trim().isEmpty) {
-        paidAmount = netPay;
+        finalCashAmount = null;
+        finalTransferAmount = null;
+      } else if (_paymentMethod == 'split') {
+        if (_cashPaymentController.text.trim().isEmpty &&
+            _transferPaymentController.text.trim().isEmpty) {
+          finalCashAmount = _splitCashAmount;
+          finalTransferAmount = _splitTransferAmount > 0
+              ? _splitTransferAmount
+              : (netPay - _splitCashAmount).clamp(0.0, netPay);
+          paidAmount =
+              (finalCashAmount + finalTransferAmount).clamp(0.0, netPay);
+        } else {
+          finalCashAmount = _splitCashAmount;
+          finalTransferAmount = _splitTransferAmount;
+          paidAmount =
+              (finalCashAmount + finalTransferAmount).clamp(0.0, netPay);
+        }
+      } else if (_paymentMethod == 'transfer') {
+        if (_paymentController.text.trim().isEmpty) {
+          paidAmount = netPay;
+        } else {
+          paidAmount = _customerPayment.clamp(0.0, netPay);
+        }
+        finalCashAmount = 0.0;
+        finalTransferAmount = paidAmount;
       } else {
-        paidAmount = _customerPayment.clamp(0.0, netPay);
+        // 'cash'
+        if (_paymentController.text.trim().isEmpty) {
+          paidAmount = netPay;
+        } else {
+          paidAmount = _customerPayment.clamp(0.0, netPay);
+        }
+        finalCashAmount = paidAmount;
+        finalTransferAmount = 0.0;
       }
+
       final double debtAmount =
           isDraft ? 0.0 : (netPay - paidAmount).clamp(0.0, netPay);
 
@@ -1070,6 +1682,9 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
       }
 
       final currentUser = ref.read(authProvider);
+      final String? orderNote = _noteController.text.trim().isNotEmpty
+          ? _noteController.text.trim()
+          : null;
 
       // Tạo đối tượng hoá đơn/đơn hàng
       final order = Order(
@@ -1084,6 +1699,9 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
         paymentMethod: _paymentMethod,
         createdBy: currentUser?.username,
         createdByName: currentUser?.name,
+        cashAmount: finalCashAmount,
+        transferAmount: finalTransferAmount,
+        note: orderNote,
       );
 
       // 1) Lưu đơn hàng
@@ -1161,10 +1779,25 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
               if (childProduct != null) {
                 final childBranchStocks =
                     Map<String, int>.from(childProduct.branchStocks);
-                final currentChildStock =
-                    childBranchStocks[selectedBranch] ?? 0;
+                String childKey = selectedBranch;
+                if (!childBranchStocks.containsKey(selectedBranch)) {
+                  if (selectedBranch == 'store_001' &&
+                      childBranchStocks.containsKey('branch_1')) {
+                    childKey = 'branch_1';
+                  } else if (selectedBranch == 'store_002' &&
+                      childBranchStocks.containsKey('branch_2')) {
+                    childKey = 'branch_2';
+                  } else if (selectedBranch == 'branch_1' &&
+                      childBranchStocks.containsKey('store_001')) {
+                    childKey = 'store_001';
+                  } else if (selectedBranch == 'branch_2' &&
+                      childBranchStocks.containsKey('store_002')) {
+                    childKey = 'store_002';
+                  }
+                }
+                final currentChildStock = childBranchStocks[childKey] ?? 0;
                 final qtyToDeduct = item.quantity * comp.quantity;
-                childBranchStocks[selectedBranch] =
+                childBranchStocks[childKey] =
                     (currentChildStock - qtyToDeduct).clamp(0, 99999);
 
                 final updatedChild =
@@ -1182,6 +1815,7 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                   importPrice: null,
                   createdBy: currentUser?.username,
                   createdByName: currentUser?.name,
+                  storeId: selectedBranch,
                 ));
               }
             }
@@ -1192,8 +1826,24 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                 item.product;
             final branchStocks =
                 Map<String, int>.from(freshProduct.branchStocks);
-            final currentStock = branchStocks[selectedBranch] ?? 0;
-            branchStocks[selectedBranch] =
+            String targetKey = selectedBranch;
+            if (!branchStocks.containsKey(selectedBranch)) {
+              if (selectedBranch == 'store_001' &&
+                  branchStocks.containsKey('branch_1')) {
+                targetKey = 'branch_1';
+              } else if (selectedBranch == 'store_002' &&
+                  branchStocks.containsKey('branch_2')) {
+                targetKey = 'branch_2';
+              } else if (selectedBranch == 'branch_1' &&
+                  branchStocks.containsKey('store_001')) {
+                targetKey = 'store_001';
+              } else if (selectedBranch == 'branch_2' &&
+                  branchStocks.containsKey('store_002')) {
+                targetKey = 'store_002';
+              }
+            }
+            final currentStock = branchStocks[targetKey] ?? 0;
+            branchStocks[targetKey] =
                 (currentStock - item.quantity).clamp(0, 99999);
 
             final updatedProduct =
@@ -1211,6 +1861,7 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
               importPrice: null,
               createdBy: currentUser?.username,
               createdByName: currentUser?.name,
+              storeId: selectedBranch,
             ));
           }
         }

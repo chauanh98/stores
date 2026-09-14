@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/entities/user_account.dart';
 import '../auth/auth_providers.dart';
 
 // State ẩn/hiện lợi nhuận
@@ -121,54 +122,63 @@ class Branch {
   final String name;
 
   const Branch(this.id, this.name);
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Branch &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          name == other.name;
+
+  @override
+  int get hashCode => id.hashCode ^ name.hashCode;
+
+  @override
+  String toString() => 'Branch(id: $id, name: $name)';
 }
 
 // Danh sách chi nhánh mẫu
 const mockBranches = [
-  Branch('branch_1', 'Chi nhánh Thới Bình'),
-  Branch('branch_2', 'Chi nhánh Đông Thắng'),
+  Branch('store_001', 'Chi nhánh Đông Thắng'),
+  Branch('store_002', 'Chi nhánh Thới Bình'),
 ];
 
 // Lấy danh sách chi nhánh động dựa trên store đang hoạt động
-List<Branch> getMockBranches(String currentStoreId) {
-  if (currentStoreId == 'store_002') {
-    return const [
-      Branch('branch_1', 'Chi nhánh Thời Bình'),
-      Branch('branch_2', 'Chi nhánh Đông Thắng'),
-    ];
-  }
-  return const [
-    Branch('branch_1', 'Chi nhánh Đông Thắng'),
-    Branch('branch_2', 'Chi nhánh Thời Bình'),
-  ];
+List<Branch> getMockBranches([String? currentStoreId]) {
+  return mockBranches;
 }
 
 // Provider quản lý danh sách chi nhánh động lấy từ Firebase
 final branchesProvider = Provider<List<Branch>>((ref) {
-  final currentStoreId = ref.watch(currentStoreIdProvider);
   final availableStores = ref.watch(availableStoresProvider).value ?? {};
 
   final name1 = availableStores['store_001'] ?? 'Chi nhánh Đông Thắng';
-  final name2 = availableStores['store_002'] ?? 'Chi nhánh Thời Bình';
+  final name2 = availableStores['store_002'] ?? 'Chi nhánh Thới Bình';
 
-  if (currentStoreId == 'store_002') {
-    return [
-      Branch('branch_1', name2),
-      Branch('branch_2', name1),
-    ];
-  } else {
-    return [
-      Branch('branch_1', name1),
-      Branch('branch_2', name2),
-    ];
-  }
+  return [
+    Branch('store_001', name1),
+    Branch('store_002', name2),
+  ];
 });
 
-// Provider danh sách các chi nhánh được chọn (mặc định chọn tất cả)
+// Provider danh sách các chi nhánh được chọn (mặc định chọn tất cả đối với Admin/Supervisor, khóa theo chi nhánh đối với Nhân viên)
 class SelectedBranchesNotifier extends StateNotifier<List<String>> {
-  SelectedBranchesNotifier() : super(mockBranches.map((b) => b.id).toList());
+  final UserAccount? _user;
+
+  SelectedBranchesNotifier([this._user]) : super(_initialBranches(_user));
+
+  static List<String> _initialBranches(UserAccount? user) {
+    if (user != null && !user.canSwitchStore) {
+      return [user.storeId.isNotEmpty ? user.storeId : 'store_001'];
+    }
+    return mockBranches.map((b) => b.id).toList();
+  }
 
   void toggleBranch(String branchId) {
+    if (_user != null && !_user.canSwitchStore) {
+      return;
+    }
     if (state.contains(branchId)) {
       // Đảm bảo phải chọn ít nhất 1 chi nhánh
       if (state.length > 1) {
@@ -180,10 +190,16 @@ class SelectedBranchesNotifier extends StateNotifier<List<String>> {
   }
 
   void selectAll() {
+    if (_user != null && !_user.canSwitchStore) {
+      return;
+    }
     state = mockBranches.map((b) => b.id).toList();
   }
 
   void clearAll() {
+    if (_user != null && !_user.canSwitchStore) {
+      return;
+    }
     // Để tránh state trống rỗng lỗi hệ thống, chọn chi nhánh đầu tiên làm fallback
     state = [mockBranches.first.id];
   }
@@ -191,7 +207,8 @@ class SelectedBranchesNotifier extends StateNotifier<List<String>> {
 
 final selectedBranchesProvider =
     StateNotifierProvider<SelectedBranchesNotifier, List<String>>((ref) {
-  return SelectedBranchesNotifier();
+  final user = ref.watch(authProvider);
+  return SelectedBranchesNotifier(user);
 });
 
 // Provider quản lý bộ lọc cửa hàng được chọn xem báo cáo trên trang Tổng quan (Chỉ dùng cho Admin)

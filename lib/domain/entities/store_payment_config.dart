@@ -1,3 +1,5 @@
+import 'package:pdf/pdf.dart';
+
 class StorePaymentConfig {
   final String storeId;
   final String storeName;
@@ -8,6 +10,8 @@ class StorePaymentConfig {
   final String accountNo;
   final String accountName;
   final String footerNote;
+  final String paperSize;
+  final bool showVietQR;
 
   const StorePaymentConfig({
     required this.storeId,
@@ -19,7 +23,19 @@ class StorePaymentConfig {
     this.accountNo = '0917865300',
     this.accountName = 'Huỳnh Lê Khánh Đăng',
     this.footerNote = 'HÀNG ĐẢM BẢO ĐÚNG CHẤT LƯỢNG - ĐÚNG CHẤT LIỆU GỖ',
+    this.paperSize = 'k80',
+    this.showVietQR = true,
   });
+
+  bool get isK80 => paperSize.toLowerCase() == 'k80';
+  bool get isK58 => paperSize.toLowerCase() == 'k58';
+  bool get isA4 => paperSize.toLowerCase() == 'a4';
+
+  PdfPageFormat get resolvedPageFormat {
+    if (isK58) return PdfPageFormat.roll57;
+    if (isA4) return PdfPageFormat.a4;
+    return PdfPageFormat.roll80;
+  }
 
   Map<String, dynamic> toMap() {
     return {
@@ -32,6 +48,8 @@ class StorePaymentConfig {
       'accountNo': accountNo,
       'accountName': accountName,
       'footerNote': footerNote,
+      'paperSize': paperSize,
+      'showVietQR': showVietQR,
     };
   }
 
@@ -48,6 +66,11 @@ class StorePaymentConfig {
       accountName: map['accountName']?.toString() ?? 'Huỳnh Lê Khánh Đăng',
       footerNote: map['footerNote']?.toString() ??
           'HÀNG ĐẢM BẢO ĐÚNG CHẤT LƯỢNG - ĐÚNG CHẤT LIỆU GỖ',
+      paperSize: map['paperSize']?.toString() ?? 'k80',
+      showVietQR: map['showVietQR'] is bool
+          ? map['showVietQR'] as bool
+          : (map['showVietQR'] == null ||
+              map['showVietQR'].toString().toLowerCase() == 'true'),
     );
   }
 
@@ -61,6 +84,8 @@ class StorePaymentConfig {
     String? accountNo,
     String? accountName,
     String? footerNote,
+    String? paperSize,
+    bool? showVietQR,
   }) {
     return StorePaymentConfig(
       storeId: storeId ?? this.storeId,
@@ -72,6 +97,40 @@ class StorePaymentConfig {
       accountNo: accountNo ?? this.accountNo,
       accountName: accountName ?? this.accountName,
       footerNote: footerNote ?? this.footerNote,
+      paperSize: paperSize ?? this.paperSize,
+      showVietQR: showVietQR ?? this.showVietQR,
     );
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is StorePaymentConfig &&
+          runtimeType == other.runtimeType &&
+          storeId == other.storeId &&
+          storeName == other.storeName &&
+          address == other.address &&
+          phone == other.phone &&
+          bankName == other.bankName &&
+          bankId == other.bankId &&
+          accountNo == other.accountNo &&
+          accountName == other.accountName &&
+          footerNote == other.footerNote &&
+          paperSize == other.paperSize &&
+          showVietQR == other.showVietQR;
+
+  @override
+  int get hashCode => Object.hash(
+        storeId,
+        storeName,
+        address,
+        phone,
+        bankName,
+        bankId,
+        accountNo,
+        accountName,
+        footerNote,
+        paperSize,
+        showVietQR,
+      );
 }

@@ -77,8 +77,7 @@ class _AdaptiveScaffoldState extends ConsumerState<AdaptiveScaffold> {
   @override
   Widget build(BuildContext context) {
     final isWideScreen = MediaQuery.of(context).size.width > 600;
-    final l10n = AppLocalizations.of(context)!;
-    final user = ref.watch(authProvider);
+
 
     final screens = [
       const OverviewPage(key: PageStorageKey('overview')),

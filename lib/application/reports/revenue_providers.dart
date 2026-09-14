@@ -4,6 +4,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/utils/store_resolver_helper.dart';
 import '../../data/datasources/firebase/inventory_remote_data_source.dart';
 import '../../data/datasources/firebase/order_remote_data_source.dart';
 import '../../data/datasources/firebase/product_remote_data_source.dart';
@@ -39,35 +40,24 @@ final revenueRepositoryProvider = Provider<RevenueRepositoryImpl>((ref) {
 // Dùng StreamProvider để tự động cập nhật khi có đơn hàng mới
 final revenueByDateProvider =
     StreamProvider.family<RevenueReport, DateTime>((ref, date) async* {
-  final repository = ref.watch(revenueRepositoryProvider);
-  final inventoryDs = ref.watch(inventoryRemoteDataSourceProvider);
-  final productDs = ref.watch(productRemoteDataSourceProvider);
-  final orderDs = ref.watch(orderRemoteDataSourceProvider);
-
-  // Lắng nghe thay đổi orders trong ngày và map sang báo cáo
   final startOfDay = DateTime(date.year, date.month, date.day);
   final endOfDay = DateTime(date.year, date.month, date.day, 23, 59, 59, 999);
-  final ordersStream = orderDs.watchByDateRange(startOfDay, endOfDay);
+  final summary = await ref.watch(revenueByDateRangeProvider(
+    DateTimeRange(start: startOfDay, end: endOfDay),
+  ).future);
 
-  // Optimized: cache inventory & products bên ngoài vòng lặp
-  // Chỉ fetch 1 lần thay vì mỗi lần orders stream emit
-  List<Map>? cachedInventory;
-  List<Map>? cachedProducts;
-
-  await for (final orders in ordersStream) {
-    // Fetch inventory & products 1 lần duy nhất
-    cachedInventory ??= await inventoryDs.fetchAll();
-    cachedProducts ??= await productDs.fetchAll();
-
-    // Tính toán báo cáo trực tiếp với dữ liệu đã lấy được
-    final report = repository.calculateRevenueReport(
-      orders: orders,
-      inventoryTransactions: cachedInventory,
-      products: cachedProducts,
+  if (summary.dailyReports.isNotEmpty) {
+    yield summary.dailyReports.first;
+  } else {
+    yield RevenueReport(
       date: date,
+      totalRevenue: 0.0,
+      totalCost: 0.0,
+      profit: 0.0,
+      totalOrders: 0,
+      totalItemsSold: 0,
+      productRevenues: const [],
     );
-
-    yield report;
   }
 });
 
@@ -77,43 +67,15 @@ final revenueByDateRangeProvider =
   final currentStoreId = ref.watch(currentStoreIdProvider);
   final storeFilter = ref.watch(selectedStoreFilterProvider);
   final user = ref.watch(authProvider);
+  final availableStores = ref.watch(availableStoresProvider).value ?? {};
 
-  // Xác định danh sách store cần lấy dữ liệu (Chỉ Supervisor mới được chuyển/xem dữ liệu các cửa hàng khác)
-  final List<String> targetStoreIds = [];
-  if (user?.canSwitchStore == true) {
-    if (storeFilter == 'all') {
-      final availableStores = ref.watch(availableStoresProvider).value ?? {};
-      if (availableStores.isNotEmpty) {
-        targetStoreIds.addAll(availableStores.keys);
-      } else {
-        targetStoreIds.add(currentStoreId);
-      }
-    } else if (storeFilter != null) {
-      targetStoreIds.add(storeFilter);
-    } else {
-      // Khi không lọc trực tiếp cửa hàng, ánh xạ từ danh sách chi nhánh được chọn trên giao diện
-      for (final branchId in selectedBranches) {
-        if (currentStoreId == 'store_001') {
-          if (branchId == 'branch_1') {
-            targetStoreIds.add('store_001'); // Cửa hàng Hà Nội
-          } else if (branchId == 'branch_2') {
-            targetStoreIds.add('store_002'); // Cửa hàng TP.HCM
-          }
-        } else if (currentStoreId == 'store_002') {
-          if (branchId == 'branch_1') {
-            targetStoreIds.add('store_002'); // Cửa hàng TP.HCM
-          } else if (branchId == 'branch_2') {
-            targetStoreIds.add('store_001'); // Cửa hàng Hà Nội
-          }
-        }
-      }
-    }
-  }
-
-  // Nếu danh sách trống hoặc không phải Admin, mặc định lấy currentStoreId
-  if (targetStoreIds.isEmpty) {
-    targetStoreIds.add(currentStoreId);
-  }
+  final targetStoreIds = StoreResolverHelper.resolveTargetStoreIds(
+    selectedBranches,
+    currentStoreId: currentStoreId,
+    user: user,
+    storeFilter: storeFilter,
+    availableStores: availableStores,
+  );
 
   final start = DateTime(range.start.year, range.start.month, range.start.day);
   final end =
@@ -167,12 +129,13 @@ final revenueByDateRangeProvider =
           final status = order['status']?.toString() ?? 'completed';
           if (status != 'completed') return false;
 
-          // Nếu là Admin, việc lọc theo chi nhánh đã được thực hiện bằng cách chỉ chọn query store tương ứng ở bước trên!
-          if (user?.isAdmin == true) return true;
+          // Nếu là Admin/Supervisor (canSwitchStore == true), việc lọc theo chi nhánh đã được thực hiện bằng cách chỉ chọn query store tương ứng ở bước trên!
+          if (user?.canSwitchStore == true || user?.isAdmin == true) return true;
 
-          // Nhân viên thường: Chỉ được xem chi nhánh chính branch_1 của cửa hàng hiện tại
-          const simulatedBranchId = 'branch_1';
-          return selectedBranches.contains(simulatedBranchId);
+          // Nhân viên thường: Chỉ được xem chi nhánh được phân quyền của cửa hàng hiện tại
+          final normalizedStoreId = StoreResolverHelper.normalizeStoreId(storeId);
+          return selectedBranches.any((b) =>
+              StoreResolverHelper.normalizeStoreId(b) == normalizedStoreId);
         }).toList();
 
         // Optimized: cache inventory & products per store - chỉ fetch 1 lần
@@ -213,8 +176,8 @@ final revenueByDateRangeProvider =
       yield mergedSummary;
     }
   } catch (e, stack) {
-    print('Revenue provider error: $e');
-    print(stack);
+    debugPrint('Revenue provider error: $e');
+    debugPrint(stack.toString());
     rethrow;
   }
 });

@@ -1,4 +1,5 @@
 import 'package:firebase_database/firebase_database.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../domain/entities/combo_component.dart';
 import '../../domain/entities/customer.dart';
@@ -39,7 +40,7 @@ class SampleDataSeeder {
       });
     }
 
-    print('✅ Seeded ${sampleCustomers.length} customers to Firebase');
+    debugPrint('✅ Seeded ${sampleCustomers.length} customers to Firebase');
   }
 
   static List<Customer> _getSampleCustomers() {
@@ -145,7 +146,7 @@ class SampleDataSeeder {
           ),
         ],
       ),
-      Customer(
+      const Customer(
         id: 'customer_005',
         name: 'Hoàng Văn Em',
         phone: '0934567890',
@@ -225,7 +226,7 @@ class SampleDataSeeder {
           ),
         ],
       ),
-      Customer(
+      const Customer(
         id: 'customer_009',
         name: 'Ngô Văn Inh',
         phone: '0978901234',
@@ -297,7 +298,7 @@ class SampleDataSeeder {
       });
     }
 
-    print('✅ Seeded ${sampleProducts.length} products to Firebase');
+    debugPrint('✅ Seeded ${sampleProducts.length} products to Firebase');
   }
 
   static List<Product> _getSampleProducts() {
@@ -311,7 +312,7 @@ class SampleDataSeeder {
         model: 'A3108',
         price: 29990000,
         costPrice: 21000000,
-        branchStocks: {'branch_1': 10, 'branch_2': 5},
+        branchStocks: {'store_001': 10, 'store_002': 5},
         category: 'Smartphone',
       ),
       Product(
@@ -323,7 +324,7 @@ class SampleDataSeeder {
         model: 'SM-S921B',
         price: 22990000,
         costPrice: 16000000,
-        branchStocks: {'branch_1': 8, 'branch_2': 4},
+        branchStocks: {'store_001': 8, 'store_002': 4},
         category: 'Smartphone',
       ),
       Product(
@@ -335,7 +336,7 @@ class SampleDataSeeder {
         model: 'MLY33',
         price: 32990000,
         costPrice: 24000000,
-        branchStocks: {'branch_1': 5, 'branch_2': 3},
+        branchStocks: {'store_001': 5, 'store_002': 3},
         category: 'Laptop',
       ),
       Product(
@@ -347,7 +348,7 @@ class SampleDataSeeder {
         model: 'XPS139320',
         price: 25990000,
         costPrice: 18500000,
-        branchStocks: {'branch_1': 4, 'branch_2': 2},
+        branchStocks: {'store_001': 4, 'store_002': 2},
         category: 'Laptop',
       ),
       Product(
@@ -359,7 +360,7 @@ class SampleDataSeeder {
         model: 'MTFQ3',
         price: 24990000,
         costPrice: 17500000,
-        branchStocks: {'branch_1': 7, 'branch_2': 3},
+        branchStocks: {'store_001': 7, 'store_002': 3},
         category: 'Tablet',
       ),
       Product(
@@ -371,7 +372,7 @@ class SampleDataSeeder {
         model: 'SM-X910',
         price: 18990000,
         costPrice: 13000000,
-        branchStocks: {'branch_1': 5, 'branch_2': 2},
+        branchStocks: {'store_001': 5, 'store_002': 2},
         category: 'Tablet',
       ),
       Product(
@@ -383,7 +384,7 @@ class SampleDataSeeder {
         model: 'CB-TABLE-1',
         price: 1000000,
         costPrice: 700000,
-        branchStocks: {'branch_1': 10, 'branch_2': 5},
+        branchStocks: {'store_001': 10, 'store_002': 5},
         category: 'Bàn ghế',
       ),
       Product(
@@ -395,7 +396,7 @@ class SampleDataSeeder {
         model: 'CB-CHAIR-1',
         price: 300000,
         costPrice: 200000,
-        branchStocks: {'branch_1': 20, 'branch_2': 12},
+        branchStocks: {'store_001': 20, 'store_002': 12},
         category: 'Bàn ghế',
       ),
       Product(
@@ -407,7 +408,7 @@ class SampleDataSeeder {
         model: 'CB-SET-6',
         price: 2500000,
         costPrice: 1900000,
-        branchStocks: {'branch_1': 0, 'branch_2': 0},
+        branchStocks: {'store_001': 0, 'store_002': 0},
         category: 'Bàn ghế',
         isCombo: true,
         comboComponents: [
@@ -431,9 +432,9 @@ class SampleDataSeeder {
   }
 
   static Future<void> seedAllData() async {
-    print('🌱 Starting to seed sample data...');
+    debugPrint('🌱 Starting to seed sample data...');
     await seedProducts();
     await seedCustomers();
-    print('🎉 Sample data seeding completed!');
+    debugPrint('🎉 Sample data seeding completed!');
   }
 }

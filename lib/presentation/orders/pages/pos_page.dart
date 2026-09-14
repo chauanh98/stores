@@ -12,6 +12,8 @@ import '../../../application/products/products_providers.dart';
 import '../../../core/utils/combo_helper.dart';
 import '../../../domain/entities/product.dart';
 import '../../common/widgets/product_image_thumbnail.dart';
+import '../widgets/pos_cart_tab_bar.dart';
+import '../widgets/pos_category_bar.dart';
 import 'pos_checkout_page.dart';
 
 class POSPage extends ConsumerStatefulWidget {
@@ -24,6 +26,8 @@ class POSPage extends ConsumerStatefulWidget {
 class _POSPageState extends ConsumerState<POSPage> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
+  String _selectedCategoryId = 'all';
+  String _selectedCategoryName = 'Tất cả';
 
   @override
   void dispose() {
@@ -38,6 +42,7 @@ class _POSPageState extends ConsumerState<POSPage> {
     final totalItems = ref.watch(cartTotalItemsProvider);
     final totalAmount = ref.watch(cartTotalAmountProvider);
     final storeNameAsync = ref.watch(currentStoreNameProvider);
+    final selectedBranch = ref.watch(selectedPOSBranchProvider);
     final l10n = AppLocalizations.of(context)!;
 
     final currencyFormat = NumberFormat('#,###', 'vi_VN');
@@ -73,9 +78,11 @@ class _POSPageState extends ConsumerState<POSPage> {
       ),
       body: Column(
         children: [
+          // Thanh tab giỏ hàng đa đơn
+          const PosCartTabBar(),
           // Thanh tìm kiếm sản phẩm nhanh
           Padding(
-            padding: const EdgeInsets.all(12.0),
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
@@ -105,22 +112,56 @@ class _POSPageState extends ConsumerState<POSPage> {
                   borderSide: const BorderSide(color: AppColors.border),
                 ),
                 contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               ),
               onChanged: (v) => setState(() => _searchQuery = v),
             ),
           ),
+          // Thanh cuộn lọc nhóm hàng / danh mục
+          PosCategoryBar(
+            selectedCategoryId: _selectedCategoryId,
+            onCategorySelected: (catId, catName) {
+              setState(() {
+                _selectedCategoryId = catId;
+                _selectedCategoryName = catName;
+              });
+            },
+          ),
+          const SizedBox(height: 6),
           // Danh sách sản phẩm
           Expanded(
             child: productsAsync.when(
               data: (products) {
                 final filtered = products.where((p) {
+                  // Hide products that are disabled / stopped selling
+                  if (!p.allowSale) return false;
+
+                  // 1) Lọc theo danh mục
+                  if (_selectedCategoryId != 'all' &&
+                      _selectedCategoryId.isNotEmpty) {
+                    final catNameLower =
+                        _selectedCategoryName.trim().toLowerCase();
+                    final catIdLower =
+                        _selectedCategoryId.trim().toLowerCase();
+                    final pCatLower = p.category.trim().toLowerCase();
+                    final matchesCategory = pCatLower == catNameLower ||
+                        pCatLower == catIdLower ||
+                        pCatLower.contains(catNameLower) ||
+                        catNameLower.contains(pCatLower);
+                    if (!matchesCategory) return false;
+                  }
+
+                  // 2) Lọc theo từ khóa tìm kiếm
                   final query = _searchQuery.toLowerCase().trim();
-                  if (query.isEmpty) return true;
-                  return p.name.toLowerCase().contains(query) ||
-                      p.code.toLowerCase().contains(query) ||
-                      (p.brand ?? '').toLowerCase().contains(query) ||
-                      p.category.toLowerCase().contains(query);
+                  if (query.isNotEmpty) {
+                    final matchesSearch = p.name.toLowerCase().contains(query) ||
+                        p.code.toLowerCase().contains(query) ||
+                        (p.brand ?? '').toLowerCase().contains(query) ||
+                        p.category.toLowerCase().contains(query);
+                    if (!matchesSearch) return false;
+                  }
+
+                  return true;
                 }).toList();
 
                 if (filtered.isEmpty) {
@@ -138,9 +179,12 @@ class _POSPageState extends ConsumerState<POSPage> {
                     final quantityInCart = cartItem?.quantity ?? 0;
                     final effectiveStock = ComboHelper.getAvailableStock(
                       product: product,
-                      branchId: 'branch_1',
+                      branchId: selectedBranch,
                       allProducts: products,
                     );
+
+                    final branchStocksText =
+                        _formatBranchStocks(product.branchStocks);
 
                     return Container(
                       decoration: BoxDecoration(
@@ -150,13 +194,14 @@ class _POSPageState extends ConsumerState<POSPage> {
                       ),
                       padding: const EdgeInsets.all(12),
                       child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           // Icon/Ảnh sản phẩm
                           ProductImageThumbnail(
                             imageUrl: product.imageUrl,
                             productName: product.name,
                             categoryName: product.category,
-                            size: 48,
+                            size: 52,
                             borderRadius: 8,
                           ),
                           const SizedBox(width: 12),
@@ -174,7 +219,7 @@ class _POSPageState extends ConsumerState<POSPage> {
                                             fontWeight: FontWeight.bold,
                                             fontSize: 14,
                                             color: Colors.black87),
-                                        maxLines: 1,
+                                        maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
@@ -221,6 +266,27 @@ class _POSPageState extends ConsumerState<POSPage> {
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ],
+                                if (branchStocksText.isNotEmpty) ...[
+                                  const SizedBox(height: 2),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.storefront_outlined,
+                                          size: 12, color: Colors.black45),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: Text(
+                                          branchStocksText,
+                                          style: const TextStyle(
+                                            color: Colors.black54,
+                                            fontSize: 11,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                                 const SizedBox(height: 4),
                                 Row(
                                   children: [
@@ -232,20 +298,7 @@ class _POSPageState extends ConsumerState<POSPage> {
                                           fontSize: 13),
                                     ),
                                     const SizedBox(width: 8),
-                                    Text(
-                                      product.isCombo
-                                          ? 'Tồn bộ: $effectiveStock'
-                                          : '${l10n.stockLabel}: $effectiveStock',
-                                      style: TextStyle(
-                                        color: effectiveStock == 0
-                                            ? Colors.red
-                                            : Colors.black45,
-                                        fontSize: 11,
-                                        fontWeight: product.isCombo
-                                            ? FontWeight.bold
-                                            : FontWeight.normal,
-                                      ),
-                                    ),
+                                    _buildStockBadge(effectiveStock, product),
                                   ],
                                 )
                               ],
@@ -405,5 +458,120 @@ class _POSPageState extends ConsumerState<POSPage> {
         ],
       ),
     );
+  }
+
+  Widget _buildStockBadge(int effectiveStock, Product product) {
+    if (effectiveStock <= 0) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: Colors.red.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: Colors.red.withOpacity(0.3)),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.warning, size: 11, color: Colors.red),
+            SizedBox(width: 3),
+            Text(
+              'Hết hàng',
+              style: TextStyle(
+                color: Colors.red,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      );
+    } else if (effectiveStock <= (product.minStock ?? 5) || product.isLowStock()) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: Colors.orange.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: Colors.orange.withOpacity(0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.warning_amber, size: 11, color: Colors.orange[800]),
+            const SizedBox(width: 3),
+            Text(
+              'Sắp hết',
+              style: TextStyle(
+                color: Colors.orange[800],
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      );
+    } else {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: Colors.green.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: Colors.green.withOpacity(0.3)),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.check_circle, size: 11, color: Colors.green),
+            SizedBox(width: 3),
+            Text(
+              'Còn hàng',
+              style: TextStyle(
+                color: Colors.green,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  String _formatBranchStocks(Map<String, int> branchStocks) {
+    if (branchStocks.isEmpty) return '';
+    return branchStocks.entries.map((entry) {
+      final branchName = _getBranchShortName(entry.key);
+      return '$branchName: ${entry.value}';
+    }).join(' | ');
+  }
+
+  String _getBranchShortName(String key) {
+    final lower = key.trim().toLowerCase();
+    if (lower == 'store_001' ||
+        lower == 'branch_1' ||
+        lower == 'đt' ||
+        lower == 'dt' ||
+        lower.contains('đông thắng') ||
+        lower.contains('dong thang')) {
+      return 'ĐT';
+    }
+    if (lower == 'store_002' ||
+        lower == 'branch_2' ||
+        lower == 'tb' ||
+        lower.contains('thới bình') ||
+        lower.contains('thoi binh') ||
+        lower.contains('thời bình')) {
+      return 'TB';
+    }
+
+    final storeMatch =
+        RegExp(r'^(?:store|branch)[_-]?(\d+)$', caseSensitive: false)
+            .firstMatch(key.trim());
+    if (storeMatch != null) {
+      final numStr = storeMatch.group(1)!;
+      final numVal = int.tryParse(numStr) ?? 0;
+      return 'CN$numVal';
+    }
+
+    return key;
   }
 }

@@ -675,6 +675,14 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
 
   void _showDeleteConfirmDialog(BuildContext context, Customer c) {
     final l10n = AppLocalizations.of(context)!;
+    final user = ref.read(authProvider);
+    if (!(user?.canDeleteCustomer ?? false)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Bạn không có quyền xóa khách hàng')),
+      );
+      return;
+    }
+
     showDialog(
       context: context,
       builder: (_) => AlertDialog(

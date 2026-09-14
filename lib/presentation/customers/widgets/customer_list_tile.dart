@@ -30,6 +30,8 @@ class CustomerListTile extends ConsumerWidget {
 
     final displayTotalSales = customer.effectiveTotalSales(orders);
     final displayCurrentDebt = customer.effectiveCurrentDebt(orders, debtTxs);
+    final debtToDisplay =
+        displayCurrentDebt > 0 ? displayCurrentDebt : customer.displayCurrentDebt;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -77,16 +79,38 @@ class CustomerListTile extends ConsumerWidget {
                 color: Colors.black87,
               ),
             ),
-            if (displayCurrentDebt > 0)
-              Padding(
-                padding: const EdgeInsets.only(top: 2.0),
-                child: Text(
-                  '${l10n.customerDebt}: ${currencyFormat.format(displayCurrentDebt)}',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.red,
+            if (debtToDisplay > 0)
+              Container(
+                key: Key('debt_badge_${customer.id}'),
+                margin: const EdgeInsets.only(top: 4.0),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppColors.dangerLight,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: AppColors.danger.withOpacity(0.5),
+                    width: 1,
                   ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.warning_amber_rounded,
+                      size: 12,
+                      color: AppColors.danger,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${l10n.customerDebt}: ${currencyFormat.format(debtToDisplay)}',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.danger,
+                      ),
+                    ),
+                  ],
                 ),
               ),
           ],

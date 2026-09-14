@@ -5,8 +5,14 @@ import 'package:stores/core/theme/app_colors.dart';
 
 import '../../../application/auth/auth_providers.dart';
 import '../../../application/reports/overview_providers.dart';
+import '../../attendance/pages/attendance_check_in_page.dart';
+import '../../attendance/pages/live_attendance_dashboard_page.dart';
+import '../../attendance/pages/shift_config_page.dart';
 import '../../customers/pages/customers_page.dart';
 import '../../inventories/pages/import_inventory_page.dart';
+import '../../inventories/pages/inter_store_transfer_page.dart';
+import '../../orders/pages/invoices_page.dart';
+import '../../suppliers/pages/suppliers_page.dart';
 import 'account_management_page.dart';
 import 'store_payment_settings_page.dart';
 
@@ -32,157 +38,144 @@ class MorePage extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text(l10n.moreOptions,
-            style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(
+          l10n.moreOptions,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
         backgroundColor: Colors.white,
+        elevation: 0,
       ),
-      body: ListView(
-        children: [
-          // 1. Header thông tin cửa hàng & tài khoản
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.only(top: 8, bottom: 32),
+        child: Column(
+          children: [
+          // ==========================================
+          // BLOCK 1: THÔNG TIN CỬA HÀNG & TÀI KHOẢN
+          // ==========================================
           Container(
-            color: Colors.white,
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 30,
-                  backgroundColor: AppColors.primary,
-                  child: Text(
-                    (user?.username ?? 'K').substring(0, 1).toUpperCase(),
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ref.watch(currentStoreNameProvider).when(
-                            data: (name) => Text(
-                              name,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 17,
-                                  color: Colors.black87),
-                            ),
-                            loading: () => const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2)),
-                            error: (_, __) => Text('${l10n.importError}'),
-                          ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Tài khoản: ${user?.username ?? 'Nhân viên'}',
-                        style: const TextStyle(
-                            color: Colors.black54, fontSize: 13),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Chi nhánh: $branchName',
-                        style: const TextStyle(
-                            color: AppColors.primary,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500),
-                      )
-                    ],
-                  ),
-                ),
-                const Icon(Icons.chevron_right, color: Colors.black38)
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // 2. Nhóm chức năng: Nghiệp vụ mở rộng
-          _buildMenuSection(
-            context,
-            'QUẢN LÝ & TIỆN ÍCH',
-            [
-              _MenuItem(
-                Icons.people_outline,
-                'Khách hàng',
-                AppColors.primary,
-                () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                        builder: (context) => const CustomersPage()),
-                  );
-                },
-              ),
-              _MenuItem(
-                Icons.call_received_outlined,
-                'Nhập hàng',
-                AppColors.warning,
-                () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                        builder: (context) => const ImportInventoryPage()),
-                  );
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // 3. Thiết lập hệ thống (Chỉ dành cho Admin/Supervisor)
-          if (user?.isAdmin == true || user?.isSupervisor == true) ...[
-            _buildMenuSection(
-              context,
-              'HỆ THỐNG',
-              [
-                _MenuItem(
-                  Icons.people_alt_outlined,
-                  l10n.accountManagement,
-                  AppColors.primary,
-                  () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => const AccountManagementPage(),
-                      ),
-                    );
-                  },
-                ),
-                if (user?.isSupervisor == true)
-                  _MenuItem(
-                    Icons.qr_code_2,
-                    'Cấu hình VietQR',
-                    Colors.teal,
-                    () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              const StorePaymentSettingsPage(),
-                        ),
-                      );
-                    },
-                  ),
-              ],
-            ),
-            const SizedBox(height: 12),
-          ],
-
-          // 6. Chuyển đổi cửa hàng (Chỉ dành cho Supervisor)
-          if (user?.canSwitchStore == true) ...[
-            Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            decoration: BoxDecoration(
               color: Colors.white,
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 28,
+                      backgroundColor: AppColors.primary,
+                      child: Text(
+                        (user?.username ?? 'K').substring(0, 1).toUpperCase(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ref.watch(currentStoreNameProvider).when(
+                                data: (name) => Text(
+                                  name,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                                loading: () => const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                ),
+                                error: (_, __) => Text(l10n.importError),
+                              ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Tài khoản: ${user?.username ?? 'Nhân viên'}',
+                            style: const TextStyle(
+                              color: Colors.black54,
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  user?.isAdmin == true
+                                      ? 'Quản trị viên'
+                                      : user?.isSupervisor == true
+                                          ? 'Giám sát'
+                                          : 'Nhân viên',
+                                  style: const TextStyle(
+                                    color: AppColors.primary,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade100,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  'Chi nhánh: $branchName',
+                                  style: TextStyle(
+                                    color: Colors.grey.shade800,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+
+                // Nút chuyển đổi chi nhánh / cửa hàng (Supervisor / Admin có quyền)
+                if (user?.canSwitchStore == true) ...[
+                  const SizedBox(height: 16),
+                  const Divider(height: 1),
+                  const SizedBox(height: 12),
                   const Text(
                     'CHUYỂN ĐỔI CỬA HÀNG',
                     style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                        color: Colors.black54,
-                        letterSpacing: 0.5),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                      color: Colors.black54,
+                      letterSpacing: 0.5,
+                    ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   storeNamesAsync.when(
                     loading: () =>
                         const Center(child: CircularProgressIndicator()),
@@ -191,7 +184,7 @@ class MorePage extends ConsumerWidget {
                       decoration: const InputDecoration(
                         border: OutlineInputBorder(),
                         contentPadding:
-                            EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                            EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       ),
                       value: currentStore,
                       items: storeNames.entries.map((e) {
@@ -205,118 +198,347 @@ class MorePage extends ConsumerWidget {
                           ref.read(selectedStoreIdProvider.notifier).state = v;
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                                content: Text(
-                                    'Đã chuyển sang ${storeNames[v] ?? v}')),
+                              content:
+                                  Text('Đã chuyển sang ${storeNames[v] ?? v}'),
+                            ),
                           );
                         }
                       },
                     ),
                   ),
                 ],
-              ),
-            ),
-            const SizedBox(height: 12),
-          ],
-
-          // 7. Cài đặt chung & Đăng xuất
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Column(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.lock_reset, color: AppColors.primary),
-                  title: const Text('Đổi mật khẩu',
-                      style: TextStyle(
-                          color: Colors.black87, fontWeight: FontWeight.w600)),
-                  trailing: const Icon(Icons.chevron_right, color: Colors.black38),
-                  onTap: () {
-                    if (user?.username != null) {
-                      _showChangePasswordDialog(context, ref, user!.username);
-                    }
-                  },
-                ),
-                const Divider(height: 1, color: AppColors.dividerLight),
-                ListTile(
-                  leading: const Icon(Icons.logout, color: AppColors.danger),
-                  title: Text(l10n.logoutAccount,
-                      style: const TextStyle(
-                          color: AppColors.danger, fontWeight: FontWeight.bold)),
-                  trailing:
-                      const Icon(Icons.chevron_right, color: AppColors.danger),
-                  onTap: () => _showLogoutDialog(context, ref),
-                ),
               ],
             ),
           ),
-          const SizedBox(height: 32),
+
+          // ==========================================
+          // BLOCK 2: QUẢN LÝ ĐỐI TÁC
+          // ==========================================
+          _buildCardBlock(
+            headerTitle: 'QUẢN LÝ ĐỐI TÁC',
+            headerIcon: Icons.handshake_outlined,
+            headerColor: AppColors.primary,
+            children: [
+              _buildMenuTile(
+                icon: Icons.people_outline,
+                title: 'Khách hàng',
+                subtitle: 'Danh sách và công nợ khách hàng',
+                color: AppColors.primary,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const CustomersPage()),
+                  );
+                },
+              ),
+              const Divider(height: 1, indent: 52),
+              _buildMenuTile(
+                icon: Icons.storefront_outlined,
+                title: 'Nhà cung cấp',
+                subtitle: 'Quản lý đối tác và công nợ NCC',
+                color: Colors.teal,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const SuppliersPage()),
+                  );
+                },
+              ),
+            ],
+          ),
+
+          // ==========================================
+          // BLOCK 3: NGHIỆP VỤ KHO & BÁN HÀNG
+          // ==========================================
+          _buildCardBlock(
+            headerTitle: 'NGHIỆP VỤ KHO & BÁN HÀNG',
+            headerIcon: Icons.inventory_2_outlined,
+            headerColor: AppColors.warning,
+            children: [
+              _buildMenuTile(
+                icon: Icons.move_to_inbox_outlined,
+                title: 'Nhập hàng',
+                subtitle: 'Tạo và quản lý phiếu nhập kho',
+                color: AppColors.warning,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                        builder: (_) => const ImportInventoryPage()),
+                  );
+                },
+              ),
+              const Divider(height: 1, indent: 52),
+              _buildMenuTile(
+                icon: Icons.swap_horiz_outlined,
+                title: 'Chuyển kho',
+                subtitle: 'Điều chuyển hàng hóa giữa các chi nhánh',
+                color: Colors.indigo,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                        builder: (_) => const InterStoreTransferPage()),
+                  );
+                },
+              ),
+              const Divider(height: 1, indent: 52),
+              _buildMenuTile(
+                icon: Icons.receipt_long_outlined,
+                title: 'Hóa đơn & Sổ quỹ',
+                subtitle: 'Lịch sử hóa đơn, trả hàng và thu nợ',
+                color: Colors.green,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const InvoicesPage()),
+                  );
+                },
+              ),
+            ],
+          ),
+
+          // ==========================================
+          // BLOCK: QUẢN LÝ CA & CHẤM CÔNG
+          // ==========================================
+          _buildCardBlock(
+            headerTitle: 'QUẢN LÝ CA & CHẤM CÔNG',
+            headerIcon: Icons.access_time_filled_outlined,
+            headerColor: AppColors.primary,
+            children: [
+              if (user?.requiresAttendance == true)
+                _buildMenuTile(
+                  icon: Icons.fingerprint,
+                  title: 'Chấm công nhân viên',
+                  subtitle: 'Điểm danh vào/ra ca & xác thực vị trí GPS',
+                  color: AppColors.primary,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const AttendanceCheckInPage(),
+                      ),
+                    );
+                  },
+                ),
+              if (user?.isAdmin == true || user?.isSupervisor == true) ...[
+                if (user?.requiresAttendance == true) const Divider(height: 1, indent: 52),
+                _buildMenuTile(
+                  icon: Icons.dashboard_outlined,
+                  title: 'Giám sát chấm công & Bảng công',
+                  subtitle: 'Theo dõi trực tiếp nhân viên và bảng chấm công tháng',
+                  color: AppColors.supervisor,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const LiveAttendanceDashboardPage(),
+                      ),
+                    );
+                  },
+                ),
+                const Divider(height: 1, indent: 52),
+                _buildMenuTile(
+                  icon: Icons.tune_outlined,
+                  title: 'Cấu hình Ca làm việc & GPS',
+                  subtitle: 'Thiết lập ca làm và tọa độ chi nhánh',
+                  color: Colors.teal,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const ShiftConfigPage(),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ],
+          ),
+
+          // ==========================================
+          // BLOCK 4: CẤU HÌNH & QUẢN TRỊ (Admin / Supervisor)
+          // ==========================================
+          if (user?.isAdmin == true || user?.isSupervisor == true) ...[
+            _buildCardBlock(
+              headerTitle: 'CẤU HÌNH & QUẢN TRỊ',
+              headerIcon: Icons.admin_panel_settings_outlined,
+              headerColor: Colors.deepPurple,
+              children: [
+                if (user?.canManagePaymentConfig == true) ...[
+                  _buildMenuTile(
+                    icon: Icons.qr_code_2,
+                    title: 'Cấu hình VietQR',
+                    subtitle: 'Mẫu in hóa đơn K80/K58/A4 & VietQR',
+                    color: Colors.teal,
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const StorePaymentSettingsPage(),
+                        ),
+                      );
+                    },
+                  ),
+                  const Divider(height: 1, indent: 52),
+                ],
+                _buildMenuTile(
+                  icon: Icons.manage_accounts_outlined,
+                  title: l10n.accountManagement,
+                  subtitle: 'Phân quyền & danh sách nhân viên',
+                  color: AppColors.primary,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const AccountManagementPage(),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ],
+
+          // ==========================================
+          // BLOCK 5: HỆ THỐNG & TÀI KHOẢN
+          // ==========================================
+          _buildCardBlock(
+            headerTitle: 'HỆ THỐNG',
+            headerIcon: Icons.settings_outlined,
+            headerColor: Colors.blueGrey,
+            children: [
+              _buildMenuTile(
+                icon: Icons.lock_reset,
+                title: 'Đổi mật khẩu',
+                subtitle: 'Thay đổi mật khẩu đăng nhập tài khoản',
+                color: AppColors.primary,
+                onTap: () {
+                  if (user?.username != null) {
+                    _showChangePasswordDialog(context, ref, user!.username);
+                  }
+                },
+              ),
+              const Divider(height: 1, indent: 52),
+              _buildMenuTile(
+                icon: Icons.logout,
+                title: l10n.logout,
+                subtitle: 'Đăng xuất khỏi thiết bị này',
+                color: AppColors.danger,
+                isDanger: true,
+                onTap: () => _showLogoutDialog(context, ref),
+              ),
+            ],
+          ),
         ],
+        ),
       ),
     );
   }
 
-  // Widget tạo danh mục chức năng
-  Widget _buildMenuSection(
-      BuildContext context, String header, List<_MenuItem> items) {
+  Widget _buildCardBlock({
+    required String headerTitle,
+    required IconData headerIcon,
+    required Color headerColor,
+    required List<Widget> children,
+  }) {
     return Container(
-      color: Colors.white,
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            header,
-            style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-                color: Colors.black54,
-                letterSpacing: 0.5),
-          ),
-          const SizedBox(height: 16),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 4,
-              mainAxisSpacing: 16,
-              crossAxisSpacing: 16,
-              childAspectRatio: 0.85,
-            ),
-            itemCount: items.length,
-            itemBuilder: (context, idx) {
-              final item = items[idx];
-              return InkWell(
-                onTap: item.onTap,
-                child: Column(
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: item.color.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(item.icon, color: item.color, size: 20),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      item.title,
-                      style:
-                          const TextStyle(fontSize: 11, color: Colors.black87),
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    )
-                  ],
+          Row(
+            children: [
+              Icon(headerIcon, size: 16, color: headerColor),
+              const SizedBox(width: 8),
+              Text(
+                headerTitle,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                  color: Colors.grey.shade700,
+                  letterSpacing: 0.5,
                 ),
-              );
-            },
-          )
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ...children,
         ],
       ),
     );
   }
 
+  Widget _buildMenuTile({
+    required IconData icon,
+    required String title,
+    String? subtitle,
+    required Color color,
+    required VoidCallback onTap,
+    bool isDanger = false,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: isDanger
+                    ? AppColors.danger.withOpacity(0.1)
+                    : color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                icon,
+                color: isDanger ? AppColors.danger : color,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: isDanger ? AppColors.danger : Colors.black87,
+                    ),
+                  ),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDanger
+                            ? AppColors.danger.withOpacity(0.8)
+                            : Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right,
+              color: isDanger ? AppColors.danger : Colors.grey.shade400,
+              size: 20,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   void _showLogoutDialog(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
@@ -465,14 +687,4 @@ class MorePage extends ConsumerWidget {
       },
     );
   }
-}
-
-// Lớp phụ trợ đại diện cho một phần tử menu
-class _MenuItem {
-  final IconData icon;
-  final String title;
-  final Color color;
-  final VoidCallback onTap;
-
-  _MenuItem(this.icon, this.title, this.color, this.onTap);
 }

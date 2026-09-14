@@ -38,9 +38,9 @@ class UserAccount {
 
   bool get isStaff => !isAdmin;
 
-  bool get canSwitchStore => isSupervisor;
+  bool get canSwitchStore => isAdmin;
 
-  bool get canManagePaymentConfig => isSupervisor;
+  bool get canManagePaymentConfig => isAdmin;
 
   bool get canManageProducts => isAdmin;
 
@@ -48,7 +48,21 @@ class UserAccount {
 
   bool get canDeleteCustomer => isAdmin;
 
+  bool get canExportCustomers => isAdmin;
+
+  bool get canChangeImportStore => canSwitchStore;
+
+  bool get canChangeTransferSourceStore => canSwitchStore;
+
   bool get canEditPriceAndDiscount => isAdmin;
 
-  bool get canViewCostPrice => isAdmin;
+  bool get canViewCostPrice => isSupervisor;
+
+  bool get canViewDebtSummary => isAdmin;
+
+  bool get canManageShifts => isAdmin || isSupervisor;
+
+  bool get canAdjustAttendance => isAdmin || isSupervisor;
+
+  bool get requiresAttendance => isStaff;
 }

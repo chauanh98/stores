@@ -458,6 +458,8 @@ class _AccountManagementPageState extends ConsumerState<AccountManagementPage> {
                         data['password'] = passwordController.text;
                       }
 
+                      if (!context.mounted) return;
+
                       // Hiện màn hình loading
                       showDialog(
                         context: context,

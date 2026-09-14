@@ -188,16 +188,16 @@ void main() {
       expect(fromMapComp.quantity, equals(3));
       expect(fromMapComp.costPrice, equals(50000.0));
 
-      final productModel = ProductModel(
+      const productModel = ProductModel(
         id: 'm01',
         name: 'Test Combo',
         code: 'TC01',
         price: 500000,
         costPrice: 300000,
-        branchStocks: const {'branch_1': 0},
+        branchStocks: {'branch_1': 0},
         category: 'Test',
         isCombo: true,
-        comboComponents: const [comp],
+        comboComponents: [comp],
       );
 
       final modelMap = productModel.toMap();

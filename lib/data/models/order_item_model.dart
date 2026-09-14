@@ -5,6 +5,7 @@ class OrderItemModel {
   final double price; // Giá bán thực tế tại thời điểm tạo đơn hàng
   final int warrantyMonths;
   final DateTime purchaseDate;
+  final int returnedQuantity;
 
   const OrderItemModel({
     required this.productId,
@@ -13,6 +14,7 @@ class OrderItemModel {
     required this.price,
     required this.warrantyMonths,
     required this.purchaseDate,
+    this.returnedQuantity = 0,
   });
 
   Map<String, dynamic> toMap() => {
@@ -22,6 +24,7 @@ class OrderItemModel {
         'price': price,
         'warrantyMonths': warrantyMonths,
         'purchaseDate': purchaseDate.toIso8601String(),
+        'returnedQuantity': returnedQuantity,
       };
 
   factory OrderItemModel.fromMap(Map<dynamic, dynamic> map) => OrderItemModel(
@@ -29,8 +32,9 @@ class OrderItemModel {
         productName: map['productName'] as String,
         quantity: map['quantity'] as int,
         price: (map['price'] as num?)?.toDouble() ?? 0.0,
-        // Fallback về 0.0 nếu không có price
         warrantyMonths: map['warrantyMonths'] as int,
         purchaseDate: DateTime.parse(map['purchaseDate'] as String),
+        returnedQuantity: (map['returnedQuantity'] as num?)?.toInt() ?? 0,
       );
 }
+

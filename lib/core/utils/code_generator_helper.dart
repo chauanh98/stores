@@ -48,4 +48,10 @@ class CodeGeneratorHelper {
   static String generateNextProductCode(List<String> existingProductIds) {
     return generateNextCode('SP', existingProductIds, padLength: 6);
   }
+
+  /// Sinh mã nhà cung cấp tiếp theo (ví dụ: NCC000001)
+  static String generateNextSupplierCode(List<String> existingSupplierCodes) {
+    return generateNextCode('NCC', existingSupplierCodes, padLength: 6);
+  }
 }
+

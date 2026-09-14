@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../../application/auth/auth_providers.dart';
 import '../../../application/customers/customers_providers.dart';
 import '../../../application/reports/overview_providers.dart';
 import '../../../core/theme/app_colors.dart';
@@ -20,7 +21,12 @@ import '../widgets/customer_list_tile.dart';
 import 'add_customer_page.dart';
 
 class CustomersPage extends ConsumerStatefulWidget {
-  const CustomersPage({super.key});
+  final CustomerDebtFilter initialDebtFilter;
+
+  const CustomersPage({
+    super.key,
+    this.initialDebtFilter = CustomerDebtFilter.all,
+  });
 
   @override
   ConsumerState<CustomersPage> createState() => _CustomersPageState();
@@ -35,6 +41,25 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(customerDebtFilterProvider.notifier).state =
+            widget.initialDebtFilter;
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant CustomersPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialDebtFilter != widget.initialDebtFilter) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ref.read(customerDebtFilterProvider.notifier).state =
+              widget.initialDebtFilter;
+        }
+      });
+    }
   }
 
   void _onScroll() {
@@ -60,10 +85,13 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final user = ref.watch(authProvider);
     final processedAsync = ref.watch(processedCustomersProvider);
     final searchQuery = ref.watch(customerSearchQueryProvider);
     final customerTimeRangeType = ref.watch(customerTimeRangeTypeProvider);
     final customerActiveRange = ref.watch(customerActiveDateRangeProvider);
+    final currentDebtFilter = ref.watch(customerDebtFilterProvider);
+    final debtCounts = ref.watch(customerDebtCountsProvider);
 
     final String dateLabel;
     if (customerTimeRangeType == null) {
@@ -79,15 +107,15 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
       appBar: AppBar(
         title: Text(l10n.customers),
         actions: [
-          if (kIsWeb)
+          if (kIsWeb && (user?.isAdmin == true))
             PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert),
               tooltip: l10n.excelActions,
               onSelected: (value) {
                 if (value == 'import') {
-                  _importCustomers(context);
+                  _importCustomers();
                 } else if (value == 'export') {
-                  _exportCustomers(context);
+                  _exportCustomers();
                 }
               },
               itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
@@ -163,6 +191,9 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
               },
             ),
           ),
+
+          // Debt Filter Segment Bar
+          _buildDebtFilterBar(currentDebtFilter, debtCounts),
 
           // Date Filter Bar
           Container(
@@ -319,8 +350,16 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
     );
   }
 
-  Future<void> _importCustomers(BuildContext context) async {
+  Future<void> _importCustomers() async {
     final l10n = AppLocalizations.of(context)!;
+    final user = ref.read(authProvider);
+    if (user?.isAdmin != true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Bạn không có quyền nhập dữ liệu khách hàng')),
+      );
+      return;
+    }
+
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -336,16 +375,6 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
         return;
       }
 
-      final file = result.files.first;
-      List<int> bytes;
-      if (file.bytes != null) {
-        bytes = file.bytes!;
-      } else if (file.path != null) {
-        bytes = await File(file.path!).readAsBytes();
-      } else {
-        throw Exception('Cannot read file bytes');
-      }
-
       if (!mounted) return;
       showDialog(
         context: context,
@@ -353,7 +382,16 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
         builder: (_) => const Center(child: CircularProgressIndicator()),
       );
 
-      final importedCustomers = ExcelHelper.parseCustomers(bytes);
+      final fileBytes = result.files.first.bytes ??
+          (result.files.first.path != null
+              ? await File(result.files.first.path!).readAsBytes()
+              : null);
+
+      if (fileBytes == null) {
+        throw Exception('Không thể đọc nội dung file');
+      }
+
+      final importedCustomers = ExcelHelper.parseCustomers(fileBytes);
       final repo = ref.read(customerRepositoryProvider);
 
       int addedCount = 0;
@@ -400,8 +438,16 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
     }
   }
 
-  Future<void> _exportCustomers(BuildContext context) async {
+  Future<void> _exportCustomers() async {
     final l10n = AppLocalizations.of(context)!;
+    final user = ref.read(authProvider);
+    if (!(user?.canExportCustomers ?? false)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Bạn không có quyền xuất dữ liệu khách hàng')),
+      );
+      return;
+    }
+
     try {
       final customersAsync = ref.read(customerListNotifierProvider);
       final customers = customersAsync.maybeWhen(
@@ -573,7 +619,7 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
                             }
                           },
                         );
-                      }).toList(),
+                      }),
                     ],
                   ),
                 ),
@@ -591,42 +637,211 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
     final count = customers.length;
     final totalSalesSum =
         customers.fold(0.0, (sum, c) => sum + c.displayTotalSales);
+    final totalDebtSum = customers.fold(
+        0.0, (sum, c) => sum + (c.displayCurrentDebt > 0 ? c.displayCurrentDebt : 0.0));
 
     return Container(
       color: AppColors.surfaceInfo,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                l10n.totalSales,
-                style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                    color: Colors.black87),
+              Row(
+                children: [
+                  Text(
+                    l10n.totalSales,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        color: Colors.black87),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    currencyFormat.format(totalSalesSum),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 8),
               Text(
-                currencyFormat.format(totalSalesSum),
+                l10n.totalCustomers(count),
                 style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
-                  color: AppColors.primary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black54,
                 ),
               ),
             ],
           ),
-          Text(
-            l10n.totalCustomers(count),
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: Colors.black54,
-            ),
+          const SizedBox(height: 6),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    '${l10n.customerDebt}:',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        color: Colors.black87),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    currencyFormat.format(totalDebtSum),
+                    key: const Key('total_debt_summary_text'),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: AppColors.danger,
+                    ),
+                  ),
+                ],
+              ),
+              if (totalDebtSum > 0)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppColors.dangerLight,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Text(
+                    'Cần thu',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.danger,
+                    ),
+                  ),
+                ),
+            ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDebtFilterBar(
+    CustomerDebtFilter currentFilter,
+    Map<CustomerDebtFilter, int> counts,
+  ) {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.surfaceLight,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        padding: const EdgeInsets.all(3),
+        child: Row(
+          children: [
+            _buildDebtFilterTab(
+              filter: CustomerDebtFilter.all,
+              label: 'Tất cả',
+              count: counts[CustomerDebtFilter.all] ?? 0,
+              isSelected: currentFilter == CustomerDebtFilter.all,
+            ),
+            _buildDebtFilterTab(
+              filter: CustomerDebtFilter.inDebt,
+              label: 'Còn nợ',
+              count: counts[CustomerDebtFilter.inDebt] ?? 0,
+              isSelected: currentFilter == CustomerDebtFilter.inDebt,
+              activeColor: AppColors.danger,
+              activeBgColor: AppColors.dangerLight,
+            ),
+            _buildDebtFilterTab(
+              filter: CustomerDebtFilter.cleared,
+              label: 'Hết nợ',
+              count: counts[CustomerDebtFilter.cleared] ?? 0,
+              isSelected: currentFilter == CustomerDebtFilter.cleared,
+              activeColor: AppColors.success,
+              activeBgColor: AppColors.successLight,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDebtFilterTab({
+    required CustomerDebtFilter filter,
+    required String label,
+    required int count,
+    required bool isSelected,
+    Color? activeColor,
+    Color? activeBgColor,
+  }) {
+    final selectedTextColor = activeColor ?? AppColors.primary;
+    final selectedBgColor = activeBgColor ?? Colors.white;
+
+    return Expanded(
+      child: GestureDetector(
+        key: Key('debt_filter_tab_${filter.name}'),
+        onTap: () {
+          ref.read(customerDebtFilterProvider.notifier).state = filter;
+          setState(() {
+            _currentLimit = 50;
+          });
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? selectedBgColor : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.06),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    )
+                  ]
+                : null,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                  color:
+                      isSelected ? selectedTextColor : AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? selectedTextColor.withOpacity(0.15)
+                      : Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  count.toString(),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: isSelected
+                        ? selectedTextColor
+                        : AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

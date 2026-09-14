@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:stores/presentation/common/widgets/error_view.dart';
 import 'package:stores/presentation/common/widgets/loading_indicator.dart';
 
+import '../../../application/auth/auth_providers.dart';
 import '../../../application/customers/customers_providers.dart';
 import '../../../application/inventory/inventory_providers.dart';
 import '../../../application/orders/orders_providers.dart';
@@ -134,12 +135,10 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
                   ..._items.asMap().entries.map((entry) {
                     final idx = entry.key;
                     final item = entry.value;
-                    final product = products.firstWhere(
-                      (p) => p.id == item.productId,
-                      orElse: () => products.isNotEmpty
-                          ? products.first
-                          : null as Product,
-                    );
+                    final Product? product = products
+                        .where((p) => p.id == item.productId)
+                        .firstOrNull ??
+                        (products.isNotEmpty ? products.first : null);
 
                     return Card(
                       margin: const EdgeInsets.only(bottom: 12),
@@ -327,6 +326,8 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
       return;
     }
 
+    final currentStoreId = ref.read(currentStoreIdProvider);
+
     for (final i in _items) {
       if (i.productId == null || i.quantity <= 0) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -337,7 +338,7 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
       final p = products.firstWhere((e) => e.id == i.productId);
       final effectiveStock = ComboHelper.getAvailableStock(
         product: p,
-        branchId: 'branch_1',
+        branchId: currentStoreId,
         allProducts: products,
       );
 
@@ -427,9 +428,19 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
             if (childProduct != null) {
               final childBranchStocks =
                   Map<String, int>.from(childProduct.branchStocks);
-              final currentChildStock = childBranchStocks['branch_1'] ?? 0;
+              String childKey = currentStoreId;
+              if (!childBranchStocks.containsKey(currentStoreId)) {
+                if (currentStoreId == 'store_001' &&
+                    childBranchStocks.containsKey('branch_1')) {
+                  childKey = 'branch_1';
+                } else if (currentStoreId == 'store_002' &&
+                    childBranchStocks.containsKey('branch_2')) {
+                  childKey = 'branch_2';
+                }
+              }
+              final currentChildStock = childBranchStocks[childKey] ?? 0;
               final qtyToDeduct = i.quantity * comp.quantity;
-              childBranchStocks['branch_1'] =
+              childBranchStocks[childKey] =
                   (currentChildStock - qtyToDeduct).clamp(0, 99999);
 
               final updatedChild =
@@ -444,13 +455,24 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
                 date: now,
                 note: 'Order $id (Combo: ${p.name})',
                 importPrice: null,
+                storeId: currentStoreId,
               ));
             }
           }
         } else {
           final branchStocks = Map<String, int>.from(p.branchStocks);
-          final currentBranchStock = branchStocks['branch_1'] ?? 0;
-          branchStocks['branch_1'] =
+          String targetKey = currentStoreId;
+          if (!branchStocks.containsKey(currentStoreId)) {
+            if (currentStoreId == 'store_001' &&
+                branchStocks.containsKey('branch_1')) {
+              targetKey = 'branch_1';
+            } else if (currentStoreId == 'store_002' &&
+                branchStocks.containsKey('branch_2')) {
+              targetKey = 'branch_2';
+            }
+          }
+          final currentBranchStock = branchStocks[targetKey] ?? 0;
+          branchStocks[targetKey] =
               (currentBranchStock - i.quantity).clamp(0, 99999);
 
           final updatedProduct = p.copyWith(branchStocks: branchStocks);
@@ -464,6 +486,7 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
             date: now,
             note: 'Order $id',
             importPrice: null,
+            storeId: currentStoreId,
           ));
         }
       }

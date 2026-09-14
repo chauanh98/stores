@@ -12,14 +12,27 @@ import 'package:stores/core/theme/app_colors.dart';
 import '../../../application/auth/auth_providers.dart';
 import '../../../application/products/categories_providers.dart';
 import '../../../application/products/products_providers.dart';
+import '../../../core/utils/code_generator_helper.dart';
 import '../../../core/utils/combo_helper.dart';
 import '../../../domain/entities/category.dart';
 import '../../../domain/entities/combo_component.dart';
 import '../../../domain/entities/product.dart';
+import '../../../domain/entities/product_unit.dart';
+import '../widgets/sample_image_picker_dialog.dart';
+import 'select_brand_page.dart';
 import 'select_category_page.dart';
 
 class AddProductPage extends ConsumerStatefulWidget {
-  const AddProductPage({super.key});
+  final Product? product;
+  final Product? initialProduct;
+
+  const AddProductPage({
+    super.key,
+    this.product,
+    this.initialProduct,
+  });
+
+  Product? get productToUse => product ?? initialProduct;
 
   @override
   ConsumerState<AddProductPage> createState() => _AddProductPageState();
@@ -34,6 +47,7 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
   final _costPriceController = TextEditingController();
   final _priceController = TextEditingController();
   final _stockController = TextEditingController();
+  final _baseUnitController = TextEditingController(text: 'Cái');
 
   Category? _selectedCategory;
   String _selectedCategoryPath = '';
@@ -44,11 +58,10 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
   String? _onlineImageUrl;
   bool _isLoading = false;
 
-  // Extra Sub-Sections Toggles
+  // Extra Sub-Sections Toggles & Controllers
   bool _showDescription = false;
   final _descriptionController = TextEditingController();
 
-  bool _showStockLimits = false;
   final _minStockController = TextEditingController();
   final _maxStockController = TextEditingController();
 
@@ -58,12 +71,63 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
 
   // Combo Product States
   bool _isCombo = false;
-  List<ComboComponent> _comboComponents = [];
+  final List<ComboComponent> _comboComponents = [];
 
-  // Attributes & Units states
+  // Attributes & Multi-Units states
   final List<Map<String, String>> _attributes = [];
-  final List<Map<String, dynamic>> _units = [];
+  final List<ProductUnit> _units = [];
   bool _sellDirectly = true;
+
+  @override
+  void initState() {
+    super.initState();
+    final p = widget.productToUse;
+    if (p != null) {
+      _nameController.text = p.name;
+      _codeController.text = p.code;
+      _barcodeController.text = p.barcode ?? '';
+      _brandController.text = p.brand ?? '';
+      _priceController.text =
+          p.price > 0 ? p.price.toStringAsFixed(0) : '';
+      _costPriceController.text =
+          p.costPrice > 0 ? p.costPrice.toStringAsFixed(0) : '';
+      _stockController.text = p.stock.toString();
+      _baseUnitController.text = p.unit ?? 'Cái';
+      _units.addAll(p.units);
+      if (p.minStock != null) _minStockController.text = p.minStock.toString();
+      if (p.maxStock != null) _maxStockController.text = p.maxStock.toString();
+      if (p.description != null && p.description!.isNotEmpty) {
+        _descriptionController.text = p.description!;
+        _showDescription = true;
+      }
+      if (p.noteTemplate != null && p.noteTemplate!.isNotEmpty) {
+        _noteTemplateController.text = p.noteTemplate!;
+        _showOtherInfo = true;
+      }
+      if (p.components != null && p.components!.isNotEmpty) {
+        _componentsController.text = p.components!;
+        _showOtherInfo = true;
+      }
+      _selectedCategoryPath = p.category3Levels ?? p.category;
+      _onlineImageUrl = p.imageUrl;
+      _isCombo = p.isCombo;
+      _comboComponents.addAll(p.comboComponents);
+      _sellDirectly = p.allowSale;
+      if (p.model != null && p.model!.isNotEmpty) {
+        try {
+          final pairs = p.model!.split(', ');
+          for (final pair in pairs) {
+            final parts = pair.split(':');
+            if (parts.length == 2) {
+              _attributes.add({'name': parts[0], 'value': parts[1]});
+            }
+          }
+        } catch (_) {}
+      }
+    } else {
+      _baseUnitController.text = 'Cái';
+    }
+  }
 
   @override
   void dispose() {
@@ -74,6 +138,7 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
     _costPriceController.dispose();
     _priceController.dispose();
     _stockController.dispose();
+    _baseUnitController.dispose();
     _descriptionController.dispose();
     _minStockController.dispose();
     _maxStockController.dispose();
@@ -84,6 +149,11 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
 
   @override
   Widget build(BuildContext context) {
+    final user = ref.watch(authProvider);
+    final canManageProducts = user?.canManageProducts ?? false;
+    final canViewCostPrice = user?.canViewCostPrice ?? false;
+    final isEditing = widget.productToUse != null;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -91,18 +161,22 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('Hàng hóa mới',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        title: Text(
+          isEditing ? 'Chỉnh sửa sản phẩm' : 'Hàng hóa mới',
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+        ),
         backgroundColor: Colors.white,
         actions: [
           TextButton(
-            onPressed: _isLoading ? null : _saveProduct,
-            child: const Text(
+            onPressed:
+                (canManageProducts && !_isLoading) ? _saveProduct : null,
+            child: Text(
               'Lưu',
               style: TextStyle(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16),
+                color: canManageProducts ? AppColors.primary : Colors.grey,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
             ),
           ),
         ],
@@ -115,8 +189,34 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
                 key: _formKey,
                 child: Column(
                   children: [
+                    // Permission Warning Banner if Staff
+                    if (!canManageProducts)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.amber.shade300),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.lock_outline,
+                                color: Colors.amber, size: 22),
+                            SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'Bạn không có quyền quản lý hàng hóa (chỉ xem). Vui lòng liên hệ Quản lý để thao tác.',
+                                style: TextStyle(
+                                    fontSize: 12, color: Colors.black87),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
                     // 1. Image Picker Top Card
-                    _buildImagePickerCard(),
+                    _buildImagePickerCard(enabled: canManageProducts),
                     const SizedBox(height: 16),
 
                     // 2. Core Fields Card
@@ -131,33 +231,52 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
                         padding: const EdgeInsets.all(16),
                         child: Column(
                           children: [
-                            _buildField(_codeController, 'Mã hàng', Icons.tag),
-                            const SizedBox(height: 16),
                             _buildField(
-                                _barcodeController, 'Mã vạch', Icons.qr_code),
+                              _nameController,
+                              'Tên hàng *',
+                              Icons.label,
+                              required: true,
+                              enabled: canManageProducts,
+                            ),
                             const SizedBox(height: 16),
+                            _buildCodeField(enabled: canManageProducts),
+                            const SizedBox(height: 16),
+                            _buildBarcodeField(enabled: canManageProducts),
+                            const SizedBox(height: 16),
+                            _buildCategorySelector(enabled: canManageProducts),
+                            const SizedBox(height: 16),
+                            _buildBrandSelector(enabled: canManageProducts),
+                            const SizedBox(height: 16),
+                            // Cost Price: Role-guarded (Only Supervisor can view/edit)
+                            if (canViewCostPrice) ...[
+                              _buildField(
+                                _costPriceController,
+                                'Giá vốn',
+                                Icons.download,
+                                isNumber: true,
+                                hint: '0',
+                                enabled: canManageProducts,
+                              ),
+                              const SizedBox(height: 16),
+                            ],
                             _buildField(
-                                _nameController, 'Tên hàng *', Icons.label,
-                                required: true),
-                            const SizedBox(height: 16),
-                            // Category Select
-                            _buildCategorySelector(),
-                            const SizedBox(height: 16),
-                            _buildField(_brandController, 'Thương hiệu',
-                                Icons.business),
-                            const SizedBox(height: 16),
-                            _buildField(
-                                _costPriceController, 'Giá vốn', Icons.download,
-                                isNumber: true, hint: '0'),
-                            const SizedBox(height: 16),
-                            _buildField(
-                                _priceController, 'Giá bán', Icons.upload,
-                                isNumber: true, hint: '0'),
+                              _priceController,
+                              'Giá bán',
+                              Icons.upload,
+                              isNumber: true,
+                              hint: '0',
+                              enabled: canManageProducts,
+                            ),
                             if (!_isCombo) ...[
                               const SizedBox(height: 16),
-                              _buildField(_stockController, 'Tồn kho',
-                                  Icons.inventory_2,
-                                  isNumber: true, hint: '0'),
+                              _buildField(
+                                _stockController,
+                                'Tồn kho',
+                                Icons.inventory_2,
+                                isNumber: true,
+                                hint: '0',
+                                enabled: canManageProducts,
+                              ),
                             ] else ...[
                               const SizedBox(height: 16),
                               Container(
@@ -192,7 +311,17 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
                     ),
                     const SizedBox(height: 16),
 
-                    // 3. Extra Actions
+                    // 3. Units Conversion Management Card
+                    _buildUnitsSection(
+                        enabled: canManageProducts,
+                        canViewCostPrice: canViewCostPrice),
+                    const SizedBox(height: 16),
+
+                    // 4. Min / Max Stock Limits Card
+                    _buildStockLimitsSection(enabled: canManageProducts),
+                    const SizedBox(height: 16),
+
+                    // 5. Extra Actions (Description, Attributes, Other Info)
                     _buildExtraActionRow(
                       icon: Icons.notes,
                       label: 'Thêm mô tả',
@@ -203,15 +332,18 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
                     if (_showDescription) ...[
                       const SizedBox(height: 8),
                       _buildCollapsibleInput(
-                          _descriptionController, 'Nhập mô tả sản phẩm...',
-                          maxLines: 3),
+                        _descriptionController,
+                        'Nhập mô tả sản phẩm...',
+                        maxLines: 3,
+                        enabled: canManageProducts,
+                      ),
                     ],
                     const SizedBox(height: 8),
 
                     _buildExtraActionRow(
                       icon: Icons.style,
                       label: 'Thêm thuộc tính (Màu sắc, kích thước...)',
-                      onTap: _showAttributesDialog,
+                      onTap: canManageProducts ? _showAttributesDialog : () {},
                       trailingWidget: _attributes.isNotEmpty
                           ? Chip(
                               label: Text('${_attributes.length} thuộc tính'))
@@ -219,34 +351,7 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
                     ),
                     if (_attributes.isNotEmpty) ...[
                       const SizedBox(height: 8),
-                      _buildAttributesList(),
-                    ],
-                    const SizedBox(height: 8),
-
-                    _buildExtraActionRow(
-                      icon: Icons.straighten,
-                      label: 'Thêm đơn vị tính',
-                      onTap: _showUnitsDialog,
-                      trailingWidget: _units.isNotEmpty
-                          ? Chip(label: Text('${_units.length} ĐVT'))
-                          : null,
-                    ),
-                    if (_units.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      _buildUnitsList(),
-                    ],
-                    const SizedBox(height: 8),
-
-                    _buildExtraActionRow(
-                      icon: Icons.notifications_active_outlined,
-                      label: 'Thêm định mức tồn kho',
-                      onTap: () =>
-                          setState(() => _showStockLimits = !_showStockLimits),
-                      isToggled: _showStockLimits,
-                    ),
-                    if (_showStockLimits) ...[
-                      const SizedBox(height: 8),
-                      _buildStockLimitsInputs(),
+                      _buildAttributesList(enabled: canManageProducts),
                     ],
                     const SizedBox(height: 8),
 
@@ -259,15 +364,15 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
                     ),
                     if (_showOtherInfo) ...[
                       const SizedBox(height: 8),
-                      _buildOtherInfoInputs(),
+                      _buildOtherInfoInputs(enabled: canManageProducts),
                     ],
                     const SizedBox(height: 16),
 
                     // Combo Product Card
-                    _buildComboSectionCard(),
+                    _buildComboSectionCard(enabled: canManageProducts),
                     const SizedBox(height: 16),
 
-                    // 4. Bottom Switch Direct Sell
+                    // Direct Selling Switch (Cho phép bán / Ngừng kinh doanh)
                     Card(
                       color: Colors.white,
                       elevation: 0,
@@ -277,17 +382,28 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
                       ),
                       child: SwitchListTile(
                         value: _sellDirectly,
-                        onChanged: (v) => setState(() => _sellDirectly = v),
+                        onChanged: canManageProducts
+                            ? (v) => setState(() => _sellDirectly = v)
+                            : null,
                         title: const Text(
-                          'Bán trực tiếp',
+                          'Cho phép bán',
                           style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 14,
                               color: Colors.black87),
                         ),
-                        subtitle: const Text(
-                            'Cho phép sản phẩm bán trực tiếp tại quầy POS',
-                            style: TextStyle(fontSize: 11)),
+                        subtitle: Text(
+                          _sellDirectly
+                              ? 'Đang kinh doanh (Hiển thị trên POS và cho phép bán hàng)'
+                              : 'Ngừng kinh doanh (Tự động ẩn khỏi màn hình POS)',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: _sellDirectly
+                                ? Colors.green.shade700
+                                : Colors.red.shade700,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                         activeColor: AppColors.primary,
                       ),
                     ),
@@ -299,14 +415,557 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
     );
   }
 
-  // Widget Image Picker Card
-  Widget _buildImagePickerCard() {
+  // SKU code field with 1-click auto-generation
+  Widget _buildCodeField({required bool enabled}) {
+    return TextFormField(
+      controller: _codeController,
+      enabled: enabled,
+      decoration: InputDecoration(
+        labelText: 'Mã hàng (SKU)',
+        hintText: 'Tự động tạo hoặc nhập thủ công',
+        prefixIcon: const Icon(Icons.tag, color: Colors.black45),
+        suffixIcon: IconButton(
+          icon: const Icon(Icons.auto_awesome, color: AppColors.primary),
+          tooltip: 'Tự động tạo mã SKU',
+          onPressed: enabled ? _generateNextCode : null,
+        ),
+        border: const OutlineInputBorder(),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      ),
+    );
+  }
+
+  void _generateNextCode() {
+    final products = ref.read(productListProvider).value ?? [];
+    final existingCodes = products.map((p) => p.code).toList();
+    final nextCode = CodeGeneratorHelper.generateNextProductCode(existingCodes);
+    setState(() {
+      _codeController.text = nextCode;
+    });
+  }
+
+  // Barcode field with Scan button
+  Widget _buildBarcodeField({required bool enabled}) {
+    return TextFormField(
+      controller: _barcodeController,
+      enabled: enabled,
+      decoration: InputDecoration(
+        labelText: 'Mã vạch',
+        hintText: 'Quét hoặc nhập mã vạch',
+        prefixIcon: const Icon(Icons.qr_code, color: Colors.black45),
+        suffixIcon: IconButton(
+          icon: const Icon(Icons.qr_code_scanner, color: AppColors.primary),
+          tooltip: 'Quét mã vạch',
+          onPressed: enabled ? _scanBarcode : null,
+        ),
+        border: const OutlineInputBorder(),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      ),
+    );
+  }
+
+  void _scanBarcode() async {
+    final scanController = TextEditingController(text: _barcodeController.text);
+    final scanned = await showDialog<String>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.qr_code_scanner, color: AppColors.primary),
+            SizedBox(width: 8),
+            Text('Quét mã vạch',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Nhập hoặc quét mã vạch từ đầu đọc mã vạch:',
+                style: TextStyle(fontSize: 13, color: Colors.black54)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: scanController,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'Mã vạch (Barcode)',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.qr_code),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.pop(dialogCtx, scanController.text.trim()),
+            style:
+                FilledButton.styleFrom(backgroundColor: AppColors.primary),
+            child: const Text('Xác nhận'),
+          ),
+        ],
+      ),
+    );
+
+    if (scanned != null && mounted) {
+      setState(() {
+        _barcodeController.text = scanned;
+      });
+    }
+  }
+
+  // Brand Selector with modal navigation
+  Widget _buildBrandSelector({required bool enabled}) {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildField(
+            _brandController,
+            'Thương hiệu',
+            Icons.business,
+            enabled: enabled,
+          ),
+        ),
+        const SizedBox(width: 8),
+        IconButton.filledTonal(
+          icon: const Icon(Icons.search, size: 20),
+          tooltip: 'Chọn thương hiệu',
+          onPressed: enabled ? _navigateToBrandSelect : null,
+        ),
+      ],
+    );
+  }
+
+  void _navigateToBrandSelect() async {
+    final selected = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            SelectBrandPage(initialBrand: _brandController.text.trim()),
+      ),
+    );
+
+    if (selected != null && mounted) {
+      setState(() {
+        _brandController.text = selected;
+      });
+    }
+  }
+
+  // Units Conversion Section
+  Widget _buildUnitsSection(
+      {required bool enabled, required bool canViewCostPrice}) {
+    final format = NumberFormat('#,###', 'vi_VN');
+    final baseUnitName = _baseUnitController.text.trim().isNotEmpty
+        ? _baseUnitController.text.trim()
+        : 'Cái';
+
+    return Card(
+      color: Colors.white,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: const BorderSide(color: AppColors.borderLight),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.straighten,
+                        color: AppColors.primary, size: 20),
+                    SizedBox(width: 8),
+                    Text(
+                      'Đơn vị tính & Quy đổi',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+                if (enabled)
+                  TextButton.icon(
+                    onPressed: () => _showAddEditUnitDialog(
+                        canViewCostPrice: canViewCostPrice),
+                    icon: const Icon(Icons.add_circle_outline, size: 16),
+                    label: const Text('Thêm ĐVT quy đổi',
+                        style: TextStyle(fontSize: 12)),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _baseUnitController,
+              enabled: enabled,
+              decoration: const InputDecoration(
+                labelText: 'Đơn vị cơ bản (Mặc định) *',
+                hintText: 'Ví dụ: Cái, Lon, Chai, Hộp...',
+                prefixIcon:
+                    Icon(Icons.check_box_outlined, color: Colors.black45),
+                border: OutlineInputBorder(),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 12),
+            if (_units.isNotEmpty) ...[
+              const Text(
+                'Danh sách đơn vị quy đổi:',
+                style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    color: Colors.black87),
+              ),
+              const SizedBox(height: 8),
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _units.length,
+                separatorBuilder: (_, __) =>
+                    const Divider(height: 1, color: AppColors.borderLight),
+                itemBuilder: (context, index) {
+                  final u = _units[index];
+                  return ListTile(
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    title: Text(
+                      u.unitName,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                    subtitle: Text(
+                      '1 ${u.unitName} = ${u.conversionRate} $baseUnitName • Giá bán: ${format.format(u.price)} đ'
+                      '${u.barcode != null && u.barcode!.isNotEmpty ? ' • Barcode: ${u.barcode}' : ''}'
+                      '${u.code != null && u.code!.isNotEmpty ? ' • SKU: ${u.code}' : ''}',
+                      style:
+                          const TextStyle(fontSize: 12, color: Colors.black54),
+                    ),
+                    trailing: enabled
+                        ? Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.edit_outlined,
+                                    size: 18, color: AppColors.primary),
+                                onPressed: () => _showAddEditUnitDialog(
+                                  unitToEdit: u,
+                                  editIndex: index,
+                                  canViewCostPrice: canViewCostPrice,
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline,
+                                    size: 18, color: Colors.red),
+                                onPressed: () {
+                                  setState(() {
+                                    _units.removeAt(index);
+                                  });
+                                },
+                              ),
+                            ],
+                          )
+                        : null,
+                  );
+                },
+              ),
+            ] else ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Text(
+                  'Chưa có đơn vị quy đổi bổ sung. Hàng hóa sẽ chỉ sử dụng đơn vị cơ bản ($baseUnitName).',
+                  style: const TextStyle(fontSize: 12, color: Colors.black54),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAddEditUnitDialog({
+    ProductUnit? unitToEdit,
+    int? editIndex,
+    required bool canViewCostPrice,
+  }) {
+    final nameController =
+        TextEditingController(text: unitToEdit?.unitName ?? '');
+    final rateController = TextEditingController(
+        text: unitToEdit != null ? unitToEdit.conversionRate.toString() : '');
+    final priceController = TextEditingController(
+        text: unitToEdit != null ? unitToEdit.price.toStringAsFixed(0) : '');
+    final costPriceController = TextEditingController(
+        text: unitToEdit?.costPrice != null
+            ? unitToEdit!.costPrice!.toStringAsFixed(0)
+            : '');
+    final barcodeController =
+        TextEditingController(text: unitToEdit?.barcode ?? '');
+    final codeController = TextEditingController(text: unitToEdit?.code ?? '');
+    bool isDirectSale = unitToEdit?.isDirectSale ?? true;
+
+    final baseUnitName = _baseUnitController.text.trim().isNotEmpty
+        ? _baseUnitController.text.trim()
+        : 'Cái';
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            return AlertDialog(
+              title: Text(
+                unitToEdit != null ? 'Sửa đơn vị quy đổi' : 'Thêm đơn vị quy đổi',
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      controller: nameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Tên đơn vị quy đổi *',
+                        hintText: 'Ví dụ: Lốc, Thùng, Hộp, Vỉ...',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: rateController,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: 'Tỷ lệ quy đổi *',
+                        hintText: '1 ĐVT = ? $baseUnitName',
+                        helperText: 'Số lượng $baseUnitName trong 1 đơn vị này',
+                        border: const OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: priceController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Giá bán quy đổi *',
+                        hintText: '0',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    if (canViewCostPrice) ...[
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: costPriceController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Giá vốn quy đổi (Tùy chọn)',
+                          hintText: '0',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: barcodeController,
+                      decoration: const InputDecoration(
+                        labelText: 'Mã vạch đơn vị (Barcode)',
+                        hintText: 'Tùy chọn',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: codeController,
+                      decoration: const InputDecoration(
+                        labelText: 'Mã SKU đơn vị',
+                        hintText: 'Tùy chọn',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Bán trực tiếp trên POS',
+                          style: TextStyle(fontSize: 13)),
+                      value: isDirectSale,
+                      activeColor: AppColors.primary,
+                      onChanged: (val) =>
+                          setDialogState(() => isDirectSale = val),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogCtx),
+                  child: const Text('Hủy'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    final name = nameController.text.trim();
+                    final rate =
+                        int.tryParse(rateController.text.trim()) ?? 1;
+                    final price =
+                        double.tryParse(priceController.text.trim()) ?? 0.0;
+                    final costPrice =
+                        double.tryParse(costPriceController.text.trim());
+                    final barcode = barcodeController.text.trim().isNotEmpty
+                        ? barcodeController.text.trim()
+                        : null;
+                    final code = codeController.text.trim().isNotEmpty
+                        ? codeController.text.trim()
+                        : null;
+
+                    if (name.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text('Vui lòng nhập tên đơn vị quy đổi')),
+                      );
+                      return;
+                    }
+
+                    final newUnit = ProductUnit(
+                      id: unitToEdit?.id ??
+                          'unit_${DateTime.now().millisecondsSinceEpoch}_${_units.length}',
+                      unitName: name,
+                      conversionRate: rate > 0 ? rate : 1,
+                      price: price,
+                      costPrice: costPrice,
+                      barcode: barcode,
+                      code: code,
+                      isDirectSale: isDirectSale,
+                    );
+
+                    setState(() {
+                      if (editIndex != null &&
+                          editIndex >= 0 &&
+                          editIndex < _units.length) {
+                        _units[editIndex] = newUnit;
+                      } else {
+                        _units.add(newUnit);
+                      }
+                    });
+
+                    Navigator.pop(dialogCtx);
+                  },
+                  style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.primary),
+                  child: Text(unitToEdit != null ? 'Cập nhật' : 'Thêm'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // Min / Max Stock Limits Section
+  Widget _buildStockLimitsSection({required bool enabled}) {
+    return Card(
+      color: Colors.white,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: const BorderSide(color: AppColors.borderLight),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.notifications_active_outlined,
+                    color: AppColors.primary, size: 20),
+                SizedBox(width: 8),
+                Text(
+                  'Định mức tồn kho (Cảnh báo Min / Max)',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _minStockController,
+                    enabled: enabled,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Tồn tối thiểu',
+                      hintText: 'VD: 5',
+                      prefixIcon: Icon(Icons.arrow_downward,
+                          color: Colors.orange, size: 18),
+                      border: OutlineInputBorder(),
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextFormField(
+                    controller: _maxStockController,
+                    enabled: enabled,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Tồn tối đa',
+                      hintText: 'VD: 200',
+                      prefixIcon: Icon(Icons.arrow_upward,
+                          color: Colors.blue, size: 18),
+                      border: OutlineInputBorder(),
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Hệ thống sẽ tự động phát cảnh báo khi lượng tồn kho <= Tồn tối thiểu hoặc vượt quá Tồn tối đa.',
+              style: TextStyle(fontSize: 11, color: Colors.black45),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Image Picker Top Card
+  Widget _buildImagePickerCard({required bool enabled}) {
     final hasImage = _selectedImageFile != null ||
         _imageBytes != null ||
         (_onlineImageUrl != null && _onlineImageUrl!.isNotEmpty);
 
     return GestureDetector(
-      onTap: _showImageSourceSheet,
+      onTap: enabled ? _showImageSourceSheet : null,
       child: Card(
         color: Colors.white,
         elevation: 0,
@@ -354,47 +1013,24 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
                                     fit: BoxFit.cover),
                       ),
                     ),
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: GestureDetector(
-                        onTap: () => setState(() {
-                          _selectedImageFile = null;
-                          _imageBytes = null;
-                          _onlineImageUrl = null;
-                        }),
-                        child: CircleAvatar(
-                          radius: 14,
-                          backgroundColor: Colors.black.withOpacity(0.6),
-                          child: const Icon(Icons.close,
-                              color: Colors.white, size: 16),
+                    if (enabled)
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: GestureDetector(
+                          onTap: () => setState(() {
+                            _selectedImageFile = null;
+                            _imageBytes = null;
+                            _onlineImageUrl = null;
+                          }),
+                          child: CircleAvatar(
+                            radius: 14,
+                            backgroundColor: Colors.black.withOpacity(0.6),
+                            child: const Icon(Icons.close,
+                                color: Colors.white, size: 16),
+                          ),
                         ),
                       ),
-                    ),
-                    Positioned(
-                      bottom: 8,
-                      left: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.6),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.edit,
-                                color: Colors.white, size: 12),
-                            const SizedBox(width: 4),
-                            Text(
-                              _onlineImageUrl != null ? 'Link Online' : 'Ảnh tải lên',
-                              style: const TextStyle(
-                                  color: Colors.white, fontSize: 11),
-                            ),
-                          ],
-                        ),
-                      ),
-                    )
                   ],
                 )
               : Column(
@@ -419,7 +1055,7 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
                     ),
                     const SizedBox(height: 2),
                     const Text(
-                      'Camera · Thư viện · Dán link web',
+                      'Camera · Thư viện · Link web · Gợi ý AI',
                       style: TextStyle(fontSize: 11, color: Colors.black45),
                     )
                   ],
@@ -429,7 +1065,6 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
     );
   }
 
-  // Display Image Source Sheet
   void _showImageSourceSheet() {
     showModalBottomSheet(
       context: context,
@@ -449,8 +1084,39 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
               children: [
                 ListTile(
                   leading: const CircleAvatar(
+                    backgroundColor: Color(0xFFE8F5E9),
+                    child: Icon(Icons.auto_awesome,
+                        color: Colors.green, size: 20),
+                  ),
+                  title: const Text('Gợi ý ảnh mẫu thông minh',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: const Text(
+                      'Tự động gợi ý ảnh đẹp theo tên và ngành hàng'),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    final selectedUrl = await SampleImagePickerDialog.show(
+                      context,
+                      productName: _nameController.text.trim(),
+                      category:
+                          _selectedCategory?.name ?? _selectedCategoryPath,
+                      brand: _brandController.text.trim(),
+                      category3Levels: _selectedCategoryPath,
+                      isCombo: _isCombo,
+                    );
+                    if (selectedUrl != null && mounted) {
+                      setState(() {
+                        _onlineImageUrl = selectedUrl;
+                        _selectedImageFile = null;
+                        _imageBytes = null;
+                      });
+                    }
+                  },
+                ),
+                ListTile(
+                  leading: const CircleAvatar(
                     backgroundColor: Color(0xFFFFF3E0),
-                    child: Icon(Icons.camera_alt, color: Colors.orange, size: 20),
+                    child:
+                        Icon(Icons.camera_alt, color: Colors.orange, size: 20),
                   ),
                   title: const Text('Chụp ảnh từ Camera',
                       style: TextStyle(fontWeight: FontWeight.w600)),
@@ -481,7 +1147,8 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
                   ),
                   title: const Text('Nhập / Dán Link ảnh Online',
                       style: TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: const Text('Dán link ảnh từ Google Images hoặc website'),
+                  subtitle:
+                      const Text('Dán link ảnh từ Google Images hoặc website'),
                   onTap: () {
                     Navigator.pop(context);
                     _showImageUrlDialog();
@@ -495,7 +1162,6 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
     );
   }
 
-  // Pick image using Camera
   void _pickImageFromCamera() async {
     try {
       final picker = ImagePicker();
@@ -530,7 +1196,6 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
     }
   }
 
-  // Pick Image from Gallery / File
   void _pickImageFromFile() async {
     try {
       final picker = ImagePicker();
@@ -565,7 +1230,6 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
     }
   }
 
-  // Dialog for pasting image URL
   void _showImageUrlDialog() {
     final urlController = TextEditingController(text: _onlineImageUrl ?? '');
     showDialog(
@@ -624,12 +1288,17 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
 
   // TextFormField builder helper
   Widget _buildField(
-      TextEditingController controller, String label, IconData icon,
-      {bool required = false,
-      bool isNumber = false,
-      String? hint}) {
+    TextEditingController controller,
+    String label,
+    IconData icon, {
+    bool required = false,
+    bool isNumber = false,
+    bool enabled = true,
+    String? hint,
+  }) {
     return TextFormField(
       controller: controller,
+      enabled: enabled,
       keyboardType: isNumber ? TextInputType.number : TextInputType.text,
       decoration: InputDecoration(
         labelText: label,
@@ -649,9 +1318,9 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
   }
 
   // Category selection row builder
-  Widget _buildCategorySelector() {
+  Widget _buildCategorySelector({required bool enabled}) {
     return InkWell(
-      onTap: _navigateToCategorySelect,
+      onTap: enabled ? _navigateToCategorySelect : null,
       child: InputDecorator(
         decoration: const InputDecoration(
           labelText: 'Nhóm hàng *',
@@ -666,7 +1335,7 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
               child: Text(
                 _selectedCategoryPath.isNotEmpty
                     ? _selectedCategoryPath
-                    : 'Chọn nhóm hàng',
+                    : 'Chọn nhóm hàng *',
                 style: TextStyle(
                   color: _selectedCategoryPath.isNotEmpty
                       ? Colors.black87
@@ -694,14 +1363,13 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
     );
 
     if (selected != null) {
-      // Build full path recursively
       final categories = ref.read(categoryListProvider).value ?? [];
       final path = <String>[selected.name];
       var current = selected;
       while (current.parentId != null) {
         final parent = categories.firstWhere(
           (c) => c.id == current.parentId,
-          orElse: () => Category(id: '', name: ''),
+          orElse: () => const Category(id: '', name: ''),
         );
         if (parent.id.isEmpty) break;
         path.insert(0, parent.name);
@@ -750,8 +1418,12 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
     );
   }
 
-  Widget _buildCollapsibleInput(TextEditingController controller, String hint,
-      {int maxLines = 1}) {
+  Widget _buildCollapsibleInput(
+    TextEditingController controller,
+    String hint, {
+    int maxLines = 1,
+    required bool enabled,
+  }) {
     return Card(
       color: Colors.white,
       elevation: 0,
@@ -763,6 +1435,7 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
         padding: const EdgeInsets.all(12),
         child: TextFormField(
           controller: controller,
+          enabled: enabled,
           maxLines: maxLines,
           decoration: InputDecoration(
             hintText: hint,
@@ -774,42 +1447,7 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
     );
   }
 
-  Widget _buildStockLimitsInputs() {
-    return Card(
-      color: Colors.white,
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: const BorderSide(color: AppColors.borderLight),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            Expanded(
-              child: TextFormField(
-                controller: _minStockController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                    labelText: 'Tồn ít nhất', border: OutlineInputBorder()),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: TextFormField(
-                controller: _maxStockController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                    labelText: 'Tồn nhiều nhất', border: OutlineInputBorder()),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildOtherInfoInputs() {
+  Widget _buildOtherInfoInputs({required bool enabled}) {
     return Card(
       color: Colors.white,
       elevation: 0,
@@ -823,12 +1461,14 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
           children: [
             TextFormField(
               controller: _noteTemplateController,
+              enabled: enabled,
               decoration: const InputDecoration(
                   labelText: 'Mẫu ghi chú', border: OutlineInputBorder()),
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _componentsController,
+              enabled: enabled,
               decoration: const InputDecoration(
                   labelText: 'Hàng thành phần', border: OutlineInputBorder()),
             ),
@@ -839,7 +1479,7 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
   }
 
   // Attributes list widget
-  Widget _buildAttributesList() {
+  Widget _buildAttributesList({required bool enabled}) {
     return Column(
       children: _attributes.map((attr) {
         return Card(
@@ -849,15 +1489,17 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
             title: Text('${attr['name']}: ${attr['value']}',
                 style:
                     const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-            trailing: IconButton(
-              icon:
-                  const Icon(Icons.delete_outline, color: Colors.red, size: 18),
-              onPressed: () {
-                setState(() {
-                  _attributes.remove(attr);
-                });
-              },
-            ),
+            trailing: enabled
+                ? IconButton(
+                    icon: const Icon(Icons.delete_outline,
+                        color: Colors.red, size: 18),
+                    onPressed: () {
+                      setState(() {
+                        _attributes.remove(attr);
+                      });
+                    },
+                  )
+                : null,
             dense: true,
           ),
         );
@@ -909,90 +1551,8 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
                 }
                 Navigator.pop(context);
               },
-              style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
-              child: const Text('Thêm'),
-            )
-          ],
-        );
-      },
-    );
-  }
-
-  // Units list widget
-  Widget _buildUnitsList() {
-    return Column(
-      children: _units.map((unit) {
-        return Card(
-          color: Colors.white,
-          margin: const EdgeInsets.only(bottom: 6),
-          child: ListTile(
-            title: Text('${unit['name']}',
-                style:
-                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-            subtitle: Text(
-                'Giá bán: ${NumberFormat('#,###', 'vi_VN').format(unit['price'])} đ'),
-            trailing: IconButton(
-              icon:
-                  const Icon(Icons.delete_outline, color: Colors.red, size: 18),
-              onPressed: () {
-                setState(() {
-                  _units.remove(unit);
-                });
-              },
-            ),
-            dense: true,
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  // Units Dialog
-  void _showUnitsDialog() {
-    final nameController = TextEditingController();
-    final priceController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Thêm đơn vị tính'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                    labelText: 'Tên đơn vị (Ví dụ: Cái, Hộp, Thùng...)',
-                    border: OutlineInputBorder()),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: priceController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                    labelText: 'Giá bán quy đổi', border: OutlineInputBorder()),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Hủy'),
-            ),
-            FilledButton(
-              onPressed: () {
-                final name = nameController.text.trim();
-                final price =
-                    double.tryParse(priceController.text.trim()) ?? 0.0;
-                if (name.isNotEmpty) {
-                  setState(() {
-                    _units.add({'name': name, 'price': price});
-                  });
-                }
-                Navigator.pop(context);
-              },
-              style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
+              style:
+                  FilledButton.styleFrom(backgroundColor: AppColors.primary),
               child: const Text('Thêm'),
             )
           ],
@@ -1002,7 +1562,7 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
   }
 
   // Combo Section Card Builder
-  Widget _buildComboSectionCard() {
+  Widget _buildComboSectionCard({required bool enabled}) {
     final allProducts = ref.watch(productListProvider).value ?? [];
     final double suggestedCost = ComboHelper.calculateSuggestedCostPrice(
       components: _comboComponents,
@@ -1027,15 +1587,17 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               value: _isCombo,
-              onChanged: (v) {
-                setState(() {
-                  _isCombo = v;
-                  if (v && _comboComponents.isNotEmpty) {
-                    _costPriceController.text =
-                        suggestedCost.toStringAsFixed(0);
-                  }
-                });
-              },
+              onChanged: enabled
+                  ? (v) {
+                      setState(() {
+                        _isCombo = v;
+                        if (v && _comboComponents.isNotEmpty) {
+                          _costPriceController.text =
+                              suggestedCost.toStringAsFixed(0);
+                        }
+                      });
+                    }
+                  : null,
               title: const Row(
                 children: [
                   Icon(Icons.widgets, color: AppColors.primary, size: 20),
@@ -1067,11 +1629,12 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
                       fontSize: 13,
                     ),
                   ),
-                  TextButton.icon(
-                    onPressed: _showAddComponentSheet,
-                    icon: const Icon(Icons.add_circle_outline, size: 18),
-                    label: const Text('Thêm linh kiện'),
-                  ),
+                  if (enabled)
+                    TextButton.icon(
+                      onPressed: _showAddComponentSheet,
+                      icon: const Icon(Icons.add_circle_outline, size: 18),
+                      label: const Text('Thêm linh kiện'),
+                    ),
                 ],
               ),
               if (_comboComponents.isEmpty)
@@ -1090,11 +1653,13 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
                       SizedBox(height: 4),
                       Text(
                         'Chưa có linh kiện nào trong Combo',
-                        style: TextStyle(fontSize: 12, color: Colors.black54),
+                        style:
+                            TextStyle(fontSize: 12, color: Colors.black54),
                       ),
                       Text(
                         'Nhấn "Thêm linh kiện" để chọn các sản phẩm thành phần',
-                        style: TextStyle(fontSize: 11, color: Colors.black38),
+                        style:
+                            TextStyle(fontSize: 11, color: Colors.black38),
                       ),
                     ],
                   ),
@@ -1138,9 +1703,10 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
                           Row(
                             children: [
                               IconButton(
-                                icon: const Icon(Icons.remove_circle_outline,
+                                icon: const Icon(
+                                    Icons.remove_circle_outline,
                                     size: 20),
-                                onPressed: comp.quantity > 1
+                                onPressed: (enabled && comp.quantity > 1)
                                     ? () {
                                         setState(() {
                                           _comboComponents[index] =
@@ -1161,23 +1727,27 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
                               IconButton(
                                 icon: const Icon(Icons.add_circle_outline,
                                     size: 20),
-                                onPressed: () {
-                                  setState(() {
-                                    _comboComponents[index] = comp.copyWith(
-                                      quantity: comp.quantity + 1,
-                                    );
-                                  });
-                                },
+                                onPressed: enabled
+                                    ? () {
+                                        setState(() {
+                                          _comboComponents[index] =
+                                              comp.copyWith(
+                                            quantity: comp.quantity + 1,
+                                          );
+                                        });
+                                      }
+                                    : null,
                               ),
-                              IconButton(
-                                icon: const Icon(Icons.delete_outline,
-                                    color: Colors.red, size: 20),
-                                onPressed: () {
-                                  setState(() {
-                                    _comboComponents.removeAt(index);
-                                  });
-                                },
-                              ),
+                              if (enabled)
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline,
+                                      color: Colors.red, size: 20),
+                                  onPressed: () {
+                                    setState(() {
+                                      _comboComponents.removeAt(index);
+                                    });
+                                  },
+                                ),
                             ],
                           ),
                         ],
@@ -1209,16 +1779,17 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
                           ),
                         ),
                       ),
-                      TextButton(
-                        onPressed: () {
-                          setState(() {
-                            _costPriceController.text =
-                                suggestedCost.toStringAsFixed(0);
-                          });
-                        },
-                        child: const Text('Áp dụng',
-                            style: TextStyle(fontSize: 12)),
-                      ),
+                      if (enabled)
+                        TextButton(
+                          onPressed: () {
+                            setState(() {
+                              _costPriceController.text =
+                                  suggestedCost.toStringAsFixed(0);
+                            });
+                          },
+                          child: const Text('Áp dụng',
+                              style: TextStyle(fontSize: 12)),
+                        ),
                     ],
                   ),
                 ),
@@ -1232,7 +1803,6 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
 
   void _showAddComponentSheet() {
     final allProducts = ref.read(productListProvider).value ?? [];
-    // Only show non-combo products as eligible components
     final eligibleProducts = allProducts.where((p) => !p.isCombo).toList();
 
     String searchQuery = '';
@@ -1286,8 +1856,8 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
                           hintText: 'Tìm theo tên hoặc mã hàng...',
                           prefixIcon: Icon(Icons.search),
                           border: OutlineInputBorder(),
-                          contentPadding:
-                              EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -1356,8 +1926,19 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
   // Save product logic
   void _saveProduct() async {
     final l10n = AppLocalizations.of(context)!;
+    final user = ref.read(authProvider);
+    if (user != null && !user.canManageProducts) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Bạn không có quyền quản lý hàng hóa!'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedCategory == null) {
+    if (_selectedCategory == null && _selectedCategoryPath.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Vui lòng chọn nhóm hàng!')),
       );
@@ -1368,8 +1949,10 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
 
     try {
       final storeId = ref.read(currentStoreIdProvider);
-      final productId = DateTime.now().millisecondsSinceEpoch.toString();
-      String? imageUrl = _onlineImageUrl;
+      final isEditing = widget.productToUse != null;
+      final productId = widget.productToUse?.id ??
+          DateTime.now().millisecondsSinceEpoch.toString();
+      String? imageUrl = _onlineImageUrl ?? widget.productToUse?.imageUrl;
 
       // Upload image to Firebase Storage if local image selected
       if (_selectedImageFile != null || _imageBytes != null) {
@@ -1392,54 +1975,110 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
               : name.toUpperCase());
 
       final price = double.tryParse(_priceController.text.trim()) ?? 0.0;
-      final costPrice = _costPriceController.text.trim().isNotEmpty
-          ? (double.tryParse(_costPriceController.text.trim()) ?? 0.0)
-          : price * 0.7;
+
+      double costPrice;
+      if (user?.canViewCostPrice == true) {
+        costPrice = _costPriceController.text.trim().isNotEmpty
+            ? (double.tryParse(_costPriceController.text.trim()) ?? 0.0)
+            : (isEditing ? widget.productToUse!.costPrice : price * 0.7);
+      } else {
+        costPrice =
+            isEditing ? widget.productToUse!.costPrice : price * 0.7;
+      }
 
       final stock = int.tryParse(_stockController.text.trim()) ?? 0;
+      final minStock = int.tryParse(_minStockController.text.trim());
+      final maxStock = int.tryParse(_maxStockController.text.trim());
+      final baseUnit = _baseUnitController.text.trim().isNotEmpty
+          ? _baseUnitController.text.trim()
+          : 'Cái';
 
-      // Attributes maps conversion
+      final categoryName = _selectedCategory?.name ??
+          (_selectedCategoryPath.isNotEmpty
+              ? _selectedCategoryPath.split(' >> ').last
+              : 'Khác');
+
       final note = _noteTemplateController.text.trim();
       final components = _componentsController.text.trim();
       final desc = _descriptionController.text.trim();
+
+      final currentStoreId = ref.read(currentStoreIdProvider);
+      final Map<String, int> branchStocks;
+      if (isEditing) {
+        branchStocks = Map<String, int>.from(widget.productToUse!.branchStocks);
+        if (!_isCombo) {
+          String targetKey = currentStoreId;
+          if (!branchStocks.containsKey(currentStoreId)) {
+            if (currentStoreId == 'store_001' && branchStocks.containsKey('branch_1')) {
+              targetKey = 'branch_1';
+            } else if (currentStoreId == 'store_002' && branchStocks.containsKey('branch_2')) {
+              targetKey = 'branch_2';
+            }
+          }
+          branchStocks[targetKey] = stock;
+        }
+      } else {
+        final otherStoreId =
+            currentStoreId == 'store_001' ? 'store_002' : 'store_001';
+        branchStocks = {
+          currentStoreId: stock,
+          otherStoreId: 0,
+        };
+      }
 
       final product = Product(
         id: productId,
         name: name,
         code: code,
-        barcode: _barcodeController.text.trim(),
-        brand: _brandController.text.trim(),
-        model: _attributes.map((a) => '${a['name']}:${a['value']}').join(', '),
+        barcode: _barcodeController.text.trim().isNotEmpty
+            ? _barcodeController.text.trim()
+            : null,
+        brand: _brandController.text.trim().isNotEmpty
+            ? _brandController.text.trim()
+            : null,
+        model: _attributes.isNotEmpty
+            ? _attributes.map((a) => '${a['name']}:${a['value']}').join(', ')
+            : widget.productToUse?.model,
         price: price,
         costPrice: costPrice,
-        branchStocks: {'branch_1': stock, 'branch_2': 0},
-        category: _selectedCategory!.name,
-        category3Levels: _selectedCategoryPath,
-        unit: _units.isNotEmpty ? _units.first['name'] : 'Cái',
+        branchStocks: branchStocks,
+        category: categoryName,
+        category3Levels: _selectedCategoryPath.isNotEmpty
+            ? _selectedCategoryPath
+            : null,
+        unit: baseUnit,
+        units: _units,
+        minStock: minStock,
+        maxStock: maxStock,
         description: desc.isNotEmpty ? desc : null,
         noteTemplate: note.isNotEmpty ? note : null,
         components: components.isNotEmpty ? components : null,
         imageUrl: imageUrl,
         isCombo: _isCombo,
         comboComponents: _isCombo ? _comboComponents : const [],
+        allowSale: _sellDirectly,
       );
 
       await ref.read(productRepositoryProvider).upsert(product);
       ref.invalidate(productListProvider);
 
       if (mounted) {
-        Navigator.of(context).pop();
+        Navigator.of(context).pop(product);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(l10n.productAdded), backgroundColor: Colors.green),
+            content:
+                Text(isEditing ? 'Đã cập nhật hàng hóa!' : l10n.productAdded),
+            backgroundColor: Colors.green,
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text('Lỗi thêm sản phẩm: $e'),
-              backgroundColor: Colors.red),
+            content: Text('Lỗi lưu sản phẩm: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {

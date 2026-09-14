@@ -137,9 +137,9 @@ final availableStoresProvider =
       result[id] = addrSnap.value.toString();
     } else {
       if (id == 'store_001') {
-        result[id] = 'Chi nhánh Thới Bình';
-      } else if (id == 'store_002') {
         result[id] = 'Chi nhánh Đông Thắng';
+      } else if (id == 'store_002') {
+        result[id] = 'Chi nhánh Thới Bình';
       } else {
         result[id] = 'Chi nhánh $id';
       }

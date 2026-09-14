@@ -47,7 +47,7 @@ class _SelectCategoryPageState extends ConsumerState<SelectCategoryPage> {
                   builder: (context) => const AddCategoryPage(),
                 ),
               );
-              if (newCat != null && mounted) {
+              if (newCat != null && context.mounted) {
                 // Instantly select the newly created category
                 Navigator.pop(context, newCat);
               }
@@ -263,7 +263,7 @@ class _SelectCategoryPageState extends ConsumerState<SelectCategoryPage> {
     while (current.parentId != null) {
       final parent = all.firstWhere(
         (c) => c.id == current.parentId,
-        orElse: () => Category(id: '', name: ''),
+        orElse: () => const Category(id: '', name: ''),
       );
       if (parent.id.isEmpty) break;
       path.insert(0, parent.name);

@@ -8,7 +8,11 @@ import '../../domain/repositories/category_repository.dart';
 
 final categoryRemoteDataSourceProvider =
     Provider<CategoryRemoteDataSource>((ref) {
-  return CategoryRemoteDataSource(FirebaseDatabase.instance);
+  try {
+    return CategoryRemoteDataSource(FirebaseDatabase.instance);
+  } catch (_) {
+    return CategoryRemoteDataSource();
+  }
 });
 
 final categoryRepositoryProvider = Provider<CategoryRepository>((ref) {

@@ -9,9 +9,9 @@ import '../../../core/theme/app_colors.dart';
 import '../../../domain/entities/product.dart';
 
 class InterStoreTransferPage extends ConsumerStatefulWidget {
-  const InterStoreTransferPage({super.key, required this.product});
+  const InterStoreTransferPage({super.key, this.product});
 
-  final Product product;
+  final Product? product;
 
   @override
   ConsumerState<InterStoreTransferPage> createState() =>
@@ -23,7 +23,14 @@ class _InterStoreTransferPageState
   final _formKey = GlobalKey<FormState>();
   final _quantityController = TextEditingController();
   String? _selectedTargetStoreId;
+  Product? _selectedProduct;
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedProduct = widget.product;
+  }
 
   @override
   void dispose() {
@@ -35,8 +42,20 @@ class _InterStoreTransferPageState
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final availableStoresAsync = ref.watch(availableStoresProvider);
-    final currentStoreId = ref.watch(currentStoreIdProvider);
+    final user = ref.watch(authProvider);
+    final isSourceLocked =
+        user?.isStaff == true || !(user?.canSwitchStore ?? false);
+    final currentStoreId = (user != null && !user.canSwitchStore && user.storeId.isNotEmpty)
+        ? user.storeId
+        : ref.watch(currentStoreIdProvider);
     final colorScheme = Theme.of(context).colorScheme;
+
+    final AsyncValue<List<Product>>? productsAsync =
+        widget.product == null ? ref.watch(productListProvider) : null;
+    final availableProducts = productsAsync?.value ?? [];
+    final currentProduct = widget.product ??
+        _selectedProduct ??
+        (availableProducts.isNotEmpty ? availableProducts.first : null);
 
     return Scaffold(
       appBar: AppBar(
@@ -67,6 +86,20 @@ class _InterStoreTransferPageState
                     l10n.noOtherStoreToTransfer,
                     style: TextStyle(color: colorScheme.onSurfaceVariant),
                   ),
+                ],
+              ),
+            );
+          }
+
+          if (currentProduct == null) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.inventory_2_outlined,
+                      size: 64, color: colorScheme.outline),
+                  const SizedBox(height: 16),
+                  const Text('Chưa có sản phẩm nào để chuyển kho'),
                 ],
               ),
             );
@@ -117,36 +150,66 @@ class _InterStoreTransferPageState
                           ),
                         ),
                         const SizedBox(height: 16),
-                        Text(
-                          widget.product.name,
-                          style: Theme.of(context)
-                              .textTheme
-                              .headlineSmall
-                              ?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: colorScheme.onPrimaryContainer,
+                        if (widget.product == null && availableProducts.length > 1)
+                          DropdownButtonFormField<Product>(
+                            value: currentProduct,
+                            decoration: InputDecoration(
+                              filled: true,
+                              fillColor: colorScheme.surface,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: BorderSide.none,
                               ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: colorScheme.surface,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            '${l10n.currentStock}: ${widget.product.stock}',
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 8),
+                            ),
+                            items: availableProducts.map((p) {
+                              return DropdownMenuItem(
+                                value: p,
+                                child: Text(
+                                  '${p.name} (Tồn: ${p.stock})',
+                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (p) {
+                              if (p != null) {
+                                setState(() => _selectedProduct = p);
+                              }
+                            },
+                          )
+                        else ...[
+                          Text(
+                            currentProduct.name,
                             style: Theme.of(context)
                                 .textTheme
-                                .titleMedium
+                                .headlineSmall
                                 ?.copyWith(
-                                  color: colorScheme.primary,
                                   fontWeight: FontWeight.bold,
+                                  color: colorScheme.onPrimaryContainer,
                                 ),
+                            textAlign: TextAlign.center,
                           ),
-                        ),
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: colorScheme.surface,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              '${l10n.currentStock}: ${currentProduct.stock}',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(
+                                    color: colorScheme.primary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -177,11 +240,17 @@ class _InterStoreTransferPageState
                           _buildModernField(
                             label: l10n.exportingStore,
                             child: TextFormField(
-                              initialValue: sourceStoreName,
+                              key: ValueKey('source_store_$currentStoreId'),
+                              initialValue:
+                                  '$sourceStoreName${isSourceLocked ? ' (Cố định)' : ''}',
                               readOnly: true,
                               decoration: InputDecoration(
-                                prefixIcon: Icon(Icons.storefront,
-                                    color: colorScheme.primary),
+                                prefixIcon: Icon(
+                                  isSourceLocked
+                                      ? Icons.lock_outline
+                                      : Icons.storefront,
+                                  color: colorScheme.primary,
+                                ),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12),
                                   borderSide: BorderSide.none,
@@ -259,13 +328,13 @@ class _InterStoreTransferPageState
                               keyboardType: TextInputType.number,
                               validator: (value) {
                                 if (value == null || value.trim().isEmpty) {
-                                  return '${l10n.pleaseEnter} ${l10n.quantity}';
+                                   return '${l10n.pleaseEnter} ${l10n.quantity}';
                                 }
                                 final quantity = int.tryParse(value);
                                 if (quantity == null || quantity <= 0) {
                                   return l10n.pleaseEnterValidNumber;
                                 }
-                                if (quantity > widget.product.stock) {
+                                if (quantity > currentProduct.stock) {
                                   return l10n.notEnoughStock;
                                 }
                                 return null;
@@ -281,7 +350,7 @@ class _InterStoreTransferPageState
 
                   // Submit Button
                   FilledButton.icon(
-                    onPressed: _isLoading ? null : _transferProduct,
+                    onPressed: _isLoading ? null : () => _transferProduct(currentProduct),
                     icon: _isLoading
                         ? Container(
                             width: 24,
@@ -337,7 +406,7 @@ class _InterStoreTransferPageState
     );
   }
 
-  Future<void> _transferProduct() async {
+  Future<void> _transferProduct(Product product) async {
     final l10n = AppLocalizations.of(context)!;
     if (!_formKey.currentState!.validate()) return;
     if (_selectedTargetStoreId == null) return;
@@ -346,19 +415,22 @@ class _InterStoreTransferPageState
 
     try {
       final quantity = int.parse(_quantityController.text.trim());
-      final currentStoreId = ref.read(currentStoreIdProvider);
+      final currentUser = ref.read(authProvider);
+      final currentStoreId = (currentUser != null &&
+              !currentUser.canSwitchStore &&
+              currentUser.storeId.isNotEmpty)
+          ? currentUser.storeId
+          : ref.read(currentStoreIdProvider);
       final transferService = ref.read(interStoreTransferServiceProvider);
       final storesMap = ref.read(availableStoresProvider).value ?? {};
       final sourceStoreName = storesMap[currentStoreId] ?? currentStoreId;
       final targetStoreName =
           storesMap[_selectedTargetStoreId!] ?? _selectedTargetStoreId!;
 
-      final currentUser = ref.read(authProvider);
-
       final error = await transferService.transferProduct(
         sourceStoreId: currentStoreId,
         targetStoreId: _selectedTargetStoreId!,
-        product: widget.product,
+        product: product,
         quantity: quantity,
         sourceStoreName: sourceStoreName,
         targetStoreName: targetStoreName,

@@ -1,1 +1,5 @@
-enum TransactionType { import, export }
+enum TransactionType {
+  import,
+  export,
+  inventoryAudit,
+}

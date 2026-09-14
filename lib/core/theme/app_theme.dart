@@ -15,7 +15,6 @@ class AppTheme {
         surfaceContainerHighest: AppColors.surfaceContainer,
         // subtle grey for containers
         onSurface: AppColors.textPrimary,
-        background: Colors.white,
       ),
       scaffoldBackgroundColor: Colors.white,
 
@@ -56,8 +55,8 @@ class AppTheme {
         surfaceTintColor: Colors.transparent,
         indicatorColor: Colors.transparent,
         // Disable bubble selection indicator
-        labelTextStyle: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
             return const TextStyle(
                 color: AppColors.primary,
                 fontWeight: FontWeight.bold,
@@ -68,8 +67,8 @@ class AppTheme {
               fontWeight: FontWeight.w500,
               fontSize: 12);
         }),
-        iconTheme: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
             return const IconThemeData(color: AppColors.primary);
           }
           return const IconThemeData(color: AppColors.textSecondary);

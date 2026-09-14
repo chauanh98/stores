@@ -1,124 +1,2555 @@
 import '../../domain/entities/product.dart';
+import 'vietnamese_text_helper.dart';
 
+/// Item in the curated sample images catalog.
+class SampleImageCategory {
+  final String id;
+  final String industry;
+  final String name;
+  final String imageUrl;
+  final List<String> keywords;
+  final List<String> negativeKeywords;
+  final int priority;
+
+  const SampleImageCategory({
+    required this.id,
+    required this.industry,
+    required this.name,
+    required this.imageUrl,
+    required this.keywords,
+    this.negativeKeywords = const [],
+    this.priority = 0,
+  });
+}
+
+/// Match result containing the category and calculated relevance score.
+class SampleImageMatch {
+  final SampleImageCategory category;
+  final int score;
+
+  const SampleImageMatch({
+    required this.category,
+    required this.score,
+  });
+
+  String get id => category.id;
+  String get industry => category.industry;
+  String get name => category.name;
+  String get imageUrl => category.imageUrl;
+}
+
+/// Smart multi-industry sample image catalog and weighted scoring engine.
 class SampleImageHelper {
+  static const String universalPlaceholderUrl =
+      'https://images.unsplash.com/photo-1586769852044-692d6e3703f0?w=600&auto=format&fit=crop&q=80';
+
+  /// 60+ Curated Unsplash Categories across 12 Retail Industries
+  static final List<SampleImageCategory> catalog = [
+    // =========================================================================
+    // 1. ĐỒ UỐNG & GIẢI KHÁT (BEVERAGES & DRINKS)
+    // =========================================================================
+    const SampleImageCategory(
+      id: 'beverage_soda',
+      industry: 'Đồ uống & Giải khát',
+      name: 'Nước ngọt có ga & Nước tăng lực',
+      imageUrl:
+          'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'coca',
+        'coca cola',
+        'coca-cola',
+        'pepsi',
+        '7up',
+        'sprite',
+        'mirinda',
+        'fanta',
+        'sting',
+        'redbull',
+        'red bull',
+        'monster',
+        'bo huc',
+        'bò húc',
+        'nuoc ngot',
+        'nước ngọt',
+        'nuoc tang luc',
+        'nước tăng lực',
+        'nuoc co ga',
+        'nước có ga',
+        'soda',
+        'lon nuoc',
+        'lon nước',
+        'number 1',
+        'warrior',
+        'wake up 247',
+        'revive',
+      ],
+      negativeKeywords: ['ruou', 'rượu', 'bia'],
+      priority: 15,
+    ),
+    const SampleImageCategory(
+      id: 'beverage_beer',
+      industry: 'Đồ uống & Giải khát',
+      name: 'Bia & Thức uống có cồn',
+      imageUrl:
+          'https://images.unsplash.com/photo-1608270190807-6b45f1b1c313?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'heineken',
+        'tiger',
+        'bia saigon',
+        'bia sai gon',
+        'bia ha noi',
+        'bia hà nội',
+        'budweiser',
+        'corona',
+        'strongbow',
+        'bia tươi',
+        'bia lon',
+        'bia chai',
+        'ruou vang',
+        'rượu vang',
+        'whisky',
+        'vodka',
+        'bia',
+        'rượu',
+        'ruou',
+        'chivas',
+        'hoegaarden',
+        'tuborg',
+        'sapporo',
+        'larue',
+        '333',
+        'bia 333',
+        'soju',
+      ],
+      negativeKeywords: [
+        'bìa',
+        'bìa còng',
+        'bìa hồ sơ',
+        'bìa nhựa',
+        'bìa carton',
+        'bia cong',
+        'bia ho so',
+        'bia nhua',
+        'bia carton',
+        'bìa lá',
+        'bia la',
+        'bìa nút',
+        'bia nut',
+      ],
+      priority: 15,
+    ),
+    const SampleImageCategory(
+      id: 'beverage_milk',
+      industry: 'Đồ uống & Giải khát',
+      name: 'Sữa tươi & Sữa các loại',
+      imageUrl:
+          'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'vinamilk',
+        'th true milk',
+        'th milk',
+        'milo',
+        'dutch lady',
+        'co gai ha lan',
+        'cô gái hà lan',
+        'sua tuoi',
+        'sữa tươi',
+        'sua dac',
+        'sữa đặc',
+        'sua bot',
+        'sữa bột',
+        'sua hat',
+        'sữa hạt',
+        'sua chua',
+        'sữa chua',
+        'sua dau nanh',
+        'sữa đậu nành',
+        'fami',
+        'ong tho',
+        'ông thọ',
+        'nutifood',
+        'ovalmaltine',
+        'vitasoy',
+        'vfresh sữa',
+        'yakult',
+        'probi',
+        'sua bap',
+        'sữa bắp',
+      ],
+      negativeKeywords: ['rua mat', 'rửa mặt', 'tam', 'tắm'],
+      priority: 15,
+    ),
+    const SampleImageCategory(
+      id: 'beverage_coffee',
+      industry: 'Đồ uống & Giải khát',
+      name: 'Cà phê & Bột cà phê',
+      imageUrl:
+          'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'trung nguyen',
+        'trung nguyên',
+        'highlands',
+        'highland',
+        'nescafe',
+        'g7',
+        'ca phe',
+        'cà phê',
+        'cafe',
+        'capuchino',
+        'cappuccino',
+        'espresso',
+        'latte',
+        'ca phe sua',
+        'cà phê sữa',
+        'ca phe hoa tan',
+        'cà phê hòa tan',
+        'ca phe hat',
+        'cà phê hạt',
+        'phin ca phe',
+        'phin cà phê',
+        'starbucks',
+        'king coffee',
+        'wake up',
+        'vina cafe',
+      ],
+      priority: 15,
+    ),
+    const SampleImageCategory(
+      id: 'beverage_tea',
+      industry: 'Đồ uống & Giải khát',
+      name: 'Trà & Trà sữa',
+      imageUrl:
+          'https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'tra xanh',
+        'trà xanh',
+        'tra dao',
+        'trà đào',
+        'tra chanh',
+        'trà chanh',
+        'tra sua',
+        'trà sữa',
+        'tra o long',
+        'trà ô long',
+        'lipton',
+        'phuc long',
+        'phúc long',
+        'c2',
+        'khong do',
+        'không độ',
+        'matcha',
+        'hong tra',
+        'hồng trà',
+        'tui loc tra',
+        'túi lọc trà',
+        'tra atiso',
+        'trà atisô',
+        'tra thai',
+        'trà thái',
+        'cozy',
+        'dilmah',
+        'tra gung',
+        'trà gừng',
+      ],
+      negativeKeywords: ['tra cuu', 'tra cứu', 'kiem tra', 'kiểm tra'],
+      priority: 12,
+    ),
+    const SampleImageCategory(
+      id: 'beverage_water',
+      industry: 'Đồ uống & Giải khát',
+      name: 'Nước suối & Nước tinh khiết',
+      imageUrl:
+          'https://images.unsplash.com/photo-1548839140-29a749e1bc4e?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'aquafina',
+        'lavie',
+        'la vie',
+        'dasani',
+        'vinh hao',
+        'vĩnh hảo',
+        'th true water',
+        'nuoc suoi',
+        'nước suối',
+        'nuoc khoang',
+        'nước khoáng',
+        'nuoc tinh khiet',
+        'nước tinh khiết',
+        'chai nuoc',
+        'chai nước',
+        'ion life',
+        'vikoda',
+      ],
+      priority: 14,
+    ),
+    const SampleImageCategory(
+      id: 'beverage_juice',
+      industry: 'Đồ uống & Giải khát',
+      name: 'Nước ép & Sinh tố',
+      imageUrl:
+          'https://images.unsplash.com/photo-1613478223719-2ab802602423?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'nuoc cam',
+        'nước cam',
+        'nuoc ep',
+        'nước ép',
+        'sinh to',
+        'sinh tố',
+        'nuoc tao',
+        'nước táo',
+        'twister',
+        'teppy',
+        'vfresh',
+        'nuoc dua',
+        'nước dừa',
+        'nuoc chanh day',
+        'nước chanh dây',
+        'nuoc ep trai cay',
+        'nước ép trái cây',
+        'smoothie',
+        'juice',
+      ],
+      priority: 12,
+    ),
+
+    // =========================================================================
+    // 2. FMCG & HÓA PHẨM GIẶT XẢ / TẨY RỬA (HOUSEHOLD CHEMICALS & CLEANING)
+    // =========================================================================
+    const SampleImageCategory(
+      id: 'fmcg_laundry',
+      industry: 'FMCG & Hóa phẩm giặt xả',
+      name: 'Nước giặt, Bột giặt & Nước xả',
+      imageUrl:
+          'https://images.unsplash.com/photo-1582735689369-4fe89db7114c?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'omo',
+        'tide',
+        'ariel',
+        'comfort',
+        'downy',
+        'surf',
+        'lix',
+        'aba',
+        'nuoc giat',
+        'nước giặt',
+        'bot giat',
+        'bột giặt',
+        'nuoc xa vai',
+        'nước xả vải',
+        'xa vai',
+        'xả vải',
+        'hat giat',
+        'hạt giặt',
+        'nuoc tay javel',
+        'nước tẩy javel',
+        'dnee',
+        'hygiene',
+        'nuoc tay quan ao',
+        'nước tẩy quần áo',
+      ],
+      priority: 15,
+    ),
+    const SampleImageCategory(
+      id: 'fmcg_cleaning',
+      industry: 'FMCG & Hóa phẩm',
+      name: 'Nước rửa chén, Lau sàn & Tẩy rửa',
+      imageUrl:
+          'https://images.unsplash.com/photo-1585421514738-01798e348b17?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'sunlight',
+        'my hao',
+        'mỹ hảo',
+        'vim',
+        'duck',
+        'gift',
+        'nuoc rua chen',
+        'nước rửa chén',
+        'nuoc lau san',
+        'nước lau sàn',
+        'nuoc tay bon cau',
+        'nước tẩy bồn cầu',
+        'lau kinh',
+        'lau kính',
+        'sap thom phong',
+        'sáp thơm phòng',
+        'xịt phòng',
+        'xit phong',
+        'tay rua',
+        'tẩy rửa',
+        'thong cong',
+        'thông cống',
+      ],
+      priority: 14,
+    ),
+    const SampleImageCategory(
+      id: 'fmcg_tissue',
+      industry: 'FMCG & Hóa phẩm',
+      name: 'Khăn giấy & Giấy vệ sinh',
+      imageUrl:
+          'https://images.unsplash.com/photo-1584556812952-905ffd0c611a?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'pulppy',
+        'paseo',
+        'bless you',
+        'emos',
+        'giay ve sinh',
+        'giấy vệ sinh',
+        'khan giay',
+        'khăn giấy',
+        'khan giay an',
+        'khăn giấy ăn',
+        'khan uot',
+        'khăn ướt',
+        'giay an',
+        'giấy ăn',
+        'tissue',
+        'giay cuon',
+        'giấy cuộn',
+        'khan lau mat',
+        'khăn lau mặt',
+      ],
+      negativeKeywords: ['in a4', 'in ấn', 'giay in', 'giấy in'],
+      priority: 14,
+    ),
+    const SampleImageCategory(
+      id: 'fmcg_oral',
+      industry: 'FMCG & Chăm sóc cá nhân',
+      name: 'Kem đánh răng & Chăm sóc răng miệng',
+      imageUrl:
+          'https://images.unsplash.com/photo-1559591937-e10606134638?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'colgate',
+        'p/s',
+        'ps',
+        'closeup',
+        'close up',
+        'sensodyne',
+        'listerine',
+        'kem danh rang',
+        'kem đánh răng',
+        'ban chai danh rang',
+        'bàn chải đánh răng',
+        'nuoc suc mieng',
+        'nước súc miệng',
+        'chi nha khoa',
+        'chỉ nha khoa',
+        'tam nuoc',
+        'tăm nước',
+        'bàn chải điện',
+        'ban chai dien',
+      ],
+      priority: 15,
+    ),
+    const SampleImageCategory(
+      id: 'fmcg_body_wash',
+      industry: 'FMCG & Chăm sóc cá nhân',
+      name: 'Dầu gội, Sữa tắm & Xà bông',
+      imageUrl:
+          'https://images.unsplash.com/photo-1535585209827-a15fcdbc4c2d?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'sunsilk',
+        'clear',
+        'head & shoulders',
+        'head and shoulders',
+        'pantene',
+        'dove',
+        'lifebuoy',
+        'enchanteur',
+        'romano',
+        'x-men',
+        'xmen',
+        'dau goi',
+        'dầu gội',
+        'dau xa',
+        'dầu xả',
+        'sua tam',
+        'sữa tắm',
+        'xa bong',
+        'xà bông',
+        'xa phong',
+        'xà phòng',
+        'tresemme',
+        'biore',
+        'lux',
+        'hazeline',
+        'tam goi',
+        'tắm gội',
+      ],
+      priority: 15,
+    ),
+
+    // =========================================================================
+    // 3. THỰC PHẨM, ĐỒ ĂN VẶT & GIA VỊ (FOOD & GROCERY)
+    // =========================================================================
+    const SampleImageCategory(
+      id: 'food_instant_noodles',
+      industry: 'Thực phẩm & Đồ ăn vặt',
+      name: 'Mì gói, Bún & Phở ăn liền',
+      imageUrl:
+          'https://images.unsplash.com/photo-1612927601601-6638404737ce?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'hao hao',
+        'hảo hảo',
+        'omachi',
+        'kokomi',
+        'cung dinh',
+        'cung đình',
+        'mi tom',
+        'mì tôm',
+        'mi goi',
+        'mì gói',
+        'mi an lien',
+        'mì ăn liền',
+        'bun goi',
+        'bún gói',
+        'pho goi',
+        'phở gói',
+        'hu tieu an lien',
+        'hủ tiếu ăn liền',
+        'mien goi',
+        'miến gói',
+        'mi tron',
+        'mì trộn',
+        'koreno',
+        'shin ramyun',
+        'samyang',
+        'indomie',
+        'mi ly',
+        'mì ly',
+        'mi to',
+        'mì tô',
+      ],
+      priority: 15,
+    ),
+    const SampleImageCategory(
+      id: 'food_cookies_snacks',
+      industry: 'Thực phẩm & Đồ ăn vặt',
+      name: 'Bánh quy, Bánh ngọt & Snack',
+      imageUrl:
+          'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'danisa',
+        'oreo',
+        'chocopie',
+        'custas',
+        'cosy',
+        'lay\'s',
+        'lays',
+        'oishi',
+        'poca',
+        'snack',
+        'bim bim',
+        'banh quy',
+        'bánh quy',
+        'banh ngot',
+        'bánh ngọt',
+        'banh bong lan',
+        'bánh bông lan',
+        'banh trang tron',
+        'bánh tráng trộn',
+        'banh gao',
+        'bánh gạo',
+        'banh mi',
+        'bánh mì',
+        'banh xop',
+        'bánh xốp',
+        'snack khoai tay',
+        'snack khoai tây',
+      ],
+      negativeKeywords: ['banh xe', 'bánh xe', 'banh rang', 'bánh răng'],
+      priority: 14,
+    ),
+    const SampleImageCategory(
+      id: 'food_candies_chocolate',
+      industry: 'Thực phẩm & Đồ ăn vặt',
+      name: 'Kẹo & Sô-cô-la',
+      imageUrl:
+          'https://images.unsplash.com/photo-1581798459219-318e76aecc7b?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'chupa chups',
+        'alpenliebe',
+        'kitkat',
+        'kit kat',
+        'snickers',
+        'm&m',
+        'keo',
+        'kẹo',
+        'keo deo',
+        'kẹo dẻo',
+        'keo cao su',
+        'kẹo cao su',
+        'keo mut',
+        'kẹo mút',
+        'socola',
+        'sô cô la',
+        'chocolate',
+        'keo ngam',
+        'kẹo ngậm',
+        'mentos',
+        'dynamite',
+      ],
+      priority: 14,
+    ),
+    const SampleImageCategory(
+      id: 'food_seasoning_oil',
+      industry: 'Thực phẩm & Gia vị',
+      name: 'Dầu ăn, Nước mắm & Gia vị',
+      imageUrl:
+          'https://images.unsplash.com/photo-1589135233689-d56d1a965780?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'simply',
+        'neptune',
+        'meizan',
+        'knorr',
+        'ajinomoto',
+        'chinsu',
+        'chin-su',
+        'nam ngu',
+        'nam ngư',
+        'maggi',
+        'nuoc mam',
+        'nước mắm',
+        'dau an',
+        'dầu ăn',
+        'nuoc tuong',
+        'nước tương',
+        'tuong ot',
+        'tương ớt',
+        'hat nem',
+        'hạt nêm',
+        'bot ngot',
+        'bột ngọt',
+        'muoi',
+        'muối',
+        'tieu',
+        'tiêu',
+        'duong cat',
+        'đường cát',
+        'duong phen',
+        'đường phèn',
+        'duong tinh luyen',
+        'đường tinh luyện',
+        'goi duong',
+        'gói đường',
+        'gia vi',
+        'gia vị',
+        'dau hao',
+        'dầu hào',
+        'sot mayonaise',
+        'sốt',
+        'cholimex',
+        'ong cha va',
+        'ông chà và',
+      ],
+      negativeKeywords: [
+        'dau goi',
+        'dầu gội',
+        'dau gio',
+        'dầu gió',
+        'sua',
+        'sữa',
+        'pepsi',
+        'coca',
+        'nuoc ngot',
+        'nước ngọt',
+        'sting',
+        'redbull',
+        'tra',
+        'trà',
+        'bia',
+        'cafe',
+        'cà phê',
+      ],
+      priority: 15,
+    ),
+    const SampleImageCategory(
+      id: 'food_rice_grains',
+      industry: 'Thực phẩm',
+      name: 'Gạo, Ngũ cốc & Hạt dinh dưỡng',
+      imageUrl:
+          'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'gao st25',
+        'gạo st25',
+        'gao thom',
+        'gạo thơm',
+        'gao lut',
+        'gạo lứt',
+        'yen mach',
+        'yến mạch',
+        'granola',
+        'hat dieu',
+        'hạt điều',
+        'hanh nhan',
+        'hạnh nhân',
+        'hat de',
+        'hạt dẻ',
+        'hat sen',
+        'hạt sen',
+        'ngu coc',
+        'ngũ cốc',
+        'gao nang hoa',
+        'gạo nàng hoa',
+        'gao nep',
+        'gạo nếp',
+        'hat chia',
+        'hạt chia',
+        'hat macca',
+        'hạt macca',
+      ],
+      priority: 14,
+    ),
+    const SampleImageCategory(
+      id: 'food_canned_sausage',
+      industry: 'Thực phẩm',
+      name: 'Xúc xích & Đồ hộp',
+      imageUrl:
+          'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'vissan',
+        'cp',
+        'c.p',
+        'xuc xich',
+        'xúc xích',
+        'thit hop',
+        'thịt hộp',
+        'ca hop',
+        'cá hộp',
+        'pate',
+        'lap xuong',
+        'lạp xưởng',
+        'cha lua',
+        'chả lụa',
+        'do hop',
+        'đồ hộp',
+        'spam',
+        '3 co gai',
+        '3 cô gái',
+        'heo cao boi',
+        'heo cao bồi',
+        'ponnie',
+      ],
+      priority: 14,
+    ),
+    const SampleImageCategory(
+      id: 'fresh_fruits',
+      industry: 'Nông sản tươi sống',
+      name: 'Trái cây & Rau củ quả',
+      imageUrl:
+          'https://images.unsplash.com/photo-1619566636858-adf3ef46400b?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'trai cay',
+        'trái cây',
+        'hoa qua',
+        'hoa quả',
+        'cam',
+        'tao',
+        'táo',
+        'chuoi',
+        'chuối',
+        'nho',
+        'xoai',
+        'xoài',
+        'dua hau',
+        'dưa hấu',
+        'buoi',
+        'bưởi',
+        'sau rieng',
+        'sầu riêng',
+        'thanh long',
+        'rau xanh',
+        'bap cai',
+        'bắp cải',
+        'ca chua',
+        'cà chua',
+        'khoai tay',
+        'khoai tây',
+        'nam',
+        'nấm',
+        'cu qua',
+        'củ quả',
+        'rau cu',
+        'rau củ',
+      ],
+      negativeKeywords: ['nuoc cam', 'nước cam', 'nuoc ep', 'nước ép'],
+      priority: 12,
+    ),
+    const SampleImageCategory(
+      id: 'fresh_meat_seafood',
+      industry: 'Nông sản tươi sống',
+      name: 'Thịt tươi sống & Hải sản',
+      imageUrl:
+          'https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'thit heo',
+        'thịt heo',
+        'thit bo',
+        'thịt bò',
+        'thit ga',
+        'thịt gà',
+        'thit vit',
+        'thịt vịt',
+        'ca hoi',
+        'cá hồi',
+        'tom',
+        'tôm',
+        'cua',
+        'muc',
+        'mực',
+        'ngheu',
+        'nghêu',
+        'so',
+        'sò',
+        'oc',
+        'ốc',
+        'thuy hai san',
+        'thủy hải sản',
+        'thit tuoi',
+        'thịt tươi',
+        'hai san',
+        'hải sản',
+      ],
+      negativeKeywords: [
+        'sổ',
+        'so tay',
+        'sổ tay',
+        'sổ còng',
+        'so cong',
+        'mực in',
+        'muc in',
+        'mực bút',
+        'muc but',
+        'mực máy in',
+        'muc may in',
+        'mực viết',
+        'muc viet',
+      ],
+      priority: 13,
+    ),
+
+    // =========================================================================
+    // 4. MỸ PHẨM & CHĂM SÓC SẮC ĐẸP (COSMETICS & BEAUTY)
+    // =========================================================================
+    const SampleImageCategory(
+      id: 'cosmetics_lipstick',
+      industry: 'Mỹ phẩm & Chăm sóc sắc đẹp',
+      name: 'Son môi & Trang điểm môi',
+      imageUrl:
+          'https://images.unsplash.com/photo-1586495777744-4413f21062fa?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        '3ce',
+        'mac',
+        'black rouge',
+        'dior lip',
+        'maybelline lip',
+        'romand',
+        'son moi',
+        'son môi',
+        'son kem',
+        'son thoi',
+        'son thỏi',
+        'son bong',
+        'son bóng',
+        'son duong',
+        'son dưỡng',
+        'son tint',
+        'son li',
+        'son lì',
+        'lipstick',
+      ],
+      priority: 15,
+    ),
+    const SampleImageCategory(
+      id: 'cosmetics_makeup',
+      industry: 'Mỹ phẩm & Làm đẹp',
+      name: 'Trang điểm mặt & Mắt',
+      imageUrl:
+          'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'kem nen',
+        'kem nền',
+        'phan phu',
+        'phấn phủ',
+        'cushion',
+        'che khuyet diem',
+        'che khuyết điểm',
+        'mascara',
+        'eyeliner',
+        'phan mat',
+        'phấn mắt',
+        'chi ke may',
+        'chì kẻ mày',
+        'bong trang diem',
+        'bông trang điểm',
+        'kem lot',
+        'kem lót',
+        'bb cream',
+        'cc cream',
+        'phan ma hong',
+        'phấn má hồng',
+      ],
+      priority: 14,
+    ),
+    const SampleImageCategory(
+      id: 'cosmetics_skincare',
+      industry: 'Mỹ phẩm & Làm đẹp',
+      name: 'Skincare & Dưỡng da',
+      imageUrl:
+          'https://images.unsplash.com/photo-1608248597359-577765103c80?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'anessa',
+        'la roche posay',
+        'la roche-posay',
+        'innisfree',
+        'cerave',
+        'vichy',
+        'l\'oreal',
+        'loreal',
+        'serum',
+        'kem chong nang',
+        'kem chống nắng',
+        'toner',
+        'sua rua mat',
+        'sữa rửa mặt',
+        'nuoc tay trang',
+        'nước tẩy trang',
+        'kem duong da',
+        'kem dưỡng da',
+        'mat na',
+        'mặt nạ',
+        'te bao chet',
+        'tế bào chết',
+        'nuoc hoa hong',
+        'nước hoa hồng',
+        'tinh chat',
+        'tinh chất',
+        'klairs',
+        'the ordinary',
+        'cosrx',
+        'hada labo',
+        'simple',
+      ],
+      priority: 15,
+    ),
+    const SampleImageCategory(
+      id: 'cosmetics_perfume',
+      industry: 'Mỹ phẩm & Làm đẹp',
+      name: 'Nước hoa & Tinh dầu',
+      imageUrl:
+          'https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'chanel',
+        'gucci',
+        'versace',
+        'dior sauvage',
+        'narciso',
+        'nuoc hoa',
+        'nước hoa',
+        'perfume',
+        'tinh dau thom',
+        'tinh dầu thơm',
+        'body mist',
+        'xit khu mui',
+        'xịt khử mùi',
+        'dau thom',
+        'dầu thơm',
+        'edp',
+        'edt',
+        'nuoc hoa nam',
+        'nước hoa nam',
+        'nuoc hoa nu',
+        'nước hoa nữ',
+      ],
+      priority: 15,
+    ),
+    const SampleImageCategory(
+      id: 'cosmetics_personal_care',
+      industry: 'Chăm sóc cá nhân',
+      name: 'Dao cạo & Vệ sinh cá nhân',
+      imageUrl:
+          'https://images.unsplash.com/photo-1598440947619-2c35fc9aa908?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'gillette',
+        'kotex',
+        'diana',
+        'dao cao rau',
+        'dao cạo râu',
+        'bot cao rau',
+        'bọt cạo râu',
+        'bang ve sinh',
+        'băng vệ sinh',
+        'mieng dan',
+        'miếng dán',
+        'dung dich ve sinh',
+        'dung dịch vệ sinh',
+        'tam bong',
+        'tăm bông',
+      ],
+      priority: 14,
+    ),
+
+    // =========================================================================
+    // 5. THỜI TRANG & MAY MẶC (FASHION & APPAREL)
+    // =========================================================================
+    const SampleImageCategory(
+      id: 'fashion_tops',
+      industry: 'Thời trang & May mặc',
+      name: 'Áo thun, Sơ mi & Áo polo',
+      imageUrl:
+          'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'ao thun',
+        'áo thun',
+        'ao phong',
+        'áo phông',
+        't-shirt',
+        'ao so mi',
+        'áo sơ mi',
+        'ao polo',
+        'áo polo',
+        'ao kieu',
+        'áo kiểu',
+        'ao croptop',
+        'áo croptop',
+        'ao ba lo',
+        'áo ba lỗ',
+        'ao coc',
+        'áo cộc',
+        'ao thun nam',
+        'áo thun nam',
+        'ao thun nu',
+        'áo thun nữ',
+      ],
+      negativeKeywords: [
+        'bao cao',
+        'báo cáo',
+        'quang cao',
+        'quảng cáo',
+        'phao',
+        'pháo',
+        'thong bao',
+        'thông báo',
+      ],
+      priority: 15,
+    ),
+    const SampleImageCategory(
+      id: 'fashion_pants',
+      industry: 'Thời trang & May mặc',
+      name: 'Quần jean, Kaki & Quần tây',
+      imageUrl:
+          'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'levi\'s',
+        'levis',
+        'quan jean',
+        'quần jean',
+        'quan bo',
+        'quần bò',
+        'quan kaki',
+        'quần kaki',
+        'quan tay',
+        'quần tây',
+        'quan short',
+        'quần short',
+        'quan lung',
+        'quần lửng',
+        'quan ong rong',
+        'quần ống rộng',
+        'quan dui',
+        'quần đùi',
+        'quan dai',
+        'quần dài',
+        'quan jogger',
+        'quần jogger',
+      ],
+      negativeKeywords: ['khăn', 'khan'],
+      priority: 15,
+    ),
+    const SampleImageCategory(
+      id: 'fashion_outerwear',
+      industry: 'Thời trang & May mặc',
+      name: 'Áo khoác, Hoodie & Sweater',
+      imageUrl:
+          'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'ao khoac',
+        'áo khoác',
+        'ao gio',
+        'áo gió',
+        'ao hoodie',
+        'áo hoodie',
+        'ao sweater',
+        'áo sweater',
+        'ao blazer',
+        'áo blazer',
+        'ao da',
+        'áo dạ',
+        'ao mang to',
+        'áo măng tô',
+        'ao vest',
+        'áo vest',
+        'ao len',
+        'áo len',
+        'jacket',
+        'cardigan',
+      ],
+      priority: 15,
+    ),
+    const SampleImageCategory(
+      id: 'fashion_dresses',
+      industry: 'Thời trang & May mặc',
+      name: 'Váy & Đầm nữ',
+      imageUrl:
+          'https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'dam',
+        'đầm',
+        'vay',
+        'váy',
+        'chan vay',
+        'chân váy',
+        'dam xoe',
+        'đầm xòe',
+        'dam da hoi',
+        'đầm dạ hội',
+        'ao dai',
+        'áo dài',
+        'set do nu',
+        'set đồ nữ',
+        'jumpsuit',
+        'dam cong so',
+        'đầm công sở',
+        'vay maxi',
+        'váy maxi',
+      ],
+      priority: 14,
+    ),
+    const SampleImageCategory(
+      id: 'fashion_underwear',
+      industry: 'Thời trang & May mặc',
+      name: 'Đồ lót & Đồ ngủ',
+      imageUrl:
+          'https://images.unsplash.com/photo-1574634534894-89d7576c8259?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'do lot',
+        'đồ lót',
+        'do ngu',
+        'đồ ngủ',
+        'pijama',
+        'ao nguc',
+        'áo ngực',
+        'quan lot',
+        'quần lót',
+        'boxer',
+        'tat chan',
+        'tất chân',
+        'vo chan',
+        'vớ chân',
+        'quan sip',
+        'quần sịp',
+        'bra',
+      ],
+      priority: 13,
+    ),
+
+    // =========================================================================
+    // 6. GIÀY DÉP, TÚI XÁCH & PHỤ KIỆN (SHOES, BAGS & ACCESSORIES)
+    // =========================================================================
+    const SampleImageCategory(
+      id: 'shoes_sneakers',
+      industry: 'Giày dép & Túi xách',
+      name: 'Giày sneaker & Thể thao',
+      imageUrl:
+          'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'nike',
+        'adidas',
+        'puma',
+        'converse',
+        'vans',
+        'biti\'s',
+        'bitis',
+        'hunter',
+        'giay the thao',
+        'giày thể thao',
+        'sneaker',
+        'giay chay bo',
+        'giày chạy bộ',
+        'giay tap gym',
+        'giày tập gym',
+        'giay nam',
+        'giày nam',
+        'giay nu',
+        'giày nữ',
+        'jordan',
+        'air force',
+        'stan smith',
+      ],
+      priority: 15,
+    ),
+    const SampleImageCategory(
+      id: 'shoes_formal',
+      industry: 'Giày dép & Túi xách',
+      name: 'Giày da, Giày tây & Cao gót',
+      imageUrl:
+          'https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'giay da',
+        'giày da',
+        'giay tay',
+        'giày tây',
+        'giay oxford',
+        'giày oxford',
+        'giay luoi',
+        'giày lười',
+        'loafer',
+        'giay cao got',
+        'giày cao gót',
+        'boot',
+        'boots',
+        'giay bup be',
+        'giày búp bê',
+      ],
+      priority: 14,
+    ),
+    const SampleImageCategory(
+      id: 'shoes_sandals',
+      industry: 'Giày dép & Túi xách',
+      name: 'Dép & Sandal',
+      imageUrl:
+          'https://images.unsplash.com/photo-1603808033192-082d6919d3e1?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'dep',
+        'dép',
+        'sandal',
+        'xang dan',
+        'xăng đan',
+        'dep quai ngang',
+        'dép quai ngang',
+        'dep xo ngon',
+        'dép xỏ ngón',
+        'dep banh mi',
+        'dép bánh mì',
+        'dep tong',
+        'dép tông',
+        'crocs',
+        'dep di trong nha',
+        'dép đi trong nhà',
+      ],
+      priority: 14,
+    ),
+    const SampleImageCategory(
+      id: 'bags_handbags',
+      industry: 'Giày dép & Túi xách',
+      name: 'Túi xách, Bóp ví & Thắt lưng',
+      imageUrl:
+          'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'tui xach',
+        'túi xách',
+        'tui deo cheo',
+        'túi đeo chéo',
+        'vi da',
+        'ví da',
+        'bop tien',
+        'bóp tiền',
+        'that lung',
+        'thắt lưng',
+        'day nit',
+        'dây nịt',
+        'clutch',
+        'tui tote',
+        'túi tote',
+        'vi nu',
+        'ví nữ',
+        'vi nam',
+        'ví nam',
+      ],
+      priority: 15,
+    ),
+    const SampleImageCategory(
+      id: 'bags_backpacks',
+      industry: 'Giày dép & Hành lý',
+      name: 'Balo & Vali du lịch',
+      imageUrl:
+          'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'balo',
+        'ba lo',
+        'vali',
+        'tui du lich',
+        'túi du lịch',
+        'balo laptop',
+        'balo học sinh',
+        'balo hoc sinh',
+        'tui chong soc',
+        'túi chống sốc',
+        'backpack',
+        'luggage',
+      ],
+      priority: 14,
+    ),
+    const SampleImageCategory(
+      id: 'fashion_accessories',
+      industry: 'Phụ kiện thời trang',
+      name: 'Mũ nón & Kính mát',
+      imageUrl:
+          'https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'mu',
+        'mũ',
+        'non',
+        'nón',
+        'mu luoi trai',
+        'mũ lưỡi trai',
+        'non ket',
+        'nón kết',
+        'non bucket',
+        'nón bucket',
+        'kinh mat',
+        'kính mát',
+        'kinh ram',
+        'kính râm',
+        'kinh thoi trang',
+        'kính thời trang',
+        'kinh can',
+        'kính cận',
+        'khan choang',
+        'khăn choàng',
+        'gang tay',
+        'găng tay',
+      ],
+      negativeKeywords: ['kính cường lực', 'kinh cuong luc'],
+      priority: 12,
+    ),
+
+    // =========================================================================
+    // 7. ĐIỆN MÁY, CÔNG NGHỆ & KỸ THUẬT SỐ (TECH & ELECTRONICS)
+    // =========================================================================
+    const SampleImageCategory(
+      id: 'tech_iphone',
+      industry: 'Điện máy & Công nghệ',
+      name: 'Apple iPhone',
+      imageUrl:
+          'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'iphone',
+        'iphone 15',
+        'iphone 16',
+        'iphone 14',
+        'iphone 13',
+        'iphone 12',
+        'iphone 11',
+        'iphone pro max',
+        'apple phone',
+        'dien thoai iphone',
+        'điện thoại iphone',
+      ],
+      negativeKeywords: ['ốp lưng', 'op lung', 'bao da', 'kính cường lực', 'kinh cuong luc'],
+      priority: 25,
+    ),
+    const SampleImageCategory(
+      id: 'tech_android',
+      industry: 'Điện máy & Công nghệ',
+      name: 'Android Smartphone',
+      imageUrl:
+          'https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'samsung',
+        'galaxy',
+        'xiaomi',
+        'oppo',
+        'vivo',
+        'realme',
+        'dien thoai',
+        'điện thoại',
+        'smartphone',
+        'redmi',
+        'poco',
+        'oneplus',
+        'sony xperia',
+      ],
+      negativeKeywords: ['ốp lưng', 'op lung', 'bao da', 'kính cường lực', 'kinh cuong luc', 'dien thoai ban'],
+      priority: 20,
+    ),
+    const SampleImageCategory(
+      id: 'tech_laptop',
+      industry: 'Điện máy & Công nghệ',
+      name: 'Laptop & MacBook',
+      imageUrl:
+          'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'macbook',
+        'laptop',
+        'dell',
+        'asus',
+        'lenovo',
+        'thinkpad',
+        'acer',
+        'hp',
+        'may tinh xach tay',
+        'máy tính xách tay',
+        'notebook',
+        'macbook pro',
+        'macbook air',
+        'gaming laptop',
+      ],
+      negativeKeywords: ['balo laptop', 'ba lo', 'túi chống sốc', 'tui chong soc'],
+      priority: 22,
+    ),
+    const SampleImageCategory(
+      id: 'tech_tablet',
+      industry: 'Điện máy & Công nghệ',
+      name: 'Tablet & iPad',
+      imageUrl:
+          'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'ipad',
+        'tablet',
+        'ipad pro',
+        'ipad air',
+        'may tinh bang',
+        'máy tính bảng',
+        'galaxy tab',
+        'tab s9',
+      ],
+      negativeKeywords: ['bao da', 'bao da ipad', 'ốp', 'op'],
+      priority: 20,
+    ),
+    const SampleImageCategory(
+      id: 'tech_desktop_monitor',
+      industry: 'Điện máy & Công nghệ',
+      name: 'Màn hình & Máy tính để bàn',
+      imageUrl:
+          'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'man hinh',
+        'màn hình',
+        'monitor',
+        'desktop',
+        'pc',
+        'case may tinh',
+        'case máy tính',
+        'may tinh de ban',
+        'máy tính để bàn',
+        'all in one',
+        'cpu',
+        'vga',
+        'card man hinh',
+        'card màn hình',
+      ],
+      priority: 18,
+    ),
+    const SampleImageCategory(
+      id: 'tech_earbuds',
+      industry: 'Thiết bị âm thanh',
+      name: 'Tai nghe & AirPods',
+      imageUrl:
+          'https://images.unsplash.com/photo-1600294037681-c80b4cb5b434?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'airpod',
+        'airpods',
+        'tws',
+        'tai nghe khong day',
+        'tai nghe không dây',
+        'tai nghe bluetooth',
+        'earbuds',
+        'tai nghe sony',
+        'galaxy buds',
+      ],
+      priority: 18,
+    ),
+    const SampleImageCategory(
+      id: 'tech_headphones_speakers',
+      industry: 'Thiết bị âm thanh',
+      name: 'Tai nghe chụp tai & Loa Bluetooth',
+      imageUrl:
+          'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'headphone',
+        'headset',
+        'tai nghe chup tai',
+        'tai nghe chụp tai',
+        'loa',
+        'loa bluetooth',
+        'loa jbl',
+        'marshall',
+        'soundbar',
+        'loa keo',
+        'loa kéo',
+        'micro',
+        'dan am thanh',
+        'dàn âm thanh',
+      ],
+      priority: 16,
+    ),
+    const SampleImageCategory(
+      id: 'tech_smartwatch',
+      industry: 'Phụ kiện công nghệ',
+      name: 'Đồng hồ thông minh & Smartwatch',
+      imageUrl:
+          'https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'apple watch',
+        'smartwatch',
+        'garmin',
+        'galaxy watch',
+        'dong ho thong minh',
+        'đồng hồ thông minh',
+        'dong ho',
+        'đồng hồ',
+        'vong deo tay thong minh',
+        'vòng đeo tay thông minh',
+      ],
+      priority: 16,
+    ),
+    const SampleImageCategory(
+      id: 'tech_keyboard_mouse',
+      industry: 'Phụ kiện công nghệ',
+      name: 'Bàn phím & Chuột máy tính',
+      imageUrl:
+          'https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'logitech',
+        'ban phim',
+        'bàn phím',
+        'keyboard',
+        'phim co',
+        'phím cơ',
+        'chuot may tinh',
+        'chuột máy tính',
+        'mouse',
+        'chuot khong day',
+        'chuột không dây',
+        'lot chuot',
+        'lót chuột',
+      ],
+      priority: 16,
+    ),
+    const SampleImageCategory(
+      id: 'tech_chargers_cables',
+      industry: 'Phụ kiện công nghệ',
+      name: 'Sạc cáp & Pin dự phòng',
+      imageUrl:
+          'https://images.unsplash.com/photo-1583863788434-e58a36330cf0?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'anker',
+        'ugreen',
+        'cu sac',
+        'củ sạc',
+        'cap sac',
+        'cáp sạc',
+        'day sac',
+        'dây sạc',
+        'sac nhanh',
+        'sạc nhanh',
+        'type-c',
+        'lightning',
+        'sac du phong',
+        'sạc dự phòng',
+        'powerbank',
+        'pin sac',
+        'pin sạc',
+        'dock sac',
+        'dock sạc',
+        'tau sac',
+        'tẩu sạc',
+      ],
+      negativeKeywords: ['cao cấp', 'cao cap'],
+      priority: 18,
+    ),
+    const SampleImageCategory(
+      id: 'tech_cases_protectors',
+      industry: 'Phụ kiện công nghệ',
+      name: 'Ốp lưng & Kính cường lực',
+      imageUrl:
+          'https://images.unsplash.com/photo-1586953208448-b95a79798f07?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'op lung',
+        'ốp lưng',
+        'bao da',
+        'kinh cuong luc',
+        'kính cường lực',
+        'dan man hinh',
+        'dán màn hình',
+        'case dien thoai',
+        'case điện thoại',
+        'op dien thoai',
+        'ốp điện thoại',
+        'bao da ipad',
+        'mieng dan ppf',
+        'miếng dán ppf',
+      ],
+      priority: 22,
+    ),
+    const SampleImageCategory(
+      id: 'tech_camera',
+      industry: 'Thiết bị số',
+      name: 'Máy ảnh, Camera & Flycam',
+      imageUrl:
+          'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'may anh',
+        'máy ảnh',
+        'camera',
+        'sony alpha',
+        'canon',
+        'nikon',
+        'fujifilm',
+        'webcam',
+        'flycam',
+        'dji',
+        'camera hanh trinh',
+        'camera hành trình',
+        'gopro',
+        'lens may anh',
+        'ống kính máy ảnh',
+      ],
+      priority: 16,
+    ),
+
+    // =========================================================================
+    // 8. ĐỒ GIA DỤNG, NHÀ CỬA & ĐỜI SỐNG (HOME & APPLIANCES)
+    // =========================================================================
+    const SampleImageCategory(
+      id: 'home_kitchen_appliances',
+      industry: 'Đồ gia dụng & Nhà cửa',
+      name: 'Thiết bị nhà bếp & Điện gia dụng',
+      imageUrl:
+          'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'philips',
+        'tefal',
+        'sunhouse',
+        'lock&lock',
+        'lock and lock',
+        'noi chien khong dau',
+        'nồi chiên không dầu',
+        'noi com dien',
+        'nồi cơm điện',
+        'am sieu toc',
+        'ấm siêu tốc',
+        'may xay sinh to',
+        'máy xay sinh tố',
+        'lo vi song',
+        'lò vi sóng',
+        'bep tu',
+        'bếp từ',
+        'may ep cham',
+        'máy ép chậm',
+        'bep ga',
+        'bếp ga',
+        'noi ap suat',
+        'nồi áp suất',
+      ],
+      priority: 16,
+    ),
+    const SampleImageCategory(
+      id: 'home_cleaning_appliances',
+      industry: 'Đồ gia dụng & Nhà cửa',
+      name: 'Quạt điện, Máy lọc khí & Hút bụi',
+      imageUrl:
+          'https://images.unsplash.com/photo-1585771724684-38269d6639fd?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'quat dien',
+        'quạt điện',
+        'quat cay',
+        'quạt cây',
+        'quat tich dien',
+        'quạt tích điện',
+        'may loc khong khi',
+        'máy lọc không khí',
+        'may hut bui',
+        'máy hút bụi',
+        'robot hut bui',
+        'robot hút bụi',
+        'ban ui',
+        'bàn ủi',
+        'ban la',
+        'bàn là',
+        'may say quan ao',
+        'máy sấy quần áo',
+      ],
+      priority: 15,
+    ),
+    const SampleImageCategory(
+      id: 'home_cookware_dining',
+      industry: 'Đồ gia dụng & Nhà cửa',
+      name: 'Bộ nồi chảo, Bát đĩa & Cốc chén',
+      imageUrl:
+          'https://images.unsplash.com/photo-1610701596007-11502861dcfa?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'chao chong dinh',
+        'chảo chống dính',
+        'bo noi',
+        'bộ nồi',
+        'bat dia',
+        'bát đĩa',
+        'chen dia',
+        'chén dĩa',
+        'to su',
+        'tô sứ',
+        'ly thuy tinh',
+        'ly thủy tinh',
+        'binh giu nhiet',
+        'bình giữ nhiệt',
+        'hop thuc pham',
+        'hộp thực phẩm',
+        'dao thot',
+        'dao thớt',
+        'dua muong',
+        'đũa muỗng',
+      ],
+      priority: 14,
+    ),
+    const SampleImageCategory(
+      id: 'furniture_desks_work',
+      industry: 'Nội thất & Bàn ghế',
+      name: 'Bàn làm việc, Bàn Gaming & Bàn học',
+      imageUrl:
+          'https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'ban lam viec',
+        'bàn làm việc',
+        'ban chu k',
+        'bàn chữ k',
+        'ban k',
+        'bàn k',
+        'ban chu z',
+        'bàn chữ z',
+        'ban z',
+        'bàn z',
+        'ban chu u',
+        'bàn chữ u',
+        'ban chu l',
+        'bàn chữ l',
+        'ban gaming',
+        'bàn gaming',
+        'ban game',
+        'bàn game',
+        'ban vi tinh',
+        'bàn vi tính',
+        'ban may tinh',
+        'bàn máy tính',
+        'ban pc',
+        'bàn pc',
+        'ban hoc',
+        'bàn học',
+        'ban hoc sinh',
+        'bàn học sinh',
+        'ban nang ha',
+        'bàn nâng hạ',
+        'ban chan sat',
+        'bàn chân sắt',
+        'ban go',
+        'bàn gỗ',
+        'ban gap',
+        'bàn gấp',
+        'ban xep',
+        'bàn xếp',
+        'ban van phong',
+        'bàn văn phòng',
+        'bàn làm việc chân k',
+        'bàn làm việc chân z',
+      ],
+      negativeKeywords: [
+        'bàn phím',
+        'ban phim',
+        'bàn ủi',
+        'ban ui',
+        'bàn là',
+        'ban la',
+        'bàn chải',
+        'ban chai',
+        'khăn trải bàn',
+        'khan trai ban',
+        'kệ sách',
+        'ke sach',
+        'bàn ăn',
+        'ban an',
+        'bàn trà',
+        'ban tra',
+        'bàn sofa',
+        'ban sofa',
+        'bàn cafe',
+        'ban cafe',
+      ],
+      priority: 20,
+    ),
+    const SampleImageCategory(
+      id: 'furniture_chairs_ergonomic',
+      industry: 'Nội thất & Bàn ghế',
+      name: 'Ghế xoay, Ghế Gaming & Công thái học',
+      imageUrl:
+          'https://images.unsplash.com/photo-1580481077197-2856230f8983?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'ghe gaming',
+        'ghế gaming',
+        'ghe cong thai hoc',
+        'ghế công thái học',
+        'ghe ergonomic',
+        'ghế ergonomic',
+        'ghe xoay',
+        'ghế xoay',
+        'ghe van phong',
+        'ghế văn phòng',
+        'ghe chan quy',
+        'ghế chân quỳ',
+        'ghe luoi',
+        'ghế lưới',
+        'ghe giam doc',
+        'ghế giám đốc',
+        'ghe lam viec',
+        'ghế làm việc',
+        'ghe don',
+        'ghế đôn',
+        'ghe go',
+        'ghế gỗ',
+        'sihoo',
+        'e-dra',
+        'edra',
+      ],
+      negativeKeywords: [
+        'ghế ăn dặm',
+        'ghe an dam',
+        'ghế massage',
+        'ghe massage',
+        'ghế sofa',
+        'ghe sofa',
+        'bàn ăn',
+        'ban an',
+      ],
+      priority: 20,
+    ),
+    const SampleImageCategory(
+      id: 'furniture_dining_living_tables',
+      industry: 'Nội thất & Bàn ghế',
+      name: 'Bàn ăn, Bàn trà & Bàn sofa',
+      imageUrl:
+          'https://images.unsplash.com/photo-1617806118233-18e1de247200?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'ban an',
+        'bàn ăn',
+        'bo ban an',
+        'bộ bàn ăn',
+        'ban tra',
+        'bàn trà',
+        'ban sofa',
+        'bàn sofa',
+        'ban cafe',
+        'bàn cafe',
+        'ban ca phe',
+        'bàn cà phê',
+        'ban tron',
+        'bàn tròn',
+        'ban mat da',
+        'bàn mặt đá',
+        'ban tiep khach',
+        'bàn tiếp khách',
+      ],
+      negativeKeywords: [
+        'bàn làm việc',
+        'ban lam viec',
+        'bàn gaming',
+        'ban gaming',
+        'bàn phím',
+        'ban phim',
+        'bàn ủi',
+        'ban ui',
+        'bàn là',
+        'ban la',
+        'bàn chải',
+        'ban chai',
+        'khăn trải bàn',
+        'khan trai ban',
+      ],
+      priority: 18,
+    ),
+    const SampleImageCategory(
+      id: 'furniture_wardrobes_shelves',
+      industry: 'Nội thất & Bàn ghế',
+      name: 'Tủ quần áo, Kệ sách & Tủ kệ các loại',
+      imageUrl:
+          'https://images.unsplash.com/photo-1595428774223-ef52624120d2?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'tu quan ao',
+        'tủ quần áo',
+        'tu ao',
+        'tủ áo',
+        'tu giay',
+        'tủ giày',
+        'ke giay',
+        'kệ giày',
+        'ke sach',
+        'kệ sách',
+        'gia sach',
+        'giá sách',
+        'ke tivi',
+        'kệ tivi',
+        'tu dau giuong',
+        'tủ đầu giường',
+        'tab dau giuong',
+        'tab đầu giường',
+        'tu ho so',
+        'tủ hồ sơ',
+        'ke sat',
+        'kệ sắt',
+        'ke da nang',
+        'kệ đa năng',
+        'tu dung do',
+        'tủ đựng đồ',
+        'ke trang tri',
+        'kệ trang trí',
+      ],
+      negativeKeywords: [
+        'tủ lạnh',
+        'tu lanh',
+        'túi',
+        'tui',
+        'tủ đông',
+        'tu dong',
+        'kệ chén',
+        'ke chen',
+      ],
+      priority: 18,
+    ),
+    const SampleImageCategory(
+      id: 'furniture_sofas_living',
+      industry: 'Nội thất & Bàn ghế',
+      name: 'Sofa & Ghế phòng khách',
+      imageUrl:
+          'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'sofa',
+        'ghe sofa',
+        'ghế sofa',
+        'bo sofa',
+        'bộ sofa',
+        'sofa da',
+        'sofa ni',
+        'sofa nỉ',
+        'sofa goc',
+        'sofa góc',
+        'sofa bed',
+        'sofa giuong',
+        'sofa giường',
+        'ghe banh',
+        'ghế bành',
+        'ghe thu gian',
+        'ghế thư giãn',
+      ],
+      negativeKeywords: [
+        'bột giặt',
+        'bot giat',
+        'nước xả',
+        'nuoc xa',
+        'nước giặt',
+        'nuoc giat',
+      ],
+      priority: 18,
+    ),
+    const SampleImageCategory(
+      id: 'home_bedding_mattress',
+      industry: 'Nội thất & Phòng ngủ',
+      name: 'Chăn ga gối, Nệm & Giường ngủ',
+      imageUrl:
+          'https://images.unsplash.com/photo-1540518614846-7ede433c4570?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'giuong ngu',
+        'giường ngủ',
+        'giuong',
+        'giường',
+        'nem cao su',
+        'nệm cao su',
+        'nem lo xo',
+        'nệm lò xo',
+        'nem bong ep',
+        'nệm bông ép',
+        'dem',
+        'đệm',
+        'chan ga',
+        'chăn ga',
+        'ga trai giuong',
+        'ga trải giường',
+        'vo goi',
+        'vỏ gối',
+        'ruot goi',
+        'ruột gối',
+        'goi om',
+        'gối ôm',
+        'goi cao su',
+        'gối cao su',
+        'goi nam',
+        'gối nằm',
+        'gối',
+        'chan he',
+        'chăn hè',
+        'men',
+        'mền',
+        'drap',
+      ],
+      negativeKeywords: [
+        'mì gói',
+        'mi goi',
+        'gói mì',
+        'goi mi',
+        'mì tôm',
+        'mi tom',
+        'bánh',
+        'banh',
+        'kẹo',
+        'keo',
+        'gói quà',
+        'goi qua',
+        'set quà',
+        'set qua',
+        'khăn',
+        'khan',
+      ],
+      priority: 16,
+    ),
+
+    // =========================================================================
+    // 9. DƯỢC PHẨM & Y TẾ (PHARMACY & HEALTHCARE)
+    // =========================================================================
+    const SampleImageCategory(
+      id: 'pharma_otc_medicines',
+      industry: 'Dược phẩm & Y tế',
+      name: 'Thuốc OTC & Cồn y tế',
+      imageUrl:
+          'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'panadol',
+        'efferalgan',
+        'thuoc cam',
+        'thuốc cảm',
+        'thuoc ho',
+        'thuốc ho',
+        'nuoc nho mat',
+        'nước nhỏ mắt',
+        'con y te',
+        'cồn y tế',
+        'con 70 do',
+        'cồn 70 độ',
+        'dau gio',
+        'dầu gió',
+        'dau tram',
+        'dầu tràm',
+        'bong bang gac',
+        'bông băng gạc',
+        'thuoc',
+        'thuốc',
+        'berberin',
+        'salonpas',
+      ],
+      negativeKeywords: [
+        'thước',
+        'thuoc ke',
+        'thước kẻ',
+        'thước đo',
+        'thuoc do',
+        'thước nhôm',
+        'thuoc nhom',
+        'thước dây',
+        'thuoc day',
+      ],
+      priority: 15,
+    ),
+    const SampleImageCategory(
+      id: 'pharma_face_masks',
+      industry: 'Dược phẩm & Y tế',
+      name: 'Khẩu trang y tế & Sát khuẩn',
+      imageUrl:
+          'https://images.unsplash.com/photo-1584634731339-252c581abfc5?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'khau trang',
+        'khẩu trang',
+        'khau trang y te',
+        'khẩu trang y tế',
+        'khau trang 4d',
+        'khẩu trang 4d',
+        'kf94',
+        'nuoc rua tay',
+        'nước rửa tay',
+        'dung dich sat khuan',
+        'dung dịch sát khuẩn',
+        'gel rua tay',
+        'gel rửa tay',
+        'sat khuan',
+        'sát khuẩn',
+      ],
+      priority: 15,
+    ),
+    const SampleImageCategory(
+      id: 'pharma_supplements',
+      industry: 'Dược phẩm & Y tế',
+      name: 'Thực phẩm chức năng & Vitamin',
+      imageUrl:
+          'https://images.unsplash.com/photo-1577401239170-897942555fb3?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'vitamin c',
+        'omega 3',
+        'dau ca',
+        'dầu cá',
+        'canxi',
+        'collagen',
+        'glucosamine',
+        'thuc pham chuc nang',
+        'thực phẩm chức năng',
+        'vien uong bo sung',
+        'viên uống bổ sung',
+        'vitamin',
+        'kem bo sung',
+        'dha',
+        'men vi sinh',
+      ],
+      priority: 14,
+    ),
+    const SampleImageCategory(
+      id: 'pharma_medical_devices',
+      industry: 'Dược phẩm & Y tế',
+      name: 'Thiết bị y tế gia đình',
+      imageUrl:
+          'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'omron',
+        'microlife',
+        'may do huyet ap',
+        'máy đo huyết áp',
+        'nhiet ke dien tu',
+        'nhiệt kế điện tử',
+        'may do duong huyet',
+        'máy đo đường huyết',
+        'may xong mui hong',
+        'máy xông mũi họng',
+        'can suc khoe',
+        'cân sức khỏe',
+      ],
+      priority: 16,
+    ),
+
+    // =========================================================================
+    // 10. VĂN PHÒNG PHẨM (STATIONERY & OFFICE)
+    // =========================================================================
+    const SampleImageCategory(
+      id: 'stationery_pens',
+      industry: 'Văn phòng phẩm',
+      name: 'Bút viết & Dụng cụ vẽ',
+      imageUrl:
+          'https://images.unsplash.com/photo-1583485088034-697b5bc54ccd?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'thien long',
+        'thiên long',
+        'but bi',
+        'bút bi',
+        'but gel',
+        'bút gel',
+        'but da quang',
+        'bút dạ quang',
+        'but chi',
+        'bút chì',
+        'but xoa',
+        'bút xóa',
+        'but long',
+        'bút lông',
+        'mau ve',
+        'màu vẽ',
+        'thuoc ke',
+        'thước kẻ',
+        'gom tay',
+        'gôm tẩy',
+        'but highlight',
+        'muc in',
+        'mực in',
+        'muc but',
+        'mực bút',
+      ],
+      priority: 15,
+    ),
+    const SampleImageCategory(
+      id: 'stationery_notebooks_paper',
+      industry: 'Văn phòng phẩm',
+      name: 'Sổ tay, Vở & Giấy in',
+      imageUrl:
+          'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'double a',
+        'campus',
+        'so tay',
+        'sổ tay',
+        'vo hoc sinh',
+        'vở học sinh',
+        'giay in',
+        'giấy in',
+        'giay a4',
+        'giấy a4',
+        'giay note',
+        'giấy note',
+        'tap vo',
+        'tập vở',
+        'so lo xo',
+        'sổ lò xo',
+        'so cong',
+        'sổ còng',
+        'so',
+        'sổ',
+      ],
+      priority: 15,
+    ),
+    const SampleImageCategory(
+      id: 'stationery_tools_calculators',
+      industry: 'Văn phòng phẩm',
+      name: 'Dụng cụ văn phòng & Máy tính bỏ túi',
+      imageUrl:
+          'https://images.unsplash.com/photo-1586075010923-2dd4570fb338?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'casio',
+        'may tinh casio',
+        'máy tính casio',
+        'may tinh cam tay',
+        'máy tính cầm tay',
+        'bang keo',
+        'băng keo',
+        'bang dinh',
+        'băng dính',
+        'keo dan',
+        'kéo',
+        'bam kim',
+        'bấm kim',
+        'bia cong',
+        'bìa còng',
+        'bia nhua',
+        'bìa nhựa',
+        'bia ho so',
+        'bìa hồ sơ',
+        'bia',
+        'bìa',
+        'kep giay',
+        'kẹp giấy',
+        'thuoc',
+        'thước',
+      ],
+      priority: 14,
+    ),
+
+    // =========================================================================
+    // 11. MẸ & BÉ VÀ THÚ CƯNG (BABY & PET CARE)
+    // =========================================================================
+    const SampleImageCategory(
+      id: 'baby_diapers',
+      industry: 'Mẹ & Bé',
+      name: 'Tã bỉm cho bé',
+      imageUrl:
+          'https://images.unsplash.com/photo-1519689680058-324335c77eba?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'bobby',
+        'huggies',
+        'moony',
+        'merries',
+        'pampers',
+        'ta dan',
+        'tã dán',
+        'ta quan',
+        'tã quần',
+        'bim cho be',
+        'bỉm cho bé',
+        'ta bim',
+        'tã bỉm',
+        'bim quan',
+        'bỉm quần',
+      ],
+      priority: 16,
+    ),
+    const SampleImageCategory(
+      id: 'baby_feeding_toys',
+      industry: 'Mẹ & Bé',
+      name: 'Bình sữa & Đồ dùng trẻ em',
+      imageUrl:
+          'https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'hegen',
+        'pigeon',
+        'binh sua',
+        'bình sữa',
+        'num ti',
+        'núm ti',
+        'may ham sua',
+        'máy hâm sữa',
+        'xe day em be',
+        'xe đẩy em bé',
+        'do choi tre em',
+        'đồ chơi trẻ em',
+        'ti gia',
+        'ti giả',
+        'ghe an dam',
+        'ghế ăn dặm',
+      ],
+      priority: 15,
+    ),
+    const SampleImageCategory(
+      id: 'pet_food',
+      industry: 'Thú cưng',
+      name: 'Thức ăn & Phụ kiện thú cưng',
+      imageUrl:
+          'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'royal canin',
+        'me-o',
+        'meo',
+        'whiskas',
+        'thuc an meo',
+        'thức ăn mèo',
+        'thuc an cho',
+        'thức ăn chó',
+        'hat cho meo',
+        'hạt cho mèo',
+        'pate cho cho meo',
+        'pate cho chó mèo',
+        'cat ve sinh meo',
+        'cát vệ sinh mèo',
+        'phu kien thu cung',
+        'phụ kiện thú cưng',
+        'vong co cho meo',
+        'vòng cổ chó mèo',
+      ],
+      priority: 16,
+    ),
+
+    // =========================================================================
+    // 12. COMBO / GIỎ QUÀ TẶNG (COMBOS & GIFT SETS)
+    // =========================================================================
+    const SampleImageCategory(
+      id: 'gift_combo',
+      industry: 'Combo / Quà tặng',
+      name: 'Combo & Giỏ quà tặng',
+      imageUrl:
+          'https://images.unsplash.com/photo-1512756290469-ec264b7fbf87?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'combo',
+        'gio qua',
+        'giỏ quà',
+        'hop qua',
+        'hộp quà',
+        'set qua',
+        'set quà',
+        'qua tet',
+        'quà tết',
+        'combo qua tang',
+        'combo quà tặng',
+        'goi qua',
+        'gói quà',
+        'gift set',
+        'gift box',
+      ],
+      priority: 20,
+    ),
+  ];
+
+  /// Find all categories
+  static List<SampleImageCategory> getAllCategories() => catalog;
+
+  /// Calculate relevance score for a category given search inputs
+  static int _calculateScore({
+    required SampleImageCategory cat,
+    required String name,
+    required String category,
+    required String brand,
+    required String category3Levels,
+    required bool isCombo,
+  }) {
+    if (isCombo && cat.id == 'gift_combo') {
+      return 100 + cat.priority;
+    }
+
+    final nameAcc = VietnameseTextHelper.normalize(name);
+    final nameUnacc = VietnameseTextHelper.normalizeUnaccented(name);
+    final catAcc = VietnameseTextHelper.normalize(category);
+    final catUnacc = VietnameseTextHelper.normalizeUnaccented(category);
+    final brandAcc = VietnameseTextHelper.normalize(brand);
+    final brandUnacc = VietnameseTextHelper.normalizeUnaccented(brand);
+    final treeAcc = VietnameseTextHelper.normalize(category3Levels);
+    final treeUnacc = VietnameseTextHelper.normalizeUnaccented(category3Levels);
+
+    // 1. Negative keywords exclusion
+    for (final neg in cat.negativeKeywords) {
+      final negAcc = VietnameseTextHelper.normalize(neg);
+      if (negAcc.isEmpty) continue;
+      final isMulti = negAcc.contains(' ');
+      if (isMulti) {
+        final negUnacc = VietnameseTextHelper.normalizeUnaccented(neg);
+        if (VietnameseTextHelper.containsPhrase(nameAcc, negAcc) ||
+            VietnameseTextHelper.containsPhrase(nameUnacc, negUnacc, unaccented: true) ||
+            VietnameseTextHelper.containsPhrase(catAcc, negAcc) ||
+            VietnameseTextHelper.containsPhrase(catUnacc, negUnacc, unaccented: true)) {
+          return -100;
+        }
+      } else {
+        final hasAccents = VietnameseTextHelper.removeDiacritics(negAcc) != negAcc;
+        if (hasAccents) {
+          // If negative keyword has explicit diacritics (e.g. 'bìa', 'sổ', 'thước'),
+          // match with exact diacritics so unaccented valid queries ('bia', 'so', 'thuoc') are not falsely rejected.
+          if (VietnameseTextHelper.containsWord(nameAcc, negAcc) ||
+              VietnameseTextHelper.containsWord(catAcc, negAcc)) {
+            return -100;
+          }
+        } else {
+          final negUnacc = VietnameseTextHelper.normalizeUnaccented(neg);
+          if (VietnameseTextHelper.containsWord(nameAcc, negAcc) ||
+              VietnameseTextHelper.containsWordUnaccented(nameUnacc, negUnacc) ||
+              VietnameseTextHelper.containsWord(catAcc, negAcc) ||
+              VietnameseTextHelper.containsWordUnaccented(catUnacc, negUnacc)) {
+            return -100;
+          }
+        }
+      }
+    }
+
+    int score = cat.priority;
+    int matchesCount = 0;
+    final matchedConcepts = <String>{};
+
+    for (final kw in cat.keywords) {
+      final kwAcc = VietnameseTextHelper.normalize(kw);
+      final kwUnacc = VietnameseTextHelper.normalizeUnaccented(kw);
+      if (kwAcc.isEmpty) continue;
+
+      // Prevent duplicate score stacking for the same keyword concept
+      if (matchedConcepts.contains(kwUnacc)) continue;
+
+      final isMultiWord = kwAcc.contains(' ');
+
+      if (isMultiWord) {
+        // Multi-word phrase matching
+        if (VietnameseTextHelper.containsPhrase(nameAcc, kwAcc) ||
+            VietnameseTextHelper.containsPhrase(nameUnacc, kwUnacc, unaccented: true)) {
+          score += 30;
+          matchesCount++;
+          matchedConcepts.add(kwUnacc);
+        } else if (VietnameseTextHelper.containsPhrase(catAcc, kwAcc) ||
+            VietnameseTextHelper.containsPhrase(catUnacc, kwUnacc, unaccented: true) ||
+            VietnameseTextHelper.containsPhrase(treeAcc, kwAcc) ||
+            VietnameseTextHelper.containsPhrase(treeUnacc, kwUnacc, unaccented: true)) {
+          score += 20;
+          matchesCount++;
+          matchedConcepts.add(kwUnacc);
+        } else if (brandAcc.isNotEmpty &&
+            (VietnameseTextHelper.containsPhrase(brandAcc, kwAcc) ||
+                VietnameseTextHelper.containsPhrase(brandUnacc, kwUnacc, unaccented: true))) {
+          score += 20;
+          matchesCount++;
+          matchedConcepts.add(kwUnacc);
+        }
+      } else {
+        // Single word boundary matching
+        if (VietnameseTextHelper.containsWord(nameAcc, kwAcc) ||
+            VietnameseTextHelper.containsWordUnaccented(nameUnacc, kwUnacc)) {
+          score += 15;
+          matchesCount++;
+          matchedConcepts.add(kwUnacc);
+        } else if (VietnameseTextHelper.containsWord(catAcc, kwAcc) ||
+            VietnameseTextHelper.containsWordUnaccented(catUnacc, kwUnacc) ||
+            VietnameseTextHelper.containsWord(treeAcc, kwAcc) ||
+            VietnameseTextHelper.containsWordUnaccented(treeUnacc, kwUnacc)) {
+          score += 10;
+          matchesCount++;
+          matchedConcepts.add(kwUnacc);
+        } else if (brandAcc.isNotEmpty &&
+            (VietnameseTextHelper.containsWord(brandAcc, kwAcc) ||
+                VietnameseTextHelper.containsWordUnaccented(brandUnacc, kwUnacc))) {
+          score += 15;
+          matchesCount++;
+          matchedConcepts.add(kwUnacc);
+        }
+      }
+    }
+
+    if (matchesCount == 0) {
+      return 0;
+    }
+
+    return score;
+  }
+
+  /// Get list of top suggested images ranked by relevance score
+  static List<SampleImageMatch> getSuggestedImages(
+    Product product, {
+    int limit = 6,
+  }) {
+    return getSuggestedImagesForText(
+      product.name,
+      category: product.category,
+      brand: product.brand,
+      category3Levels: product.category3Levels,
+      isCombo: product.isCombo,
+      limit: limit,
+    );
+  }
+
+  /// Get list of top suggested images from input texts
+  static List<SampleImageMatch> getSuggestedImagesForText(
+    String name, {
+    String? category,
+    String? brand,
+    String? category3Levels,
+    bool isCombo = false,
+    int limit = 6,
+  }) {
+    final matches = <SampleImageMatch>[];
+
+    for (final cat in catalog) {
+      final score = _calculateScore(
+        cat: cat,
+        name: name,
+        category: category ?? '',
+        brand: brand ?? '',
+        category3Levels: category3Levels ?? '',
+        isCombo: isCombo,
+      );
+      if (score > 0) {
+        matches.add(SampleImageMatch(category: cat, score: score));
+      }
+    }
+
+    matches.sort((a, b) => b.score.compareTo(a.score));
+
+    if (matches.isEmpty) {
+      return const [];
+    }
+
+    return matches.take(limit).toList();
+  }
+
   /// Map product to a high-quality relevant online image URL based on its name and category
   static String getSampleImageUrl(Product product) {
-    final nameLower = product.name.toLowerCase();
-    final catLower = product.category.toLowerCase();
-    final brandLower = (product.brand ?? '').toLowerCase();
-    final combined = '$nameLower $catLower $brandLower ${product.category3Levels ?? ''}';
+    return getSampleImageUrlForText(
+      product.name,
+      category: product.category,
+      brand: product.brand,
+      category3Levels: product.category3Levels,
+      isCombo: product.isCombo,
+    );
+  }
 
-    // 1. Combo / Gift Packages
-    if (product.isCombo || combined.contains('combo') || combined.contains('gói')) {
-      return 'https://images.unsplash.com/photo-1512756290469-ec264b7fbf87?w=600&auto=format&fit=crop&q=80';
+  /// Map raw input values to a high-quality sample image URL
+  static String getSampleImageUrlForText(
+    String name, {
+    String? category,
+    String? brand,
+    String? category3Levels,
+    bool isCombo = false,
+  }) {
+    final matches = getSuggestedImagesForText(
+      name,
+      category: category,
+      brand: brand,
+      category3Levels: category3Levels,
+      isCombo: isCombo,
+      limit: 1,
+    );
+
+    if (matches.isNotEmpty && matches.first.score > 0) {
+      return matches.first.imageUrl;
     }
 
-    // 2. Apple iPhone
-    if (combined.contains('iphone') || (combined.contains('apple') && combined.contains('phone'))) {
-      return 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=600&auto=format&fit=crop&q=80';
-    }
-
-    // 3. Samsung Galaxy / Android Smartphones
-    if (combined.contains('samsung') || combined.contains('galaxy') || combined.contains('xiaomi') || combined.contains('oppo') || combined.contains('vivo') || combined.contains('realme')) {
-      return 'https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=600&auto=format&fit=crop&q=80';
-    }
-
-    // 4. General Smartphones / Phones
-    if (combined.contains('điện thoại') || combined.contains('smartphone') || combined.contains('phone')) {
-      return 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600&auto=format&fit=crop&q=80';
-    }
-
-    // 5. MacBook / Apple Laptops
-    if (combined.contains('macbook') || (combined.contains('apple') && combined.contains('laptop'))) {
-      return 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=600&auto=format&fit=crop&q=80';
-    }
-
-    // 6. Windows / Gaming Laptops / Laptop
-    if (combined.contains('laptop') || combined.contains('notebook') || combined.contains('máy tính xách tay') || combined.contains('asus') || combined.contains('dell') || combined.contains('lenovo') || combined.contains('acer') || combined.contains('hp')) {
-      return 'https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=600&auto=format&fit=crop&q=80';
-    }
-
-    // 7. iPad / Tablets
-    if (combined.contains('ipad') || combined.contains('tablet') || combined.contains('máy tính bảng') || combined.contains('tab')) {
-      return 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=600&auto=format&fit=crop&q=80';
-    }
-
-    // 8. Desktop PC / Case / Máy tính để bàn
-    if (combined.contains('pc') || combined.contains('desktop') || combined.contains('máy bàn') || combined.contains('case') || combined.contains('máy tính để bàn')) {
-      return 'https://images.unsplash.com/photo-1587202372775-e229f172b9d7?w=600&auto=format&fit=crop&q=80';
-    }
-
-    // 9. Monitors / Màn hình
-    if (combined.contains('màn hình') || combined.contains('monitor') || combined.contains('display')) {
-      return 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=600&auto=format&fit=crop&q=80';
-    }
-
-    // 10. AirPods / Wireless Earbuds
-    if (combined.contains('airpod') || combined.contains('tws') || combined.contains('true wireless') || combined.contains('tai nghe không dây') || combined.contains('earbuds')) {
-      return 'https://images.unsplash.com/photo-1600294037681-c80b4cb5b434?w=600&auto=format&fit=crop&q=80';
-    }
-
-    // 11. Over-Ear Headphones / Tai nghe chụp tai
-    if (combined.contains('tai nghe') || combined.contains('headphone') || combined.contains('headset') || combined.contains('chụp tai')) {
-      return 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&auto=format&fit=crop&q=80';
-    }
-
-    // 12. Bluetooth Speakers / Loa
-    if (combined.contains('loa') || combined.contains('speaker') || combined.contains('soundbar') || combined.contains('jbl') || combined.contains('marshall')) {
-      return 'https://images.unsplash.com/photo-1545454675-3531b543be5d?w=600&auto=format&fit=crop&q=80';
-    }
-
-    // 13. Smartwatch / Apple Watch / Đồng hồ
-    if (combined.contains('đồng hồ') || combined.contains('watch') || combined.contains('smartwatch') || combined.contains('garmin')) {
-      return 'https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?w=600&auto=format&fit=crop&q=80';
-    }
-
-    // 14. Keyboards / Bàn phím
-    if (combined.contains('bàn phím') || combined.contains('keyboard') || combined.contains('phím cơ')) {
-      return 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=600&auto=format&fit=crop&q=80';
-    }
-
-    // 15. Mice / Chuột máy tính
-    if (combined.contains('chuột') || combined.contains('mouse') || combined.contains('logitech')) {
-      return 'https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=600&auto=format&fit=crop&q=80';
-    }
-
-    // 16. Chargers / Củ sạc / Cáp sạc
-    if (combined.contains('sạc') || combined.contains('cáp') || combined.contains('củ sạc') || combined.contains('dây sạc') || combined.contains('charger') || combined.contains('cable') || combined.contains('adapter') || combined.contains('type-c') || combined.contains('lightning')) {
-      return 'https://images.unsplash.com/photo-1583863788434-e58a36330cf0?w=600&auto=format&fit=crop&q=80';
-    }
-
-    // 17. Powerbank / Pin dự phòng
-    if (combined.contains('dự phòng') || combined.contains('powerbank') || combined.contains('pin sạc') || combined.contains('pin')) {
-      return 'https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?w=600&auto=format&fit=crop&q=80';
-    }
-
-    // 18. Case / Screen Protector / Ốp lưng / Kính cường lực
-    if (combined.contains('ốp') || combined.contains('cường lực') || combined.contains('kính') || combined.contains('dán') || combined.contains('case') || combined.contains('bao da')) {
-      return 'https://images.unsplash.com/photo-1586953208448-b95a79798f07?w=600&auto=format&fit=crop&q=80';
-    }
-
-    // 19. Camera / Máy ảnh / Webcam
-    if (combined.contains('camera') || combined.contains('máy ảnh') || combined.contains('webcam') || combined.contains('flycam')) {
-      return 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=600&auto=format&fit=crop&q=80';
-    }
-
-    // 20. Fashion / Clothing / Quần áo / Giày
-    if (combined.contains('thời trang') || combined.contains('quần') || combined.contains('áo') || combined.contains('giày') || combined.contains('dép') || combined.contains('túi') || combined.contains('balo')) {
-      return 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=600&auto=format&fit=crop&q=80';
-    }
-
-    // 21. Drinks / Beverage / Cafe / Trà
-    if (combined.contains('uống') || combined.contains('cafe') || combined.contains('trà') || combined.contains('nước') || combined.contains('sữa') || combined.contains('bia')) {
-      return 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=600&auto=format&fit=crop&q=80';
-    }
-
-    // 22. Food / Bánh kẹo / Thực phẩm
-    if (combined.contains('ăn') || combined.contains('thực phẩm') || combined.contains('bánh') || combined.contains('kẹo') || combined.contains('món')) {
-      return 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=600&auto=format&fit=crop&q=80';
-    }
-
-    // Default High-Quality Product Placeholder
-    return 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80';
+    return '';
   }
 }

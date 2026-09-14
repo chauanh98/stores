@@ -371,8 +371,6 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
 
   Widget _buildMetricCard(
       String title, String value, Color color, IconData icon) {
-    final l10n = AppLocalizations.of(context)!;
-
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -557,7 +555,10 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+          color: Theme.of(context)
+              .colorScheme
+              .surfaceContainerHighest
+              .withOpacity(0.5),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(

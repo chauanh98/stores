@@ -105,6 +105,8 @@ class ProductRemoteDataSource {
     return null;
   }
 
+  Future<Map?> getById(String id) => fetchById(id);
+
   Future<void> upsert(String id, Map<String, dynamic> map) {
     return _ref.child(id).set(map);
   }

@@ -14,9 +14,23 @@ class OrderRemoteDataSource {
     return _ref.child(id).set(map);
   }
 
+  Future<void> update(String id, Map<String, dynamic> map) {
+    return _ref.child(id).update(map);
+  }
+
   Future<void> delete(String id) {
     return _ref.child(id).remove();
   }
+
+  Future<Map<String, dynamic>?> fetchById(String id) async {
+    final snap = await _ref.child(id).get();
+    if (snap.value == null) return null;
+    if (snap.value is Map) {
+      return Map<String, dynamic>.from(snap.value as Map);
+    }
+    return null;
+  }
+
 
   Stream<List<Map<String, dynamic>>> watchByCustomer(String customerId) {
     return _ref
@@ -147,4 +161,60 @@ class OrderRemoteDataSource {
           !createdAt.isAfter(adjustedEndDate);
     }).toList();
   }
+
+  // Return Orders CRUD & Stream methods
+  DatabaseReference get _returnsRef => _db.ref('stores/$storeId/return_orders');
+
+  Future<void> createReturn(String id, Map<String, dynamic> map) {
+    return _returnsRef.child(id).set(map);
+  }
+
+  Future<Map<String, dynamic>?> fetchReturnById(String id) async {
+    final snap = await _returnsRef.child(id).get();
+    if (snap.value == null) return null;
+    if (snap.value is Map) {
+      return Map<String, dynamic>.from(snap.value as Map);
+    }
+    return null;
+  }
+
+  Stream<List<Map<String, dynamic>>> watchReturnsByDateRange(
+      DateTime startDate, DateTime endDate) {
+    final adjustedEndDate =
+        DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59, 999);
+    final start = startDate.toIso8601String();
+    final end = adjustedEndDate.toIso8601String();
+
+    return _returnsRef
+        .orderByChild('createdAt')
+        .startAt(start)
+        .endAt(end)
+        .onValue
+        .map((event) {
+      final data = event.snapshot.value as Map? ?? {};
+      final list = data.values
+          .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+      return list.where((m) {
+        final createdAt = DateTime.tryParse(m['createdAt']?.toString() ?? '');
+        if (createdAt == null) return false;
+        return !createdAt.isBefore(startDate) &&
+            !createdAt.isAfter(adjustedEndDate);
+      }).toList();
+    });
+  }
+
+  Stream<List<Map<String, dynamic>>> watchReturnsByOrderId(String orderId) {
+    return _returnsRef
+        .orderByChild('orderId')
+        .equalTo(orderId)
+        .onValue
+        .map((event) {
+      final data = event.snapshot.value as Map? ?? {};
+      return data.values
+          .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+    });
+  }
 }
+

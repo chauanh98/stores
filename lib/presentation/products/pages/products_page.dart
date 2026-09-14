@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:stores/core/theme/app_colors.dart';
 import 'package:stores/presentation/common/widgets/loading_indicator.dart';
@@ -23,7 +24,12 @@ import '../widgets/product_tile.dart';
 import 'add_product_page.dart';
 
 class ProductsPage extends ConsumerStatefulWidget {
-  const ProductsPage({super.key});
+  final String? initialCategory;
+
+  const ProductsPage({
+    super.key,
+    this.initialCategory,
+  });
 
   @override
   ConsumerState<ProductsPage> createState() => _ProductsPageState();
@@ -38,6 +44,12 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    if (widget.initialCategory != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(productCategoryFilterProvider.notifier).state =
+            widget.initialCategory!;
+      });
+    }
   }
 
   void _onScroll() {
@@ -66,9 +78,13 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
     final processedAsync = ref.watch(processedProductsProvider);
     final search = ref.watch(productSearchQueryProvider);
     final selectedCategory = ref.watch(productCategoryFilterProvider);
+    final selectedBrand = ref.watch(productBrandFilterProvider);
+    final stockStatus = ref.watch(productStockStatusFilterProvider);
+    final sortOption = ref.watch(productSortOptionProvider);
 
     final user = ref.watch(authProvider);
     final canManageProducts = user?.canManageProducts ?? false;
+    final isSupervisor = user?.isSupervisor == true;
 
     return Scaffold(
       appBar: AppBar(
@@ -76,75 +92,78 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
         actions: [
           if (canManageProducts)
             PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert),
-            tooltip: 'Thao tác sản phẩm',
-            onSelected: (value) {
-              if (value == 'import_inventory') {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => const ImportInventoryPage(),
+              icon: const Icon(Icons.more_vert),
+              tooltip: 'Thao tác sản phẩm',
+              onSelected: (value) {
+                if (value == 'import_inventory') {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const ImportInventoryPage(),
+                    ),
+                  );
+                } else if (value == 'import_excel') {
+                  _importProducts();
+                } else if (value == 'export_excel') {
+                  _exportProducts();
+                } else if (value == 'auto_assign_images') {
+                  _autoAssignSampleImages();
+                }
+              },
+              itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                PopupMenuItem<String>(
+                  value: 'import_inventory',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.inventory_2_outlined,
+                          color: Colors.blueGrey),
+                      const SizedBox(width: 8),
+                      Text(l10n.importProduct),
+                    ],
                   ),
-                );
-              } else if (value == 'import_excel') {
-                _importProducts(context);
-              } else if (value == 'export_excel') {
-                _exportProducts(context);
-              } else if (value == 'auto_assign_images') {
-                _autoAssignSampleImages(context);
-              }
-            },
-            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-              PopupMenuItem<String>(
-                value: 'import_inventory',
-                child: Row(
-                  children: [
-                    const Icon(Icons.inventory_2_outlined, color: Colors.blueGrey),
-                    const SizedBox(width: 8),
-                    Text(l10n.importProduct),
-                  ],
                 ),
-              ),
-              PopupMenuItem<String>(
-                value: 'import_excel',
-                child: Row(
-                  children: [
-                    const Icon(Icons.upload_file, color: AppColors.primary),
-                    const SizedBox(width: 8),
-                    Text(l10n.importExcel),
-                  ],
+                PopupMenuItem<String>(
+                  value: 'import_excel',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.upload_file, color: AppColors.primary),
+                      const SizedBox(width: 8),
+                      Text(l10n.importExcel),
+                    ],
+                  ),
                 ),
-              ),
-              PopupMenuItem<String>(
-                value: 'export_excel',
-                child: Row(
-                  children: [
-                    const Icon(Icons.download, color: Colors.green),
-                    const SizedBox(width: 8),
-                    Text(l10n.exportExcel),
-                  ],
+                PopupMenuItem<String>(
+                  value: 'export_excel',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.download, color: Colors.green),
+                      const SizedBox(width: 8),
+                      Text(l10n.exportExcel),
+                    ],
+                  ),
                 ),
-              ),
-              const PopupMenuDivider(),
-              const PopupMenuItem<String>(
-                value: 'auto_assign_images',
-                child: Row(
-                  children: [
-                    Icon(Icons.auto_awesome, color: Colors.amber),
-                    SizedBox(width: 8),
-                    Text('Tự động gán ảnh mẫu',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w600, color: Colors.black87)),
-                  ],
+                const PopupMenuDivider(),
+                const PopupMenuItem<String>(
+                  value: 'auto_assign_images',
+                  child: Row(
+                    children: [
+                      Icon(Icons.auto_awesome, color: Colors.amber),
+                      SizedBox(width: 8),
+                      Text('Tự động gán ảnh mẫu',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black87)),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
         ],
       ),
       body: Column(
         children: [
+          // 1. Search Bar
           Padding(
-            padding: const EdgeInsets.all(12.0),
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
@@ -188,67 +207,21 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
               },
             ),
           ),
-          // KiotViet Filter Bar
+
+          // 2. Compact Filter Bar (Stock Status, Category, Brand, Sort & Reset)
           processedAsync.maybeWhen(
-            data: (data) {
-              return Container(
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  border: Border(bottom: BorderSide(color: AppColors.divider)),
-                ),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                child: Row(
-                  children: [
-                    // Bộ lọc loại hàng
-                    DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: selectedCategory,
-                        style: const TextStyle(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13),
-                        icon: const Icon(Icons.arrow_drop_down,
-                            color: AppColors.primary, size: 18),
-                        onChanged: (v) {
-                          if (v != null) {
-                            ref
-                                .read(productCategoryFilterProvider.notifier)
-                                .state = v;
-                            setState(() {
-                              _currentLimit = 50;
-                            });
-                          }
-                        },
-                        items: data.categories
-                            .map((c) => DropdownMenuItem(
-                                  value: c,
-                                  child: Text(
-                                      c == 'All' ? 'Tất cả loại hàng' : c,
-                                      style: const TextStyle(
-                                          fontSize: 13, color: Colors.black87)),
-                                ))
-                            .toList(),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    // Bảng giá đang chọn
-                    Row(
-                      children: const [
-                        Text(
-                          'Giá bán',
-                          style: TextStyle(color: Colors.black54, fontSize: 13),
-                        ),
-                        Icon(Icons.arrow_drop_down,
-                            color: Colors.black45, size: 18),
-                      ],
-                    ),
-                  ],
-                ),
-              );
-            },
+            data: (data) => _buildCompactFilterBar(
+              stockStatus: stockStatus,
+              categories: data.categories,
+              brands: data.brands,
+              selectedCategory: selectedCategory,
+              selectedBrand: selectedBrand,
+              sortOption: sortOption,
+            ),
             orElse: () => const SizedBox.shrink(),
           ),
+
+          // 4. Products List & Summary Card
           Expanded(
             child: processedAsync.when(
               data: (data) {
@@ -257,7 +230,12 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                 return Column(
                   children: [
                     _buildTotalSummaryCard(
-                        data.filteredProducts.length, data.totalStock, l10n),
+                      count: data.totalProducts,
+                      totalStock: data.totalStock,
+                      totalCostValue: data.totalCostValue,
+                      isSupervisor: isSupervisor,
+                      l10n: l10n,
+                    ),
                     Expanded(
                       child: data.filteredProducts.isEmpty
                           ? Center(child: Text(l10n.notFound))
@@ -266,7 +244,7 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                               child: ListView.builder(
                                 controller: _scrollController,
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 8),
+                                    horizontal: 12, vertical: 6),
                                 itemCount: displayProducts.length,
                                 itemBuilder: (_, i) =>
                                     ProductTile(product: displayProducts[i]),
@@ -297,12 +275,488 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
     );
   }
 
+  Widget _buildCompactFilterBar({
+    required StockStatus stockStatus,
+    required List<String> categories,
+    required List<String> brands,
+    required String selectedCategory,
+    required String? selectedBrand,
+    required ProductSortOption sortOption,
+  }) {
+    final isStockFiltered = stockStatus != StockStatus.all;
+    final isCategoryFiltered = selectedCategory != 'All';
+    final isBrandFiltered = selectedBrand != null;
+    final isSortFiltered = sortOption != ProductSortOption.stockDesc;
+    final hasActiveFilters = isStockFiltered ||
+        isCategoryFiltered ||
+        isBrandFiltered ||
+        isSortFiltered;
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          top: BorderSide(color: AppColors.dividerLight),
+          bottom: BorderSide(color: AppColors.divider),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            // 1. Tồn kho (Stock Status)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: BoxDecoration(
+                color: isStockFiltered
+                    ? AppColors.primary.withOpacity(0.08)
+                    : AppColors.surface,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color:
+                      isStockFiltered ? AppColors.primary : AppColors.border,
+                ),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<StockStatus>(
+                  value: stockStatus,
+                  isDense: true,
+                  style: TextStyle(
+                    color:
+                        isStockFiltered ? AppColors.primary : Colors.black87,
+                    fontWeight: isStockFiltered
+                        ? FontWeight.bold
+                        : FontWeight.w600,
+                    fontSize: 12,
+                  ),
+                  icon: Icon(
+                    Icons.arrow_drop_down,
+                    color: isStockFiltered
+                        ? AppColors.primary
+                        : AppColors.primary,
+                    size: 18,
+                  ),
+                  onChanged: (v) {
+                    if (v != null) {
+                      ref
+                          .read(productStockStatusFilterProvider.notifier)
+                          .state = v;
+                      setState(() {
+                        _currentLimit = 50;
+                      });
+                    }
+                  },
+                  items: const [
+                    DropdownMenuItem(
+                      value: StockStatus.all,
+                      child: Text(
+                        'Tất cả',
+                        style: TextStyle(fontSize: 12, color: Colors.black87),
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: StockStatus.inStock,
+                      child: Text(
+                        'Còn hàng (> 0)',
+                        style: TextStyle(fontSize: 12, color: Colors.black87),
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: StockStatus.outOfStock,
+                      child: Text(
+                        'Hết hàng (= 0)',
+                        style: TextStyle(fontSize: 12, color: Colors.black87),
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: StockStatus.belowMinStock,
+                      child: Text(
+                        'Dưới định mức',
+                        style: TextStyle(fontSize: 12, color: Colors.black87),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+
+            // 2. Danh mục (Category)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: BoxDecoration(
+                color: isCategoryFiltered
+                    ? AppColors.primary.withOpacity(0.08)
+                    : AppColors.surface,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isCategoryFiltered
+                      ? AppColors.primary
+                      : AppColors.border,
+                ),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: categories.contains(selectedCategory)
+                      ? selectedCategory
+                      : 'All',
+                  isDense: true,
+                  style: TextStyle(
+                    color: isCategoryFiltered
+                        ? AppColors.primary
+                        : AppColors.primary,
+                    fontWeight: isCategoryFiltered
+                        ? FontWeight.bold
+                        : FontWeight.w600,
+                    fontSize: 12,
+                  ),
+                  icon: const Icon(Icons.arrow_drop_down,
+                      color: AppColors.primary, size: 18),
+                  onChanged: (v) {
+                    if (v != null) {
+                      ref
+                          .read(productCategoryFilterProvider.notifier)
+                          .state = v;
+                      setState(() {
+                        _currentLimit = 50;
+                      });
+                    }
+                  },
+                  items: categories
+                      .map((c) => DropdownMenuItem(
+                            value: c,
+                            child: Text(
+                              c == 'All' ? 'Tất cả nhóm hàng' : c,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ))
+                      .toList(),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+
+            // 3. Thương hiệu (Brand)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: BoxDecoration(
+                color: isBrandFiltered
+                    ? AppColors.primary.withOpacity(0.08)
+                    : AppColors.surface,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isBrandFiltered
+                      ? AppColors.primary
+                      : AppColors.border,
+                ),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String?>(
+                  value: (selectedBrand != null &&
+                          brands.contains(selectedBrand))
+                      ? selectedBrand
+                      : null,
+                  isDense: true,
+                  style: TextStyle(
+                    color: isBrandFiltered
+                        ? AppColors.primary
+                        : AppColors.primary,
+                    fontWeight: isBrandFiltered
+                        ? FontWeight.bold
+                        : FontWeight.w600,
+                    fontSize: 12,
+                  ),
+                  icon: const Icon(Icons.arrow_drop_down,
+                      color: AppColors.primary, size: 18),
+                  hint: const Text(
+                    'Tất cả thương hiệu',
+                    style: TextStyle(fontSize: 12, color: Colors.black87),
+                  ),
+                  onChanged: (v) {
+                    ref.read(productBrandFilterProvider.notifier).state = v;
+                    setState(() {
+                      _currentLimit = 50;
+                    });
+                  },
+                  items: [
+                    const DropdownMenuItem<String?>(
+                      value: null,
+                      child: Text(
+                        'Tất cả thương hiệu',
+                        style:
+                            TextStyle(fontSize: 12, color: Colors.black87),
+                      ),
+                    ),
+                    ...brands.map((b) => DropdownMenuItem<String?>(
+                          value: b,
+                          child: Text(
+                            b,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        )),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+
+            // 4. Sắp xếp (Sort)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: BoxDecoration(
+                color: isSortFiltered
+                    ? AppColors.primary.withOpacity(0.08)
+                    : AppColors.surface,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isSortFiltered
+                      ? AppColors.primary
+                      : AppColors.border,
+                ),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<ProductSortOption>(
+                  value: sortOption,
+                  isDense: true,
+                  style: TextStyle(
+                    color: isSortFiltered
+                        ? AppColors.primary
+                        : AppColors.primary,
+                    fontWeight: isSortFiltered
+                        ? FontWeight.bold
+                        : FontWeight.w600,
+                    fontSize: 12,
+                  ),
+                  icon: const Icon(Icons.sort,
+                      color: AppColors.primary, size: 18),
+                  onChanged: (v) {
+                    if (v != null) {
+                      ref.read(productSortOptionProvider.notifier).state = v;
+                      setState(() {
+                        _currentLimit = 50;
+                      });
+                    }
+                  },
+                  items: const [
+                    DropdownMenuItem(
+                      value: ProductSortOption.stockDesc,
+                      child: Text('Tồn kho: Cao → Thấp',
+                          style: TextStyle(
+                              fontSize: 12, color: Colors.black87)),
+                    ),
+                    DropdownMenuItem(
+                      value: ProductSortOption.stockAsc,
+                      child: Text('Tồn kho: Thấp → Cao',
+                          style: TextStyle(
+                              fontSize: 12, color: Colors.black87)),
+                    ),
+                    DropdownMenuItem(
+                      value: ProductSortOption.nameAsc,
+                      child: Text('Tên: A → Z',
+                          style: TextStyle(
+                              fontSize: 12, color: Colors.black87)),
+                    ),
+                    DropdownMenuItem(
+                      value: ProductSortOption.nameDesc,
+                      child: Text('Tên: Z → A',
+                          style: TextStyle(
+                              fontSize: 12, color: Colors.black87)),
+                    ),
+                    DropdownMenuItem(
+                      value: ProductSortOption.priceAsc,
+                      child: Text('Giá: Thấp → Cao',
+                          style: TextStyle(
+                              fontSize: 12, color: Colors.black87)),
+                    ),
+                    DropdownMenuItem(
+                      value: ProductSortOption.priceDesc,
+                      child: Text('Giá: Cao → Thấp',
+                          style: TextStyle(
+                              fontSize: 12, color: Colors.black87)),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // 5. Đặt lại bộ lọc (Reset Filters)
+            if (hasActiveFilters) ...[
+              const SizedBox(width: 8),
+              Tooltip(
+                message: 'Đặt lại bộ lọc',
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.primary),
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.refresh,
+                        color: AppColors.primary, size: 18),
+                    tooltip: 'Đặt lại bộ lọc',
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 6),
+                    constraints:
+                        const BoxConstraints(minHeight: 32, minWidth: 32),
+                    onPressed: () {
+                      ref
+                          .read(productStockStatusFilterProvider.notifier)
+                          .state = StockStatus.all;
+                      ref
+                          .read(productCategoryFilterProvider.notifier)
+                          .state = 'All';
+                      ref
+                          .read(productBrandFilterProvider.notifier)
+                          .state = null;
+                      ref
+                          .read(productSortOptionProvider.notifier)
+                          .state = ProductSortOption.stockDesc;
+                      setState(() {
+                        _currentLimit = 50;
+                      });
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTotalSummaryCard({
+    required int count,
+    required int totalStock,
+    required double totalCostValue,
+    required bool isSupervisor,
+    required AppLocalizations l10n,
+  }) {
+    final currencyFormat = NumberFormat('#,###', 'vi_VN');
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceInfo,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.primary.withOpacity(0.15)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Flexible(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.inventory_2_outlined,
+                        size: 16, color: AppColors.primary),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        l10n.totalProducts(count),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                          color: Colors.black87,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                l10n.totalStockCount(totalStock),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 14,
+                  color: AppColors.primary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          const Divider(height: 1, color: AppColors.divider),
+          const SizedBox(height: 6),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    isSupervisor
+                        ? Icons.account_balance_wallet_outlined
+                        : Icons.lock_outline,
+                    size: 15,
+                    color: isSupervisor ? Colors.teal : Colors.grey,
+                  ),
+                  const SizedBox(width: 6),
+                  const Text(
+                    'Giá trị kho:',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.black54,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 8),
+              if (isSupervisor)
+                Flexible(
+                  child: Text(
+                    '${currencyFormat.format(totalCostValue)} đ',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      color: Colors.teal,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.end,
+                  ),
+                )
+              else
+                const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.lock, size: 13, color: Colors.grey),
+                    SizedBox(width: 4),
+                    Text(
+                      '***',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _refreshProducts() async {
     try {
       ref.invalidate(productListProvider);
-
       await Future.delayed(const Duration(milliseconds: 100));
-    } catch (e) {}
+    } catch (_) {}
+    ref.invalidate(productListProvider);
+    await Future.delayed(const Duration(milliseconds: 100));
   }
 
   void _navigateToAddProduct() {
@@ -313,7 +767,7 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
     );
   }
 
-  Future<void> _importProducts(BuildContext context) async {
+  Future<void> _importProducts() async {
     final l10n = AppLocalizations.of(context)!;
     try {
       final result = await FilePicker.platform.pickFiles(
@@ -358,57 +812,28 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
       for (final product in importedProducts) {
         final existing = await productRepo.fetchById(product.id);
         if (existing != null) {
-          final oldStock = existing.branchStocks['branch_1'] ?? 0;
-          final newStock = product.branchStocks['branch_1'] ?? 0;
-          final diff = newStock - oldStock;
-
-          final updatedBranchStocks =
-              Map<String, int>.from(existing.branchStocks);
-          updatedBranchStocks['branch_1'] = newStock;
-
           final merged = product.copyWith(
-            brand: existing.brand ?? product.brand,
-            model: existing.model ?? product.model,
-            branchStocks: updatedBranchStocks,
+            branchStocks: existing.branchStocks,
+            imageUrl: existing.imageUrl,
           );
           await productRepo.upsert(merged);
-
-          if (diff > 0) {
-            await inventoryRepo.record(InventoryTransaction(
-              id: 'import_adj_${now.millisecondsSinceEpoch}_${product.id}',
-              productId: product.id,
-              type: TransactionType.import,
-              quantity: diff,
-              date: now,
-              note: 'Điều chỉnh tăng kho từ Excel',
-              importPrice: product.costPrice,
-            ));
-          } else if (diff < 0) {
-            await inventoryRepo.record(InventoryTransaction(
-              id: 'export_adj_${now.millisecondsSinceEpoch}_${product.id}',
-              productId: product.id,
-              type: TransactionType.export,
-              quantity: -diff,
-              date: now,
-              note: 'Điều chỉnh giảm kho từ Excel',
-            ));
-          }
-
           updatedCount++;
         } else {
           await productRepo.upsert(product);
-
-          final stock = product.branchStocks['branch_1'] ?? 0;
-          if (stock > 0) {
-            await inventoryRepo.record(InventoryTransaction(
-              id: 'import_init_${now.millisecondsSinceEpoch}_${product.id}',
-              productId: product.id,
-              type: TransactionType.import,
-              quantity: stock,
-              date: now,
-              note: 'Nhập kho khởi tạo từ Excel',
-              importPrice: product.costPrice,
-            ));
+          for (final entry in product.branchStocks.entries) {
+            if (entry.value > 0) {
+              final tx = InventoryTransaction(
+                id: 'import_${now.millisecondsSinceEpoch}_${product.id}_${entry.key}',
+                productId: product.id,
+                type: TransactionType.import,
+                quantity: entry.value,
+                date: now,
+                note: 'Nhập tồn đầu kỳ từ file Excel (${entry.key})',
+                importPrice: product.costPrice,
+                storeId: entry.key,
+              );
+              await inventoryRepo.record(tx);
+            }
           }
           addedCount++;
         }
@@ -417,7 +842,7 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
       ref.invalidate(productListProvider);
 
       if (mounted) {
-        Navigator.of(context).pop(); // dismiss loading
+        Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -429,7 +854,7 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
     } catch (e) {
       if (mounted) {
         if (Navigator.of(context).canPop()) {
-          Navigator.of(context).pop(); // dismiss loading
+          Navigator.of(context).pop();
         }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -441,7 +866,7 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
     }
   }
 
-  Future<void> _exportProducts(BuildContext context) async {
+  Future<void> _exportProducts() async {
     final l10n = AppLocalizations.of(context)!;
     try {
       final productsAsync = ref.read(productListProvider);
@@ -466,7 +891,7 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
       final file = await ExcelHelper.exportProducts(products);
 
       if (mounted) {
-        Navigator.of(context).pop(); // dismiss loading
+        Navigator.of(context).pop();
 
         await Share.shareXFiles(
           [XFile(file.path)],
@@ -476,7 +901,7 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
     } catch (e) {
       if (mounted) {
         if (Navigator.of(context).canPop()) {
-          Navigator.of(context).pop(); // dismiss loading
+          Navigator.of(context).pop();
         }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -488,7 +913,7 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
     }
   }
 
-  Future<void> _autoAssignSampleImages(BuildContext context) async {
+  Future<void> _autoAssignSampleImages() async {
     final productsAsync = ref.read(productListProvider);
     final allProducts = productsAsync.maybeWhen(
       data: (list) => list,
@@ -503,15 +928,12 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
     }
 
     final missingImageProducts = allProducts
-        .where((p) => p.imageUrl == null || p.imageUrl!.trim().isEmpty)
+        .where((p) => p.imageUrl == null || p.imageUrl!.isEmpty)
         .toList();
 
     if (missingImageProducts.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Tất cả sản phẩm đều đã có ảnh! Không cần gán thêm.'),
-          backgroundColor: Colors.green,
-        ),
+        const SnackBar(content: Text('Tất cả sản phẩm đều đã có hình ảnh!')),
       );
       return;
     }
@@ -519,26 +941,18 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.auto_awesome, color: Colors.amber),
-            SizedBox(width: 8),
-            Text('Tự động gán ảnh mẫu',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-          ],
-        ),
+        title: const Text('Tự động gán ảnh mẫu'),
         content: Text(
-          'Tìm thấy ${missingImageProducts.length} sản phẩm chưa có ảnh.\n\nHệ thống sẽ phân tích tên và danh mục của từng sản phẩm để tự động gán đường dẫn ảnh mẫu sắc nét tương ứng từ CDN trực tuyến.\n\nCác sản phẩm đã có ảnh trước đó sẽ được giữ nguyên hoàn toàn. Bạn có muốn tiếp tục?',
-          style: const TextStyle(fontSize: 14, height: 1.4),
+          'Tìm thấy ${missingImageProducts.length} sản phẩm chưa có ảnh. Hệ thống sẽ tự động gán hình ảnh minh họa chất lượng cao phù hợp cho từng sản phẩm.\n\nBạn có muốn tiếp tục?',
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
+            onPressed: () => Navigator.of(ctx).pop(false),
             child: const Text('Hủy'),
           ),
           FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
             style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
-            onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Bắt đầu gán ảnh'),
           ),
         ],
@@ -547,7 +961,6 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
 
     if (confirm != true || !mounted) return;
 
-    // Show Progress Dialog
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -581,7 +994,7 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
       }
 
       if (mounted) {
-        Navigator.of(context).pop(); // dismiss loading
+        Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Đã tự động gán ảnh thành công cho $count sản phẩm!'),
@@ -593,7 +1006,7 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
     } catch (e) {
       if (mounted) {
         if (Navigator.of(context).canPop()) {
-          Navigator.of(context).pop(); // dismiss loading
+          Navigator.of(context).pop();
         }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -603,66 +1016,5 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
         );
       }
     }
-  }
-
-  Widget _buildTotalSummaryCard(
-      int count, int totalStock, AppLocalizations l10n) {
-    return Container(
-      color: AppColors.surfaceInfo,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            l10n.totalProducts(count),
-            style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-                color: Colors.black87),
-          ),
-          Text(
-            l10n.totalStockCount(totalStock),
-            style: const TextStyle(
-                fontWeight: FontWeight.w800,
-                fontSize: 15,
-                color: AppColors.primary),
-          )
-        ],
-      ),
-    );
-  }
-}
-
-class _CategoryFilter extends StatelessWidget {
-  final String selected;
-  final ValueChanged<String> onChanged;
-  final AsyncValue<List<Product>> productsAsync;
-
-  const _CategoryFilter({
-    required this.selected,
-    required this.onChanged,
-    required this.productsAsync,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return productsAsync.when(
-      data: (products) {
-        final cats = {'All', ...products.map((e) => e.category).toSet()};
-        return DropdownButton<String>(
-          value: selected,
-          onChanged: (v) => v == null ? null : onChanged(v),
-          items: cats
-              .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-              .toList(),
-        );
-      },
-      loading: () => const SizedBox(
-        width: 48,
-        height: 48,
-        child: LoadingIndicator(),
-      ),
-      error: (e, _) => ErrorView(e),
-    );
   }
 }

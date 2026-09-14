@@ -1,7 +1,8 @@
+import 'package:flutter/foundation.dart';
+
 import '../../core/services/fifo_calculator.dart';
 import '../../domain/entities/inventory_transaction.dart';
 import '../../domain/entities/revenue_report.dart';
-import '../../domain/entities/transaction_type.dart';
 import '../datasources/firebase/inventory_remote_data_source.dart';
 import '../datasources/firebase/order_remote_data_source.dart';
 import '../datasources/firebase/product_remote_data_source.dart';
@@ -62,7 +63,44 @@ class RevenueRepositoryImpl {
     );
   }
 
+  /// Helper phân tích inventory transactions
+  List<InventoryTransaction> _parseInventoryTransactions(
+    List<Map> inventoryTransactions,
+    Map<String, Map> productMap,
+  ) {
+    final inventoryTxs = <InventoryTransaction>[];
+    for (final m in inventoryTransactions) {
+      try {
+        final model = InventoryTransactionModel.fromMap(m);
+        final product = productMap[model.productId];
+        final fallbackPrice =
+            product != null ? _toDouble(product['costPrice']) : null;
+
+        inventoryTxs.add(InventoryTransaction(
+          id: model.id,
+          productId: model.productId,
+          type: model.toTransactionType(),
+          quantity: model.quantity,
+          date: model.date,
+          note: model.note,
+          importPrice: model.importPrice ?? fallbackPrice,
+          createdBy: model.createdBy,
+          createdByName: model.createdByName,
+          storeId: model.storeId,
+          isAuditNegative: model.isAuditNegative,
+          auditDifference: model.auditDifference,
+        ));
+      } catch (e) {
+        debugPrint('Error parsing inventory transaction: $e');
+        continue;
+      }
+    }
+    return inventoryTxs;
+  }
+
   /// Tính toán báo cáo doanh thu tổng hợp từ dữ liệu có sẵn
+  /// Sử dụng 1 FifoCalculator instance duy nhất chạy xuyên suốt các ngày
+  /// để tránh lỗi reset lot tồn kho giữa các ngày (Multi-day lot depletion bug)
   RevenueSummary calculateRevenueSummary({
     required List<Map<String, dynamic>> orders,
     required List<Map> inventoryTransactions,
@@ -70,14 +108,37 @@ class RevenueRepositoryImpl {
     required DateTime startDate,
     required DateTime endDate,
   }) {
-    // Tính toán cho từng ngày
+    // Tạo map products để lookup nhanh
+    final productMap = <String, Map>{};
+    for (final product in products) {
+      if (product['id'] != null) {
+        productMap[product['id'].toString()] = product;
+      }
+    }
+
+    final inventoryTxs =
+        _parseInventoryTransactions(inventoryTransactions, productMap);
+
+    // Khởi tạo một instance FifoCalculator duy nhất cho toàn bộ khoảng thời gian
+    final fifo = FifoCalculator(inventoryTxs, _orderDs.storeId);
+
+    // Sắp xếp toàn bộ orders theo thời gian tăng dần
+    final allSortedOrders = List<Map<String, dynamic>>.from(orders);
+    allSortedOrders.sort((a, b) {
+      final dateA =
+          DateTime.tryParse(a['createdAt']?.toString() ?? '') ?? DateTime(1970);
+      final dateB =
+          DateTime.tryParse(b['createdAt']?.toString() ?? '') ?? DateTime(1970);
+      return dateA.compareTo(dateB);
+    });
+
     final dailyReports = <RevenueReport>[];
     DateTime currentDate =
         DateTime(startDate.year, startDate.month, startDate.day);
     final endDateOnly = DateTime(endDate.year, endDate.month, endDate.day);
 
     while (!currentDate.isAfter(endDateOnly)) {
-      final dayOrders = orders.where((order) {
+      final dayOrders = allSortedOrders.where((order) {
         final createdAtStr = order['createdAt']?.toString();
         if (createdAtStr == null) return false;
         final orderDate = DateTime.tryParse(createdAtStr);
@@ -92,6 +153,7 @@ class RevenueRepositoryImpl {
         inventoryTransactions: inventoryTransactions,
         products: products,
         date: currentDate,
+        fifoCalculator: fifo,
       );
 
       dailyReports.add(dailyReport);
@@ -125,6 +187,7 @@ class RevenueRepositoryImpl {
     required List<Map> inventoryTransactions,
     required List<Map> products,
     required DateTime date,
+    FifoCalculator? fifoCalculator,
   }) {
     final productRevenues = <ProductRevenue>[];
     double totalRevenue = 0.0;
@@ -134,40 +197,22 @@ class RevenueRepositoryImpl {
     // Tạo map products để lookup nhanh
     final productMap = <String, Map>{};
     for (final product in products) {
-      productMap[product['id']] = product;
-    }
-
-    // Tạo inventory transactions với error handling và lọc theo ngày
-    final inventoryTxs = <InventoryTransaction>[];
-    for (final m in inventoryTransactions) {
-      try {
-        final model = InventoryTransactionModel.fromMap(m);
-        final product = productMap[model.productId];
-        final fallbackPrice =
-            product != null ? _toDouble(product['costPrice']) : null;
-
-        inventoryTxs.add(InventoryTransaction(
-          id: model.id,
-          productId: model.productId,
-          type: model.type == 'import'
-              ? TransactionType.import
-              : TransactionType.export,
-          quantity: model.quantity,
-          date: model.date,
-          note: model.note,
-          importPrice: model.importPrice ?? fallbackPrice,
-        ));
-      } catch (e) {
-        print('Error parsing inventory transaction: $e');
-        continue;
+      if (product['id'] != null) {
+        productMap[product['id'].toString()] = product;
       }
     }
 
-    // Khởi tạo FIFO Calculator với inventory tracking
-    FifoCalculator.resetInventoryTracker();
-    FifoCalculator.initializeInventoryTracker(inventoryTxs);
+    // Nếu không truyền FifoCalculator từ bên ngoài vào thì tạo instance mới
+    final FifoCalculator fifo;
+    if (fifoCalculator != null) {
+      fifo = fifoCalculator;
+    } else {
+      final inventoryTxs =
+          _parseInventoryTransactions(inventoryTransactions, productMap);
+      fifo = FifoCalculator(inventoryTxs, _orderDs.storeId);
+    }
 
-    // Sắp xếp orders theo thời gian để đảm bảo FIFO chính xác
+    // Sắp xếp orders theo thời gian tăng dần
     final sortedOrders = List<Map<String, dynamic>>.from(orders);
     sortedOrders.sort((a, b) {
       final dateA =
@@ -177,9 +222,6 @@ class RevenueRepositoryImpl {
       return dateA.compareTo(dateB);
     });
 
-    // Tính toán cho từng order theo thứ tự thời gian
-
-    // Tính toán cho từng order theo thứ tự thời gian
     for (final orderMap in sortedOrders) {
       try {
         final orderModel = OrderModel.fromMap(orderMap);
@@ -187,20 +229,27 @@ class RevenueRepositoryImpl {
 
         for (final itemModel in orderModel.items) {
           final product = productMap[itemModel.productId];
-          if (product == null) {
-            continue;
-          }
 
-          // Sử dụng giá bán thực tế từ OrderItem thay vì giá hiện tại của sản phẩm
-          // Fallback về giá hiện tại nếu OrderItem cũ không có trường price
-          final actualPrice =
-              itemModel.price ?? _toDouble(product['price']) ?? 0.0;
+          // Giá bán thực tế từ item hoặc giá niêm yết sản phẩm
+          final actualPrice = itemModel.price != 0.0
+              ? itemModel.price
+              : (product != null ? (_toDouble(product['price']) ?? 0.0) : 0.0);
 
-          // Tính cost theo FIFO với inventory tracking
-          final cost = FifoCalculator.calculateCostForSale(
+          // Giá vốn dự phòng (fallback cost price) từ costPrice của sản phẩm
+          final fallbackCostPrice = product != null
+              ? (_toDouble(product['costPrice']) ??
+                  (_toDouble(product['price']) != null
+                      ? _toDouble(product['price'])! * 0.7
+                      : 0.0))
+              : 0.0;
+
+          // Tính cost theo FIFO instance
+          final cost = fifo.calculateCostForSale(
             productId: itemModel.productId,
             quantity: itemModel.quantity,
             saleDate: orderModel.createdAt,
+            storeId: _orderDs.storeId,
+            fallbackCostPrice: fallbackCostPrice,
           );
 
           totalCost += cost;
@@ -228,7 +277,8 @@ class RevenueRepositoryImpl {
             final revenue = itemModel.quantity * actualPrice;
             productRevenues.add(ProductRevenue(
               productId: itemModel.productId,
-              productName: product['name'] ?? 'Unknown Product',
+              productName:
+                  product != null ? (product['name'] ?? 'Unknown Product') : itemModel.productName,
               quantitySold: itemModel.quantity,
               revenue: revenue,
               cost: cost,
@@ -238,7 +288,7 @@ class RevenueRepositoryImpl {
           }
         }
       } catch (e) {
-        print('Error processing order: $e');
+        debugPrint('Error processing order: $e');
         continue;
       }
     }
@@ -266,3 +316,4 @@ class RevenueRepositoryImpl {
     return null;
   }
 }
+

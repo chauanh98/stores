@@ -7,29 +7,9 @@ import '../../domain/repositories/product_repository.dart';
 import '../datasources/firebase/product_remote_data_source.dart';
 import '../models/product_model.dart';
 
-Product _mapToProduct(Map m) {
-  final model = ProductModel.fromMap(m);
-  return Product(
-    id: model.id,
-    name: model.name,
-    code: model.code,
-    barcode: model.barcode,
-    brand: model.brand,
-    model: model.model,
-    price: model.price,
-    costPrice: model.costPrice,
-    branchStocks: model.branchStocks,
-    category: model.category,
-    type: model.type,
-    category3Levels: model.category3Levels,
-    unit: model.unit,
-    description: model.description,
-    noteTemplate: model.noteTemplate,
-    components: model.components,
-    imageUrl: model.imageUrl,
-    isCombo: model.isCombo,
-    comboComponents: model.comboComponents,
-  );
+Product _mapToProduct(Map m, [String? storeId]) {
+  final model = ProductModel.fromMap(m, storeId);
+  return model.toEntity();
 }
 
 class ProductRepositoryImpl implements ProductRepository {
@@ -39,44 +19,25 @@ class ProductRepositoryImpl implements ProductRepository {
 
   @override
   Stream<List<Product>> watchAll() => _ds.watchAll().asyncMap((list) async {
+        final storeId = _ds.storeId;
         if (kIsWeb) {
-          return list.map(_mapToProduct).toList();
+          return list.map((m) => _mapToProduct(m, storeId)).toList();
         }
-        return await Isolate.run(() => list.map(_mapToProduct).toList());
+        return await Isolate.run(
+            () => list.map((m) => _mapToProduct(m, storeId)).toList());
       });
 
   @override
   Future<List<Product>> fetchAll() async {
     final list = await _ds.fetchAll();
-    return list.map(_mapToProduct).toList();
+    return list.map((m) => _mapToProduct(m, _ds.storeId)).toList();
   }
 
   @override
   Future<Product?> fetchById(String id) async {
     final m = await _ds.fetchById(id);
     if (m == null) return null;
-    final model = ProductModel.fromMap(m);
-    return Product(
-      id: model.id,
-      name: model.name,
-      code: model.code,
-      barcode: model.barcode,
-      brand: model.brand,
-      model: model.model,
-      price: model.price,
-      costPrice: model.costPrice,
-      branchStocks: model.branchStocks,
-      category: model.category,
-      type: model.type,
-      category3Levels: model.category3Levels,
-      unit: model.unit,
-      description: model.description,
-      noteTemplate: model.noteTemplate,
-      components: model.components,
-      imageUrl: model.imageUrl,
-      isCombo: model.isCombo,
-      comboComponents: model.comboComponents,
-    );
+    return _mapToProduct(m, _ds.storeId);
   }
 
   @override
@@ -101,6 +62,10 @@ class ProductRepositoryImpl implements ProductRepository {
       imageUrl: product.imageUrl,
       isCombo: product.isCombo,
       comboComponents: product.comboComponents,
+      minStock: product.minStock,
+      maxStock: product.maxStock,
+      units: product.units,
+      allowSale: product.allowSale,
     ).toMap();
     return _ds.upsert(product.id, map);
   }
@@ -112,3 +77,4 @@ class ProductRepositoryImpl implements ProductRepository {
   Future<void> updateStock(String id, int newStock) =>
       _ds.updateStock(id, newStock);
 }
+

@@ -53,11 +53,13 @@ class StorePaymentConfig {
     };
   }
 
-  factory StorePaymentConfig.fromMap(String storeId, Map<dynamic, dynamic>? map) {
+  factory StorePaymentConfig.fromMap(
+      String storeId, Map<dynamic, dynamic>? map) {
     if (map == null) return StorePaymentConfig(storeId: storeId);
     return StorePaymentConfig(
       storeId: storeId,
-      storeName: map['storeName']?.toString() ?? 'TRANG TRÍ NỘI THẤT KHÁNH ĐĂNG',
+      storeName:
+          map['storeName']?.toString() ?? 'TRANG TRÍ NỘI THẤT KHÁNH ĐĂNG',
       address: map['address']?.toString() ?? 'Chợ Cờ Đỏ, Xã Cờ Đỏ, Cần Thơ',
       phone: map['phone']?.toString() ?? '0917.865 300 - 0939.865 300',
       bankName: map['bankName']?.toString() ?? 'VIETINBANK',

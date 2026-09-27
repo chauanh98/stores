@@ -25,8 +25,7 @@ class _FakeAuthNotifier extends StateNotifier<UserAccount?>
   }
 }
 
-class _FakeCustomerListNotifier
-    extends AutoDisposeAsyncNotifier<List<Customer>>
+class _FakeCustomerListNotifier extends AutoDisposeAsyncNotifier<List<Customer>>
     implements CustomerListNotifier {
   _FakeCustomerListNotifier(this._initialCustomers);
 
@@ -214,7 +213,8 @@ void main() {
   ];
 
   group('InvoicesPage Multi-dimensional Filtering & Reactive KPI Tests', () {
-    testWidgets('Displays all orders and computes correct initial 4-metric KPIs',
+    testWidgets(
+        'Default status is completed and orange summary card is hidden (R2 & R3)',
         (tester) async {
       tester.view.physicalSize = const Size(1000, 1600);
       tester.view.devicePixelRatio = 1.0;
@@ -225,30 +225,32 @@ void main() {
           child: const InvoicesPage(),
           overrides: [
             authProvider.overrideWith((ref) => _FakeAuthNotifier(adminUser)),
-            accountsListProvider.overrideWith(
-                (ref) => Stream.value([adminUser, staffUser1])),
-            allBranchesOrdersByDateRangeProvider.overrideWith(
-                (ref, range) => Stream.value(sampleOrders)),
-            customerListNotifierProvider.overrideWith(() =>
-                _FakeCustomerListNotifier([customer1, customer2])),
+            accountsListProvider
+                .overrideWith((ref) => Stream.value([adminUser, staffUser1])),
+            allBranchesOrdersByDateRangeProvider
+                .overrideWith((ref, range) => Stream.value(sampleOrders)),
+            customerListNotifierProvider.overrideWith(
+                () => _FakeCustomerListNotifier([customer1, customer2])),
           ],
         ),
       );
       await tester.pumpAndSettle();
 
-      // Check total invoices count in KPI banner (All 5 orders: 3 active + 1 cancelled + 1 returned)
-      expect(find.text('Số HĐ: 5'), findsOneWidget);
+      // Orange KPI summary card is completely hidden (R3)
+      expect(
+          find.byKey(const Key('invoices_total_summary_card')), findsNothing);
+      expect(find.text('Doanh thu gộp:'), findsNothing);
 
-      // Active revenue: 1.000.000 + 2.000.000 + 300.000 + 0 = 3.300.000đ (excluding cancelled 5.000.000)
-      expect(find.text('Doanh thu: 3.300.000 đ'), findsOneWidget);
+      // Default status is "Đã hoàn thành" (R2): displays completed orders only
+      expect(find.text('Mã đơn: HD000001'), findsOneWidget);
+      expect(find.text('Mã đơn: HD000002'), findsOneWidget);
+      expect(find.text('Mã đơn: HD000003'), findsNothing);
+      expect(find.text('Mã đơn: HD000004'), findsNothing);
+      expect(find.text('Mã đơn: HD000005'), findsNothing);
 
-      // Total paid: 1.000.000 + 1.500.000 = 2.500.000đ
-      expect(find.text('Đã thu: 2.500.000 đ'), findsOneWidget);
-
-      // Total remaining debt: 500.000 (HD000002) + 300.000 (HD000003) = 800.000đ
-      expect(find.text('Còn nợ: 800.000 đ'), findsOneWidget);
-
-      // Check order codes in list
+      // Tapping 'Tất cả trạng thái' shows all orders
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Tất cả trạng thái'));
+      await tester.pumpAndSettle();
       expect(find.text('Mã đơn: HD000001'), findsOneWidget);
       expect(find.text('Mã đơn: HD000002'), findsOneWidget);
       expect(find.text('Mã đơn: HD000003'), findsOneWidget);
@@ -256,7 +258,8 @@ void main() {
       expect(find.text('Mã đơn: HD000005'), findsOneWidget);
     });
 
-    testWidgets('Filters orders by Status (Đã hoàn thành, Đơn trả hàng, Lưu tạm, Đã hủy)',
+    testWidgets(
+        'Filters orders by Status (Đã hoàn thành, Đơn trả hàng, Lưu tạm, Đã hủy)',
         (tester) async {
       tester.view.physicalSize = const Size(1000, 1600);
       tester.view.devicePixelRatio = 1.0;
@@ -267,12 +270,12 @@ void main() {
           child: const InvoicesPage(),
           overrides: [
             authProvider.overrideWith((ref) => _FakeAuthNotifier(adminUser)),
-            accountsListProvider.overrideWith(
-                (ref) => Stream.value([adminUser, staffUser1])),
-            allBranchesOrdersByDateRangeProvider.overrideWith(
-                (ref, range) => Stream.value(sampleOrders)),
-            customerListNotifierProvider.overrideWith(() =>
-                _FakeCustomerListNotifier([customer1, customer2])),
+            accountsListProvider
+                .overrideWith((ref) => Stream.value([adminUser, staffUser1])),
+            allBranchesOrdersByDateRangeProvider
+                .overrideWith((ref, range) => Stream.value(sampleOrders)),
+            customerListNotifierProvider.overrideWith(
+                () => _FakeCustomerListNotifier([customer1, customer2])),
           ],
         ),
       );
@@ -282,7 +285,6 @@ void main() {
       await tester.tap(find.widgetWithText(ChoiceChip, 'Đã hoàn thành'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Số HĐ: 2'), findsOneWidget);
       expect(find.text('Mã đơn: HD000001'), findsOneWidget);
       expect(find.text('Mã đơn: HD000002'), findsOneWidget);
       expect(find.text('Mã đơn: HD000003'), findsNothing);
@@ -307,7 +309,6 @@ void main() {
       await tester.tap(find.widgetWithText(ChoiceChip, 'Lưu tạm'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Số HĐ: 1'), findsOneWidget);
       expect(find.text('Mã đơn: HD000003'), findsOneWidget);
       expect(find.text('Mã đơn: HD000001'), findsNothing);
 
@@ -315,8 +316,21 @@ void main() {
       await tester.tap(find.widgetWithText(ChoiceChip, 'Đã hủy'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Số HĐ: 1'), findsOneWidget);
       expect(find.text('Mã đơn: HD000004'), findsOneWidget);
+
+      // Verify reset button appears when filters are active
+      final resetBtn = find.byKey(const Key('invoices_reset_filter_button'));
+      expect(resetBtn, findsOneWidget);
+
+      // Tap reset button -> restores default status to "Đã hoàn thành" (R2)
+      await tester.tap(resetBtn);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Mã đơn: HD000001'), findsOneWidget);
+      expect(find.text('Mã đơn: HD000002'), findsOneWidget);
+      expect(find.text('Mã đơn: HD000004'), findsNothing);
+      expect(
+          find.byKey(const Key('invoices_reset_filter_button')), findsNothing);
     });
 
     testWidgets('Tapping returned order opens ReturnOrderDetailBottomSheet',
@@ -330,12 +344,12 @@ void main() {
           child: const InvoicesPage(),
           overrides: [
             authProvider.overrideWith((ref) => _FakeAuthNotifier(adminUser)),
-            accountsListProvider.overrideWith(
-                (ref) => Stream.value([adminUser, staffUser1])),
-            allBranchesOrdersByDateRangeProvider.overrideWith(
-                (ref, range) => Stream.value(sampleOrders)),
-            customerListNotifierProvider.overrideWith(() =>
-                _FakeCustomerListNotifier([customer1, customer2])),
+            accountsListProvider
+                .overrideWith((ref) => Stream.value([adminUser, staffUser1])),
+            allBranchesOrdersByDateRangeProvider
+                .overrideWith((ref, range) => Stream.value(sampleOrders)),
+            customerListNotifierProvider.overrideWith(
+                () => _FakeCustomerListNotifier([customer1, customer2])),
           ],
         ),
       );
@@ -350,15 +364,19 @@ void main() {
       await tester.pumpAndSettle();
 
       // Verify ReturnOrderDetailBottomSheet is opened
-      expect(find.textContaining('Phiếu trả hàng: TH_HD000005'), findsOneWidget);
+      expect(
+          find.textContaining('Phiếu trả hàng: TH_HD000005'), findsOneWidget);
       expect(find.text('Đã hoàn tiền'), findsOneWidget);
       expect(find.text('Hóa đơn gốc: #HD000005'), findsOneWidget);
       expect(find.text('Tai nghe Bluetooth Pro'), findsOneWidget);
-      expect(find.byKey(const Key('view_original_invoice_button')), findsOneWidget);
-      expect(find.byKey(const Key('view_original_invoice_bottom_button')), findsOneWidget);
+      expect(find.byKey(const Key('view_original_invoice_button')),
+          findsOneWidget);
+      expect(find.byKey(const Key('view_original_invoice_bottom_button')),
+          findsOneWidget);
     });
 
-    testWidgets('Search query filters across invoice ID, customer name and phone',
+    testWidgets(
+        'Search query filters across invoice ID, customer name and phone',
         (tester) async {
       tester.view.physicalSize = const Size(1000, 1600);
       tester.view.devicePixelRatio = 1.0;
@@ -369,12 +387,12 @@ void main() {
           child: const InvoicesPage(),
           overrides: [
             authProvider.overrideWith((ref) => _FakeAuthNotifier(adminUser)),
-            accountsListProvider.overrideWith(
-                (ref) => Stream.value([adminUser, staffUser1])),
-            allBranchesOrdersByDateRangeProvider.overrideWith(
-                (ref, range) => Stream.value(sampleOrders)),
-            customerListNotifierProvider.overrideWith(() =>
-                _FakeCustomerListNotifier([customer1, customer2])),
+            accountsListProvider
+                .overrideWith((ref) => Stream.value([adminUser, staffUser1])),
+            allBranchesOrdersByDateRangeProvider
+                .overrideWith((ref, range) => Stream.value(sampleOrders)),
+            customerListNotifierProvider.overrideWith(
+                () => _FakeCustomerListNotifier([customer1, customer2])),
           ],
         ),
       );
@@ -384,19 +402,20 @@ void main() {
       await tester.enterText(find.byType(TextField).first, 'HD000002');
       await tester.pumpAndSettle();
 
-      expect(find.text('Số HĐ: 1'), findsOneWidget);
       expect(find.text('Mã đơn: HD000002'), findsOneWidget);
       expect(find.text('Mã đơn: HD000001'), findsNothing);
+
+      // Search across all statuses
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Tất cả trạng thái'));
+      await tester.pumpAndSettle();
 
       // Search by customer name
       await tester.enterText(find.byType(TextField).first, 'VIP 1');
       await tester.pumpAndSettle();
 
-      expect(find.text('Số HĐ: 3'), findsOneWidget);
       expect(find.text('Mã đơn: HD000001'), findsOneWidget);
       expect(find.text('Mã đơn: HD000003'), findsOneWidget);
       expect(find.text('Mã đơn: HD000005'), findsOneWidget);
     });
   });
 }
-

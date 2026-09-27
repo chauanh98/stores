@@ -22,6 +22,7 @@ class ProductModel {
   final String? noteTemplate;
   final String? components;
   final String? imageUrl;
+  final List<String> images;
 
   // Combo fields
   final bool isCombo;
@@ -57,6 +58,7 @@ class ProductModel {
         noteTemplate: noteTemplate,
         components: components,
         imageUrl: imageUrl,
+        images: images,
         isCombo: isCombo,
         comboComponents: comboComponents,
         minStock: minStock,
@@ -83,6 +85,7 @@ class ProductModel {
         noteTemplate: product.noteTemplate,
         components: product.components,
         imageUrl: product.imageUrl,
+        images: product.images,
         isCombo: product.isCombo,
         comboComponents: product.comboComponents,
         minStock: product.minStock,
@@ -109,6 +112,7 @@ class ProductModel {
     this.noteTemplate,
     this.components,
     this.imageUrl,
+    this.images = const [],
     this.isCombo = false,
     this.comboComponents = const [],
     this.minStock,
@@ -135,6 +139,7 @@ class ProductModel {
         'noteTemplate': noteTemplate,
         'components': components,
         'imageUrl': imageUrl,
+        'images': images,
         'isCombo': isCombo,
         'comboComponents': comboComponents.map((c) => c.toMap()).toList(),
         'minStock': minStock,
@@ -196,25 +201,13 @@ class ProductModel {
           }
         }
 
-        if (isSourceStore002) {
-          // When sourceStoreId == 'store_002' (Thới Bình):
-          // branch_1 is local (store_002), branch_2 is remote (store_001)
-          if (store001Qty != null || legacyBranch2Qty != null) {
-            resolvedStocks['store_001'] = store001Qty ?? legacyBranch2Qty!;
-          }
-          if (store002Qty != null || legacyBranch1Qty != null) {
-            resolvedStocks['store_002'] = store002Qty ?? legacyBranch1Qty!;
-          }
-        } else {
-          // Default / store_001 (Đông Thắng):
-          // branch_1 is local (store_001), branch_2 is remote (store_002)
-          if (store001Qty != null || legacyBranch1Qty != null) {
-            resolvedStocks['store_001'] = store001Qty ?? legacyBranch1Qty!;
-          }
-          if (store002Qty != null || legacyBranch2Qty != null) {
-            resolvedStocks['store_002'] = store002Qty ?? legacyBranch2Qty!;
-          }
-        }
+        // Canonical resolution:
+        // store_001 / branch_1 -> Chi nhánh Đông Thắng
+        // store_002 / branch_2 -> Chi nhánh Thới Bình
+        final s001 = store001Qty ?? legacyBranch1Qty ?? 0;
+        final s002 = store002Qty ?? legacyBranch2Qty ?? 0;
+        resolvedStocks['store_001'] = s001;
+        resolvedStocks['store_002'] = s002;
         resolvedStocks.addAll(otherStores);
       }
     } else {
@@ -282,17 +275,19 @@ class ProductModel {
       noteTemplate: map['noteTemplate'] as String?,
       components: map['components'] as String?,
       imageUrl: map['imageUrl'] as String?,
+      images: (map['images'] as List?)
+              ?.map((e) => e.toString())
+              .where((e) => e.isNotEmpty)
+              .toList() ??
+          const [],
       isCombo: map['isCombo'] as bool? ?? false,
       comboComponents: comboComps,
-      minStock: map['minStock'] != null
-          ? (map['minStock'] as num).toInt()
-          : null,
-      maxStock: map['maxStock'] != null
-          ? (map['maxStock'] as num).toInt()
-          : null,
+      minStock:
+          map['minStock'] != null ? (map['minStock'] as num).toInt() : null,
+      maxStock:
+          map['maxStock'] != null ? (map['maxStock'] as num).toInt() : null,
       units: resolvedUnits,
       allowSale: resolvedAllowSale,
     );
   }
 }
-

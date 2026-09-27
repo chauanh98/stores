@@ -1,3 +1,12 @@
+import 'dart:math' as math;
+
+/// Status of the shift check-in window.
+enum ShiftWindowStatus {
+  open,
+  closed,
+  upcoming,
+}
+
 /// Domain entity representing a work shift.
 class Shift {
   final String id;
@@ -29,19 +38,83 @@ class Shift {
   }
 
   /// Parse "HH:mm" to DateTime on the given base [date].
+  /// Cross-midnight fix: If end time is before start time, end is on the next day.
   DateTime getEndDateTime(DateTime date) {
+    final startParts = startTime.split(':');
+    final startHour = int.tryParse(startParts[0]) ?? 8;
+    final startMinute =
+        startParts.length > 1 ? (int.tryParse(startParts[1]) ?? 0) : 0;
+
     final parts = endTime.split(':');
-    final hour = int.tryParse(parts[0]) ?? 12;
-    final minute = parts.length > 1 ? (int.tryParse(parts[1]) ?? 0) : 0;
-    return DateTime(date.year, date.month, date.day, hour, minute);
+    final endHour = int.tryParse(parts[0]) ?? 12;
+    final endMinute = parts.length > 1 ? (int.tryParse(parts[1]) ?? 0) : 0;
+
+    var targetDate = date;
+    if (endHour < startHour ||
+        (endHour == startHour && endMinute < startMinute)) {
+      targetDate = date.add(const Duration(days: 1));
+    }
+    return DateTime(
+        targetDate.year, targetDate.month, targetDate.day, endHour, endMinute);
   }
+
+  /// The check-in window opens 60 minutes before scheduled start time.
+  DateTime getCheckInWindowStart(DateTime date) =>
+      getStartDateTime(date).subtract(const Duration(minutes: 60));
+
+  /// The check-in window ends when the shift ends.
+  DateTime getCheckInWindowEnd(DateTime date) => getEndDateTime(date);
+
+  /// Computes the check-in window status for [checkTime] on the given [date].
+  ShiftWindowStatus getWindowStatus(DateTime checkTime, [DateTime? date]) {
+    final baseDate =
+        date ?? DateTime(checkTime.year, checkTime.month, checkTime.day);
+
+    final startParts = startTime.split(':');
+    final startHour = int.tryParse(startParts[0]) ?? 8;
+    final startMinute =
+        startParts.length > 1 ? (int.tryParse(startParts[1]) ?? 0) : 0;
+
+    final parts = endTime.split(':');
+    final endHour = int.tryParse(parts[0]) ?? 12;
+    final endMinute = parts.length > 1 ? (int.tryParse(parts[1]) ?? 0) : 0;
+
+    final isOvernight = endHour < startHour ||
+        (endHour == startHour && endMinute < startMinute);
+
+    if (isOvernight) {
+      final yesterday = baseDate.subtract(const Duration(days: 1));
+      final yesterdayStart = getCheckInWindowStart(yesterday);
+      final yesterdayEnd = getCheckInWindowEnd(yesterday);
+      if (!checkTime.isBefore(yesterdayStart) &&
+          !checkTime.isAfter(yesterdayEnd)) {
+        return ShiftWindowStatus.open;
+      }
+    }
+
+    final windowStart = getCheckInWindowStart(baseDate);
+    final windowEnd = getCheckInWindowEnd(baseDate);
+
+    if (checkTime.isAfter(windowEnd)) {
+      return ShiftWindowStatus.closed;
+    }
+    if (checkTime.isBefore(windowStart)) {
+      return ShiftWindowStatus.upcoming;
+    }
+    return ShiftWindowStatus.open;
+  }
+
+  /// Whether the shift is currently open for check-in.
+  bool isCheckInWindowOpen(DateTime checkTime, [DateTime? date]) =>
+      getWindowStatus(checkTime, date) == ShiftWindowStatus.open;
 
   /// Calculates minutes late past start time + grace period.
   /// Returns 0 if checked in on time or before start time + grace period.
   int calculateLateMinutes(DateTime checkInTime, DateTime date) {
     if (type == 'flexible') return 0;
     final scheduledStart = getStartDateTime(date);
-    final graceThreshold = scheduledStart.add(Duration(minutes: gracePeriodMinutes));
+    final graceThreshold =
+        scheduledStart.add(Duration(minutes: gracePeriodMinutes));
     if (checkInTime.isAfter(graceThreshold)) {
       return checkInTime.difference(scheduledStart).inMinutes;
     }
@@ -59,14 +132,39 @@ class Shift {
     return 0;
   }
 
-  /// Calculates overtime minutes if checked out after scheduled end time.
-  /// Returns 0 if checked out at or before scheduled end time.
-  int calculateOvertimeMinutes(DateTime checkOutTime, DateTime date) {
-    if (type == 'flexible') return 0;
-    final scheduledEnd = getEndDateTime(date);
-    if (checkOutTime.isAfter(scheduledEnd)) {
-      return checkOutTime.difference(scheduledEnd).inMinutes;
+  /// Calculates overtime minutes.
+  ///
+  /// For flexible shifts, overtime is the excess worked minutes beyond standard work duration.
+  /// For fixed shifts, overtime requires both:
+  /// 1. Checkout occurs after scheduled end time ([scheduledEnd]).
+  /// 2. Total worked duration exceeds [standardWorkMinutes].
+  /// Late arrival is compensated first before any overtime is credited.
+  /// Returns 0 if conditions are not satisfied.
+  int calculateOvertimeMinutes(
+    DateTime checkOutTime,
+    DateTime date, {
+    DateTime? checkInTime,
+  }) {
+    final effectiveCheckIn = checkInTime ?? getStartDateTime(date);
+    final actualWorkedMinutes =
+        checkOutTime.difference(effectiveCheckIn).inMinutes;
+    final standardWorkMinutes = (standardWorkHours * 60).round();
+
+    if (type == 'flexible') {
+      return actualWorkedMinutes > standardWorkMinutes
+          ? (actualWorkedMinutes - standardWorkMinutes)
+          : 0;
     }
+
+    final scheduledEnd = getEndDateTime(date);
+    if (checkOutTime.isAfter(scheduledEnd) &&
+        actualWorkedMinutes > standardWorkMinutes) {
+      final pastScheduledEndMinutes =
+          checkOutTime.difference(scheduledEnd).inMinutes;
+      final excessWorkedMinutes = actualWorkedMinutes - standardWorkMinutes;
+      return math.min(pastScheduledEndMinutes, excessWorkedMinutes);
+    }
+
     return 0;
   }
 
@@ -132,6 +230,46 @@ class Shift {
         standardWorkHours: 8.0,
       ),
     ];
+  }
+
+  /// Automatically selects the best shift candidate for the given [now] timestamp.
+  ///
+  /// Evaluates active shifts:
+  /// 1. Finds shifts whose check-in window is currently open. If any, prioritizes
+  ///    fixed shifts over flexible ones and picks the one closest to its start time.
+  /// 2. If no shift is open, finds the earliest upcoming shift today.
+  /// 3. Falls back to the first active shift (or null if empty).
+  static Shift? findBestShiftForTime(List<Shift> shifts, DateTime now) {
+    final active = shifts.where((s) => s.isActive).toList();
+    if (active.isEmpty) return shifts.firstOrNull;
+
+    final open = active
+        .where((s) => s.getWindowStatus(now, now) == ShiftWindowStatus.open)
+        .toList();
+    if (open.isNotEmpty) {
+      open.sort((a, b) {
+        final aIsFlex = a.type == 'flexible';
+        final bIsFlex = b.type == 'flexible';
+        if (aIsFlex != bIsFlex) {
+          return aIsFlex ? 1 : -1;
+        }
+        final aDiff = (now.difference(a.getStartDateTime(now)).inMinutes).abs();
+        final bDiff = (now.difference(b.getStartDateTime(now)).inMinutes).abs();
+        return aDiff.compareTo(bDiff);
+      });
+      return open.first;
+    }
+
+    final upcoming = active
+        .where((s) => s.getWindowStatus(now, now) == ShiftWindowStatus.upcoming)
+        .toList();
+    if (upcoming.isNotEmpty) {
+      upcoming.sort(
+          (a, b) => a.getStartDateTime(now).compareTo(b.getStartDateTime(now)));
+      return upcoming.first;
+    }
+
+    return active.firstOrNull;
   }
 
   @override

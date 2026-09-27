@@ -265,7 +265,7 @@ void main() {
       expect(find.byType(Row), findsWidgets);
       expect(find.byType(OverviewHeader), findsOneWidget);
       expect(find.byType(KPIMetricsSection), findsOneWidget);
-      expect(find.byType(QuickActionsBar), findsOneWidget);
+      expect(find.byType(QuickActionsBar), findsNothing);
     });
   });
 
@@ -362,14 +362,14 @@ void main() {
       expect(find.text('Công nợ khách hàng cần thu'), findsNothing);
       expect(find.text('${format.format(standardKPIs.customerDebt)} đ'), findsNothing);
 
-      // State 3: Rapid switch to Admin (can switch stores & see debt, but CANNOT see profit)
+      // State 3: Rapid switch to Admin (can switch stores, see debt, and see profit)
       authNotifier.setUser(adminUser);
       await tester.pumpAndSettle();
 
       expect(find.text('Admin'), findsOneWidget);
       expect(find.text('Giám sát'), findsNothing);
       expect(find.byIcon(Icons.arrow_drop_down), findsNothing);
-      expect(find.text('Lợi nhuận gộp'), findsNothing);
+      expect(find.text('Lợi nhuận gộp'), findsOneWidget);
       expect(find.text('Công nợ khách hàng cần thu'), findsOneWidget);
 
       // State 4: Rapid switch back to Supervisor

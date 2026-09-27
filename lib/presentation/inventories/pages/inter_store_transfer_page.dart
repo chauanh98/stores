@@ -45,9 +45,10 @@ class _InterStoreTransferPageState
     final user = ref.watch(authProvider);
     final isSourceLocked =
         user?.isStaff == true || !(user?.canSwitchStore ?? false);
-    final currentStoreId = (user != null && !user.canSwitchStore && user.storeId.isNotEmpty)
-        ? user.storeId
-        : ref.watch(currentStoreIdProvider);
+    final currentStoreId =
+        (user != null && !user.canSwitchStore && user.storeId.isNotEmpty)
+            ? user.storeId
+            : ref.watch(currentStoreIdProvider);
     final colorScheme = Theme.of(context).colorScheme;
 
     final AsyncValue<List<Product>>? productsAsync =
@@ -150,9 +151,11 @@ class _InterStoreTransferPageState
                           ),
                         ),
                         const SizedBox(height: 16),
-                        if (widget.product == null && availableProducts.length > 1)
+                        if (widget.product == null &&
+                            availableProducts.length > 1)
                           DropdownButtonFormField<Product>(
                             value: currentProduct,
+                            isExpanded: true,
                             decoration: InputDecoration(
                               filled: true,
                               fillColor: colorScheme.surface,
@@ -168,7 +171,10 @@ class _InterStoreTransferPageState
                                 value: p,
                                 child: Text(
                                   '${p.name} (Tồn: ${p.stock})',
-                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold),
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
                                 ),
                               );
                             }).toList(),
@@ -276,6 +282,7 @@ class _InterStoreTransferPageState
                             label: l10n.targetStore,
                             child: DropdownButtonFormField<String>(
                               value: _selectedTargetStoreId,
+                              isExpanded: true,
                               decoration: InputDecoration(
                                 prefixIcon: Icon(Icons.store,
                                     color: colorScheme.secondary),
@@ -294,6 +301,8 @@ class _InterStoreTransferPageState
                                     entry.value,
                                     style: const TextStyle(
                                         fontWeight: FontWeight.w500),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
                                   ),
                                 );
                               }).toList(),
@@ -328,7 +337,7 @@ class _InterStoreTransferPageState
                               keyboardType: TextInputType.number,
                               validator: (value) {
                                 if (value == null || value.trim().isEmpty) {
-                                   return '${l10n.pleaseEnter} ${l10n.quantity}';
+                                  return '${l10n.pleaseEnter} ${l10n.quantity}';
                                 }
                                 final quantity = int.tryParse(value);
                                 if (quantity == null || quantity <= 0) {
@@ -350,7 +359,9 @@ class _InterStoreTransferPageState
 
                   // Submit Button
                   FilledButton.icon(
-                    onPressed: _isLoading ? null : () => _transferProduct(currentProduct),
+                    onPressed: _isLoading
+                        ? null
+                        : () => _transferProduct(currentProduct),
                     icon: _isLoading
                         ? Container(
                             width: 24,
@@ -383,7 +394,7 @@ class _InterStoreTransferPageState
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(child: Text('Error: $err')),
+        error: (err, stack) => Center(child: Text('Lỗi: $err')),
       ),
     );
   }
@@ -454,7 +465,8 @@ class _InterStoreTransferPageState
             SnackBar(
               content: Row(
                 children: [
-                  const Icon(Icons.check_circle_rounded, color: Colors.white),
+                  const Icon(Icons.check_circle_rounded,
+                      color: AppColors.white),
                   const SizedBox(width: 12),
                   Text(l10n.transferCompleted,
                       style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -472,7 +484,7 @@ class _InterStoreTransferPageState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: $e'),
+            content: Text('Lỗi: $e'),
             behavior: SnackBarBehavior.floating,
           ),
         );

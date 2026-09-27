@@ -32,11 +32,11 @@ class RecentActivityFeed extends ConsumerWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: AppColors.black.withOpacity(0.04),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -62,14 +62,12 @@ class RecentActivityFeed extends ConsumerWidget {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
-                  color: Colors.black87,
+                  color: AppColors.textPrimary,
                 ),
               ),
             ],
           ),
-
           const SizedBox(height: 14),
-
           recentOrdersAsync.when(
             data: (orders) => _buildOrdersFeed(
               context,
@@ -88,8 +86,7 @@ class RecentActivityFeed extends ConsumerWidget {
               child: Center(
                 child: Text(
                   'Lỗi tải giao dịch gần đây: $e',
-                  style: const TextStyle(
-                      color: AppColors.danger, fontSize: 12),
+                  style: const TextStyle(color: AppColors.danger, fontSize: 12),
                 ),
               ),
             ),
@@ -111,7 +108,7 @@ class RecentActivityFeed extends ConsumerWidget {
         child: Center(
           child: Text(
             'Chưa có đơn hàng nào trong khoảng thời gian này',
-            style: TextStyle(color: Colors.black38, fontSize: 12),
+            style: TextStyle(color: AppColors.textMuted, fontSize: 12),
           ),
         ),
       );
@@ -167,7 +164,7 @@ class RecentActivityFeed extends ConsumerWidget {
                           style: const TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
-                            color: Colors.black87,
+                            color: AppColors.textPrimary,
                           ),
                         ),
                       ),
@@ -176,7 +173,7 @@ class RecentActivityFeed extends ConsumerWidget {
                         '• $timeStr',
                         style: const TextStyle(
                           fontSize: 11,
-                          color: Colors.black45,
+                          color: AppColors.textTertiary,
                         ),
                       ),
                     ],
@@ -186,7 +183,7 @@ class RecentActivityFeed extends ConsumerWidget {
                     customerName,
                     style: const TextStyle(
                       fontSize: 12,
-                      color: Colors.black54,
+                      color: AppColors.textSecondary,
                       fontWeight: FontWeight.w500,
                     ),
                     maxLines: 1,
@@ -205,7 +202,7 @@ class RecentActivityFeed extends ConsumerWidget {
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w800,
-                    color: Colors.black87,
+                    color: AppColors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 3),
@@ -231,7 +228,7 @@ class RecentActivityFeed extends ConsumerWidget {
         break;
       case 'draft':
       case 'pending':
-        textColor = const Color(0xFFD97706);
+        textColor = AppColors.warningMedium;
         bgColor = AppColors.warningLight;
         label = 'Lưu tạm';
         break;
@@ -246,8 +243,8 @@ class RecentActivityFeed extends ConsumerWidget {
         label = 'Đã hủy';
         break;
       default:
-        textColor = Colors.black54;
-        bgColor = Colors.grey.shade100;
+        textColor = AppColors.textSecondary;
+        bgColor = AppColors.grey100;
         label = status;
     }
 

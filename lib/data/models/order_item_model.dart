@@ -27,14 +27,38 @@ class OrderItemModel {
         'returnedQuantity': returnedQuantity,
       };
 
-  factory OrderItemModel.fromMap(Map<dynamic, dynamic> map) => OrderItemModel(
-        productId: map['productId'] as String,
-        productName: map['productName'] as String,
-        quantity: map['quantity'] as int,
-        price: (map['price'] as num?)?.toDouble() ?? 0.0,
-        warrantyMonths: map['warrantyMonths'] as int,
-        purchaseDate: DateTime.parse(map['purchaseDate'] as String),
-        returnedQuantity: (map['returnedQuantity'] as num?)?.toInt() ?? 0,
-      );
-}
+  factory OrderItemModel.fromMap(Map<dynamic, dynamic> map) {
+    final rawQty = map['quantity'];
+    final quantity = rawQty is num
+        ? rawQty.toInt()
+        : (int.tryParse(rawQty?.toString() ?? '') ??
+            (double.tryParse(rawQty?.toString() ?? '')?.toInt() ?? 1));
 
+    final rawPrice = map['price'];
+    final parsedPrice = rawPrice is num
+        ? rawPrice.toDouble()
+        : (double.tryParse(rawPrice?.toString() ?? '') ?? 0.0);
+    final price = parsedPrice < 0 ? 0.0 : parsedPrice;
+
+    final rawWarranty = map['warrantyMonths'];
+    final warrantyMonths = rawWarranty is num
+        ? rawWarranty.toInt()
+        : (int.tryParse(rawWarranty?.toString() ?? '') ?? 0);
+
+    final rawReturned = map['returnedQuantity'];
+    final returnedQuantity = rawReturned is num
+        ? rawReturned.toInt()
+        : (int.tryParse(rawReturned?.toString() ?? '') ?? 0);
+
+    return OrderItemModel(
+      productId: map['productId']?.toString() ?? '',
+      productName: map['productName']?.toString() ?? '',
+      quantity: quantity,
+      price: price,
+      warrantyMonths: warrantyMonths,
+      purchaseDate: DateTime.tryParse(map['purchaseDate']?.toString() ?? '') ??
+          DateTime.now(),
+      returnedQuantity: returnedQuantity,
+    );
+  }
+}

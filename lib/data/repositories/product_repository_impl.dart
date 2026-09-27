@@ -60,6 +60,7 @@ class ProductRepositoryImpl implements ProductRepository {
       noteTemplate: product.noteTemplate,
       components: product.components,
       imageUrl: product.imageUrl,
+      images: product.images,
       isCombo: product.isCombo,
       comboComponents: product.comboComponents,
       minStock: product.minStock,
@@ -77,4 +78,3 @@ class ProductRepositoryImpl implements ProductRepository {
   Future<void> updateStock(String id, int newStock) =>
       _ds.updateStock(id, newStock);
 }
-

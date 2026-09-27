@@ -6,14 +6,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:share_plus/share_plus.dart';
-
 import '../../../application/auth/auth_providers.dart';
 import '../../../application/customers/customers_providers.dart';
+import '../../../application/customers/usecases/import_customers_usecase.dart';
 import '../../../application/reports/overview_providers.dart';
+import '../../../core/services/filter_storage_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/excel_helper.dart';
+import '../../../core/utils/file_saver.dart';
 import '../../../domain/entities/customer.dart';
+import '../../../domain/entities/user_account.dart';
 import '../../common/widgets/error_view.dart';
 import '../../common/widgets/loading_indicator.dart';
 import '../../common/widgets/scroll_aware_fab.dart';
@@ -21,18 +23,18 @@ import '../widgets/customer_list_tile.dart';
 import 'add_customer_page.dart';
 
 class CustomersPage extends ConsumerStatefulWidget {
-  final CustomerDebtFilter initialDebtFilter;
+  final CustomerDebtFilter? initialDebtFilter;
 
   const CustomersPage({
     super.key,
-    this.initialDebtFilter = CustomerDebtFilter.all,
+    this.initialDebtFilter,
   });
 
   @override
-  ConsumerState<CustomersPage> createState() => _CustomersPageState();
+  ConsumerState<CustomersPage> createState() => CustomersPageState();
 }
 
-class _CustomersPageState extends ConsumerState<CustomersPage> {
+class CustomersPageState extends ConsumerState<CustomersPage> {
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   int _currentLimit = 50;
@@ -41,10 +43,59 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final storage = ref.read(filterStorageServiceProvider);
+      final user = ref.read(authProvider);
+      final canViewDebt = user?.canViewDebtSummary ?? false;
+
+      if (!canViewDebt) {
         ref.read(customerDebtFilterProvider.notifier).state =
-            widget.initialDebtFilter;
+            CustomerDebtFilter.all;
+      } else if (widget.initialDebtFilter != null) {
+        ref.read(customerDebtFilterProvider.notifier).state =
+            widget.initialDebtFilter!;
+        persistCustomerFilters(ref, debtFilter: widget.initialDebtFilter);
+      }
+
+      // Hydrate from storage if present
+      final saved = await storage.loadFilter('customers', user?.username);
+      if (saved != null &&
+          mounted &&
+          ref.read(authProvider)?.username == user?.username) {
+        if (canViewDebt &&
+            widget.initialDebtFilter == null &&
+            saved['debtFilter'] != null) {
+          final debt = CustomerDebtFilter.values.firstWhere(
+            (e) => e.name == saved['debtFilter']?.toString(),
+            orElse: () => CustomerDebtFilter.all,
+          );
+          ref.read(customerDebtFilterProvider.notifier).state = debt;
+        }
+        if (saved.containsKey('timeRangeType')) {
+          final rawType = saved['timeRangeType'];
+          if (rawType == null) {
+            ref.read(customerTimeRangeTypeProvider.notifier).state = null;
+          } else {
+            try {
+              final timeRange =
+                  OverviewTimeRange.values.byName(rawType.toString());
+              ref.read(customerTimeRangeTypeProvider.notifier).state =
+                  timeRange;
+            } catch (_) {}
+          }
+        }
+        if (saved['customStartDate'] != null &&
+            saved['customEndDate'] != null) {
+          final start =
+              DateTime.tryParse(saved['customStartDate']?.toString() ?? '');
+          final end =
+              DateTime.tryParse(saved['customEndDate']?.toString() ?? '');
+          if (start != null && end != null) {
+            ref.read(customerCustomDateRangeProvider.notifier).state =
+                DateTimeRange(start: start, end: end);
+          }
+        }
       }
     });
   }
@@ -52,11 +103,15 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
   @override
   void didUpdateWidget(covariant CustomersPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.initialDebtFilter != widget.initialDebtFilter) {
+    if (widget.initialDebtFilter != null &&
+        oldWidget.initialDebtFilter != widget.initialDebtFilter) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
+        if (!mounted) return;
+        final user = ref.read(authProvider);
+        if (user?.canViewDebtSummary == true) {
           ref.read(customerDebtFilterProvider.notifier).state =
-              widget.initialDebtFilter;
+              widget.initialDebtFilter!;
+          persistCustomerFilters(ref, debtFilter: widget.initialDebtFilter);
         }
       });
     }
@@ -86,12 +141,69 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final user = ref.watch(authProvider);
+    final canViewDebtSummary = user?.canViewDebtSummary ?? false;
+    final canViewTotalSales = user?.canViewTotalSales ?? false;
+
+    ref.listen<UserAccount?>(authProvider, (prev, next) {
+      if (next != null &&
+          (prev == null ||
+              prev.username != next.username ||
+              prev.canViewDebtSummary != next.canViewDebtSummary)) {
+        if (!next.canViewDebtSummary) {
+          ref.read(customerDebtFilterProvider.notifier).state =
+              CustomerDebtFilter.all;
+        }
+        ref
+            .read(filterStorageServiceProvider)
+            .loadFilter('customers', next.username)
+            .then((saved) {
+          if (saved != null &&
+              mounted &&
+              ref.read(authProvider)?.username == next.username) {
+            if (next.canViewDebtSummary && saved['debtFilter'] != null) {
+              final debt = CustomerDebtFilter.values.firstWhere(
+                (e) => e.name == saved['debtFilter']?.toString(),
+                orElse: () => CustomerDebtFilter.all,
+              );
+              ref.read(customerDebtFilterProvider.notifier).state = debt;
+            }
+            if (saved.containsKey('timeRangeType')) {
+              final rawType = saved['timeRangeType'];
+              if (rawType == null) {
+                ref.read(customerTimeRangeTypeProvider.notifier).state = null;
+              } else {
+                try {
+                  final timeRange =
+                      OverviewTimeRange.values.byName(rawType.toString());
+                  ref.read(customerTimeRangeTypeProvider.notifier).state =
+                      timeRange;
+                } catch (_) {}
+              }
+            }
+            if (saved['customStartDate'] != null &&
+                saved['customEndDate'] != null) {
+              final start =
+                  DateTime.tryParse(saved['customStartDate']?.toString() ?? '');
+              final end =
+                  DateTime.tryParse(saved['customEndDate']?.toString() ?? '');
+              if (start != null && end != null) {
+                ref.read(customerCustomDateRangeProvider.notifier).state =
+                    DateTimeRange(start: start, end: end);
+              }
+            }
+          }
+        });
+      }
+    });
+
     final processedAsync = ref.watch(processedCustomersProvider);
     final searchQuery = ref.watch(customerSearchQueryProvider);
     final customerTimeRangeType = ref.watch(customerTimeRangeTypeProvider);
     final customerActiveRange = ref.watch(customerActiveDateRangeProvider);
     final currentDebtFilter = ref.watch(customerDebtFilterProvider);
-    final debtCounts = ref.watch(customerDebtCountsProvider);
+    final debtCounts = canViewDebtSummary
+        ? ref.watch(customerDebtCountsProvider)
+        : const <CustomerDebtFilter, int>{};
 
     final String dateLabel;
     if (customerTimeRangeType == null) {
@@ -103,12 +215,19 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
       dateLabel = customerTimeRangeType.label;
     }
 
+    int activeFilterCount = 0;
+    if (canViewDebtSummary && currentDebtFilter != CustomerDebtFilter.all) {
+      activeFilterCount++;
+    }
+    if (customerTimeRangeType != null) activeFilterCount++;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.customers),
         actions: [
           if (kIsWeb && (user?.isAdmin == true))
             PopupMenuButton<String>(
+              key: const Key('customers_excel_actions_menu'),
               icon: const Icon(Icons.more_vert),
               tooltip: l10n.excelActions,
               onSelected: (value) {
@@ -133,7 +252,7 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
                   value: 'export',
                   child: Row(
                     children: [
-                      const Icon(Icons.download, color: Colors.green),
+                      const Icon(Icons.download, color: AppColors.success),
                       const SizedBox(width: 8),
                       Text(l10n.exportExcel),
                     ],
@@ -166,7 +285,7 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
                         },
                       )
                     : null,
-                fillColor: Colors.white,
+                fillColor: AppColors.white,
                 filled: true,
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -193,12 +312,13 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
           ),
 
           // Debt Filter Segment Bar
-          _buildDebtFilterBar(currentDebtFilter, debtCounts),
+          if (canViewDebtSummary)
+            _buildDebtFilterBar(currentDebtFilter, debtCounts),
 
           // Date Filter Bar
           Container(
             decoration: const BoxDecoration(
-              color: Colors.white,
+              color: AppColors.white,
               border: Border(bottom: BorderSide(color: AppColors.divider)),
             ),
             padding:
@@ -210,12 +330,15 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
                     onTap: () => _showDateRangeFilterBottomSheet(context),
                     child: Row(
                       children: [
-                        Text(
-                          l10n.createdTimeLabel(dateLabel),
-                          style: const TextStyle(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
+                        Flexible(
+                          child: Text(
+                            l10n.createdTimeLabel(dateLabel),
+                            style: const TextStyle(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         const SizedBox(width: 4),
@@ -227,10 +350,12 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
                 ),
                 if (customerTimeRangeType != null)
                   IconButton(
-                    icon: const Icon(Icons.clear, size: 16, color: Colors.grey),
+                    icon: const Icon(Icons.clear,
+                        size: 16, color: AppColors.grey400),
                     onPressed: () {
                       ref.read(customerTimeRangeTypeProvider.notifier).state =
                           null;
+                      persistCustomerFilters(ref, resetTimeRange: true);
                       setState(() {
                         _currentLimit = 50;
                       });
@@ -238,6 +363,53 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),
+                if (activeFilterCount > 0) ...[
+                  const SizedBox(width: 8),
+                  InkWell(
+                    key: const Key('reset_customer_filters_button'),
+                    onTap: () {
+                      ref.read(customerDebtFilterProvider.notifier).state =
+                          CustomerDebtFilter.all;
+                      ref.read(customerTimeRangeTypeProvider.notifier).state =
+                          null;
+                      ref.read(customerCustomDateRangeProvider.notifier).state =
+                          OverviewTimeRange.thisMonth.getRange();
+                      final user = ref.read(authProvider);
+                      ref
+                          .read(filterStorageServiceProvider)
+                          .clearFilter('customers', user?.username);
+                      setState(() {
+                        _currentLimit = 50;
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppColors.primary, width: 1),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.refresh,
+                              size: 14, color: AppColors.primary),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Đặt lại ($activeFilterCount)',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -250,7 +422,12 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
 
                 return Column(
                   children: [
-                    _buildTotalSummaryCard(customersList, l10n),
+                    _buildTotalSummaryCard(
+                      customersList,
+                      l10n,
+                      canViewDebtSummary: canViewDebtSummary,
+                      canViewTotalSales: canViewTotalSales,
+                    ),
                     Expanded(
                       child: listItems.isEmpty
                           ? Center(
@@ -262,20 +439,20 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
                                           ? Icons.search_off
                                           : Icons.people_outline,
                                       size: 64,
-                                      color: Colors.grey),
+                                      color: AppColors.grey400),
                                   const SizedBox(height: 16),
                                   Text(
                                     searchQuery.isNotEmpty
                                         ? l10n.notFound
                                         : l10n.noCustomersFound,
                                     style: const TextStyle(
-                                        fontSize: 18, color: Colors.grey),
+                                        fontSize: 18, color: AppColors.grey400),
                                   ),
                                   if (searchQuery.isNotEmpty)
                                     Text(
                                       l10n.tryAdjustingSearch,
-                                      style:
-                                          const TextStyle(color: Colors.grey),
+                                      style: const TextStyle(
+                                          color: AppColors.grey400),
                                     ),
                                 ],
                               ),
@@ -308,9 +485,9 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
                                             ),
                                           ),
                                           const SizedBox(width: 8),
-                                          Expanded(
+                                          const Expanded(
                                             child: Divider(
-                                              color: Colors.grey.shade300,
+                                              color: AppColors.grey300,
                                               thickness: 1,
                                             ),
                                           ),
@@ -338,7 +515,7 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
         child: FloatingActionButton(
           heroTag: 'addCustomerFab',
           backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
+          foregroundColor: AppColors.white,
           onPressed: () {
             Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const AddCustomerPage()),
@@ -351,25 +528,93 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
   }
 
   Future<void> _importCustomers() async {
-    final l10n = AppLocalizations.of(context)!;
     final user = ref.read(authProvider);
-    if (user?.isAdmin != true) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Bạn không có quyền nhập dữ liệu khách hàng')),
-      );
-      return;
-    }
+    if (!kIsWeb || (user?.isAdmin != true)) return;
 
+    final l10n = AppLocalizations.of(context)!;
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['xlsx'],
+        allowedExtensions: ['xlsx', 'xls'],
+        withData: true,
       );
 
       if (result == null || result.files.isEmpty) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(l10n.filePickerError)),
+          );
+        }
+        return;
+      }
+
+      final fileBytes = result.files.first.bytes ??
+          (result.files.first.path != null
+              ? await File(result.files.first.path!).readAsBytes()
+              : null);
+
+      if (fileBytes == null) {
+        throw Exception('Không thể đọc nội dung file');
+      }
+
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(child: CircularProgressIndicator()),
+      );
+
+      final importedCustomers = ExcelHelper.parseCustomers(fileBytes);
+      final importResult =
+          await ref.read(importCustomersUseCaseProvider).execute(
+                customers: importedCustomers,
+              );
+
+      ref.invalidate(customerListNotifierProvider);
+
+      if (mounted) {
+        if (Navigator.of(context).canPop()) {
+          Navigator.of(context).pop(); // dismiss loading
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(importResult.toSummaryString()),
+            backgroundColor:
+                importResult.errors > 0 ? AppColors.warning : AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        if (Navigator.of(context).canPop()) {
+          Navigator.of(context).pop(); // dismiss loading
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${l10n.importError}: $e'),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _exportCustomers() async {
+    final user = ref.read(authProvider);
+    if (!kIsWeb || (user?.isAdmin != true)) return;
+
+    final l10n = AppLocalizations.of(context)!;
+    try {
+      final customersAsync = ref.read(customerListNotifierProvider);
+      final customers = customersAsync.maybeWhen(
+        data: (list) => list,
+        orElse: () => <Customer>[],
+      );
+
+      if (customers.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l10n.noDataToExport)),
           );
         }
         return;
@@ -382,46 +627,13 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
         builder: (_) => const Center(child: CircularProgressIndicator()),
       );
 
-      final fileBytes = result.files.first.bytes ??
-          (result.files.first.path != null
-              ? await File(result.files.first.path!).readAsBytes()
-              : null);
-
-      if (fileBytes == null) {
-        throw Exception('Không thể đọc nội dung file');
-      }
-
-      final importedCustomers = ExcelHelper.parseCustomers(fileBytes);
-      final repo = ref.read(customerRepositoryProvider);
-
-      int addedCount = 0;
-      int updatedCount = 0;
-
-      for (final customer in importedCustomers) {
-        final existing = await repo.fetchById(customer.id);
-        if (existing != null) {
-          final merged = customer.copyWith(
-            purchases: existing.purchases,
-          );
-          await repo.upsert(merged);
-          updatedCount++;
-        } else {
-          await repo.upsert(customer);
-          addedCount++;
-        }
-      }
-
-      ref.invalidate(customerListNotifierProvider);
+      final bytes = await ExcelHelper.exportCustomers(customers);
 
       if (mounted) {
-        Navigator.of(context).pop(); // dismiss loading
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-                '${l10n.importSuccess} (Thêm: $addedCount, Sửa: $updatedCount)'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        if (Navigator.of(context).canPop()) {
+          Navigator.of(context).pop(); // dismiss loading
+        }
+        await saveExcelFile(bytes, 'DanhSachKhachHang_Export.xlsx');
       }
     } catch (e) {
       if (mounted) {
@@ -431,74 +643,25 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('${l10n.importError}: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppColors.danger,
           ),
         );
       }
     }
   }
 
-  Future<void> _exportCustomers() async {
-    final l10n = AppLocalizations.of(context)!;
-    final user = ref.read(authProvider);
-    if (!(user?.canExportCustomers ?? false)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Bạn không có quyền xuất dữ liệu khách hàng')),
-      );
-      return;
-    }
+  @visibleForTesting
+  Future<void> testImportCustomers() => _importCustomers();
 
-    try {
-      final customersAsync = ref.read(customerListNotifierProvider);
-      final customers = customersAsync.maybeWhen(
-        data: (list) => list,
-        orElse: () => <Customer>[],
-      );
-
-      if (customers.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.noDataToExport)),
-        );
-        return;
-      }
-
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => const Center(child: CircularProgressIndicator()),
-      );
-
-      final file = await ExcelHelper.exportCustomers(customers);
-
-      if (mounted) {
-        Navigator.of(context).pop(); // dismiss loading
-
-        await Share.shareXFiles(
-          [XFile(file.path)],
-          subject: l10n.customers,
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        if (Navigator.of(context).canPop()) {
-          Navigator.of(context).pop(); // dismiss loading
-        }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${l10n.importError}: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
+  @visibleForTesting
+  Future<void> testExportCustomers() => _exportCustomers();
 
   void _showDateRangeFilterBottomSheet(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.only(
           topLeft: Radius.circular(16),
@@ -535,7 +698,7 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
                           style: TextStyle(
                             color: activeType == null
                                 ? AppColors.primary
-                                : Colors.black87,
+                                : AppColors.textPrimary,
                             fontWeight: activeType == null
                                 ? FontWeight.bold
                                 : FontWeight.normal,
@@ -549,6 +712,7 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
                           ref
                               .read(customerTimeRangeTypeProvider.notifier)
                               .state = null;
+                          persistCustomerFilters(ref, resetTimeRange: true);
                           setState(() {
                             _currentLimit = 50;
                           });
@@ -563,7 +727,7 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
                             style: TextStyle(
                               color: isSelected
                                   ? AppColors.primary
-                                  : Colors.black87,
+                                  : AppColors.textPrimary,
                               fontWeight: isSelected
                                   ? FontWeight.bold
                                   : FontWeight.normal,
@@ -605,6 +769,11 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
                                     .read(
                                         customerTimeRangeTypeProvider.notifier)
                                     .state = OverviewTimeRange.custom;
+                                persistCustomerFilters(
+                                  ref,
+                                  timeRangeType: OverviewTimeRange.custom,
+                                  customDateRange: pickedRange,
+                                );
                                 setState(() {
                                   _currentLimit = 50;
                                 });
@@ -613,6 +782,7 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
                               ref
                                   .read(customerTimeRangeTypeProvider.notifier)
                                   .state = type;
+                              persistCustomerFilters(ref, timeRangeType: type);
                               setState(() {
                                 _currentLimit = 50;
                               });
@@ -632,97 +802,160 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
   }
 
   Widget _buildTotalSummaryCard(
-      List<Customer> customers, AppLocalizations l10n) {
+    List<Customer> customers,
+    AppLocalizations l10n, {
+    required bool canViewDebtSummary,
+    required bool canViewTotalSales,
+  }) {
     final currencyFormat = NumberFormat('#,###', 'vi_VN');
     final count = customers.length;
-    final totalSalesSum =
-        customers.fold(0.0, (sum, c) => sum + c.displayTotalSales);
-    final totalDebtSum = customers.fold(
-        0.0, (sum, c) => sum + (c.displayCurrentDebt > 0 ? c.displayCurrentDebt : 0.0));
+    final totalSalesSum = canViewTotalSales
+        ? customers.fold(0.0, (sum, c) => sum + c.displayTotalSales)
+        : 0.0;
+    final totalDebtSum = canViewDebtSummary
+        ? customers.fold(
+            0.0,
+            (sum, c) =>
+                sum + (c.displayCurrentDebt > 0 ? c.displayCurrentDebt : 0.0))
+        : 0.0;
 
     return Container(
-      color: AppColors.surfaceInfo,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceInfo,
+        border: Border(
+          bottom: BorderSide(color: AppColors.border.withOpacity(0.6)),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Text(
-                    l10n.totalSales,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold,
+              if (canViewTotalSales)
+                Expanded(
+                  child: Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          l10n.totalSales,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                            color: AppColors.textPrimary,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        flex: 2,
+                        child: Text(
+                          currencyFormat.format(totalSalesSum),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: AppColors.primary,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                Row(
+                  children: [
+                    const Icon(Icons.people_alt_outlined,
+                        size: 16, color: AppColors.primary),
+                    const SizedBox(width: 6),
+                    Text(
+                      l10n.customers,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
                         fontSize: 13,
-                        color: Colors.black87),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    currencyFormat.format(totalSalesSum),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                      color: AppColors.primary,
+                        color: AppColors.textPrimary,
+                      ),
                     ),
+                  ],
+                ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  l10n.totalCustomers(count),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textSecondary,
                   ),
-                ],
-              ),
-              Text(
-                l10n.totalCustomers(count),
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.black54,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Text(
-                    '${l10n.customerDebt}:',
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                        color: Colors.black87),
+          if (canViewDebtSummary) ...[
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          '${l10n.customerDebt}:',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                            color: AppColors.textPrimary,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        flex: 2,
+                        child: Text(
+                          currencyFormat.format(totalDebtSum),
+                          key: const Key('total_debt_summary_text'),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: AppColors.danger,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
+                ),
+                if (totalDebtSum > 0) ...[
                   const SizedBox(width: 8),
-                  Text(
-                    currencyFormat.format(totalDebtSum),
-                    key: const Key('total_debt_summary_text'),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                      color: AppColors.danger,
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 7, vertical: 2.5),
+                    decoration: BoxDecoration(
+                      color: AppColors.dangerLight,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(
+                        color: AppColors.danger.withOpacity(0.3),
+                        width: 0.5,
+                      ),
+                    ),
+                    child: const Text(
+                      'Cần thu',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.danger,
+                      ),
                     ),
                   ),
                 ],
-              ),
-              if (totalDebtSum > 0)
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: AppColors.dangerLight,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: const Text(
-                    'Cần thu',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.danger,
-                    ),
-                  ),
-                ),
-            ],
-          ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -733,7 +966,7 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
     Map<CustomerDebtFilter, int> counts,
   ) {
     return Container(
-      color: Colors.white,
+      color: AppColors.white,
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: Container(
         decoration: BoxDecoration(
@@ -780,13 +1013,14 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
     Color? activeBgColor,
   }) {
     final selectedTextColor = activeColor ?? AppColors.primary;
-    final selectedBgColor = activeBgColor ?? Colors.white;
+    final selectedBgColor = activeBgColor ?? AppColors.white;
 
     return Expanded(
       child: GestureDetector(
         key: Key('debt_filter_tab_${filter.name}'),
         onTap: () {
           ref.read(customerDebtFilterProvider.notifier).state = filter;
+          persistCustomerFilters(ref, debtFilter: filter);
           setState(() {
             _currentLimit = 50;
           });
@@ -795,12 +1029,12 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
-            color: isSelected ? selectedBgColor : Colors.transparent,
+            color: isSelected ? selectedBgColor : AppColors.transparent,
             borderRadius: BorderRadius.circular(8),
             boxShadow: isSelected
                 ? [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.06),
+                      color: AppColors.black.withOpacity(0.06),
                       blurRadius: 4,
                       offset: const Offset(0, 1),
                     )
@@ -809,14 +1043,19 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                  color:
-                      isSelected ? selectedTextColor : AppColors.textSecondary,
+              Flexible(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                    color: isSelected
+                        ? selectedTextColor
+                        : AppColors.textSecondary,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               const SizedBox(width: 4),
@@ -825,7 +1064,7 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
                 decoration: BoxDecoration(
                   color: isSelected
                       ? selectedTextColor.withOpacity(0.15)
-                      : Colors.grey.shade200,
+                      : AppColors.grey200,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(

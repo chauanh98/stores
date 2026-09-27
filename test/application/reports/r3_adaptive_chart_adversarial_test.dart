@@ -26,7 +26,8 @@ RevenueReport _makeReport({
 }
 
 void main() {
-  group('Empirical Challenge Suite: Requirement R3 Adaptive Chart Aggregation', () {
+  group('Empirical Challenge Suite: Requirement R3 Adaptive Chart Aggregation',
+      () {
     // =========================================================================
     // 1. INTERVAL BOUNDARY CONDITIONS MATRIX
     // =========================================================================
@@ -36,16 +37,19 @@ void main() {
           start: DateTime(2026, 8, 1, 0, 0, 0),
           end: DateTime(2026, 8, 1, 23, 59, 59, 999),
         );
-        expect(getChartAggregationInterval(range), equals(ChartAggregationInterval.hourly));
+        expect(getChartAggregationInterval(range),
+            equals(ChartAggregationInterval.hourly));
         expect(getChartAggregationInterval(range).isHourly, isTrue);
       });
 
-      test('1 Day: Single day exact point (start == end at midnight) -> Hourly', () {
+      test('1 Day: Single day exact point (start == end at midnight) -> Hourly',
+          () {
         final range = DateTimeRange(
           start: DateTime(2026, 8, 1),
           end: DateTime(2026, 8, 1),
         );
-        expect(getChartAggregationInterval(range), equals(ChartAggregationInterval.hourly));
+        expect(getChartAggregationInterval(range),
+            equals(ChartAggregationInterval.hourly));
       });
 
       test('2 Days: (2026-08-01 to 2026-08-02) -> Daily', () {
@@ -53,7 +57,8 @@ void main() {
           start: DateTime(2026, 8, 1),
           end: DateTime(2026, 8, 2),
         );
-        expect(getChartAggregationInterval(range), equals(ChartAggregationInterval.daily));
+        expect(getChartAggregationInterval(range),
+            equals(ChartAggregationInterval.daily));
         expect(getChartAggregationInterval(range).isDaily, isTrue);
       });
 
@@ -62,7 +67,8 @@ void main() {
           start: DateTime(2026, 8, 1),
           end: DateTime(2026, 8, 7),
         );
-        expect(getChartAggregationInterval(range), equals(ChartAggregationInterval.daily));
+        expect(getChartAggregationInterval(range),
+            equals(ChartAggregationInterval.daily));
       });
 
       test('30 Days: (2026-08-01 to 2026-08-30) -> Daily', () {
@@ -70,24 +76,31 @@ void main() {
           start: DateTime(2026, 8, 1),
           end: DateTime(2026, 8, 30),
         );
-        expect(getChartAggregationInterval(range), equals(ChartAggregationInterval.daily));
+        expect(getChartAggregationInterval(range),
+            equals(ChartAggregationInterval.daily));
       });
 
-      test('31 Days: (2026-08-01 to 2026-08-31) -> Daily (Boundary Maximum for Daily)', () {
+      test(
+          '31 Days: (2026-08-01 to 2026-08-31) -> Daily (Boundary Maximum for Daily)',
+          () {
         final range = DateTimeRange(
           start: DateTime(2026, 8, 1),
           end: DateTime(2026, 8, 31),
         );
-        expect(getChartAggregationInterval(range), equals(ChartAggregationInterval.daily));
+        expect(getChartAggregationInterval(range),
+            equals(ChartAggregationInterval.daily));
       });
 
-      test('32 Days: (2026-07-01 to 2026-08-01) -> Weekly (Boundary Minimum for Weekly)', () {
+      test(
+          '32 Days: (2026-07-01 to 2026-08-01) -> Weekly (Boundary Minimum for Weekly)',
+          () {
         // 31 days in July + 1 day in August = 32 days
         final range = DateTimeRange(
           start: DateTime(2026, 7, 1),
           end: DateTime(2026, 8, 1),
         );
-        expect(getChartAggregationInterval(range), equals(ChartAggregationInterval.weekly));
+        expect(getChartAggregationInterval(range),
+            equals(ChartAggregationInterval.weekly));
         expect(getChartAggregationInterval(range).isWeekly, isTrue);
       });
 
@@ -96,25 +109,32 @@ void main() {
           start: DateTime(2026, 7, 1),
           end: DateTime(2026, 8, 14),
         );
-        expect(getChartAggregationInterval(range), equals(ChartAggregationInterval.weekly));
+        expect(getChartAggregationInterval(range),
+            equals(ChartAggregationInterval.weekly));
       });
 
-      test('60 Days: (2026-07-01 to 2026-08-29) -> Weekly (Boundary Maximum for Weekly)', () {
+      test(
+          '60 Days: (2026-07-01 to 2026-08-29) -> Weekly (Boundary Maximum for Weekly)',
+          () {
         // 31 in July + 29 in August = 60 days
         final range = DateTimeRange(
           start: DateTime(2026, 7, 1),
           end: DateTime(2026, 8, 29),
         );
-        expect(getChartAggregationInterval(range), equals(ChartAggregationInterval.weekly));
+        expect(getChartAggregationInterval(range),
+            equals(ChartAggregationInterval.weekly));
       });
 
-      test('61 Days: (2026-07-01 to 2026-08-30) -> Monthly (Boundary Minimum for Monthly)', () {
+      test(
+          '61 Days: (2026-07-01 to 2026-08-30) -> Monthly (Boundary Minimum for Monthly)',
+          () {
         // 31 in July + 30 in August = 61 days
         final range = DateTimeRange(
           start: DateTime(2026, 7, 1),
           end: DateTime(2026, 8, 30),
         );
-        expect(getChartAggregationInterval(range), equals(ChartAggregationInterval.monthly));
+        expect(getChartAggregationInterval(range),
+            equals(ChartAggregationInterval.monthly));
         expect(getChartAggregationInterval(range).isMonthly, isTrue);
       });
 
@@ -123,7 +143,8 @@ void main() {
           start: DateTime(2026, 6, 1),
           end: DateTime(2026, 8, 29),
         );
-        expect(getChartAggregationInterval(range), equals(ChartAggregationInterval.monthly));
+        expect(getChartAggregationInterval(range),
+            equals(ChartAggregationInterval.monthly));
       });
 
       test('120 Days (4 Months): (2026-05-01 to 2026-08-28) -> Monthly', () {
@@ -131,7 +152,8 @@ void main() {
           start: DateTime(2026, 5, 1),
           end: DateTime(2026, 8, 28),
         );
-        expect(getChartAggregationInterval(range), equals(ChartAggregationInterval.monthly));
+        expect(getChartAggregationInterval(range),
+            equals(ChartAggregationInterval.monthly));
       });
 
       test('365 Days (1 Full Year): (2025-08-17 to 2026-08-16) -> Monthly', () {
@@ -139,7 +161,8 @@ void main() {
           start: DateTime(2025, 8, 17),
           end: DateTime(2026, 8, 16),
         );
-        expect(getChartAggregationInterval(range), equals(ChartAggregationInterval.monthly));
+        expect(getChartAggregationInterval(range),
+            equals(ChartAggregationInterval.monthly));
       });
 
       test('730 Days (2 Years): (2024-08-17 to 2026-08-16) -> Monthly', () {
@@ -147,15 +170,19 @@ void main() {
           start: DateTime(2024, 8, 17),
           end: DateTime(2026, 8, 16),
         );
-        expect(getChartAggregationInterval(range), equals(ChartAggregationInterval.monthly));
+        expect(getChartAggregationInterval(range),
+            equals(ChartAggregationInterval.monthly));
       });
     });
 
     // =========================================================================
     // 2. CALENDAR AGGREGATION INTEGRITY
     // =========================================================================
-    group('2. Calendar Aggregation Integrity (Transitions, Leap Years, Month-ends)', () {
-      test('Year Transition (Dec 2025 - Jan 2026) in Monthly Mode (> 60 days)', () {
+    group(
+        '2. Calendar Aggregation Integrity (Transitions, Leap Years, Month-ends)',
+        () {
+      test('Year Transition (Dec 2025 - Jan 2026) in Monthly Mode (> 60 days)',
+          () {
         final range = DateTimeRange(
           start: DateTime(2025, 11, 1),
           end: DateTime(2026, 1, 31), // 92 days
@@ -185,7 +212,8 @@ void main() {
           ),
         ];
 
-        final buckets = aggregateRevenueReports(dailyReports: reports, range: range);
+        final buckets =
+            aggregateRevenueReports(dailyReports: reports, range: range);
 
         expect(buckets.length, equals(3));
 
@@ -208,19 +236,31 @@ void main() {
         expect(buckets[2].totalRevenue, equals(30000000));
       });
 
-      test('Multi-Year Span (Dec 2024, Dec 2025, Dec 2026) has unique buckets without key collisions', () {
+      test(
+          'Multi-Year Span (Dec 2024, Dec 2025, Dec 2026) has unique buckets without key collisions',
+          () {
         final range = DateTimeRange(
           start: DateTime(2024, 11, 1),
           end: DateTime(2026, 12, 31),
         );
 
         final reports = [
-          _makeReport(date: DateTime(2024, 12, 10), totalRevenue: 1000000, totalCost: 500000),
-          _makeReport(date: DateTime(2025, 12, 10), totalRevenue: 2000000, totalCost: 1000000),
-          _makeReport(date: DateTime(2026, 12, 10), totalRevenue: 3000000, totalCost: 1500000),
+          _makeReport(
+              date: DateTime(2024, 12, 10),
+              totalRevenue: 1000000,
+              totalCost: 500000),
+          _makeReport(
+              date: DateTime(2025, 12, 10),
+              totalRevenue: 2000000,
+              totalCost: 1000000),
+          _makeReport(
+              date: DateTime(2026, 12, 10),
+              totalRevenue: 3000000,
+              totalCost: 1500000),
         ];
 
-        final buckets = aggregateRevenueReports(dailyReports: reports, range: range);
+        final buckets =
+            aggregateRevenueReports(dailyReports: reports, range: range);
 
         expect(buckets.length, equals(3));
         expect(buckets[0].fullLabel, equals('Tháng 12/2024'));
@@ -233,7 +273,8 @@ void main() {
         expect(buckets[2].totalRevenue, equals(3000000));
       });
 
-      test('Year Transition (Dec 2025 - Jan 2026) in Weekly Mode (32..60 days)', () {
+      test('Year Transition (Dec 2025 - Jan 2026) in Weekly Mode (32..60 days)',
+          () {
         final range = DateTimeRange(
           start: DateTime(2025, 12, 15),
           end: DateTime(2026, 1, 20), // 37 days
@@ -277,7 +318,8 @@ void main() {
           ),
         ];
 
-        final buckets = aggregateRevenueReports(dailyReports: reports, range: range);
+        final buckets =
+            aggregateRevenueReports(dailyReports: reports, range: range);
 
         expect(buckets.length, equals(5));
 
@@ -302,7 +344,8 @@ void main() {
         expect(buckets[4].totalRevenue, equals(9000000));
       });
 
-      test('Leap Year (2024-02-29) Weekly aggregation maps Day 29 to Week 5', () {
+      test('Leap Year (2024-02-29) Weekly aggregation maps Day 29 to Week 5',
+          () {
         final range = DateTimeRange(
           start: DateTime(2024, 2, 1),
           end: DateTime(2024, 3, 10), // 39 days (Weekly)
@@ -325,7 +368,8 @@ void main() {
           ),
         ];
 
-        final buckets = aggregateRevenueReports(dailyReports: reports, range: range);
+        final buckets =
+            aggregateRevenueReports(dailyReports: reports, range: range);
 
         expect(buckets.length, equals(2));
 
@@ -338,7 +382,9 @@ void main() {
         expect(buckets[1].totalRevenue, equals(2500000));
       });
 
-      test('Non-Leap Year (2026-02-28) Weekly aggregation has only Week 4, no Week 5', () {
+      test(
+          'Non-Leap Year (2026-02-28) Weekly aggregation has only Week 4, no Week 5',
+          () {
         final range = DateTimeRange(
           start: DateTime(2026, 2, 1),
           end: DateTime(2026, 3, 10), // 38 days (Weekly)
@@ -359,7 +405,8 @@ void main() {
           ),
         ];
 
-        final buckets = aggregateRevenueReports(dailyReports: reports, range: range);
+        final buckets =
+            aggregateRevenueReports(dailyReports: reports, range: range);
 
         expect(buckets.length, equals(2));
         expect(buckets[0].label, equals('T4 Th02'));
@@ -368,19 +415,34 @@ void main() {
         expect(buckets[1].fullLabel, equals('Tuần 1 - Tháng 03/2026'));
       });
 
-      test('Month-end Boundary: 31-day months (Day 29, 30, 31) properly merged into Week 5', () {
+      test(
+          'Month-end Boundary: 31-day months (Day 29, 30, 31) properly merged into Week 5',
+          () {
         final range = DateTimeRange(
           start: DateTime(2026, 8, 1),
           end: DateTime(2026, 9, 10), // 41 days (Weekly)
         );
 
         final reports = [
-          _makeReport(date: DateTime(2026, 8, 29), totalRevenue: 1000000, totalCost: 500000, totalOrders: 2),
-          _makeReport(date: DateTime(2026, 8, 30), totalRevenue: 2000000, totalCost: 1000000, totalOrders: 4),
-          _makeReport(date: DateTime(2026, 8, 31), totalRevenue: 3000000, totalCost: 1500000, totalOrders: 6),
+          _makeReport(
+              date: DateTime(2026, 8, 29),
+              totalRevenue: 1000000,
+              totalCost: 500000,
+              totalOrders: 2),
+          _makeReport(
+              date: DateTime(2026, 8, 30),
+              totalRevenue: 2000000,
+              totalCost: 1000000,
+              totalOrders: 4),
+          _makeReport(
+              date: DateTime(2026, 8, 31),
+              totalRevenue: 3000000,
+              totalCost: 1500000,
+              totalOrders: 6),
         ];
 
-        final buckets = aggregateRevenueReports(dailyReports: reports, range: range);
+        final buckets =
+            aggregateRevenueReports(dailyReports: reports, range: range);
 
         expect(buckets.length, equals(1));
         expect(buckets[0].label, equals('T5 Th08'));
@@ -393,18 +455,29 @@ void main() {
         expect(buckets[0].endDate, equals(DateTime(2026, 8, 31)));
       });
 
-      test('Month-end Boundary: 30-day month (April 29 & 30) properly merged into Week 5', () {
+      test(
+          'Month-end Boundary: 30-day month (April 29 & 30) properly merged into Week 5',
+          () {
         final range = DateTimeRange(
           start: DateTime(2026, 4, 1),
           end: DateTime(2026, 5, 10), // 40 days (Weekly)
         );
 
         final reports = [
-          _makeReport(date: DateTime(2026, 4, 29), totalRevenue: 1500000, totalCost: 800000, totalOrders: 3),
-          _makeReport(date: DateTime(2026, 4, 30), totalRevenue: 2500000, totalCost: 1200000, totalOrders: 5),
+          _makeReport(
+              date: DateTime(2026, 4, 29),
+              totalRevenue: 1500000,
+              totalCost: 800000,
+              totalOrders: 3),
+          _makeReport(
+              date: DateTime(2026, 4, 30),
+              totalRevenue: 2500000,
+              totalCost: 1200000,
+              totalOrders: 5),
         ];
 
-        final buckets = aggregateRevenueReports(dailyReports: reports, range: range);
+        final buckets =
+            aggregateRevenueReports(dailyReports: reports, range: range);
 
         expect(buckets.length, equals(1));
         expect(buckets[0].label, equals('T5 Th04'));
@@ -453,26 +526,38 @@ void main() {
         });
 
         // Compute expected global totals from raw daily reports
-        final expectedTotalRevenue = reports.fold(0.0, (s, r) => s + r.totalRevenue);
+        final expectedTotalRevenue =
+            reports.fold(0.0, (s, r) => s + r.totalRevenue);
         final expectedTotalCost = reports.fold(0.0, (s, r) => s + r.totalCost);
         final expectedTotalProfit = reports.fold(0.0, (s, r) => s + r.profit);
-        final expectedTotalOrders = reports.fold(0, (s, r) => s + r.totalOrders);
-        final expectedTotalItems = reports.fold(0, (s, r) => s + r.totalItemsSold);
-        final expectedStore1Rev = reports.fold(0.0, (s, r) => s + (r.storeRevenues['store_001'] ?? 0));
-        final expectedStore2Rev = reports.fold(0.0, (s, r) => s + (r.storeRevenues['store_002'] ?? 0));
-        final expectedStore3Rev = reports.fold(0.0, (s, r) => s + (r.storeRevenues['store_003'] ?? 0));
+        final expectedTotalOrders =
+            reports.fold(0, (s, r) => s + r.totalOrders);
+        final expectedTotalItems =
+            reports.fold(0, (s, r) => s + r.totalItemsSold);
+        final expectedStore1Rev = reports.fold(
+            0.0, (s, r) => s + (r.storeRevenues['store_001'] ?? 0));
+        final expectedStore2Rev = reports.fold(
+            0.0, (s, r) => s + (r.storeRevenues['store_002'] ?? 0));
+        final expectedStore3Rev = reports.fold(
+            0.0, (s, r) => s + (r.storeRevenues['store_003'] ?? 0));
 
-        final buckets = aggregateRevenueReports(dailyReports: reports, range: range);
+        final buckets =
+            aggregateRevenueReports(dailyReports: reports, range: range);
 
         // Sum across buckets
-        final actualTotalRevenue = buckets.fold(0.0, (s, b) => s + b.totalRevenue);
+        final actualTotalRevenue =
+            buckets.fold(0.0, (s, b) => s + b.totalRevenue);
         final actualTotalCost = buckets.fold(0.0, (s, b) => s + b.totalCost);
         final actualTotalProfit = buckets.fold(0.0, (s, b) => s + b.profit);
         final actualTotalOrders = buckets.fold(0, (s, b) => s + b.totalOrders);
-        final actualTotalItems = buckets.fold(0, (s, b) => s + b.totalItemsSold);
-        final actualStore1Rev = buckets.fold(0.0, (s, b) => s + (b.storeRevenues['store_001'] ?? 0));
-        final actualStore2Rev = buckets.fold(0.0, (s, b) => s + (b.storeRevenues['store_002'] ?? 0));
-        final actualStore3Rev = buckets.fold(0.0, (s, b) => s + (b.storeRevenues['store_003'] ?? 0));
+        final actualTotalItems =
+            buckets.fold(0, (s, b) => s + b.totalItemsSold);
+        final actualStore1Rev = buckets.fold(
+            0.0, (s, b) => s + (b.storeRevenues['store_001'] ?? 0));
+        final actualStore2Rev = buckets.fold(
+            0.0, (s, b) => s + (b.storeRevenues['store_002'] ?? 0));
+        final actualStore3Rev = buckets.fold(
+            0.0, (s, b) => s + (b.storeRevenues['store_003'] ?? 0));
 
         // Verify conservation
         expect(actualTotalRevenue, equals(expectedTotalRevenue));
@@ -486,7 +571,8 @@ void main() {
 
         // Verify intra-bucket consistency: bucket total revenue == sum of its storeRevenues
         for (final bucket in buckets) {
-          final bucketStoreSum = bucket.storeRevenues.values.fold(0.0, (s, v) => s + v);
+          final bucketStoreSum =
+              bucket.storeRevenues.values.fold(0.0, (s, v) => s + v);
           expect(bucket.totalRevenue, closeTo(bucketStoreSum, 0.0001));
         }
       });
@@ -513,14 +599,18 @@ void main() {
           );
         });
 
-        final buckets = aggregateRevenueReports(dailyReports: reports, range: range);
+        final buckets =
+            aggregateRevenueReports(dailyReports: reports, range: range);
 
         expect(buckets.length, equals(6)); // Jan to Jun
 
-        final actualTotalRevenue = buckets.fold(0.0, (s, b) => s + b.totalRevenue);
+        final actualTotalRevenue =
+            buckets.fold(0.0, (s, b) => s + b.totalRevenue);
         final actualTotalOrders = buckets.fold(0, (s, b) => s + b.totalOrders);
-        final actualStoreARev = buckets.fold(0.0, (s, b) => s + (b.storeRevenues['store_A'] ?? 0));
-        final actualStoreBRev = buckets.fold(0.0, (s, b) => s + (b.storeRevenues['store_B'] ?? 0));
+        final actualStoreARev =
+            buckets.fold(0.0, (s, b) => s + (b.storeRevenues['store_A'] ?? 0));
+        final actualStoreBRev =
+            buckets.fold(0.0, (s, b) => s + (b.storeRevenues['store_B'] ?? 0));
 
         expect(actualTotalRevenue, equals(180 * 500000.0));
         expect(actualTotalOrders, equals(180 * 10));
@@ -528,7 +618,8 @@ void main() {
         expect(actualStoreBRev, equals(180 * 200000.0));
 
         for (final bucket in buckets) {
-          final storeSum = bucket.storeRevenues['store_A']! + bucket.storeRevenues['store_B']!;
+          final storeSum = bucket.storeRevenues['store_A']! +
+              bucket.storeRevenues['store_B']!;
           expect(bucket.totalRevenue, equals(storeSum));
         }
       });
@@ -537,15 +628,20 @@ void main() {
     // =========================================================================
     // 4. EMPTY REPORTS, ZERO REVENUE, NEGATIVE VALUES & DIVISION BY ZERO SAFETY
     // =========================================================================
-    group('4. Robustness & Fault Tolerance (Empty, Zero, Negative, Missing Fields)', () {
-      test('Empty dailyReports list returns empty buckets without crashing in all intervals', () {
+    group(
+        '4. Robustness & Fault Tolerance (Empty, Zero, Negative, Missing Fields)',
+        () {
+      test(
+          'Empty dailyReports list returns empty buckets without crashing in all intervals',
+          () {
         final emptyReports = <RevenueReport>[];
 
         // Daily range
         expect(
           aggregateRevenueReports(
             dailyReports: emptyReports,
-            range: DateTimeRange(start: DateTime(2026, 8, 1), end: DateTime(2026, 8, 10)),
+            range: DateTimeRange(
+                start: DateTime(2026, 8, 1), end: DateTime(2026, 8, 10)),
           ),
           isEmpty,
         );
@@ -554,7 +650,8 @@ void main() {
         expect(
           aggregateRevenueReports(
             dailyReports: emptyReports,
-            range: DateTimeRange(start: DateTime(2026, 7, 1), end: DateTime(2026, 8, 15)),
+            range: DateTimeRange(
+                start: DateTime(2026, 7, 1), end: DateTime(2026, 8, 15)),
           ),
           isEmpty,
         );
@@ -563,13 +660,16 @@ void main() {
         expect(
           aggregateRevenueReports(
             dailyReports: emptyReports,
-            range: DateTimeRange(start: DateTime(2026, 1, 1), end: DateTime(2026, 6, 30)),
+            range: DateTimeRange(
+                start: DateTime(2026, 1, 1), end: DateTime(2026, 6, 30)),
           ),
           isEmpty,
         );
       });
 
-      test('Zero-revenue days with zero orders aggregate without NaN or DivisionByZero', () {
+      test(
+          'Zero-revenue days with zero orders aggregate without NaN or DivisionByZero',
+          () {
         final range = DateTimeRange(
           start: DateTime(2026, 7, 1),
           end: DateTime(2026, 8, 15), // Weekly
@@ -596,7 +696,8 @@ void main() {
           ),
         ];
 
-        final buckets = aggregateRevenueReports(dailyReports: reports, range: range);
+        final buckets =
+            aggregateRevenueReports(dailyReports: reports, range: range);
 
         expect(buckets.length, equals(1));
         expect(buckets[0].totalRevenue, equals(0.0));
@@ -608,7 +709,9 @@ void main() {
         expect(buckets[0].totalRevenue.isInfinite, isFalse);
       });
 
-      test('Negative revenue (sales returns/refunds exceeding sales) aggregate accurately', () {
+      test(
+          'Negative revenue (sales returns/refunds exceeding sales) aggregate accurately',
+          () {
         final range = DateTimeRange(
           start: DateTime(2026, 7, 1),
           end: DateTime(2026, 8, 15), // Weekly
@@ -617,7 +720,8 @@ void main() {
         final reports = [
           _makeReport(
             date: DateTime(2026, 7, 2),
-            totalRevenue: -2000000.0, // Refund
+            totalRevenue: -2000000.0,
+            // Refund
             totalCost: -1200000.0,
             profit: -800000.0,
             totalOrders: 1,
@@ -633,7 +737,8 @@ void main() {
           ),
         ];
 
-        final buckets = aggregateRevenueReports(dailyReports: reports, range: range);
+        final buckets =
+            aggregateRevenueReports(dailyReports: reports, range: range);
 
         expect(buckets.length, equals(1));
         expect(buckets[0].totalRevenue, equals(3000000.0));
@@ -643,7 +748,8 @@ void main() {
         expect(buckets[0].storeRevenues['store_001'], equals(3000000.0));
       });
 
-      test('Daily reports with disjoint store IDs merge properly in buckets', () {
+      test('Daily reports with disjoint store IDs merge properly in buckets',
+          () {
         final range = DateTimeRange(
           start: DateTime(2026, 7, 1),
           end: DateTime(2026, 8, 15), // Weekly
@@ -670,7 +776,8 @@ void main() {
           ),
         ];
 
-        final buckets = aggregateRevenueReports(dailyReports: reports, range: range);
+        final buckets =
+            aggregateRevenueReports(dailyReports: reports, range: range);
 
         expect(buckets.length, equals(1));
         expect(buckets[0].storeRevenues.keys.length, equals(3));

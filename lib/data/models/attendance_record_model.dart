@@ -85,7 +85,8 @@ class AttendanceRecordModel {
     };
   }
 
-  factory AttendanceRecordModel.fromMap(Map<dynamic, dynamic> map, {String? id}) {
+  factory AttendanceRecordModel.fromMap(Map<dynamic, dynamic> map,
+      {String? id}) {
     return AttendanceRecordModel(
       id: id ?? map['id']?.toString() ?? '',
       userId: map['userId']?.toString() ?? '',
@@ -102,13 +103,15 @@ class AttendanceRecordModel {
       overtimeMinutes: (map['overtimeMinutes'] as num?)?.toInt() ?? 0,
       checkInGpsLat: (map['checkInGpsLat'] as num?)?.toDouble() ?? 0.0,
       checkInGpsLng: (map['checkInGpsLng'] as num?)?.toDouble() ?? 0.0,
-      isGpsValid: map['isGpsValid'] == null ? true : (map['isGpsValid'] as bool),
+      isGpsValid:
+          map['isGpsValid'] == null ? true : (map['isGpsValid'] as bool),
       explanationReason: map['explanationReason']?.toString(),
       checkOutGpsLat: (map['checkOutGpsLat'] as num?)?.toDouble(),
       checkOutGpsLng: (map['checkOutGpsLng'] as num?)?.toDouble(),
       isCheckOutGpsValid: map['isCheckOutGpsValid'] as bool?,
       totalWorkHours: (map['totalWorkHours'] as num?)?.toDouble() ?? 0.0,
-      isAdjusted: map['isAdjusted'] == null ? false : (map['isAdjusted'] as bool),
+      isAdjusted:
+          map['isAdjusted'] == null ? false : (map['isAdjusted'] as bool),
       adjustmentId: map['adjustmentId']?.toString(),
       createdAt: map['createdAt']?.toString(),
       updatedAt: map['updatedAt']?.toString(),
@@ -188,7 +191,8 @@ class AttendanceRecordModel {
       storeId: record.storeId,
       shiftId: record.shiftId,
       shiftName: record.shiftName,
-      date: '${record.date.year.toString().padLeft(4, '0')}-${record.date.month.toString().padLeft(2, '0')}-${record.date.day.toString().padLeft(2, '0')}',
+      date:
+          '${record.date.year.toString().padLeft(4, '0')}-${record.date.month.toString().padLeft(2, '0')}-${record.date.day.toString().padLeft(2, '0')}',
       checkInTime: record.checkInTime.toIso8601String(),
       checkOutTime: record.checkOutTime?.toIso8601String(),
       status: record.status.value,

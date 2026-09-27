@@ -1,5 +1,8 @@
 import 'package:firebase_database/firebase_database.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../domain/entities/user_account.dart';
 
 import '../../data/datasources/firebase/customer_remote_data_source.dart';
 import '../../data/repositories/customer_repository_impl.dart';
@@ -7,6 +10,7 @@ import '../../domain/entities/customer.dart';
 import '../../domain/entities/customer_debt_transaction.dart';
 import '../../domain/repositories/customer_repository.dart';
 import '../auth/auth_providers.dart';
+import '../../core/services/filter_storage_service.dart';
 import '../reports/overview_providers.dart';
 import 'customer_list_notifier.dart';
 
@@ -25,9 +29,8 @@ final customerListNotifierProvider =
   CustomerListNotifier.new,
 );
 
-final customerDebtTransactionsProvider =
-    StreamProvider.family<List<CustomerDebtTransaction>, String>(
-        (ref, customerId) {
+final customerDebtTransactionsProvider = StreamProvider.autoDispose
+    .family<List<CustomerDebtTransaction>, String>((ref, customerId) {
   final ds = ref.watch(customerRemoteDataSourceProvider);
   return ds.watchDebtTransactions(customerId).map((list) {
     return list.map((m) => CustomerDebtTransaction.fromMap(m)).toList();
@@ -39,9 +42,64 @@ final customerSearchQueryProvider =
 
 enum CustomerDebtFilter { all, inDebt, cleared }
 
-final customerDebtFilterProvider =
-    StateProvider.autoDispose<CustomerDebtFilter>(
-        (ref) => CustomerDebtFilter.all);
+final customerDebtFilterProvider = StateProvider<CustomerDebtFilter>((ref) {
+  final user = ref.watch(authProvider);
+  if (user != null && !user.canViewDebtSummary) return CustomerDebtFilter.all;
+  if (user == null) return CustomerDebtFilter.all;
+
+  final storage = ref.watch(filterStorageServiceProvider);
+  final saved = storage.loadFilterSync('customers', user.username);
+  if (saved != null && saved['debtFilter'] != null) {
+    return CustomerDebtFilter.values.firstWhere(
+      (e) => e.name == saved['debtFilter']?.toString(),
+      orElse: () => CustomerDebtFilter.all,
+    );
+  }
+  return CustomerDebtFilter.all;
+});
+
+/// Centralized persistence for all Customer filters.
+/// Ensures debt status, time range, and custom date range (if active)
+/// are always saved together without clobbering one another.
+void persistCustomerFilters(
+  dynamic ref, {
+  CustomerDebtFilter? debtFilter,
+  OverviewTimeRange? timeRangeType,
+  bool resetTimeRange = false,
+  DateTimeRange? customDateRange,
+}) {
+  final user = ref.read(authProvider) as UserAccount?;
+  if (user == null) return;
+  final storage =
+      ref.read(filterStorageServiceProvider) as FilterStorageService;
+  final canViewDebt = user.canViewDebtSummary;
+  final activeDebt = canViewDebt
+      ? (debtFilter ??
+          (ref.read(customerDebtFilterProvider.notifier).state
+              as CustomerDebtFilter))
+      : CustomerDebtFilter.all;
+  final OverviewTimeRange? activeTimeRange = resetTimeRange
+      ? null
+      : (timeRangeType ??
+          (ref.read(customerTimeRangeTypeProvider.notifier).state
+              as OverviewTimeRange?));
+  final DateTimeRange activeCustomRange = customDateRange ??
+      (ref.read(customerCustomDateRangeProvider.notifier).state
+          as DateTimeRange);
+
+  storage.saveFilter(
+      'customers',
+      {
+        'version': 1,
+        'debtFilter': activeDebt.name,
+        'timeRangeType': activeTimeRange?.name,
+        if (activeTimeRange == OverviewTimeRange.custom) ...{
+          'customStartDate': activeCustomRange.start.toIso8601String(),
+          'customEndDate': activeCustomRange.end.toIso8601String(),
+        },
+      },
+      user.username);
+}
 
 final customerDebtCountsProvider =
     Provider.autoDispose<Map<CustomerDebtFilter, int>>((ref) {
@@ -70,6 +128,14 @@ final customerDebtCountsProvider =
       }
 
       final allCount = filtered.length;
+      if (user != null && !user.canViewDebtSummary) {
+        return {
+          CustomerDebtFilter.all: allCount,
+          CustomerDebtFilter.inDebt: 0,
+          CustomerDebtFilter.cleared: 0,
+        };
+      }
+
       final inDebtCount =
           filtered.where((c) => (c.currentDebt ?? 0) > 0).length;
       final clearedCount =
@@ -229,7 +295,11 @@ final processedCustomersProvider =
       }).toList();
     }
 
-    switch (debtFilter) {
+    final canViewDebt = user == null || user.canViewDebtSummary;
+    final effectiveDebtFilter =
+        canViewDebt ? debtFilter : CustomerDebtFilter.all;
+
+    switch (effectiveDebtFilter) {
       case CustomerDebtFilter.all:
         final sorted = List<Customer>.from(filtered)
           ..sort((a, b) {
@@ -257,10 +327,11 @@ final processedCustomersProvider =
         return listItems;
 
       case CustomerDebtFilter.inDebt:
-        final inDebtList =
-            filtered.where((c) => (c.currentDebt ?? 0) > 0).toList()
-              ..sort((a, b) =>
-                  b.displayCurrentDebt.compareTo(a.displayCurrentDebt));
+        final inDebtList = filtered
+            .where((c) => (c.currentDebt ?? 0) > 0)
+            .toList()
+          ..sort(
+              (a, b) => b.displayCurrentDebt.compareTo(a.displayCurrentDebt));
         return inDebtList;
 
       case CustomerDebtFilter.cleared:
@@ -294,20 +365,19 @@ final processedCustomersProvider =
   });
 });
 
-// Helper function to seed customers from all stores if shared_customers is empty
+// Helper function to seed customers from specific branches if shared_customers is empty
 Future<void> seedCustomers(Ref ref) async {
   try {
     final repo = ref.read(customerRepositoryProvider);
-    final storesSnap = await FirebaseDatabase.instance.ref('stores').get();
+    final targetStores = ['store_001', 'store_002'];
 
-    if (storesSnap.exists && storesSnap.value != null) {
-      final storesMap = Map<String, dynamic>.from(storesSnap.value as Map);
-      for (final entry in storesMap.entries) {
-        if (entry.key == 'accounts') continue;
-        final storeData = Map<String, dynamic>.from(entry.value as Map);
-        final customersData = storeData['customers'];
-        if (customersData == null) continue;
+    for (final storeId in targetStores) {
+      final snap = await FirebaseDatabase.instance
+          .ref('stores/$storeId/customers')
+          .get();
 
+      if (snap.exists && snap.value != null) {
+        final customersData = snap.value;
         final Map customersMap = customersData is List
             ? customersData.asMap()
             : Map.from(customersData as Map);

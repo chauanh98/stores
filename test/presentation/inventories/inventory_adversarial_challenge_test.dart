@@ -176,7 +176,7 @@ void main() {
     });
 
     testWidgets(
-        '[Adversarial M1-2] Admin: Unlocked store badge but STRICTLY masked cost price (canViewCostPrice == false)',
+        '[Adversarial M1-2] Admin: Unlocked store badge and can view cost price',
         (tester) async {
       await tester.pumpWidget(
         _buildTestApp(
@@ -198,9 +198,9 @@ void main() {
       expect(find.textContaining('(Cố định)'), findsNothing);
       expect(find.byIcon(Icons.storefront), findsOneWidget);
 
-      // 2. Cost Price Input and Total Value must be HIDDEN for Admin
-      expect(find.textContaining('Giá nhập'), findsNothing);
-      expect(find.textContaining('Tổng giá trị'), findsNothing);
+      // 2. Cost Price Input and Total Value are VISIBLE for Admin
+      expect(find.textContaining('Giá nhập'), findsOneWidget);
+      expect(find.textContaining('Tổng giá trị'), findsOneWidget);
     });
 
     testWidgets(
@@ -219,11 +219,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // 1. Unlocked badge
+      // 1. Locked badge for supervisor per R2
       expect(
-          find.text('Chi nhánh nhập: Chi nhánh Thới Bình'),
+          find.text('Chi nhánh nhập: Chi nhánh Thới Bình (Cố định)'),
           findsOneWidget);
-      expect(find.byIcon(Icons.storefront), findsOneWidget);
+      expect(find.byIcon(Icons.lock_outline), findsOneWidget);
 
       // 2. Cost Price Input is VISIBLE
       expect(find.textContaining('Giá nhập'), findsOneWidget);
@@ -492,7 +492,7 @@ void main() {
       expect(find.textContaining('Giá nhập'), findsNothing);
       expect(find.text('245000'), findsNothing);
 
-      // 2. Check Admin without canViewCostPrice cannot view importPrice
+      // 2. Check Admin CAN view importPrice
       await tester.pumpWidget(
         _buildTestApp(
           key: const ValueKey('scope_admin'),
@@ -503,8 +503,8 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.textContaining('Giá nhập'), findsNothing);
-      expect(find.text('245000'), findsNothing);
+      expect(find.textContaining('Giá nhập'), findsOneWidget);
+      expect(find.text('245000'), findsOneWidget);
 
       // 3. Check Supervisor CAN view importPrice
       await tester.pumpWidget(
@@ -709,13 +709,13 @@ void main() {
         equals('Không đủ số lượng trong kho'),
       );
 
-      // 7. Quantity exactly equals stock (passes validation checks before DB null return)
+      // 7. Quantity exactly equals branch stock (10 in branch_1/store_001) passes validation
       expect(
         await service.transferProduct(
           sourceStoreId: 'store_001',
           targetStoreId: 'store_002',
           product: sampleProduct,
-          quantity: 15,
+          quantity: 10,
         ),
         isNull, // With null DB, returns null on successful pre-checks
       );

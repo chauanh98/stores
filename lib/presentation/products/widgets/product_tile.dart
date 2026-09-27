@@ -23,12 +23,19 @@ class ProductTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
-    final allProducts = ref.watch(productListProvider).value ?? [];
 
-    final displayStock = product.isCombo
-        ? ComboHelper.getTotalAvailableStock(
-            product: product, allProducts: allProducts)
-        : product.stock;
+    final int displayStock;
+    if (product.isCombo) {
+      displayStock = ref.watch(productListProvider.select((asyncList) {
+        final allProducts = asyncList.valueOrNull ?? [];
+        return ComboHelper.getTotalAvailableStock(
+          product: product,
+          allProducts: allProducts,
+        );
+      }));
+    } else {
+      displayStock = product.stock;
+    }
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -46,7 +53,7 @@ class ProductTile extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ProductImageThumbnail(
-                imageUrl: product.imageUrl,
+                imageUrl: product.primaryImageUrl ?? product.imageUrl,
                 productName: product.name,
                 categoryName: product.category,
                 size: 52,
@@ -99,8 +106,10 @@ class ProductTile extends ConsumerWidget {
                     const SizedBox(height: 3),
                     Text(
                       'Mã: ${product.code}',
-                      style:
-                          const TextStyle(color: Colors.black54, fontSize: 12),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          color: AppColors.textSecondary, fontSize: 12),
                     ),
                     if (product.isCombo &&
                         product.comboComponents.isNotEmpty) ...[
@@ -118,23 +127,14 @@ class ProductTile extends ConsumerWidget {
                     ],
                     if (product.branchStocks.isNotEmpty) ...[
                       const SizedBox(height: 3),
-                      Row(
-                        children: [
-                          const Icon(Icons.storefront_outlined,
-                              size: 13, color: Colors.black45),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              _formatBranchStocks(product.branchStocks),
-                              style: const TextStyle(
-                                color: Colors.black54,
-                                fontSize: 11,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
+                      Text(
+                        _formatBranchStocks(product.branchStocks),
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 11,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                     const SizedBox(height: 6),
@@ -143,31 +143,41 @@ class ProductTile extends ConsumerWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    _formatPrice(product.price),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
-                      fontSize: 14,
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 115),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        _formatPrice(product.price),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                          fontSize: 14,
+                        ),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    product.isCombo
-                        ? 'Tồn bộ: $displayStock'
-                        : 'Tồn: $displayStock',
-                    style: TextStyle(
-                      color:
-                          product.isCombo ? AppColors.primary : Colors.black87,
-                      fontWeight:
-                          product.isCombo ? FontWeight.bold : FontWeight.w600,
-                      fontSize: 12,
+                    const SizedBox(height: 4),
+                    Text(
+                      product.isCombo
+                          ? 'Tồn bộ: $displayStock'
+                          : 'Tồn: $displayStock',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: product.isCombo
+                            ? AppColors.primary
+                            : AppColors.textPrimary,
+                        fontWeight:
+                            product.isCombo ? FontWeight.bold : FontWeight.w600,
+                        fontSize: 12,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ),
@@ -178,92 +188,38 @@ class ProductTile extends ConsumerWidget {
 
   Widget _buildStockStatus(
       BuildContext context, AppLocalizations l10n, int effectiveStock) {
+    final String label;
+    final Color color;
     if (effectiveStock <= 0) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-        decoration: BoxDecoration(
-          color: Colors.red.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.red.withOpacity(0.3)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.warning,
-              size: 13,
-              color: Colors.red[700],
-            ),
-            const SizedBox(width: 4),
-            Text(
-              'Hết hàng',
-              style: TextStyle(
-                color: Colors.red[700],
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      );
+      label = 'Hết hàng';
+      color = AppColors.dangerDark;
     } else if (product.isLowStock() ||
         effectiveStock <= (product.minStock ?? 5)) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-        decoration: BoxDecoration(
-          color: Colors.orange.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.orange.withOpacity(0.3)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.warning_amber,
-              size: 13,
-              color: Colors.orange[800],
-            ),
-            const SizedBox(width: 4),
-            Text(
-              'Dưới định mức',
-              style: TextStyle(
-                color: Colors.orange[800],
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      );
+      label = 'Dưới định mức';
+      color = AppColors.warningDark;
     } else {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-        decoration: BoxDecoration(
-          color: Colors.green.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.green.withOpacity(0.3)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.check_circle,
-              size: 13,
-              color: Colors.green[700],
-            ),
-            const SizedBox(width: 4),
-            Text(
-              'Còn hàng',
-              style: TextStyle(
-                color: Colors.green[700],
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      );
+      label = 'Còn hàng';
+      color = AppColors.successDark;
     }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
   }
 
   static String _formatBranchStocks(Map<String, int> branchStocks) {
@@ -294,8 +250,9 @@ class ProductTile extends ConsumerWidget {
     }
 
     // Dynamic short code generation for store_XXX / branch_XXX
-    final storeMatch = RegExp(r'^(?:store|branch)[_-]?(\d+)$', caseSensitive: false)
-        .firstMatch(key.trim());
+    final storeMatch =
+        RegExp(r'^(?:store|branch)[_-]?(\d+)$', caseSensitive: false)
+            .firstMatch(key.trim());
     if (storeMatch != null) {
       final numStr = storeMatch.group(1)!;
       final numVal = int.tryParse(numStr) ?? 0;

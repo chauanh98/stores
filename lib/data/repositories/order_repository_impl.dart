@@ -6,7 +6,8 @@ import '../datasources/firebase/order_remote_data_source.dart';
 import '../models/order_item_model.dart';
 import '../models/order_model.dart';
 
-class OrderRepositoryImpl implements OrderRepository, OrderRepositoryReturnHandler {
+class OrderRepositoryImpl
+    implements OrderRepository, OrderRepositoryReturnHandler {
   final OrderRemoteDataSource ds;
 
   OrderRepositoryImpl(this.ds);
@@ -87,8 +88,10 @@ class OrderRepositoryImpl implements OrderRepository, OrderRepositoryReturnHandl
     return OrderModel(
       id: order.id,
       customerId: order.customerId,
+      customerName: order.customerName,
       createdAt: order.createdAt,
       total: order.total,
+      discount: order.discount,
       items: order.items
           .map((i) => OrderItemModel(
                 productId: i.productId,
@@ -102,7 +105,7 @@ class OrderRepositoryImpl implements OrderRepository, OrderRepositoryReturnHandl
           .toList(),
       status: order.status,
       amountPaid: order.amountPaid,
-      debtAmount: order.debtAmount,
+      debtAmount: order.isCancelled ? 0.0 : order.debtAmount,
       paymentMethod: order.paymentMethod,
       createdBy: order.createdBy,
       createdByName: order.createdByName,
@@ -122,8 +125,10 @@ class OrderRepositoryImpl implements OrderRepository, OrderRepositoryReturnHandl
     return Order(
       id: om.id,
       customerId: om.customerId,
+      customerName: om.customerName,
       createdAt: om.createdAt,
       total: om.total,
+      discount: om.discount,
       items: om.items
           .map((im) => OrderItem(
                 productId: im.productId,
@@ -152,4 +157,3 @@ class OrderRepositoryImpl implements OrderRepository, OrderRepositoryReturnHandl
     );
   }
 }
-

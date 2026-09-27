@@ -37,11 +37,11 @@ void main() {
         final hour = order.createdAt.hour;
         if (hour < 0 || hour > 23) continue;
 
-        hourlyRevenueMap[hour] = (hourlyRevenueMap[hour] ?? 0.0) + order.total;
+        hourlyRevenueMap[hour] = (hourlyRevenueMap[hour] ?? 0.0) + order.netPayable;
         hourlyOrderCountMap[hour] = (hourlyOrderCountMap[hour] ?? 0) + 1;
 
         final branchMap = hourlyBranchMap[hour] ?? {};
-        branchMap[storeId] = (branchMap[storeId] ?? 0.0) + order.total;
+        branchMap[storeId] = (branchMap[storeId] ?? 0.0) + order.netPayable;
         hourlyBranchMap[hour] = branchMap;
       }
 
@@ -442,6 +442,37 @@ void main() {
 
         final hourlyAsync = container.read(hourlyRevenueListProvider);
         expect(hourlyAsync, isA<AsyncValue<List<HourlyRevenueData>>>());
+      });
+
+      test('hourlyRevenueListProvider accurately calculates net revenue for discounted orders', () async {
+        final orderWithDiscount = Order(
+          id: 'HD013229_01',
+          customerId: 'KH006962',
+          createdAt: DateTime(2026, 9, 21, 17, 39),
+          items: const [],
+          total: 2030000.0, // Gross total goods
+          discount: 30000.0, // Discount
+          status: 'completed',
+        );
+        final container = ProviderContainer(
+          overrides: [
+            allBranchesOrdersByDateRangeProvider.overrideWith(
+              (ref, range) => Stream.value([orderWithDiscount]),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        // Wait for stream to emit
+        final currentRange = container.read(overviewCurrentDateRangeProvider);
+        await container.read(allBranchesOrdersByDateRangeProvider(currentRange).future);
+
+        final hourlyAsync = container.read(hourlyRevenueListProvider);
+        expect(hourlyAsync.hasValue, isTrue);
+        final list = hourlyAsync.value!;
+        // Hour 17 should have netPayable = 2,000,000 đ, NOT gross 2,030,000 đ
+        expect(list[17].revenue, equals(2000000.0));
+        expect(list[17].orderCount, equals(1));
       });
     });
   });

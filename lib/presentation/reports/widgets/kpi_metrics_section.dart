@@ -80,11 +80,11 @@ class KPIMetricsSection extends ConsumerWidget {
         // Card 1: Thẻ Doanh thu thuần & Lợi nhuận gộp (KPI Chính)
         Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.white,
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: AppColors.black.withOpacity(0.04),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -115,7 +115,7 @@ class KPIMetricsSection extends ConsumerWidget {
                                 'Doanh thu thuần',
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
-                                  color: Colors.black54,
+                                  color: AppColors.textSecondary,
                                   fontSize: 13,
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -156,7 +156,7 @@ class KPIMetricsSection extends ConsumerWidget {
                                   'Lợi nhuận gộp',
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
-                                    color: Colors.black54,
+                                    color: AppColors.textSecondary,
                                     fontSize: 13,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -177,7 +177,7 @@ class KPIMetricsSection extends ConsumerWidget {
                                         ? Icons.visibility_outlined
                                         : Icons.visibility_off_outlined,
                                     size: 16,
-                                    color: Colors.black45,
+                                    color: AppColors.textTertiary,
                                   ),
                                 ),
                               ),
@@ -223,7 +223,7 @@ class KPIMetricsSection extends ConsumerWidget {
                         const Text(
                           'Số hóa đơn',
                           style: TextStyle(
-                            color: Colors.black54,
+                            color: AppColors.textSecondary,
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
                           ),
@@ -236,7 +236,7 @@ class KPIMetricsSection extends ConsumerWidget {
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.black87,
+                                color: AppColors.textPrimary,
                               ),
                             ),
                             const SizedBox(width: 6),
@@ -255,7 +255,7 @@ class KPIMetricsSection extends ConsumerWidget {
                         const Text(
                           'AOV (Trung bình/đơn)',
                           style: TextStyle(
-                            color: Colors.black54,
+                            color: AppColors.textSecondary,
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
                           ),
@@ -269,7 +269,7 @@ class KPIMetricsSection extends ConsumerWidget {
                                 style: const TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.black87,
+                                  color: AppColors.textPrimary,
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -292,9 +292,9 @@ class KPIMetricsSection extends ConsumerWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
+                    color: AppColors.grey50,
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: Colors.grey.shade200),
+                    border: Border.all(color: AppColors.grey200),
                   ),
                   child: Row(
                     children: [
@@ -308,7 +308,8 @@ class KPIMetricsSection extends ConsumerWidget {
                         child: Text(
                           'Hàng bán trả lại:',
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 12, color: Colors.black54),
+                          style: TextStyle(
+                              fontSize: 12, color: AppColors.textSecondary),
                         ),
                       ),
                       const SizedBox(width: 6),
@@ -346,7 +347,7 @@ class KPIMetricsSection extends ConsumerWidget {
             borderRadius: BorderRadius.circular(12),
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.white,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                   color: AppColors.chartOrange.withOpacity(0.3),
@@ -354,20 +355,21 @@ class KPIMetricsSection extends ConsumerWidget {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.03),
+                    color: AppColors.black.withOpacity(0.03),
                     blurRadius: 8,
                     offset: const Offset(0, 3),
                   ),
                 ],
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
               child: Row(
                 children: [
                   Container(
                     width: 38,
                     height: 38,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFEF3C7),
+                      color: AppColors.warningLight,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Icon(
@@ -385,7 +387,7 @@ class KPIMetricsSection extends ConsumerWidget {
                           'Công nợ khách hàng cần thu',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.black54,
+                            color: AppColors.textSecondary,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -395,7 +397,7 @@ class KPIMetricsSection extends ConsumerWidget {
                           style: const TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w800,
-                            color: Colors.black87,
+                            color: AppColors.textPrimary,
                           ),
                         ),
                       ],
@@ -444,10 +446,10 @@ class KPIMetricsSection extends ConsumerWidget {
     final isPositive = growthPercent > 0;
     final isZero = growthPercent == 0.0;
     final color = isZero
-        ? Colors.grey.shade600
+        ? AppColors.grey600
         : (isPositive ? AppColors.success : AppColors.danger);
     final bgColor = isZero
-        ? Colors.grey.shade100
+        ? AppColors.grey100
         : (isPositive ? AppColors.successLight : AppColors.dangerLight);
 
     final sign = isPositive ? '+' : '';
@@ -468,7 +470,9 @@ class KPIMetricsSection extends ConsumerWidget {
             children: [
               if (!isZero)
                 Icon(
-                  isPositive ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
+                  isPositive
+                      ? Icons.arrow_upward_rounded
+                      : Icons.arrow_downward_rounded,
                   size: 11,
                   color: color,
                 ),
@@ -489,7 +493,7 @@ class KPIMetricsSection extends ConsumerWidget {
             comparisonLabel,
             style: const TextStyle(
               fontSize: 10,
-              color: Colors.black45,
+              color: AppColors.textTertiary,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -536,7 +540,7 @@ class KPIMetricsSection extends ConsumerWidget {
     return Container(
       height: 160,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(12),
       ),
       child: const Center(
@@ -553,7 +557,7 @@ class KPIMetricsSection extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Center(

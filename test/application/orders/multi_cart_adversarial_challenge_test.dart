@@ -9,6 +9,14 @@ import 'package:stores/domain/entities/product.dart';
 import 'package:stores/presentation/orders/widgets/pos_cart_tab_bar.dart';
 
 void main() {
+  setUp(() {
+    MultiCartNotifier.resetBranchCartsCache();
+  });
+
+  tearDown(() {
+    MultiCartNotifier.resetBranchCartsCache();
+  });
+
   const sampleProduct1 = Product(
     id: 'prod_adv_01',
     name: 'Sản phẩm thử nghiệm 1',

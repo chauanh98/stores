@@ -9,18 +9,19 @@ class CustomerRemoteDataSource {
 
   DatabaseReference get _ref => _db.ref('shared_customers');
 
-
   /// Optimized: bỏ _ref.get() vì onChildAdded đã fire cho mọi child hiện tại
   /// Tránh download data 2 lần khi khởi tạo
   Stream<List<Map>> watchAll() {
     final controller = StreamController<List<Map>>();
     final Map<String, Map> cache = {};
     Timer? debounceTimer;
+    bool hasEmitted = false;
 
     void debouncedEmit() {
       debounceTimer?.cancel();
-      debounceTimer = Timer(const Duration(milliseconds: 100), () {
+      debounceTimer = Timer(const Duration(milliseconds: 50), () {
         if (!controller.isClosed) {
+          hasEmitted = true;
           controller.add(cache.values.toList());
         }
       });
@@ -30,7 +31,7 @@ class CustomerRemoteDataSource {
       final val = event.snapshot.value;
       if (val is Map) {
         final map = Map<String, dynamic>.from(val);
-        final id = map['id']?.toString();
+        final id = map['id']?.toString() ?? event.snapshot.key;
         if (id != null) {
           cache[id] = map;
           debouncedEmit();
@@ -42,7 +43,7 @@ class CustomerRemoteDataSource {
       final val = event.snapshot.value;
       if (val is Map) {
         final map = Map<String, dynamic>.from(val);
-        final id = map['id']?.toString();
+        final id = map['id']?.toString() ?? event.snapshot.key;
         if (id != null) {
           cache[id] = map;
           // Emit ngay cho change events (không debounce)
@@ -54,15 +55,21 @@ class CustomerRemoteDataSource {
     });
 
     final removeSub = _ref.onChildRemoved.listen((event) {
-      final val = event.snapshot.value;
-      if (val is Map) {
-        final map = Map<String, dynamic>.from(val);
-        final id = map['id']?.toString();
-        if (id != null) {
-          cache.remove(id);
-          if (!controller.isClosed) {
-            controller.add(cache.values.toList());
-          }
+      final key = event.snapshot.key;
+      if (key != null) {
+        cache.remove(key);
+        cache.removeWhere((k, v) => v['id']?.toString() == key);
+        if (!controller.isClosed) {
+          controller.add(cache.values.toList());
+        }
+      }
+    });
+
+    final emptyCheckSub = _ref.limitToFirst(1).onValue.take(1).listen((event) {
+      if (event.snapshot.value == null) {
+        if (cache.isEmpty && !hasEmitted && !controller.isClosed) {
+          hasEmitted = true;
+          controller.add([]);
         }
       }
     });
@@ -72,6 +79,7 @@ class CustomerRemoteDataSource {
       addSub.cancel();
       changeSub.cancel();
       removeSub.cancel();
+      emptyCheckSub.cancel();
     };
 
     return controller.stream;

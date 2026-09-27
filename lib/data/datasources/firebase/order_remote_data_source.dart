@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:firebase_database/firebase_database.dart';
 
+import '../../../core/utils/stream_debounce_helper.dart';
+
 class OrderRemoteDataSource {
   OrderRemoteDataSource(this._db, this.storeId);
 
@@ -31,12 +33,12 @@ class OrderRemoteDataSource {
     return null;
   }
 
-
   Stream<List<Map<String, dynamic>>> watchByCustomer(String customerId) {
     return _ref
         .orderByChild('customerId')
         .equalTo(customerId)
         .onValue
+        .debounce(const Duration(milliseconds: 250))
         .map((event) {
       final data = event.snapshot.value as Map? ?? {};
       return data.values
@@ -45,66 +47,84 @@ class OrderRemoteDataSource {
     });
   }
 
-  /// Optimized: dùng onChildAdded/Changed/Removed thay vì onValue
-  /// để chỉ download delta thay vì toàn bộ node orders
-  Stream<List<Map<String, dynamic>>> watchAll() {
+  /// Optimized: dùng debounced stream cho onChildAdded và onValue.take(1) kiểm tra node rỗng,
+  /// giới hạn tối đa [limit] (mặc định: 50) đơn hàng gần nhất để kiểm soát egress.
+  Stream<List<Map<String, dynamic>>> watchRecentOrders({int limit = 50}) {
+    final query = limit > 0 ? _ref.limitToLast(limit) : _ref;
     final controller = StreamController<List<Map<String, dynamic>>>();
     final Map<String, Map<String, dynamic>> cache = {};
-    bool initialLoaded = false;
+    Timer? debounceTimer;
+    bool hasEmitted = false;
 
-    void safeEmit() {
-      if (initialLoaded && !controller.isClosed) {
-        controller.add(cache.values.toList());
-      }
+    void debouncedEmit() {
+      debounceTimer?.cancel();
+      debounceTimer = Timer(const Duration(milliseconds: 250), () {
+        if (!controller.isClosed) {
+          hasEmitted = true;
+          controller.add(cache.values.toList());
+        }
+      });
     }
 
-    final addSub = _ref.onChildAdded.listen((event) {
+    final addSub = query.onChildAdded.listen((event) {
       final val = event.snapshot.value;
       if (val is Map) {
-        cache[event.snapshot.key!] = Map<String, dynamic>.from(val);
-        safeEmit();
+        final map = Map<String, dynamic>.from(val);
+        final id = map['id']?.toString() ?? event.snapshot.key;
+        if (id != null) {
+          cache[id] = map;
+          debouncedEmit();
+        }
       }
     });
 
-    final changeSub = _ref.onChildChanged.listen((event) {
+    final changeSub = query.onChildChanged.listen((event) {
       final val = event.snapshot.value;
       if (val is Map) {
-        cache[event.snapshot.key!] = Map<String, dynamic>.from(val);
-        safeEmit();
-      }
-    });
-
-    final removeSub = _ref.onChildRemoved.listen((event) {
-      cache.remove(event.snapshot.key);
-      safeEmit();
-    });
-
-    _ref.get().then((snap) {
-      final value = snap.value;
-      if (value != null && value is Map) {
-        final map = Map<String, dynamic>.from(value);
-        for (final entry in map.entries) {
-          if (entry.value is Map) {
-            cache[entry.key] = Map<String, dynamic>.from(entry.value as Map);
+        final map = Map<String, dynamic>.from(val);
+        final id = map['id']?.toString() ?? event.snapshot.key;
+        if (id != null) {
+          cache[id] = map;
+          if (!controller.isClosed) {
+            controller.add(cache.values.toList());
           }
         }
       }
-      initialLoaded = true;
-      safeEmit();
-    }).catchError((err) {
-      if (!controller.isClosed) {
-        controller.addError(err);
+    });
+
+    final removeSub = query.onChildRemoved.listen((event) {
+      final key = event.snapshot.key;
+      if (key != null) {
+        cache.remove(key);
+        cache.removeWhere((k, v) => v['id']?.toString() == key);
+        if (!controller.isClosed) {
+          controller.add(cache.values.toList());
+        }
+      }
+    });
+
+    final emptyCheckSub = _ref.limitToFirst(1).onValue.take(1).listen((event) {
+      if (event.snapshot.value == null) {
+        if (cache.isEmpty && !hasEmitted && !controller.isClosed) {
+          hasEmitted = true;
+          controller.add([]);
+        }
       }
     });
 
     controller.onCancel = () {
+      debounceTimer?.cancel();
       addSub.cancel();
       changeSub.cancel();
       removeSub.cancel();
+      emptyCheckSub.cancel();
     };
 
     return controller.stream;
   }
+
+  /// Backward-compatible wrapper calling [watchRecentOrders] with limit = 50.
+  Stream<List<Map<String, dynamic>>> watchAll() => watchRecentOrders(limit: 50);
 
   // Lấy orders theo khoảng thời gian
   Stream<List<Map<String, dynamic>>> watchByDateRange(
@@ -122,18 +142,21 @@ class OrderRemoteDataSource {
         .startAt(start)
         .endAt(end)
         .onValue
+        .debounce(const Duration(milliseconds: 250))
         .map((event) {
       final data = event.snapshot.value as Map? ?? {};
       final list = data.values
           .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e as Map))
           .toList();
       // Firebase Realtime Database orderByChild+range đôi khi bao gồm phần tử biên không như mong muốn
-      // nên lọc lại phía client để đảm bảo phạm vi chính xác
+      // nên lọc lại phía client để đảm bảo phạm vi chính xác theo ngày giao dịch gốc
       return list.where((m) {
-        final createdAt = DateTime.tryParse(m['createdAt']?.toString() ?? '');
-        if (createdAt == null) return false;
-        return !createdAt.isBefore(startDate) &&
-            !createdAt.isAfter(adjustedEndDate);
+        final dateStr =
+            m['orderDate']?.toString() ?? m['createdAt']?.toString() ?? '';
+        final parsed = DateTime.tryParse(dateStr);
+        if (parsed == null) return false;
+        final txDate = parsed.isUtc ? parsed.toLocal() : parsed;
+        return !txDate.isBefore(startDate) && !txDate.isAfter(adjustedEndDate);
       }).toList();
     });
   }
@@ -146,20 +169,28 @@ class OrderRemoteDataSource {
     final start = startDate.toIso8601String();
     final end = adjustedEndDate.toIso8601String();
 
-    final snap =
-        await _ref.orderByChild('createdAt').startAt(start).endAt(end).get();
+    try {
+      final snap =
+          await _ref.orderByChild('createdAt').startAt(start).endAt(end).get();
 
-    final data = snap.value as Map? ?? {};
-    final list = data.values
-        .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e as Map))
-        .toList();
+      final data = snap.value as Map? ?? {};
+      final list = data.values
+          .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
 
-    return list.where((m) {
-      final createdAt = DateTime.tryParse(m['createdAt']?.toString() ?? '');
-      if (createdAt == null) return false;
-      return !createdAt.isBefore(startDate) &&
-          !createdAt.isAfter(adjustedEndDate);
-    }).toList();
+      return list.where((m) {
+        final dateStr =
+            m['orderDate']?.toString() ?? m['createdAt']?.toString() ?? '';
+        final parsed = DateTime.tryParse(dateStr);
+        if (parsed == null) return false;
+        final txDate = parsed.isUtc ? parsed.toLocal() : parsed;
+        return !txDate.isBefore(startDate) && !txDate.isAfter(adjustedEndDate);
+      }).toList();
+    } catch (_) {
+      // Eliminated illegal fallback _ref.get() to prevent full collection RAM scans.
+      // Return empty list to preserve egress quota.
+      return [];
+    }
   }
 
   // Return Orders CRUD & Stream methods
@@ -190,14 +221,16 @@ class OrderRemoteDataSource {
         .startAt(start)
         .endAt(end)
         .onValue
+        .debounce(const Duration(milliseconds: 250))
         .map((event) {
       final data = event.snapshot.value as Map? ?? {};
       final list = data.values
           .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e as Map))
           .toList();
       return list.where((m) {
-        final createdAt = DateTime.tryParse(m['createdAt']?.toString() ?? '');
-        if (createdAt == null) return false;
+        final parsed = DateTime.tryParse(m['createdAt']?.toString() ?? '');
+        if (parsed == null) return false;
+        final createdAt = parsed.isUtc ? parsed.toLocal() : parsed;
         return !createdAt.isBefore(startDate) &&
             !createdAt.isAfter(adjustedEndDate);
       }).toList();
@@ -209,6 +242,7 @@ class OrderRemoteDataSource {
         .orderByChild('orderId')
         .equalTo(orderId)
         .onValue
+        .debounce(const Duration(milliseconds: 250))
         .map((event) {
       final data = event.snapshot.value as Map? ?? {};
       return data.values
@@ -217,4 +251,3 @@ class OrderRemoteDataSource {
     });
   }
 }
-

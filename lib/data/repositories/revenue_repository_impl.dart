@@ -25,8 +25,19 @@ class RevenueRepositoryImpl {
     final ordersStream = _orderDs.watchByDateRange(startOfDay, endOfDay);
     final orders = await ordersStream.first;
 
-    // Lấy inventory transactions (dùng fetchAll() = .get() thay vì watchAll().first)
-    final inventoryTransactions = await _inventoryDs.fetchAll();
+    // Lấy inventory transactions date-bounded thay vì fetchAll() không giới hạn
+    List<Map> inventoryTransactions;
+    try {
+      inventoryTransactions =
+          await _inventoryDs.fetchTransactionsUpToDate(endOfDay);
+    } catch (_) {
+      try {
+        inventoryTransactions =
+            await _inventoryDs.fetchImportsByDateRange(startOfDay, endOfDay);
+      } catch (_) {
+        inventoryTransactions = await _inventoryDs.fetchAll();
+      }
+    }
 
     // Lấy products
     final products = await _productDs.fetchAll();
@@ -50,8 +61,19 @@ class RevenueRepositoryImpl {
     final ordersStream = _orderDs.watchByDateRange(startOfRange, endOfRange);
     final orders = await ordersStream.first;
 
-    // Dùng fetchAll() = .get() thay vì watchAll().first để tránh tạo listener rồi cancel
-    final inventoryTransactions = await _inventoryDs.fetchAll();
+    // Lấy inventory transactions date-bounded thay vì fetchAll() không giới hạn
+    List<Map> inventoryTransactions;
+    try {
+      inventoryTransactions =
+          await _inventoryDs.fetchTransactionsUpToDate(endOfRange);
+    } catch (_) {
+      try {
+        inventoryTransactions = await _inventoryDs.fetchImportsByDateRange(
+            startOfRange, endOfRange);
+      } catch (_) {
+        inventoryTransactions = await _inventoryDs.fetchAll();
+      }
+    }
     final products = await _productDs.fetchAll();
 
     return calculateRevenueSummary(
@@ -139,7 +161,9 @@ class RevenueRepositoryImpl {
 
     while (!currentDate.isAfter(endDateOnly)) {
       final dayOrders = allSortedOrders.where((order) {
-        final createdAtStr = order['createdAt']?.toString();
+        final createdAtStr =
+            (order['orderDate'] ?? order['createdAt'] ?? order['date'])
+                ?.toString();
         if (createdAtStr == null) return false;
         final orderDate = DateTime.tryParse(createdAtStr);
         if (orderDate == null) return false;
@@ -222,10 +246,15 @@ class RevenueRepositoryImpl {
       return dateA.compareTo(dateB);
     });
 
+    int totalValidOrders = 0;
     for (final orderMap in sortedOrders) {
       try {
         final orderModel = OrderModel.fromMap(orderMap);
-        totalRevenue += orderModel.total;
+        if (orderModel.isCancelled || orderModel.isDraft) {
+          continue;
+        }
+        totalValidOrders++;
+        totalRevenue += orderModel.netPayable;
 
         for (final itemModel in orderModel.items) {
           final product = productMap[itemModel.productId];
@@ -277,8 +306,9 @@ class RevenueRepositoryImpl {
             final revenue = itemModel.quantity * actualPrice;
             productRevenues.add(ProductRevenue(
               productId: itemModel.productId,
-              productName:
-                  product != null ? (product['name'] ?? 'Unknown Product') : itemModel.productName,
+              productName: product != null
+                  ? (product['name'] ?? 'Unknown Product')
+                  : itemModel.productName,
               quantitySold: itemModel.quantity,
               revenue: revenue,
               cost: cost,
@@ -298,7 +328,7 @@ class RevenueRepositoryImpl {
       totalRevenue: totalRevenue,
       totalCost: totalCost,
       profit: totalRevenue - totalCost,
-      totalOrders: orders.length,
+      totalOrders: totalValidOrders,
       totalItemsSold: totalItemsSold,
       productRevenues: productRevenues,
       storeRevenues: {
@@ -316,4 +346,3 @@ class RevenueRepositoryImpl {
     return null;
   }
 }
-

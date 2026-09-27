@@ -47,7 +47,7 @@ class _SelectBrandPageState extends ConsumerState<SelectBrandPage> {
       appBar: AppBar(
         title: const Text('Thương hiệu',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.add, color: AppColors.primary, size: 28),
@@ -65,17 +65,17 @@ class _SelectBrandPageState extends ConsumerState<SelectBrandPage> {
               controller: _searchController,
               decoration: InputDecoration(
                 hintText: 'Tìm kiếm thương hiệu...',
-                prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                prefixIcon: const Icon(Icons.search, color: AppColors.grey400),
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
-                        icon: const Icon(Icons.clear, color: Colors.grey),
+                        icon: const Icon(Icons.clear, color: AppColors.grey400),
                         onPressed: () {
                           _searchController.clear();
                           setState(() => _searchQuery = '');
                         },
                       )
                     : null,
-                fillColor: Colors.white,
+                fillColor: AppColors.white,
                 filled: true,
                 contentPadding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -131,7 +131,7 @@ class _SelectBrandPageState extends ConsumerState<SelectBrandPage> {
                     return ListTile(
                       tileColor: isSelected
                           ? AppColors.surfaceHighlight
-                          : Colors.white,
+                          : AppColors.white,
                       title: Text(
                         brand,
                         style: TextStyle(
@@ -139,7 +139,7 @@ class _SelectBrandPageState extends ConsumerState<SelectBrandPage> {
                               isSelected ? FontWeight.bold : FontWeight.normal,
                           color: isSelected
                               ? AppColors.primaryDark
-                              : Colors.black87,
+                              : AppColors.textPrimary,
                         ),
                       ),
                       trailing: isSelected

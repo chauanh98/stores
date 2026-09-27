@@ -32,7 +32,7 @@ class CancelInvoiceUseCase {
     required String storeId,
   }) async {
     // 1. RBAC & Business Validation
-    if (!currentUser.canDeleteInvoice) {
+    if (!currentUser.canDeleteInvoice && !currentUser.isSupervisor) {
       throw const UnauthorizedException(
           'Bạn không có quyền quản trị để hủy hóa đơn đã thanh toán.');
     }
@@ -60,8 +60,8 @@ class CancelInvoiceUseCase {
               final compQtyToRestore = qtyToRestore * comp.quantity;
               final updatedStocks = _updateBranchStock(
                   childProduct.branchStocks, storeId, compQtyToRestore);
-              await productRepository.upsert(
-                  childProduct.copyWith(branchStocks: updatedStocks));
+              await productRepository
+                  .upsert(childProduct.copyWith(branchStocks: updatedStocks));
 
               final tx = InventoryTransaction(
                 id: 'cancel_import_${now.millisecondsSinceEpoch}_${childProduct.id}',
@@ -79,8 +79,8 @@ class CancelInvoiceUseCase {
             }
           }
         } else {
-          final updatedStocks = _updateBranchStock(
-              product.branchStocks, storeId, qtyToRestore);
+          final updatedStocks =
+              _updateBranchStock(product.branchStocks, storeId, qtyToRestore);
           await productRepository
               .upsert(product.copyWith(branchStocks: updatedStocks));
 
@@ -108,15 +108,17 @@ class CancelInvoiceUseCase {
       final customer = await customerRepository.fetchById(customerId);
       if (customer != null) {
         final currentDebt = customer.displayCurrentDebt;
-        final debtToReverse = order.debtAmount > 0 ? order.debtAmount : order.remainingDebt;
-        final newDebt = (currentDebt - debtToReverse).clamp(0.0, double.infinity);
+        final debtToReverse =
+            order.debtAmount > 0 ? order.debtAmount : order.remainingDebt;
+        final newDebt =
+            (currentDebt - debtToReverse).clamp(0.0, double.infinity);
 
         final currentTotalSales = customer.totalSales ?? 0.0;
         final currentNetSales = customer.netSales ?? customer.totalSales ?? 0.0;
         final newTotalSales =
             (currentTotalSales - order.total).clamp(0.0, double.infinity);
         final newNetSales =
-            (currentNetSales - order.total).clamp(0.0, double.infinity);
+            (currentNetSales - order.netPayable).clamp(0.0, double.infinity);
 
         final updatedCustomer = customer.copyWith(
           currentDebt: newDebt,
@@ -137,8 +139,8 @@ class CancelInvoiceUseCase {
             note: 'Hủy nợ do hủy hóa đơn ${order.id}: ${cancelReason.trim()}',
             createdBy: currentUser.username,
           );
-          await customerDataSource!.saveDebtTransaction(
-              customer.id, debtTx.toMap());
+          await customerDataSource!
+              .saveDebtTransaction(customer.id, debtTx.toMap());
         }
       }
     }
@@ -146,6 +148,7 @@ class CancelInvoiceUseCase {
     // 4. Update Order Status to 'cancelled'
     final cancelledOrder = order.copyWith(
       status: 'cancelled',
+      debtAmount: 0.0,
       cancelReason: cancelReason.trim(),
       cancelledAt: now,
       cancelledBy: currentUser.username,

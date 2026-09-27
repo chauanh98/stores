@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:stores/application/products/products_providers.dart';
 import 'package:stores/domain/entities/combo_component.dart';
 import 'package:stores/domain/entities/product.dart';
+import 'package:stores/presentation/common/widgets/product_image_thumbnail.dart';
 import 'package:stores/presentation/products/widgets/product_tile.dart';
 
 Widget _buildTestApp({
@@ -109,7 +112,7 @@ void main() {
 
       // In stock badge
       expect(find.text('Còn hàng'), findsOneWidget);
-      expect(find.byIcon(Icons.check_circle), findsOneWidget);
+      expect(find.byIcon(Icons.check_circle), findsNothing);
 
       // Stock and price
       expect(find.text('Tồn: 50'), findsOneWidget);
@@ -137,7 +140,7 @@ void main() {
 
       // Low stock warning badge
       expect(find.text('Dưới định mức'), findsOneWidget);
-      expect(find.byIcon(Icons.warning_amber), findsOneWidget);
+      expect(find.byIcon(Icons.warning_amber), findsNothing);
 
       // Total stock and price
       expect(find.text('Tồn: 3'), findsOneWidget);
@@ -165,7 +168,7 @@ void main() {
 
       // Out of stock warning badge
       expect(find.text('Hết hàng'), findsOneWidget);
-      expect(find.byIcon(Icons.warning), findsOneWidget);
+      expect(find.byIcon(Icons.warning), findsNothing);
 
       // Total stock 0
       expect(find.text('Tồn: 0'), findsOneWidget);
@@ -364,6 +367,84 @@ void main() {
 
       expect(find.text('Tồn: 27'), findsOneWidget);
       expect(find.textContaining('ĐT: 10 | TB: 5 | CT: 8 | CN4: 4'), findsOneWidget);
+    });
+
+    testWidgets(
+        'Standard non-combo product does not watch productListProvider and uses product.stock directly',
+        (tester) async {
+      // Even if productListProvider is an error stream, standard products should render fine
+      await tester.pumpWidget(
+        _buildTestApp(
+          child: const ProductTile(product: inStockProduct),
+          overrides: [
+            productListProvider.overrideWith(
+              (ref) => Stream<List<Product>>.error(Exception('Should not be watched')),
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Bia Saigon Special 330ml'), findsOneWidget);
+      expect(find.text('Tồn: 50'), findsOneWidget);
+      expect(find.text('Còn hàng'), findsOneWidget);
+    });
+
+    testWidgets(
+        'Combo product watches productListProvider via select and updates displayStock dynamically',
+        (tester) async {
+      final controller = StreamController<List<Product>>.broadcast();
+      addTearDown(controller.close);
+
+      await tester.pumpWidget(
+        _buildTestApp(
+          child: const ProductTile(product: comboProduct),
+          overrides: [
+            productListProvider.overrideWith((ref) => controller.stream),
+          ],
+        ),
+      );
+
+      // Initial state: Pocky has 0 stock -> combo stock = 0
+      controller.add([
+        inStockProduct,
+        outOfStockProduct,
+        comboProduct,
+      ]);
+      await tester.pumpAndSettle();
+      expect(find.text('Tồn bộ: 0'), findsOneWidget);
+
+      // Update component stock: Pocky has 10 stock -> combo requires 2 Bia (50/2=25) & 1 Pocky (10/1=10) -> stock = 10
+      controller.add([
+        inStockProduct,
+        outOfStockProduct.copyWith(
+          branchStocks: {'branch_1': 10},
+        ),
+        comboProduct,
+      ]);
+      await tester.pumpAndSettle();
+      expect(find.text('Tồn bộ: 10'), findsOneWidget);
+    });
+
+    testWidgets(
+        'ProductTile configures ProductImageThumbnail with 150x150 cacheWidth and cacheHeight',
+        (tester) async {
+      await tester.pumpWidget(
+        _buildTestApp(
+          child: const ProductTile(product: inStockProduct),
+          overrides: [
+            productListProvider
+                .overrideWith((ref) => Stream.value([inStockProduct])),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final thumbnailFinder = find.byType(ProductImageThumbnail);
+      expect(thumbnailFinder, findsOneWidget);
+      final thumbnail = tester.widget<ProductImageThumbnail>(thumbnailFinder);
+      expect(thumbnail.cacheWidth, equals(150));
+      expect(thumbnail.cacheHeight, equals(150));
     });
   });
 }

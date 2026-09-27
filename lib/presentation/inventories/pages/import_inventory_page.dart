@@ -1,23 +1,39 @@
+import 'package:stores/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:stores/presentation/common/widgets/loading_indicator.dart';
 
 import '../../../application/auth/auth_providers.dart';
-import '../../../application/inventory/inventory_providers.dart';
+import '../../../application/inventories/stock_in_receipts_providers.dart';
 import '../../../application/products/products_providers.dart';
 import '../../../application/suppliers/suppliers_providers.dart';
-import '../../../core/utils/vietnamese_text_helper.dart';
-import '../../../domain/entities/inventory_transaction.dart';
 import '../../../domain/entities/product.dart';
 import '../../../domain/entities/supplier.dart';
-import '../../../domain/entities/transaction_type.dart';
-import '../../common/widgets/error_view.dart';
 import '../../suppliers/pages/add_edit_supplier_page.dart';
+import '../widgets/sticky_bottom_summary_bar.dart';
+import '../widgets/stock_in_exit_dialog.dart';
+import '../widgets/stock_in_item_card.dart';
+import '../widgets/stock_in_payment_confirmation_view.dart';
+import '../widgets/stock_in_product_edit_sheet.dart';
 
+/// 2-Step Modern Import Inventory Page matching KiotViet standard and video DATA_IMPORT/video_2026-09-27_07-41-44.mp4.
+///
+/// Flow:
+/// - Step 1: Product Selection & Cart
+///   * Top bar with Close (X) button, title ("Phiếu nhập hàng mới" or resuming draft code), and branch info badge.
+///   * Supplier selector card, product search field with barcode scan button, and category filters.
+///   * Selecting a product opens [StockInProductEditSheet] (pre-filled with latest historical import price).
+///   * Empty state illustration ("Chưa có hàng trong phiếu") or ListView of [StockInItemCard]s.
+///   * Pinned [StickyBottomSummaryBar] with "Lưu tạm" and "Tiếp tục".
+/// - Step 2: Payment & Supplier Confirmation (when "Tiếp tục" tapped):
+///   * Displays [StockInPaymentConfirmationView] with "Xem hàng trong phiếu >", financial lines, payment methods, debt toggle, note, "Lưu tạm", and "Hoàn thành".
+///   * Tapping "Hoàn thành" calls [CompleteStockInReceiptUseCase] with atomic updates and pops.
+/// - PopScope & Exit Handling:
+///   * Intercepts back and close actions with [StockInExitDialog] ("Lưu tạm", "Rời khỏi", "Ở lại") if cart has items.
 class ImportInventoryPage extends ConsumerStatefulWidget {
-  const ImportInventoryPage({super.key});
+  final StockInReceipt? initialReceipt;
+
+  const ImportInventoryPage({super.key, this.initialReceipt});
 
   @override
   ConsumerState<ImportInventoryPage> createState() =>
@@ -25,132 +41,357 @@ class ImportInventoryPage extends ConsumerStatefulWidget {
 }
 
 class _ImportInventoryPageState extends ConsumerState<ImportInventoryPage> {
-  final List<_ImportItem> _items = [_ImportItem()];
-  bool _saving = false;
+  int _currentStep =
+      0; // 0 = Cart & Product Selection, 1 = Payment & Supplier Confirmation
+  late String _receiptId;
+  late String _importCode;
+  final List<StockInReceiptItem> _items = [];
   Supplier? _selectedSupplier;
-  bool _isDebtPayment = false;
-  final TextEditingController _paidAmountController =
-      TextEditingController(text: '0');
+  double _discount = 0.0;
+  double _paidAmount = 0.0;
+  bool _hasUserEditedPaidAmount = false;
+  String _paymentMethod = 'cash';
+  String _note = '';
+  String? _selectedCategory;
 
   @override
-  void dispose() {
-    _paidAmountController.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    if (widget.initialReceipt != null) {
+      final r = widget.initialReceipt!;
+      _receiptId = r.id;
+      _importCode = r.importCode;
+      _items.addAll(r.items);
+      _discount = r.discount;
+      _paymentMethod = r.paymentMethod;
+      _note = r.note;
+
+      final net = (r.totalAmount - r.discount).clamp(0.0, double.infinity);
+      // If paidAmount was not explicitly customized (e.g. paid in full or null)
+      if (r.paidAmount == null ||
+          (r.paidAmount != null && (r.paidAmount! - net).abs() < 1.0)) {
+        _hasUserEditedPaidAmount = false;
+        _paidAmount = net;
+      } else {
+        // User had explicitly set a custom partial payment or 0đ debt
+        _hasUserEditedPaidAmount = true;
+        _paidAmount = r.paidAmount!;
+      }
+
+      if (r.supplierId != null && r.supplierId!.isNotEmpty) {
+        _selectedSupplier = Supplier(
+          id: r.supplierId!,
+          name: r.supplierName ?? 'Nhà cung cấp',
+          code: '',
+          phone: r.supplierPhone ?? '',
+        );
+      }
+    } else {
+      _receiptId = 'PN_${now.millisecondsSinceEpoch}';
+      _importCode = 'PN_${now.millisecondsSinceEpoch}';
+      _paidAmount = 0.0;
+      _hasUserEditedPaidAmount = false;
+    }
+  }
+
+  double get totalGoodsAmount =>
+      _items.fold(0.0, (sum, item) => sum + item.totalPrice);
+
+  int get totalQuantity => _items.fold(0, (sum, item) => sum + item.quantity);
+
+  double get _effectivePaidAmount {
+    if (_hasUserEditedPaidAmount) {
+      return _paidAmount;
+    }
+    return (totalGoodsAmount - _discount).clamp(0.0, double.infinity);
+  }
+
+  Future<void> _handleExit() async {
+    if (_items.isEmpty) {
+      Navigator.of(context).pop();
+      return;
+    }
+
+    final choice = await StockInExitDialog.show(context);
+    if (!mounted) return;
+
+    if (choice == StockInExitChoice.saveDraft) {
+      await _saveDraft();
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+    } else if (choice == StockInExitChoice.exit) {
+      Navigator.of(context).pop();
+    }
+    // choice == stay: do nothing, remain on page
+  }
+
+  Future<void> _saveDraft() async {
+    final now = DateTime.now();
+    final currentStore = ref.read(currentStoreIdProvider);
+    final user = ref.read(authProvider);
+
+    final draftReceipt = StockInReceipt(
+      id: _receiptId.isNotEmpty
+          ? _receiptId
+          : 'PN_DRAFT_${now.millisecondsSinceEpoch}',
+      importCode: _importCode.isNotEmpty
+          ? _importCode
+          : 'PN_${now.millisecondsSinceEpoch}',
+      date: widget.initialReceipt?.date ?? now,
+      storeId: currentStore,
+      supplierId: _selectedSupplier?.id,
+      supplierName: _selectedSupplier?.name,
+      supplierPhone: _selectedSupplier?.phone,
+      createdBy: user?.username,
+      createdByName: user?.name,
+      note: _note,
+      items: _items,
+      discount: _discount,
+      paidAmount: _effectivePaidAmount,
+      status: 'draft',
+      paymentMethod: _paymentMethod,
+      createdAt: widget.initialReceipt?.createdAt ?? now,
+      updatedAt: now,
+    );
+
+    final saveDraftUseCase = ref.read(saveStockInDraftUseCaseProvider);
+    await saveDraftUseCase.execute(draftReceipt);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Đã lưu phiếu tạm'),
+          backgroundColor: AppColors.primaryAction,
+        ),
+      );
+    }
+  }
+
+  Future<void> _completeReceipt({
+    required String? supplierId,
+    required double discount,
+    required double paidAmount,
+    required String paymentMethod,
+    required String note,
+  }) async {
+    final now = DateTime.now();
+    final currentStore = ref.read(currentStoreIdProvider);
+    final user = ref.read(authProvider);
+
+    final receipt = StockInReceipt(
+      id: _receiptId.isNotEmpty
+          ? _receiptId
+          : 'PN_${now.millisecondsSinceEpoch}',
+      importCode: _importCode.isNotEmpty
+          ? _importCode
+          : 'PN_${now.millisecondsSinceEpoch}',
+      date: widget.initialReceipt?.date ?? now,
+      storeId: currentStore,
+      supplierId: supplierId ?? _selectedSupplier?.id,
+      supplierName: _selectedSupplier?.name,
+      supplierPhone: _selectedSupplier?.phone,
+      createdBy: user?.username,
+      createdByName: user?.name,
+      note: note,
+      items: _items,
+      discount: discount,
+      paidAmount: paidAmount,
+      status: 'completed',
+      paymentMethod: paymentMethod,
+      createdAt: widget.initialReceipt?.createdAt ?? now,
+      updatedAt: now,
+    );
+
+    final completeUseCase = ref.read(completeStockInReceiptUseCaseProvider);
+    final completed = await completeUseCase.execute(receipt);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Đã hoàn thành phiếu nhập'),
+          backgroundColor: AppColors.successMedium,
+        ),
+      );
+      Navigator.of(context).pop(completed);
+    }
+  }
+
+  Future<void> _openProductEditSheet(
+      Product product, String currentStoreId) async {
+    final existingIndex = _items.indexWhere((i) => i.productId == product.id);
+    final existingItem = existingIndex >= 0 ? _items[existingIndex] : null;
+
+    final resultItem = await StockInProductEditSheet.show(
+      context: context,
+      product: product,
+      branchStock: product.stockInBranch(currentStoreId),
+      storeId: currentStoreId,
+      existingItem: existingItem,
+    );
+
+    if (resultItem != null && mounted) {
+      setState(() {
+        if (existingIndex >= 0) {
+          _items[existingIndex] = resultItem;
+        } else {
+          _items.add(resultItem);
+        }
+        if (!_hasUserEditedPaidAmount) {
+          _paidAmount =
+              (totalGoodsAmount - _discount).clamp(0.0, double.infinity);
+        }
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final productsAsync = ref.watch(productListProvider);
-    final l10n = AppLocalizations.of(context)!;
     final user = ref.watch(authProvider);
-    final canViewCostPrice = user?.canViewCostPrice ?? false;
     final currentStoreId = ref.watch(currentStoreIdProvider);
     final storesMap = ref.watch(availableStoresProvider).value ?? {};
     final storeName = storesMap[currentStoreId] ??
         (currentStoreId == 'store_002'
             ? 'Chi nhánh Thới Bình'
             : 'Chi nhánh Đông Thắng');
-    final isStoreLocked =
-        user?.isStaff == true || !(user?.canSwitchStore ?? false);
+    final isStoreLocked = user?.isAdmin != true;
+    final canViewCostPrice = user?.canViewCostPrice ?? false;
 
-    final productsList = productsAsync.value ?? [];
-    final double totalCalculatedAmount = _items.fold(0.0, (sum, item) {
-      if (item.productId == null) return sum;
-      if (canViewCostPrice) {
-        return sum + (item.importPrice * item.quantity);
-      } else {
-        final prod = productsList.where((p) => p.id == item.productId).firstOrNull;
-        return sum + ((prod?.costPrice ?? 0.0) * item.quantity);
+    final productsAsync = ref.watch(productListProvider);
+    final allProducts = productsAsync.valueOrNull ?? [];
+    final suppliersAsync = ref.watch(supplierListNotifierProvider);
+    final allSuppliers = suppliersAsync.valueOrNull ?? [];
+
+    // Ensure selectedSupplier entity is synced with live suppliers list
+    if (_selectedSupplier != null && allSuppliers.isNotEmpty) {
+      final matched =
+          allSuppliers.where((s) => s.id == _selectedSupplier!.id).firstOrNull;
+      if (matched != null) {
+        _selectedSupplier = matched;
       }
-    });
+    }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.import),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.save),
-            onPressed: _saving ? null : () => _save(canViewCostPrice: canViewCostPrice),
-          ),
-        ],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-            // Header info
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.inventory_2,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          l10n.importProduct,
-                          style:
-                              Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      l10n.importDescription,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        await _handleExit();
+      },
+      child: _currentStep == 1
+          ? StockInPaymentConfirmationView(
+              receipt: StockInReceipt(
+                id: _receiptId,
+                importCode: _importCode,
+                date: widget.initialReceipt?.date ?? DateTime.now(),
+                storeId: currentStoreId,
+                supplierId: _selectedSupplier?.id,
+                supplierName: _selectedSupplier?.name,
+                supplierPhone: _selectedSupplier?.phone,
+                items: _items,
+                totalAmount: totalGoodsAmount,
+                discount: _discount,
+                paidAmount: _effectivePaidAmount,
+                paymentMethod: _paymentMethod,
+                note: _note,
+              ),
+              suppliers: allSuppliers,
+              onStateChanged: ({
+                String? supplierId,
+                double? discount,
+                double? paidAmount,
+                String? paymentMethod,
+                String? note,
+              }) {
+                setState(() {
+                  if (supplierId != null) {
+                    _selectedSupplier = allSuppliers
+                            .where((s) => s.id == supplierId)
+                            .firstOrNull ??
+                        _selectedSupplier;
+                  }
+                  if (discount != null) _discount = discount;
+                  if (paidAmount != null) {
+                    _paidAmount = paidAmount;
+                    _hasUserEditedPaidAmount = true;
+                  }
+                  if (paymentMethod != null) _paymentMethod = paymentMethod;
+                  if (note != null) _note = note;
+                });
+              },
+              onViewItems: () {
+                setState(() => _currentStep = 0);
+              },
+              onSaveDraft: _saveDraft,
+              onComplete: ({
+                required supplierId,
+                required discount,
+                required paidAmount,
+                required paymentMethod,
+                required note,
+              }) async {
+                await _completeReceipt(
+                  supplierId: supplierId,
+                  discount: discount,
+                  paidAmount: paidAmount,
+                  paymentMethod: paymentMethod,
+                  note: note,
+                );
+              },
+            )
+          : Scaffold(
+              appBar: AppBar(
+                leading: IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: _handleExit,
+                ),
+                title: Text(
+                  widget.initialReceipt != null
+                      ? 'Phiếu ${widget.initialReceipt!.importCode}'
+                      : 'Phiếu nhập hàng mới',
+                ),
+              ),
+              body: Column(
+                children: [
+                  // 1. Branch Store Locked Badge
+                  Container(
+                    margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isStoreLocked
+                          ? Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest
+                          : Theme.of(context)
+                              .colorScheme
+                              .primaryContainer
+                              .withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
                         color: isStoreLocked
-                            ? Theme.of(context)
-                                .colorScheme
-                                .surfaceContainerHighest
+                            ? Theme.of(context).colorScheme.outlineVariant
                             : Theme.of(context)
                                 .colorScheme
-                                .primaryContainer
-                                .withOpacity(0.5),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: isStoreLocked
-                              ? Theme.of(context).colorScheme.outlineVariant
-                              : Theme.of(context)
-                                  .colorScheme
-                                  .primary
-                                  .withOpacity(0.3),
-                        ),
+                                .primary
+                                .withOpacity(0.3),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            isStoreLocked
-                                ? Icons.lock_outline
-                                : Icons.storefront,
-                            size: 16,
-                            color: isStoreLocked
-                                ? Theme.of(context)
-                                .colorScheme
-                                .onSurfaceVariant
-                                : Theme.of(context).colorScheme.primary,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          isStoreLocked ? Icons.lock_outline : Icons.storefront,
+                          size: 16,
+                          color: isStoreLocked
+                              ? Theme.of(context).colorScheme.onSurfaceVariant
+                              : Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
                             'Chi nhánh nhập: $storeName${isStoreLocked ? ' (Cố định)' : ''}',
+                            overflow: TextOverflow.ellipsis,
                             style: Theme.of(context)
                                 .textTheme
                                 .bodySmall
@@ -163,410 +404,410 @@ class _ImportInventoryPageState extends ConsumerState<ImportInventoryPage> {
                                       : Theme.of(context).colorScheme.primary,
                                 ),
                           ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
-            // Supplier Selector Card
-            _buildSupplierCard(context),
-
-            const SizedBox(height: 12),
-
-            // Items
-            productsAsync.when(
-              data: (products) => Column(
-                children: [
-                  ..._items.asMap().entries.map((entry) {
-                    final idx = entry.key;
-                    final item = entry.value;
-                    final Product? product = products
-                            .where((p) => p.id == item.productId)
-                            .firstOrNull ??
-                        (products.isNotEmpty ? products.first : null);
-
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          children: [
-                            // Sản phẩm với Autocomplete
-                            _ProductAutocomplete(
-                              products: products,
-                              selectedProductId: item.productId,
-                              onProductSelected: (productId) => setState(() {
-                                item.productId = productId;
-                                if (productId != null) {
-                                  final selectedProd = products
-                                      .where((p) => p.id == productId)
-                                      .firstOrNull;
-                                  if (selectedProd != null) {
-                                    item.importPrice = selectedProd.costPrice;
-                                  }
-                                }
-                              }),
-                            ),
-
-                            const SizedBox(height: 12),
-
-                            // Số lượng và giá nhập
-                            if (canViewCostPrice)
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: TextFormField(
-                                      initialValue: item.quantity.toString(),
-                                      decoration: InputDecoration(
-                                        labelText: l10n.quantity,
-                                        border: const OutlineInputBorder(),
-                                      ),
-                                      keyboardType: TextInputType.number,
-                                      onChanged: (v) => setState(() {
-                                        item.quantity =
-                                            int.tryParse(v) ?? 1;
-                                      }),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: TextFormField(
-                                      initialValue: item.importPrice.toString(),
-                                      decoration: InputDecoration(
-                                        labelText: l10n.importPrice,
-                                        border: const OutlineInputBorder(),
-                                      ),
-                                      keyboardType: TextInputType.number,
-                                      onChanged: (v) => setState(() {
-                                        item.importPrice =
-                                            double.tryParse(v) ?? 0.0;
-                                      }),
-                                    ),
-                                  ),
-                                ],
-                              )
-                            else
-                              TextFormField(
-                                initialValue: item.quantity.toString(),
-                                decoration: InputDecoration(
-                                  labelText: l10n.quantity,
-                                  border: const OutlineInputBorder(),
-                                ),
-                                keyboardType: TextInputType.number,
-                                onChanged: (v) => setState(() {
-                                  item.quantity = int.tryParse(v) ?? 1;
-                                }),
-                              ),
-
-                            const SizedBox(height: 12),
-
-                            // Thông tin hiển thị
-                            if (product != null) ...[
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: _buildInfoField(
-                                      l10n.currentStock,
-                                      '${product.stock}',
-                                      Icons.inventory,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: _buildInfoField(
-                                      l10n.stockAfterImport,
-                                      '${product.stock + item.quantity}',
-                                      Icons.add_circle,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-
-                            if (_items.length > 1)
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: TextButton.icon(
-                                  onPressed: () =>
-                                      setState(() => _items.removeAt(idx)),
-                                  icon: const Icon(Icons.delete_outline,
-                                      color: Colors.red),
-                                  label: Text(l10n.delete,
-                                      style:
-                                          const TextStyle(color: Colors.red)),
-                                ),
-                              ),
-                          ],
                         ),
-                      ),
-                    );
-                  }),
-                  OutlinedButton.icon(
-                    onPressed: () => setState(() => _items.add(_ImportItem())),
-                    icon: const Icon(Icons.add),
-                    label: Text(l10n.addProduct),
+                      ],
+                    ),
+                  ),
+
+                  // 2. Supplier Selector Card
+                  Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    child: _buildSupplierSelectorCard(context),
+                  ),
+
+                  // 3. Product Search with Barcode Scanner & Category Filter
+                  Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    child: _buildProductSearchBar(
+                        context, allProducts, currentStoreId),
+                  ),
+
+                  // Category Filter Chips
+                  _buildCategoryChips(allProducts),
+
+                  // 4. Cart Items or Empty State Illustration
+                  Expanded(
+                    child: _items.isEmpty
+                        ? _buildEmptyState(context)
+                        : ListView.builder(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            itemCount: _items.length,
+                            itemBuilder: (ctx, index) {
+                              final item = _items[index];
+                              final product = allProducts.firstWhere(
+                                (p) => p.id == item.productId,
+                                orElse: () => Product(
+                                  id: item.productId,
+                                  name: item.productName ?? 'Sản phẩm',
+                                  code: item.productCode ?? '',
+                                  price: 0,
+                                  costPrice: item.unitPrice,
+                                  branchStocks: const {},
+                                  category: '',
+                                ),
+                              );
+                              final currentStock =
+                                  product.stockInBranch(currentStoreId);
+
+                              return StockInItemCard(
+                                item: item,
+                                currentStock: currentStock,
+                                isMasked: !canViewCostPrice,
+                                onQuantityChanged: (newQty) {
+                                  setState(() {
+                                    _items[index] =
+                                        item.copyWith(quantity: newQty);
+                                    if (!_hasUserEditedPaidAmount) {
+                                      _paidAmount =
+                                          (totalGoodsAmount - _discount)
+                                              .clamp(0.0, double.infinity);
+                                    }
+                                  });
+                                },
+                                onDelete: () {
+                                  setState(() {
+                                    _items.removeAt(index);
+                                    if (!_hasUserEditedPaidAmount) {
+                                      _paidAmount =
+                                          (totalGoodsAmount - _discount)
+                                              .clamp(0.0, double.infinity);
+                                    }
+                                  });
+                                },
+                                onTap: () => _openProductEditSheet(
+                                    product, currentStoreId),
+                              );
+                            },
+                          ),
+                  ),
+
+                  // 5. Pinned StickyBottomSummaryBar
+                  StickyBottomSummaryBar(
+                    totalAmount: totalGoodsAmount,
+                    itemCount: _items.length,
+                    totalQuantity: totalQuantity,
+                    isEnabled: _items.isNotEmpty,
+                    onSaveDraft: _saveDraft,
+                    onContinue: () {
+                      if (!_hasUserEditedPaidAmount) {
+                        _paidAmount = (totalGoodsAmount - _discount)
+                            .clamp(0.0, double.infinity);
+                      }
+                      setState(() => _currentStep = 1);
+                    },
                   ),
                 ],
               ),
-              loading: () =>
-                  const SizedBox(height: 120, child: LoadingIndicator()),
-              error: (e, _) => ErrorView(e),
             ),
-
-            const SizedBox(height: 12),
-
-            // Payment Option Card
-            _buildPaymentOptionCard(
-              context: context,
-              canViewCostPrice: canViewCostPrice,
-              totalAmount: totalCalculatedAmount,
-            ),
-
-            const SizedBox(height: 12),
-
-            // Summary
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      l10n.importSummary,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(l10n.numberOfProducts),
-                        Text('${_items.length}'),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(l10n.totalQuantity),
-                        Text(
-                            '${_items.fold(0, (sum, item) => sum + item.quantity)}'),
-                      ],
-                    ),
-                    if (canViewCostPrice) ...[
-                      const SizedBox(height: 4),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(l10n.totalValue),
-                          Text(
-                            NumberFormat.currency(locale: 'vi_VN', symbol: 'đ')
-                                .format(_items.fold(
-                                    0.0,
-                                    (sum, item) =>
-                                        sum +
-                                        (item.importPrice * item.quantity))),
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
+    );
   }
 
-  Widget _buildSupplierCard(BuildContext context) {
+  Widget _buildSupplierSelectorCard(BuildContext context) {
+    final theme = Theme.of(context);
+    final hasSupplier = _selectedSupplier != null;
+
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.local_shipping_outlined,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Nhà cung cấp',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                  ],
-                ),
-                if (_selectedSupplier != null)
-                  TextButton.icon(
-                    onPressed: () => setState(() => _selectedSupplier = null),
-                    icon: const Icon(Icons.close, size: 16, color: Colors.red),
-                    label: const Text(
-                      'Bỏ chọn',
-                      style: TextStyle(color: Colors.red, fontSize: 13),
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            if (_selectedSupplier == null)
-              InkWell(
-                key: const Key('select_supplier_btn'),
-                onTap: () => _showSupplierSelectSheet(context),
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .surfaceContainerHighest
-                        .withOpacity(0.5),
-                    border: Border.all(
-                      color: Theme.of(context).colorScheme.outlineVariant,
-                    ),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
+      elevation: 0.5,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: const BorderSide(color: AppColors.grey200),
+      ),
+      color: AppColors.white,
+      child: InkWell(
+        key: const Key('select_supplier_btn'),
+        borderRadius: BorderRadius.circular(10),
+        onTap: () => _showSupplierSelectSheet(context),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Row 1: "Nhà cung cấp" on the left, "Bỏ chọn" (or chevron) on the right (same row!)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.person_search,
-                          color:
-                              Theme.of(context).colorScheme.onSurfaceVariant),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'Chưa chọn Nhà Cung Cấp (Bấm để chọn)',
-                          style: TextStyle(
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
-                            fontSize: 14,
-                          ),
+                      Icon(
+                        Icons.business,
+                        size: 16,
+                        color: theme.colorScheme.primary,
+                      ),
+                      const SizedBox(width: 6),
+                      const Text(
+                        'Nhà cung cấp',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.grey600,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                      Icon(Icons.chevron_right,
-                          color:
-                              Theme.of(context).colorScheme.onSurfaceVariant),
                     ],
                   ),
-                ),
-              )
-            else
-              Container(
-                key: const Key('selected_supplier_card'),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .primaryContainer
-                      .withOpacity(0.12),
-                  border: Border.all(
-                    color:
-                        Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                  if (hasSupplier)
+                    InkWell(
+                      borderRadius: BorderRadius.circular(4),
+                      onTap: () {
+                        setState(() => _selectedSupplier = null);
+                      },
+                      child: const Padding(
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                        child: Text(
+                          'Bỏ chọn',
+                          style: TextStyle(
+                            color: AppColors.danger,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    const Icon(Icons.chevron_right,
+                        color: AppColors.grey400, size: 18),
+                ],
+              ),
+              const SizedBox(height: 6),
+              // Row 2: Selected supplier info OR prompt
+              if (!hasSupplier)
+                const Text(
+                  'Chưa chọn Nhà Cung Cấp (Bấm để chọn)',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.grey400,
+                    fontWeight: FontWeight.w500,
                   ),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
+                )
+              else
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    CircleAvatar(
-                      radius: 20,
-                      backgroundColor:
-                          Theme.of(context).colorScheme.primaryContainer,
+                    Expanded(
                       child: Text(
-                        _selectedSupplier!.name.isNotEmpty
-                            ? _selectedSupplier!.name.substring(0, 1).toUpperCase()
-                            : 'S',
-                        style: TextStyle(
+                        _selectedSupplier!.name,
+                        style: const TextStyle(
+                          fontSize: 13,
                           fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.primary,
+                          color: AppColors.textTitle,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    if (_selectedSupplier!.code.isNotEmpty) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primary.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          _selectedSupplier!.code,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                    ],
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: _selectedSupplier!.currentDebt > 0
+                            ? AppColors.dangerLight
+                            : AppColors.successLight,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        _selectedSupplier!.currentDebt > 0
+                            ? 'Nợ: ${NumberFormat('#,###', 'vi_VN').format(_selectedSupplier!.currentDebt)} đ'
+                            : 'Không có nợ',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: _selectedSupplier!.currentDebt > 0
+                              ? AppColors.dangerDark
+                              : AppColors.successDark,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _selectedSupplier!.name,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleSmall
-                                ?.copyWith(fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 2),
-                          Row(
-                            children: [
-                              Text(
-                                _selectedSupplier!.code,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(
-                                      color:
-                                          Theme.of(context).colorScheme.primary,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                              ),
-                              if (_selectedSupplier!.phone.isNotEmpty) ...[
-                                const SizedBox(width: 8),
-                                Text(
-                                  '•  ${_selectedSupplier!.phone}',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodySmall
-                                      ?.copyWith(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSurfaceVariant,
-                                      ),
-                                ),
-                              ],
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            _selectedSupplier!.currentDebt > 0
-                                ? 'Nợ hiện tại: ${NumberFormat.currency(locale: 'vi_VN', symbol: 'đ').format(_selectedSupplier!.currentDebt)}'
-                                : 'Không có nợ',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: _selectedSupplier!.currentDebt > 0
-                                  ? Colors.red[700]
-                                  : Colors.green[700],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () => _showSupplierSelectSheet(context),
-                      child: const Text('Đổi'),
-                    ),
                   ],
                 ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProductSearchBar(
+    BuildContext context,
+    List<Product> products,
+    String currentStoreId,
+  ) {
+    final filtered = _selectedCategory == null
+        ? products
+        : products.where((p) => p.category == _selectedCategory).toList();
+
+    return Row(
+      children: [
+        Expanded(
+          child: Autocomplete<Product>(
+            displayStringForOption: (product) =>
+                '${product.name} • ${product.code}',
+            optionsBuilder: (textEditingValue) {
+              if (textEditingValue.text.isEmpty) {
+                return const Iterable<Product>.empty();
+              }
+              final query = textEditingValue.text.toLowerCase().trim();
+              return filtered.where((p) {
+                return p.name.toLowerCase().contains(query) ||
+                    p.code.toLowerCase().contains(query) ||
+                    (p.barcode != null && p.barcode!.contains(query));
+              });
+            },
+            onSelected: (product) {
+              _openProductEditSheet(product, currentStoreId);
+            },
+            fieldViewBuilder:
+                (context, controller, focusNode, onFieldSubmitted) {
+              return ListenableBuilder(
+                listenable: controller,
+                builder: (context, _) {
+                  return TextFormField(
+                    controller: controller,
+                    focusNode: focusNode,
+                    decoration: InputDecoration(
+                      labelText: 'Tìm kiếm sản phẩm',
+                      hintText: 'Tên, mã SKU, mã vạch...',
+                      prefixIcon: const Icon(Icons.search, size: 20),
+                      suffixIcon: controller.text.isNotEmpty
+                          ? IconButton(
+                              key: const Key('btn_clear_product_search'),
+                              icon: const Icon(Icons.clear,
+                                  size: 18, color: AppColors.grey400),
+                              tooltip: 'Xóa tìm kiếm',
+                              onPressed: () {
+                                controller.clear();
+                              },
+                            )
+                          : null,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                      isDense: true,
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+        const SizedBox(width: 8),
+        IconButton(
+          key: const Key('btn_barcode_scanner'),
+          icon:
+              const Icon(Icons.qr_code_scanner, color: AppColors.primaryAction),
+          tooltip: 'Quét mã vạch',
+          onPressed: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Tính năng quét mã vạch đang được kích hoạt'),
+                duration: Duration(seconds: 1),
               ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCategoryChips(List<Product> products) {
+    final categories = products
+        .map((p) => p.category)
+        .where((c) => c.trim().isNotEmpty)
+        .toSet()
+        .toList();
+
+    if (categories.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      height: 38,
+      margin: const EdgeInsets.only(top: 2, bottom: 4),
+      child: ListView.separated(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        scrollDirection: Axis.horizontal,
+        itemCount: categories.length + 1,
+        separatorBuilder: (_, __) => const SizedBox(width: 6),
+        itemBuilder: (ctx, index) {
+          if (index == 0) {
+            final isSelected = _selectedCategory == null;
+            return ChoiceChip(
+              label: const Text('Tất cả', style: TextStyle(fontSize: 12)),
+              selected: isSelected,
+              onSelected: (_) => setState(() => _selectedCategory = null),
+            );
+          }
+          final cat = categories[index - 1];
+          final isSelected = _selectedCategory == cat;
+          return ChoiceChip(
+            label: Text(cat, style: const TextStyle(fontSize: 12)),
+            selected: isSelected,
+            onSelected: (sel) {
+              setState(() => _selectedCategory = sel ? cat : null);
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(BuildContext context) {
+    return Center(
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: const BoxDecoration(
+                color: AppColors.primaryLight,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.receipt_long_outlined,
+                size: 30,
+                color: AppColors.primaryAction,
+              ),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'Chưa có hàng trong phiếu',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textTitle,
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Tìm kiếm hoặc quét mã vạch để thêm sản phẩm vào phiếu nhập',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12, color: AppColors.grey600),
+            ),
           ],
         ),
       ),
@@ -590,519 +831,6 @@ class _ImportInventoryPageState extends ConsumerState<ImportInventoryPage> {
       },
     );
   }
-
-  Widget _buildPaymentOptionCard({
-    required BuildContext context,
-    required bool canViewCostPrice,
-    required double totalAmount,
-  }) {
-    final theme = Theme.of(context);
-    final paidAmount = canViewCostPrice
-        ? (double.tryParse(_paidAmountController.text
-                .replaceAll('.', '')
-                .replaceAll(',', '')) ??
-            0.0)
-        : 0.0;
-    final debtIncrease = (totalAmount - paidAmount).clamp(0.0, double.infinity);
-    final currentDebt = _selectedSupplier?.currentDebt ?? 0.0;
-    final newDebt = currentDebt + debtIncrease;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.payment, color: theme.colorScheme.primary),
-                const SizedBox(width: 8),
-                Text(
-                  'Hình thức thanh toán',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            RadioListTile<bool>(
-              value: false,
-              groupValue: _isDebtPayment,
-              onChanged: (val) {
-                if (val != null) {
-                  setState(() => _isDebtPayment = val);
-                }
-              },
-              title: const Text('Thanh toán toàn bộ'),
-              subtitle: Text(
-                'Toàn bộ tiền hàng thanh toán ngay',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              contentPadding: EdgeInsets.zero,
-            ),
-            RadioListTile<bool>(
-              value: true,
-              groupValue: _isDebtPayment,
-              onChanged: (val) {
-                if (val != null) {
-                  setState(() => _isDebtPayment = val);
-                }
-              },
-              title: Text(
-                canViewCostPrice ? 'Ghi nợ NCC' : 'Ghi nợ NCC (100%)',
-              ),
-              subtitle: Text(
-                canViewCostPrice
-                    ? 'Ghi nhận công nợ (trả trước một phần hoặc nợ toàn bộ)'
-                    : 'Ghi nhận công nợ 100% theo định mức giá vốn hệ thống',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              contentPadding: EdgeInsets.zero,
-            ),
-            if (!canViewCostPrice) ...[
-              Padding(
-                padding: const EdgeInsets.only(top: 4, left: 16),
-                child: Text(
-                  'Đơn vị tính giá vốn tự động theo định mức hệ thống',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-              ),
-            ],
-            if (_isDebtPayment && canViewCostPrice) ...[
-              const SizedBox(height: 12),
-              TextFormField(
-                key: const Key('paid_amount_field'),
-                controller: _paidAmountController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Số tiền thanh toán trước cho NCC',
-                  hintText: 'Nhập 0 nếu nợ 100%',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.attach_money),
-                  suffixText: 'đ',
-                ),
-                onChanged: (_) => setState(() {}),
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest
-                      .withOpacity(0.6),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: theme.colorScheme.outlineVariant,
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Chi tiết công nợ phát sinh:',
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    _buildPreviewRow(
-                      'Tiền hàng:',
-                      NumberFormat.currency(locale: 'vi_VN', symbol: 'đ')
-                          .format(totalAmount),
-                    ),
-                    _buildPreviewRow(
-                      'Đã thanh toán:',
-                      NumberFormat.currency(locale: 'vi_VN', symbol: 'đ')
-                          .format(paidAmount.clamp(0.0, totalAmount)),
-                    ),
-                    const Divider(),
-                    _buildPreviewRow(
-                      'Ghi nhận nợ NCC:',
-                      '+ ${NumberFormat.currency(locale: 'vi_VN', symbol: 'đ').format(debtIncrease)}',
-                      valueColor: Colors.orange[800],
-                      isBold: true,
-                    ),
-                    if (_selectedSupplier != null) ...[
-                      const SizedBox(height: 4),
-                      _buildPreviewRow(
-                        'Nợ cũ NCC:',
-                        NumberFormat.currency(locale: 'vi_VN', symbol: 'đ')
-                            .format(currentDebt),
-                      ),
-                      _buildPreviewRow(
-                        'Dư nợ mới sau nhập:',
-                        NumberFormat.currency(locale: 'vi_VN', symbol: 'đ')
-                            .format(newDebt),
-                        valueColor: Colors.red[700],
-                        isBold: true,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-            if (_isDebtPayment && _selectedSupplier == null) ...[
-              const SizedBox(height: 8),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.amber.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: Colors.amber[700]!),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.warning_amber_rounded,
-                        color: Colors.amber[800], size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Chưa chọn Nhà Cung Cấp. Vui lòng chọn NCC để ghi nợ.',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.amber[900],
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPreviewRow(
-    String label,
-    String value, {
-    Color? valueColor,
-    bool isBold = false,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
-              color: valueColor,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoField(String label, String value, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        children: [
-          Icon(icon,
-              size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _save({required bool canViewCostPrice}) async {
-    final l10n = AppLocalizations.of(context)!;
-
-    // Validate
-    if (_isDebtPayment && _selectedSupplier == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Vui lòng chọn Nhà Cung Cấp để ghi nợ'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
-    for (final item in _items) {
-      if (item.productId == null ||
-          item.quantity <= 0 ||
-          (canViewCostPrice && item.importPrice <= 0)) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.checkProductsAndQuantity)),
-        );
-        return;
-      }
-    }
-
-    setState(() => _saving = true);
-    try {
-      final now = DateTime.now();
-      final products = ref
-          .read(productListProvider)
-          .maybeWhen(data: (v) => v, orElse: () => <Product>[]);
-      final productRepo = ref.read(productRepositoryProvider);
-      final inventoryRepo = ref.read(inventoryRepositoryProvider);
-
-      final currentUser = ref.read(authProvider);
-      final currentStoreId = ref.read(currentStoreIdProvider);
-
-      final importCode = 'PN_${now.millisecondsSinceEpoch}';
-      double calculatedTotalAmount = 0.0;
-
-      for (final item in _items) {
-        final product = products.firstWhere((p) => p.id == item.productId);
-        final effectiveImportPrice =
-            canViewCostPrice ? item.importPrice : product.costPrice;
-
-        calculatedTotalAmount += effectiveImportPrice * item.quantity;
-
-        // 1) Cập nhật stock chi nhánh và tính toán lại giá vốn (Weighted Average)
-        final branchStocks = Map<String, int>.from(product.branchStocks);
-        String targetKey = currentStoreId;
-        if (!branchStocks.containsKey(currentStoreId)) {
-          if (currentStoreId == 'store_001' &&
-              branchStocks.containsKey('branch_1')) {
-            targetKey = 'branch_1';
-          } else if (currentStoreId == 'store_002' &&
-              branchStocks.containsKey('branch_2')) {
-            targetKey = 'branch_2';
-          }
-        }
-        final currentBranchStock = branchStocks[targetKey] ?? 0;
-        branchStocks[targetKey] = currentBranchStock + item.quantity;
-
-        final currentTotalStock = product.stock;
-        final double newCostPrice = (currentTotalStock + item.quantity) > 0
-            ? ((currentTotalStock * product.costPrice) +
-                    (item.quantity * effectiveImportPrice)) /
-                (currentTotalStock + item.quantity)
-            : effectiveImportPrice;
-
-        final updatedProduct = product.copyWith(
-          branchStocks: branchStocks,
-          costPrice: newCostPrice,
-        );
-        await productRepo.upsert(updatedProduct);
-
-        // 2) Ghi inventory transaction kèm supplierId, supplierName, importCode
-        await inventoryRepo.record(InventoryTransaction(
-          id: 'import_${now.millisecondsSinceEpoch}_${item.productId}',
-          productId: item.productId!,
-          type: TransactionType.import,
-          quantity: item.quantity,
-          date: now,
-          note: 'Import - ${product.name}',
-          importPrice: effectiveImportPrice,
-          createdBy: currentUser?.username,
-          createdByName: currentUser?.name,
-          storeId: currentStoreId,
-          supplierId: _selectedSupplier?.id,
-          supplierName: _selectedSupplier?.name,
-          importCode: importCode,
-        ));
-      }
-
-      // 3) Ghi nhận công nợ và doanh số mua hàng nếu có chọn Nhà Cung Cấp
-      if (_selectedSupplier != null) {
-        final double effectivePaidAmount;
-        if (!_isDebtPayment) {
-          effectivePaidAmount = calculatedTotalAmount;
-        } else if (canViewCostPrice) {
-          final rawPaid = double.tryParse(_paidAmountController.text
-                  .replaceAll('.', '')
-                  .replaceAll(',', '')) ??
-              0.0;
-          effectivePaidAmount = rawPaid.clamp(0.0, calculatedTotalAmount);
-        } else {
-          // Staff chọn Ghi nợ NCC (100%)
-          effectivePaidAmount = 0.0;
-        }
-
-        await ref.read(supplierListNotifierProvider.notifier).recordImportDebt(
-              supplierId: _selectedSupplier!.id,
-              totalAmount: calculatedTotalAmount,
-              paidAmount: effectivePaidAmount,
-              importCode: importCode,
-              note: 'Nhập hàng - $importCode',
-              createdBy: currentUser?.name ?? currentUser?.username ?? 'Admin',
-            );
-      }
-
-      // Refresh providers
-      ref.invalidate(productListProvider);
-
-      if (mounted) {
-        Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(l10n.updated),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
-  }
-}
-
-// Widget Autocomplete cho sản phẩm (tương tự như CreateOrderPage)
-class _ProductAutocomplete extends StatefulWidget {
-  final List<Product> products;
-  final String? selectedProductId;
-  final Function(String?) onProductSelected;
-
-  const _ProductAutocomplete({
-    required this.products,
-    required this.selectedProductId,
-    required this.onProductSelected,
-  });
-
-  @override
-  State<_ProductAutocomplete> createState() => _ProductAutocompleteState();
-}
-
-class _ProductAutocompleteState extends State<_ProductAutocomplete> {
-  late TextEditingController _controller;
-  String _lastSelectedText = '';
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController();
-    _updateDisplayText();
-  }
-
-  @override
-  void didUpdateWidget(_ProductAutocomplete oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.selectedProductId != widget.selectedProductId) {
-      _updateDisplayText();
-    }
-  }
-
-  void _updateDisplayText() {
-    if (widget.selectedProductId != null) {
-      final product = widget.products.firstWhere(
-        (p) => p.id == widget.selectedProductId,
-        orElse: () => const Product(
-            id: '',
-            name: '',
-            code: '',
-            brand: '',
-            model: '',
-            price: 0,
-            costPrice: 0,
-            branchStocks: {},
-            category: ''),
-      );
-      _lastSelectedText =
-          '${product.name} • ${product.brand ?? ''} • ${product.model ?? ''}';
-      _controller.text = _lastSelectedText;
-    } else {
-      _lastSelectedText = '';
-      _controller.text = '';
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-
-    return Autocomplete<Product>(
-      displayStringForOption: (product) =>
-          '${product.name} • ${product.brand ?? ''} • ${product.model ?? ''}',
-      optionsBuilder: (textEditingValue) {
-        final nonComboProducts =
-            widget.products.where((p) => !p.isCombo).toList();
-        if (textEditingValue.text.isEmpty) {
-          return nonComboProducts;
-        }
-        return nonComboProducts.where((product) {
-          final query = textEditingValue.text.toLowerCase();
-          return product.name.toLowerCase().contains(query) ||
-              (product.brand ?? '').toLowerCase().contains(query) ||
-              (product.model ?? '').toLowerCase().contains(query);
-        }).toList();
-      },
-      onSelected: (product) {
-        widget.onProductSelected(product.id);
-        _lastSelectedText =
-            '${product.name} • ${product.brand ?? ''} • ${product.model ?? ''}';
-        _controller.text = _lastSelectedText;
-      },
-      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-        return TextFormField(
-          controller: controller,
-          focusNode: focusNode,
-          decoration: InputDecoration(
-            labelText: l10n.searchProducts,
-            border: const OutlineInputBorder(),
-            suffixIcon: const Icon(Icons.search),
-            hintText: l10n.searchProductsHint,
-          ),
-          onChanged: (value) {
-            if (value != _lastSelectedText && value.isNotEmpty) {
-              widget.onProductSelected(null);
-            }
-          },
-        );
-      },
-    );
-  }
-}
-
-class _ImportItem {
-  String? productId;
-  int quantity = 1;
-  double importPrice = 0.0;
 }
 
 class _SupplierSelectSheet extends ConsumerStatefulWidget {
@@ -1151,7 +879,7 @@ class _SupplierSelectSheetState extends ConsumerState<_SupplierSelectSheet> {
                   height: 4,
                   margin: const EdgeInsets.only(bottom: 12),
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.outlineVariant,
+                    color: AppColors.grey300,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -1168,30 +896,36 @@ class _SupplierSelectSheetState extends ConsumerState<_SupplierSelectSheet> {
                   ),
                   TextButton.icon(
                     key: const Key('quick_add_supplier_btn'),
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('Thêm mới NCC'),
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                    ),
                     onPressed: () async {
-                      final newSupplier =
-                          await Navigator.of(context).push<Supplier>(
+                      final navigator = Navigator.of(context);
+                      final newSupplier = await navigator.push<Supplier>(
                         MaterialPageRoute(
                           builder: (_) => const AddEditSupplierPage(),
                         ),
                       );
-                      if (newSupplier != null && context.mounted) {
+                      if (!mounted) return;
+                      if (newSupplier != null) {
                         widget.onSupplierSelected(newSupplier);
-                        Navigator.of(context).pop();
+                        navigator.pop();
                       }
                     },
-                    icon: const Icon(Icons.add, size: 18),
-                    label: const Text('+ Thêm nhanh NCC'),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               // Search input
               TextField(
                 key: const Key('supplier_search_field'),
                 controller: _searchController,
                 decoration: InputDecoration(
-                  hintText: 'Tìm theo tên, mã, SĐT nhà cung cấp...',
+                  hintText: 'Tìm theo tên, mã NCC, SĐT...',
                   prefixIcon: const Icon(Icons.search),
                   suffixIcon: _searchQuery.isNotEmpty
                       ? IconButton(
@@ -1205,46 +939,27 @@ class _SupplierSelectSheetState extends ConsumerState<_SupplierSelectSheet> {
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 10),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 ),
-                onChanged: (val) => setState(() => _searchQuery = val),
+                onChanged: (val) =>
+                    setState(() => _searchQuery = val.trim().toLowerCase()),
               ),
-              const SizedBox(height: 12),
-              // Supplier List
+              const SizedBox(height: 8),
+              // Suppliers list
               Expanded(
                 child: suppliersAsync.when(
                   data: (suppliers) {
-                    final queryNorm = VietnameseTextHelper.normalizeUnaccented(
-                        _searchQuery.trim());
                     final filtered = suppliers.where((s) {
-                      if (queryNorm.isEmpty) return true;
-                      final nameNorm =
-                          VietnameseTextHelper.normalizeUnaccented(s.name);
-                      final codeNorm = s.code.toLowerCase();
-                      final phone = s.phone;
-                      return nameNorm.contains(queryNorm) ||
-                          codeNorm.contains(queryNorm) ||
-                          phone.contains(queryNorm);
+                      if (_searchQuery.isEmpty) return true;
+                      return s.name.toLowerCase().contains(_searchQuery) ||
+                          s.code.toLowerCase().contains(_searchQuery) ||
+                          s.phone.toLowerCase().contains(_searchQuery);
                     }).toList();
 
                     if (filtered.isEmpty) {
-                      return Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.person_off_outlined,
-                                size: 48,
-                                color: theme.colorScheme.onSurfaceVariant),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Không tìm thấy nhà cung cấp',
-                              style: TextStyle(
-                                  color: theme.colorScheme.onSurfaceVariant),
-                            ),
-                          ],
-                        ),
-                      );
+                      return const Center(
+                          child: Text('Không tìm thấy Nhà Cung Cấp'));
                     }
 
                     return ListView.separated(
@@ -1257,51 +972,30 @@ class _SupplierSelectSheetState extends ConsumerState<_SupplierSelectSheet> {
                             supplier.id == widget.selectedSupplierId;
 
                         return ListTile(
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
+                          selected: isSelected,
+                          selectedTileColor: theme.colorScheme.primaryContainer
+                              .withOpacity(0.3),
                           leading: CircleAvatar(
-                            backgroundColor: isSelected
-                                ? theme.colorScheme.primary
-                                : theme.colorScheme.primaryContainer,
-                            foregroundColor: isSelected
-                                ? theme.colorScheme.onPrimary
-                                : theme.colorScheme.onPrimaryContainer,
+                            backgroundColor:
+                                theme.colorScheme.primary.withOpacity(0.1),
                             child: Text(
                               supplier.name.isNotEmpty
-                                  ? supplier.name.substring(0, 1).toUpperCase()
-                                  : 'S',
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.bold),
+                                  ? supplier.name[0].toUpperCase()
+                                  : 'N',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: theme.colorScheme.primary,
+                              ),
                             ),
                           ),
                           title: Text(
                             supplier.name,
-                            style: TextStyle(
-                              fontWeight: isSelected
-                                  ? FontWeight.bold
-                                  : FontWeight.w600,
-                            ),
+                            style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '${supplier.code} • ${supplier.phone.isNotEmpty ? supplier.phone : 'Không có SĐT'}',
-                                style: theme.textTheme.bodySmall,
-                              ),
-                              Text(
-                                supplier.currentDebt > 0
-                                    ? 'Nợ: ${NumberFormat.currency(locale: 'vi_VN', symbol: 'đ').format(supplier.currentDebt)}'
-                                    : 'Không có nợ',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                  color: supplier.currentDebt > 0
-                                      ? Colors.red[700]
-                                      : Colors.green[700],
-                                ),
-                              ),
-                            ],
+                          subtitle: Text(
+                            '${supplier.code} • ${supplier.phone}',
+                            style: const TextStyle(
+                                color: AppColors.grey600, fontSize: 12),
                           ),
                           trailing: isSelected
                               ? Icon(Icons.check_circle,
@@ -1315,8 +1009,9 @@ class _SupplierSelectSheetState extends ConsumerState<_SupplierSelectSheet> {
                       },
                     );
                   },
-                  loading: () => const Center(child: LoadingIndicator()),
-                  error: (e, _) => ErrorView(e),
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (e, _) => Center(child: Text('Lỗi: $e')),
                 ),
               ),
             ],

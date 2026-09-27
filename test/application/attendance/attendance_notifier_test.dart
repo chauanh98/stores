@@ -213,6 +213,119 @@ void main() {
       expect(state.todayAttendance!.totalWorkHours, 4.75);
     });
 
+    test('Check-out: late check-in (12:00) and check-out (14:00) yields 0 overtime minutes (fixes 2h worked bug)', () async {
+      final notifier = container.read(attendanceNotifierProvider.notifier);
+      await notifier.init(
+        storeId: 'store_001',
+        userId: testUser.username,
+        initialShift: morningShift,
+      );
+
+      await notifier.checkIn(
+        user: testUser,
+        storeId: 'store_001',
+        checkInTimestamp: DateTime(2026, 9, 13, 12, 0),
+      );
+
+      final checkOutTime = DateTime(2026, 9, 13, 14, 0);
+      final success = await notifier.checkOut(
+        user: testUser,
+        storeId: 'store_001',
+        checkOutTimestamp: checkOutTime,
+      );
+
+      expect(success, isTrue);
+      final state = container.read(attendanceNotifierProvider);
+      expect(state.todayAttendance!.overtimeMinutes, 0);
+      expect(state.todayAttendance!.status, AttendanceStatus.late);
+      expect(state.todayAttendance!.totalWorkHours, 2.0);
+    });
+
+    test('Check-out: late check-in (09:00) and check-out (13:00) compensates late arrival and yields 0 overtime', () async {
+      final notifier = container.read(attendanceNotifierProvider.notifier);
+      await notifier.init(
+        storeId: 'store_001',
+        userId: testUser.username,
+        initialShift: morningShift,
+      );
+
+      await notifier.checkIn(
+        user: testUser,
+        storeId: 'store_001',
+        checkInTimestamp: DateTime(2026, 9, 13, 9, 0),
+      );
+
+      final checkOutTime = DateTime(2026, 9, 13, 13, 0);
+      final success = await notifier.checkOut(
+        user: testUser,
+        storeId: 'store_001',
+        checkOutTimestamp: checkOutTime,
+      );
+
+      expect(success, isTrue);
+      final state = container.read(attendanceNotifierProvider);
+      expect(state.todayAttendance!.overtimeMinutes, 0);
+      expect(state.todayAttendance!.status, AttendanceStatus.late);
+      expect(state.todayAttendance!.totalWorkHours, 4.0);
+    });
+
+    test('Check-out: late check-in (09:00) and check-out (13:30) yields 30 min overtime', () async {
+      final notifier = container.read(attendanceNotifierProvider.notifier);
+      await notifier.init(
+        storeId: 'store_001',
+        userId: testUser.username,
+        initialShift: morningShift,
+      );
+
+      await notifier.checkIn(
+        user: testUser,
+        storeId: 'store_001',
+        checkInTimestamp: DateTime(2026, 9, 13, 9, 0),
+      );
+
+      final checkOutTime = DateTime(2026, 9, 13, 13, 30);
+      final success = await notifier.checkOut(
+        user: testUser,
+        storeId: 'store_001',
+        checkOutTimestamp: checkOutTime,
+      );
+
+      expect(success, isTrue);
+      final state = container.read(attendanceNotifierProvider);
+      expect(state.todayAttendance!.overtimeMinutes, 30);
+      expect(state.todayAttendance!.status, AttendanceStatus.overtime);
+      expect(state.todayAttendance!.totalWorkHours, 4.5);
+    });
+
+    test('Check-out: flexible shift records overtime when worked hours exceed standardWorkHours', () async {
+      final flexibleShift = Shift.defaultShifts().firstWhere((s) => s.type == 'flexible');
+      final notifier = container.read(attendanceNotifierProvider.notifier);
+      await notifier.init(
+        storeId: 'store_001',
+        userId: testUser.username,
+        initialShift: flexibleShift,
+      );
+
+      await notifier.checkIn(
+        user: testUser,
+        storeId: 'store_001',
+        checkInTimestamp: DateTime(2026, 9, 13, 8, 0),
+      );
+
+      final checkOutTime = DateTime(2026, 9, 13, 18, 0);
+      final success = await notifier.checkOut(
+        user: testUser,
+        storeId: 'store_001',
+        checkOutTimestamp: checkOutTime,
+      );
+
+      expect(success, isTrue);
+      final state = container.read(attendanceNotifierProvider);
+      expect(state.todayAttendance!.overtimeMinutes, 120);
+      expect(state.todayAttendance!.status, AttendanceStatus.overtime);
+      expect(state.todayAttendance!.totalWorkHours, 10.0);
+    });
+
     test('Non-staff accounts (admin, supervisor) are blocked from check-in and check-out', () async {
       final notifier = container.read(attendanceNotifierProvider.notifier);
       await notifier.init(
@@ -259,6 +372,111 @@ void main() {
       expect(adminCheckOut, isFalse);
       expect(container.read(attendanceNotifierProvider).errorMessage,
           contains('Tài khoản quản lý không thuộc đối tượng chấm công'));
+    });
+
+    group('Shift Window Validation Integration Tests (R2)', () {
+      test('Check-in to closed shift (e.g. 12:01 PM for Ca Sáng 08:00 - 12:00) is rejected with exact message', () async {
+        final notifier = container.read(attendanceNotifierProvider.notifier);
+        await notifier.init(
+          storeId: 'store_001',
+          userId: testUser.username,
+          initialShift: morningShift,
+        );
+
+        // Attempt check-in at 12:01 (1 minute past Ca Sáng end time 12:00)
+        final checkInTime = DateTime(2026, 9, 13, 12, 1);
+        final success = await notifier.checkIn(
+          user: testUser,
+          storeId: 'store_001',
+          checkInTimestamp: checkInTime,
+        );
+
+        expect(success, isFalse);
+        final state = container.read(attendanceNotifierProvider);
+        expect(
+          state.errorMessage,
+          'Ca Ca Sáng đã kết thúc lúc 12:00. Bạn không thể chấm công vào ca đã qua. Vui lòng chọn ca kế tiếp.',
+        );
+        expect(state.todayAttendance, isNull);
+        expect(fakeRepo.attendances, isEmpty);
+      });
+
+      test('Check-in in the afternoon (e.g. 14:00) for morning shift is rejected and does not mutate database', () async {
+        final notifier = container.read(attendanceNotifierProvider.notifier);
+        await notifier.init(
+          storeId: 'store_001',
+          userId: testUser.username,
+          initialShift: morningShift,
+        );
+
+        // Attempt check-in at 14:00 PM for morning shift
+        final checkInTime = DateTime(2026, 9, 13, 14, 0);
+        final success = await notifier.checkIn(
+          user: testUser,
+          storeId: 'store_001',
+          checkInTimestamp: checkInTime,
+        );
+
+        expect(success, isFalse);
+        final state = container.read(attendanceNotifierProvider);
+        expect(
+          state.errorMessage,
+          'Ca Ca Sáng đã kết thúc lúc 12:00. Bạn không thể chấm công vào ca đã qua. Vui lòng chọn ca kế tiếp.',
+        );
+        expect(state.todayAttendance, isNull);
+        expect(fakeRepo.attendances, isEmpty);
+      });
+
+      test('Check-in to upcoming shift (e.g. 06:45 AM for Ca Sáng 08:00 - 12:00) is rejected with exact message', () async {
+        final notifier = container.read(attendanceNotifierProvider.notifier);
+        await notifier.init(
+          storeId: 'store_001',
+          userId: testUser.username,
+          initialShift: morningShift,
+        );
+
+        // Attempt check-in at 06:45 AM (gate opens at 07:00, 60m before 08:00 start)
+        final checkInTime = DateTime(2026, 9, 13, 6, 45);
+        final success = await notifier.checkIn(
+          user: testUser,
+          storeId: 'store_001',
+          checkInTimestamp: checkInTime,
+        );
+
+        expect(success, isFalse);
+        final state = container.read(attendanceNotifierProvider);
+        expect(
+          state.errorMessage,
+          'Ca Ca Sáng chưa mở chấm công. Cổng chấm công mở lúc 07:00 (trước giờ bắt đầu 60 phút).',
+        );
+        expect(state.todayAttendance, isNull);
+        expect(fakeRepo.attendances, isEmpty);
+      });
+
+      test('Check-in within open window (e.g. 07:30 AM or 11:59 AM) succeeds and writes record to repository', () async {
+        final notifier = container.read(attendanceNotifierProvider.notifier);
+        await notifier.init(
+          storeId: 'store_001',
+          userId: testUser.username,
+          initialShift: morningShift,
+        );
+
+        // Check-in at 07:30 AM (between 07:00 and 12:00)
+        final checkInTime = DateTime(2026, 9, 13, 7, 30);
+        final success = await notifier.checkIn(
+          user: testUser,
+          storeId: 'store_001',
+          checkInTimestamp: checkInTime,
+        );
+
+        expect(success, isTrue);
+        final state = container.read(attendanceNotifierProvider);
+        expect(state.errorMessage, isNull);
+        expect(state.todayAttendance, isNotNull);
+        expect(state.todayAttendance!.shiftId, morningShift.id);
+        expect(fakeRepo.attendances.length, 1);
+        expect(fakeRepo.attendances.first.shiftId, morningShift.id);
+      });
     });
   });
 }

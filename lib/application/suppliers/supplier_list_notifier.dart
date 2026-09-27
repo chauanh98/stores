@@ -4,21 +4,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/entities/supplier.dart';
 import '../../domain/entities/supplier_debt_transaction.dart';
-import '../auth/auth_providers.dart';
 import 'suppliers_providers.dart';
 
 class SupplierListNotifier extends AutoDisposeAsyncNotifier<List<Supplier>> {
   @override
   FutureOr<List<Supplier>> build() async {
     final repo = ref.watch(supplierRepositoryProvider);
-    final currentStore = ref.watch(currentStoreIdProvider);
     final completer = Completer<List<Supplier>>();
 
-    final subscription = repo.watchAll(storeId: currentStore).listen(
+    final subscription = repo.watchAll().listen(
       (suppliers) {
-        if (suppliers.isEmpty) {
-          seedSuppliers(ref);
-        }
         if (!completer.isCompleted) {
           completer.complete(suppliers);
         } else {
@@ -47,14 +42,12 @@ class SupplierListNotifier extends AutoDisposeAsyncNotifier<List<Supplier>> {
 
   Future<void> upsertSupplier(Supplier supplier) async {
     final repo = ref.read(supplierRepositoryProvider);
-    final currentStore = ref.read(currentStoreIdProvider);
-    await repo.upsert(supplier, storeId: currentStore);
+    await repo.upsert(supplier);
   }
 
   Future<void> deleteSupplier(String id) async {
     final repo = ref.read(supplierRepositoryProvider);
-    final currentStore = ref.read(currentStoreIdProvider);
-    await repo.delete(id, storeId: currentStore);
+    await repo.delete(id);
   }
 
   /// Trả tiền nợ NCC (Phiếu chi trả nợ)
@@ -68,13 +61,12 @@ class SupplierListNotifier extends AutoDisposeAsyncNotifier<List<Supplier>> {
     if (paymentAmount <= 0) return;
 
     final repo = ref.read(supplierRepositoryProvider);
-    final currentStore = ref.read(currentStoreIdProvider);
-
-    final supplier = await repo.fetchById(supplierId, storeId: currentStore);
+    final supplier = await repo.fetchById(supplierId);
     if (supplier == null) return;
 
     final currentDebt = supplier.currentDebt;
-    final remainingDebt = (currentDebt - paymentAmount).clamp(0.0, double.infinity);
+    final remainingDebt =
+        (currentDebt - paymentAmount).clamp(0.0, double.infinity);
 
     final tx = SupplierDebtTransaction(
       id: 'TX_PAY_${DateTime.now().millisecondsSinceEpoch}',
@@ -83,15 +75,15 @@ class SupplierListNotifier extends AutoDisposeAsyncNotifier<List<Supplier>> {
       type: SupplierDebtType.payment,
       amount: -paymentAmount,
       remainingDebt: remainingDebt,
-      referenceCode: referenceCode ?? 'PC_${DateTime.now().millisecondsSinceEpoch}',
+      referenceCode:
+          referenceCode ?? 'PC_${DateTime.now().millisecondsSinceEpoch}',
       note: note ?? 'Thanh toán nợ nhà cung cấp',
       createdBy: createdBy,
     );
 
-    await repo.recordDebtTransaction(tx, storeId: currentStore);
+    await repo.recordDebtTransaction(tx);
     await repo.upsert(
       supplier.copyWith(currentDebt: remainingDebt),
-      storeId: currentStore,
     );
   }
 
@@ -105,9 +97,7 @@ class SupplierListNotifier extends AutoDisposeAsyncNotifier<List<Supplier>> {
     if (newDebt < 0) return;
 
     final repo = ref.read(supplierRepositoryProvider);
-    final currentStore = ref.read(currentStoreIdProvider);
-
-    final supplier = await repo.fetchById(supplierId, storeId: currentStore);
+    final supplier = await repo.fetchById(supplierId);
     if (supplier == null) return;
 
     final currentDebt = supplier.currentDebt;
@@ -125,10 +115,9 @@ class SupplierListNotifier extends AutoDisposeAsyncNotifier<List<Supplier>> {
       createdBy: createdBy,
     );
 
-    await repo.recordDebtTransaction(tx, storeId: currentStore);
+    await repo.recordDebtTransaction(tx);
     await repo.upsert(
       supplier.copyWith(currentDebt: newDebt),
-      storeId: currentStore,
     );
   }
 
@@ -142,9 +131,7 @@ class SupplierListNotifier extends AutoDisposeAsyncNotifier<List<Supplier>> {
     String createdBy = 'Admin',
   }) async {
     final repo = ref.read(supplierRepositoryProvider);
-    final currentStore = ref.read(currentStoreIdProvider);
-
-    final supplier = await repo.fetchById(supplierId, storeId: currentStore);
+    final supplier = await repo.fetchById(supplierId);
     if (supplier == null) return;
 
     final debtIncrease = (totalAmount - paidAmount).clamp(0.0, double.infinity);
@@ -159,11 +146,12 @@ class SupplierListNotifier extends AutoDisposeAsyncNotifier<List<Supplier>> {
         type: SupplierDebtType.importBill,
         amount: debtIncrease,
         remainingDebt: newDebt,
-        referenceCode: importCode ?? 'PN_${DateTime.now().millisecondsSinceEpoch}',
+        referenceCode:
+            importCode ?? 'PN_${DateTime.now().millisecondsSinceEpoch}',
         note: note ?? 'Nhập hàng phát sinh công nợ',
         createdBy: createdBy,
       );
-      await repo.recordDebtTransaction(tx, storeId: currentStore);
+      await repo.recordDebtTransaction(tx);
     }
 
     await repo.upsert(
@@ -171,7 +159,6 @@ class SupplierListNotifier extends AutoDisposeAsyncNotifier<List<Supplier>> {
         totalPurchase: newTotalPurchase,
         currentDebt: newDebt,
       ),
-      storeId: currentStore,
     );
   }
 }

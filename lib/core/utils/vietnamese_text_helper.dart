@@ -86,7 +86,8 @@ class VietnameseTextHelper {
   }
 
   /// Checks if [source] contains the multi-word [phrase] with boundary safety.
-  static bool containsPhrase(String source, String phrase, {bool unaccented = false}) {
+  static bool containsPhrase(String source, String phrase,
+      {bool unaccented = false}) {
     if (source.isEmpty || phrase.isEmpty) return false;
     final s = unaccented ? normalizeUnaccented(source) : normalize(source);
     final p = unaccented ? normalizeUnaccented(phrase) : normalize(phrase);

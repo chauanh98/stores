@@ -14,9 +14,12 @@ void main() {
       expect(admin.isAdmin, isTrue);
       expect(admin.isSupervisor, isFalse);
       expect(admin.isStaff, isFalse);
+      expect(admin.isAllStores, isTrue);
       expect(admin.canSwitchStore, isTrue);
+      expect(admin.canManageUsers, isTrue);
       expect(admin.canViewDebtSummary, isTrue);
-      expect(admin.canViewCostPrice, isFalse);
+      expect(admin.canViewTotalSales, isTrue);
+      expect(admin.canViewCostPrice, isTrue);
       expect(admin.canManageProducts, isTrue);
       expect(admin.canDeleteInvoice, isTrue);
       expect(admin.canDeleteCustomer, isTrue);
@@ -39,20 +42,23 @@ void main() {
         storeId: 'store_001',
       );
 
-      expect(supervisor.isAdmin, isTrue);
+      expect(supervisor.isAdmin, isFalse);
       expect(supervisor.isSupervisor, isTrue);
       expect(supervisor.isStaff, isFalse);
+      expect(supervisor.isAllStores, isFalse);
       expect(supervisor.canSwitchStore, isTrue);
+      expect(supervisor.canManageUsers, isFalse);
       expect(supervisor.canViewDebtSummary, isTrue);
+      expect(supervisor.canViewTotalSales, isTrue);
       expect(supervisor.canViewCostPrice, isTrue);
       expect(supervisor.canManageProducts, isTrue);
-      expect(supervisor.canDeleteInvoice, isTrue);
-      expect(supervisor.canDeleteCustomer, isTrue);
+      expect(supervisor.canDeleteInvoice, isFalse);
+      expect(supervisor.canDeleteCustomer, isFalse);
       expect(supervisor.canExportCustomers, isTrue);
       expect(supervisor.canChangeImportStore, isTrue);
       expect(supervisor.canChangeTransferSourceStore, isTrue);
       expect(supervisor.canEditPriceAndDiscount, isTrue);
-      expect(supervisor.canManagePaymentConfig, isTrue);
+      expect(supervisor.canManagePaymentConfig, isFalse);
       expect(supervisor.canManageShifts, isTrue);
       expect(supervisor.canAdjustAttendance, isTrue);
       expect(supervisor.requiresAttendance, isFalse);
@@ -72,6 +78,7 @@ void main() {
       expect(staff.isStaff, isTrue);
       expect(staff.canSwitchStore, isFalse);
       expect(staff.canViewDebtSummary, isFalse);
+      expect(staff.canViewTotalSales, isFalse);
       expect(staff.canViewCostPrice, isFalse);
       expect(staff.canManageProducts, isFalse);
       expect(staff.canDeleteInvoice, isFalse);

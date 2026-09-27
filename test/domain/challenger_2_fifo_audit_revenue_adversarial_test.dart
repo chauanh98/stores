@@ -11,6 +11,7 @@ import 'package:stores/domain/entities/transaction_type.dart';
 
 class MockOrderRemoteDataSource extends Fake implements OrderRemoteDataSource {
   final String _storeId;
+
   MockOrderRemoteDataSource([this._storeId = 'store_001']);
 
   @override
@@ -20,6 +21,7 @@ class MockOrderRemoteDataSource extends Fake implements OrderRemoteDataSource {
 class MockInventoryRemoteDataSource extends Fake
     implements InventoryRemoteDataSource {
   final List<Map> mockData;
+
   MockInventoryRemoteDataSource(this.mockData);
 
   @override
@@ -29,6 +31,7 @@ class MockInventoryRemoteDataSource extends Fake
 class MockProductRemoteDataSource extends Fake
     implements ProductRemoteDataSource {
   final List<Map> mockData;
+
   MockProductRemoteDataSource(this.mockData);
 
   @override
@@ -65,13 +68,16 @@ Map<String, dynamic> createMockOrder({
 }
 
 void main() {
-  group('Challenger 2 Empirical Stress-Tests: Cases 4 & 5 Audits, Multi-Day Revenue & Multi-Store', () {
-
+  group(
+      'Challenger 2 Empirical Stress-Tests: Cases 4 & 5 Audits, Multi-Day Revenue & Multi-Store',
+      () {
     // =========================================================================
     // 1. CASE 4 & 5: STRUCTURED FIELDS & EDGE CASE STRESS TESTS
     // =========================================================================
     group('Case 4 & 5 Stock Audits & Invariants', () {
-      test('Consecutive mixed audits (Audit+ -> Audit- -> Audit+ -> Audit-) maintain precise lot queues', () {
+      test(
+          'Consecutive mixed audits (Audit+ -> Audit- -> Audit+ -> Audit-) maintain precise lot queues',
+          () {
         final txs = [
           // Initial Import: 10 @ 10,000
           InventoryTransaction(
@@ -139,7 +145,8 @@ void main() {
         ];
 
         final fifo = FifoCalculator(txs);
-        final lots = fifo.getInventoryLots('p_audit_consec', storeId: 'store_001');
+        final lots =
+            fifo.getInventoryLots('p_audit_consec', storeId: 'store_001');
 
         // Remaining breakdown:
         // Lot 1 (init): 10 - 8 (aud2) - 2 (aud4) = 0 remaining
@@ -151,7 +158,9 @@ void main() {
         expect(lots[1].importPrice, equals(12000.0));
         expect(lots[2].remainingQuantity, equals(10));
         expect(lots[2].importPrice, equals(15000.0));
-        expect(fifo.getRemainingQuantity('p_audit_consec', storeId: 'store_001'), equals(13));
+        expect(
+            fifo.getRemainingQuantity('p_audit_consec', storeId: 'store_001'),
+            equals(13));
 
         // Now perform a sale of 5 items on Jan 6:
         // Draws 3 @ 12,000 + 2 @ 15,000 = 36,000 + 30,000 = 66,000
@@ -165,10 +174,14 @@ void main() {
         expect(cost, equals(66000.0));
         expect(lots[1].remainingQuantity, equals(0));
         expect(lots[2].remainingQuantity, equals(8));
-        expect(fifo.getRemainingQuantity('p_audit_consec', storeId: 'store_001'), equals(8));
+        expect(
+            fifo.getRemainingQuantity('p_audit_consec', storeId: 'store_001'),
+            equals(8));
       });
 
-      test('Large negative audit exceeding total available stock clamps lots at 0 without negative quantities', () {
+      test(
+          'Large negative audit exceeding total available stock clamps lots at 0 without negative quantities',
+          () {
         final txs = [
           InventoryTransaction(
             id: 'tx_init1',
@@ -211,7 +224,8 @@ void main() {
         // All lots must be clamped at 0, strictly NON-NEGATIVE
         expect(lots[0].remainingQuantity, equals(0));
         expect(lots[1].remainingQuantity, equals(0));
-        expect(fifo.getRemainingQuantity('p_heavy_neg', storeId: 'store_001'), equals(0));
+        expect(fifo.getRemainingQuantity('p_heavy_neg', storeId: 'store_001'),
+            equals(0));
 
         // Subsequent sale of 4 items must use fallback cost without crashing
         final cost = fifo.calculateCostForSale(
@@ -227,7 +241,9 @@ void main() {
         expect(lots[1].remainingQuantity, equals(0));
       });
 
-      test('Negative audit on completely empty lot queue does not throw and preserves state', () {
+      test(
+          'Negative audit on completely empty lot queue does not throw and preserves state',
+          () {
         final txs = [
           InventoryTransaction(
             id: 'tx_audit_empty',
@@ -243,7 +259,8 @@ void main() {
         ];
 
         final fifo = FifoCalculator(txs);
-        expect(fifo.getRemainingQuantity('p_empty', storeId: 'store_001'), equals(0));
+        expect(fifo.getRemainingQuantity('p_empty', storeId: 'store_001'),
+            equals(0));
 
         final cost = fifo.calculateCostForSale(
           productId: 'p_empty',
@@ -256,7 +273,9 @@ void main() {
         expect(cost, equals(30000.0));
       });
 
-      test('Zero-adjustment audit (diff = 0) does not create dummy lots or deduct stock', () {
+      test(
+          'Zero-adjustment audit (diff = 0) does not create dummy lots or deduct stock',
+          () {
         final txs = [
           InventoryTransaction(
             id: 'tx_imp',
@@ -283,15 +302,19 @@ void main() {
         ];
 
         final fifo = FifoCalculator(txs);
-        final lots = fifo.getInventoryLots('p_zero_audit', storeId: 'store_001');
+        final lots =
+            fifo.getInventoryLots('p_zero_audit', storeId: 'store_001');
 
         // Only 1 lot should exist with 10 units
         expect(lots.length, equals(1));
         expect(lots[0].remainingQuantity, equals(10));
-        expect(fifo.getRemainingQuantity('p_zero_audit', storeId: 'store_001'), equals(10));
+        expect(fifo.getRemainingQuantity('p_zero_audit', storeId: 'store_001'),
+            equals(10));
       });
 
-      test('Structured field variations: isAuditNegative and auditDifference priority and fallbacks', () {
+      test(
+          'Structured field variations: isAuditNegative and auditDifference priority and fallbacks',
+          () {
         // Case A: isAuditNegative: true overrides positive auditDifference if misconfigured
         final txA = InventoryTransaction(
           id: 'txA',
@@ -327,7 +350,8 @@ void main() {
           type: TransactionType.inventoryAudit,
           quantity: 3,
           date: DateTime(2024, 1, 2),
-          note: 'Cân bằng kho trực tiếp (Tồn cũ: 10 -> Tồn mới: 7, chênh lệch: -3)',
+          note:
+              'Cân bằng kho trực tiếp (Tồn cũ: 10 -> Tồn mới: 7, chênh lệch: -3)',
           importPrice: 10000.0,
           storeId: 'store_001',
         );
@@ -369,14 +393,19 @@ void main() {
         final fifo = FifoCalculator([...baseImports, txA, txB, txC]);
 
         // txA: 10 - 5 = 5 left
-        expect(fifo.getRemainingQuantity('p_struct_A', storeId: 'store_001'), equals(5));
+        expect(fifo.getRemainingQuantity('p_struct_A', storeId: 'store_001'),
+            equals(5));
         // txB: 10 - 7 = 3 left
-        expect(fifo.getRemainingQuantity('p_struct_B', storeId: 'store_001'), equals(3));
+        expect(fifo.getRemainingQuantity('p_struct_B', storeId: 'store_001'),
+            equals(3));
         // txC: 10 - 3 = 7 left
-        expect(fifo.getRemainingQuantity('p_struct_C', storeId: 'store_001'), equals(7));
+        expect(fifo.getRemainingQuantity('p_struct_C', storeId: 'store_001'),
+            equals(7));
       });
 
-      test('InventoryTransactionModel handles various dynamic Firebase serialization formats', () {
+      test(
+          'InventoryTransactionModel handles various dynamic Firebase serialization formats',
+          () {
         // Test map with string "true", int quantity, double importPrice
         final map1 = {
           'id': 'tx_fb_1',
@@ -392,7 +421,8 @@ void main() {
         };
 
         final model1 = InventoryTransactionModel.fromMap(map1);
-        expect(model1.toTransactionType(), equals(TransactionType.inventoryAudit));
+        expect(
+            model1.toTransactionType(), equals(TransactionType.inventoryAudit));
         expect(model1.isAuditNegative, isTrue);
         expect(model1.auditDifference, equals(-5));
         expect(model1.importPrice, equals(50000.0));
@@ -412,7 +442,8 @@ void main() {
         };
 
         final model2 = InventoryTransactionModel.fromMap(map2);
-        expect(model2.toTransactionType(), equals(TransactionType.inventoryAudit));
+        expect(
+            model2.toTransactionType(), equals(TransactionType.inventoryAudit));
         expect(model2.isAuditNegative, isFalse);
         expect(model2.auditDifference, equals(10));
 
@@ -433,7 +464,8 @@ void main() {
     // =========================================================================
     // 2. MULTI-DAY MULTI-STORE REVENUE & PROFIT CALCULATION
     // =========================================================================
-    group('Multi-Day Multi-Store Revenue Calculations (RevenueRepositoryImpl)', () {
+    group('Multi-Day Multi-Store Revenue Calculations (RevenueRepositoryImpl)',
+        () {
       late List<Map> products;
       late List<Map> multiStoreInventoryTxs;
 
@@ -521,7 +553,9 @@ void main() {
         ];
       });
 
-      test('Multi-day revenue in Store 001 sequentially depletes Store 001 lots across 3 days', () {
+      test(
+          'Multi-day revenue in Store 001 sequentially depletes Store 001 lots across 3 days',
+          () {
         final repoS1 = RevenueRepositoryImpl(
           MockOrderRemoteDataSource('store_001'),
           MockInventoryRemoteDataSource(multiStoreInventoryTxs),
@@ -610,7 +644,9 @@ void main() {
         expect(summary.dailyReports[2].profit, equals(86000.0));
       });
 
-      test('Multi-store isolation: Store 002 revenue calculations do not consume Store 001 lots', () {
+      test(
+          'Multi-store isolation: Store 002 revenue calculations do not consume Store 001 lots',
+          () {
         final repoS2 = RevenueRepositoryImpl(
           MockOrderRemoteDataSource('store_002'),
           MockInventoryRemoteDataSource(multiStoreInventoryTxs),
@@ -652,7 +688,9 @@ void main() {
         expect(summaryS2.totalProfit, equals(70000.0));
       });
 
-      test('mergeRevenueSummaries accurately merges multi-store multi-day summaries without data corruption', () {
+      test(
+          'mergeRevenueSummaries accurately merges multi-store multi-day summaries without data corruption',
+          () {
         final repoS1 = RevenueRepositoryImpl(
           MockOrderRemoteDataSource('store_001'),
           MockInventoryRemoteDataSource(multiStoreInventoryTxs),
@@ -737,11 +775,15 @@ void main() {
         expect(merged.dailyReports.length, equals(1));
         expect(merged.dailyReports[0].totalRevenue, equals(150000.0));
         expect(merged.dailyReports[0].totalCost, equals(80000.0));
-        expect(merged.dailyReports[0].storeRevenues['store_001'], equals(75000.0));
-        expect(merged.dailyReports[0].storeRevenues['store_002'], equals(75000.0));
+        expect(
+            merged.dailyReports[0].storeRevenues['store_001'], equals(75000.0));
+        expect(
+            merged.dailyReports[0].storeRevenues['store_002'], equals(75000.0));
       });
 
-      test('Multi-day date range with gaps/empty days produces intact dailyReports for all calendar days', () {
+      test(
+          'Multi-day date range with gaps/empty days produces intact dailyReports for all calendar days',
+          () {
         final repoS1 = RevenueRepositoryImpl(
           MockOrderRemoteDataSource('store_001'),
           MockInventoryRemoteDataSource(multiStoreInventoryTxs),

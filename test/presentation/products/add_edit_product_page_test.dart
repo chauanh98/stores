@@ -383,7 +383,7 @@ void main() {
       expect(find.widgetWithText(TextFormField, 'Giá vốn'), findsNothing);
     });
 
-    testWidgets('Admin CANNOT see Cost Price input (hidden for admin too)',
+    testWidgets('Admin CAN see Cost Price input (allowed for admin as store owner)',
         (tester) async {
       tester.view.physicalSize = const Size(1000, 2000);
       tester.view.devicePixelRatio = 1.0;
@@ -398,8 +398,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Cost price input MUST NOT exist for admin
-      expect(find.widgetWithText(TextFormField, 'Giá vốn'), findsNothing);
+      // Cost price input MUST exist for admin
+      expect(find.widgetWithText(TextFormField, 'Giá vốn'), findsOneWidget);
     });
   });
 
@@ -686,7 +686,7 @@ void main() {
     });
 
     testWidgets(
-        'Admin edits existing product preserves original cost price when cost price is hidden',
+        'Admin edits existing product preserves original cost price when updating selling price',
         (tester) async {
       tester.view.physicalSize = const Size(1000, 2000);
       tester.view.devicePixelRatio = 1.0;
@@ -698,14 +698,14 @@ void main() {
       await tester.pumpWidget(
         _buildTestApp(
           child: const AddProductPage(product: sampleExistingProduct),
-          user: adminUser, // Admin can manage products, but CANNOT view/edit cost price
+          user: adminUser, // Admin can view/edit products as store owner
           repo: fakeRepo,
         ),
       );
       await tester.pumpAndSettle();
 
-      // Cost price is hidden
-      expect(find.widgetWithText(TextFormField, 'Giá vốn'), findsNothing);
+      // Cost price is visible for Admin
+      expect(find.widgetWithText(TextFormField, 'Giá vốn'), findsOneWidget);
 
       // Admin updates selling price
       await tester.enterText(
@@ -718,7 +718,7 @@ void main() {
       expect(fakeRepo.lastUpsertedProduct, isNotNull);
       final updated = fakeRepo.lastUpsertedProduct!;
       expect(updated.price, equals(18000.0));
-      // Original cost price (11000.0) MUST remain preserved and uncorrupted!
+      // Original cost price (11000.0) remains intact when only selling price is edited
       expect(updated.costPrice, equals(11000.0));
     });
   });

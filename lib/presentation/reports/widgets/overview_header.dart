@@ -19,7 +19,7 @@ class OverviewHeader extends ConsumerWidget {
     final currentStoreNameAsync = ref.watch(currentStoreNameProvider);
 
     return Container(
-      color: Colors.white,
+      color: AppColors.white,
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -44,7 +44,7 @@ class OverviewHeader extends ConsumerWidget {
                   ),
                   child: const Icon(
                     Icons.insert_chart_rounded,
-                    color: Colors.white,
+                    color: AppColors.white,
                     size: 22,
                   ),
                 ),
@@ -65,31 +65,7 @@ class OverviewHeader extends ConsumerWidget {
                               letterSpacing: -0.3,
                             ),
                           ),
-                          if (user?.isSupervisor == true) ...[
-                            const SizedBox(width: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.supervisor.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(4),
-                                border: Border.all(
-                                  color: AppColors.supervisor.withOpacity(0.3),
-                                  width: 0.5,
-                                ),
-                              ),
-                              child: const Text(
-                                'Giám sát',
-                                style: TextStyle(
-                                  color: AppColors.supervisor,
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ] else if (user?.isAdmin == true) ...[
+                          if (user?.isAdmin == true) ...[
                             const SizedBox(width: 6),
                             Container(
                               padding: const EdgeInsets.symmetric(
@@ -113,6 +89,30 @@ class OverviewHeader extends ConsumerWidget {
                                 ),
                               ),
                             ),
+                          ] else if (user?.isSupervisor == true) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.supervisor.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(
+                                  color: AppColors.supervisor.withOpacity(0.3),
+                                  width: 0.5,
+                                ),
+                              ),
+                              child: const Text(
+                                'Giám sát',
+                                style: TextStyle(
+                                  color: AppColors.supervisor,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
                           ],
                         ],
                       ),
@@ -123,7 +123,7 @@ class OverviewHeader extends ConsumerWidget {
                           name,
                           style: const TextStyle(
                             fontSize: 12,
-                            color: Colors.black54,
+                            color: AppColors.textSecondary,
                             fontWeight: FontWeight.w500,
                           ),
                           maxLines: 1,
@@ -138,7 +138,7 @@ class OverviewHeader extends ConsumerWidget {
                           l10n?.store ?? 'Cửa hàng',
                           style: const TextStyle(
                             fontSize: 11,
-                            color: Colors.black54,
+                            color: AppColors.textSecondary,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,

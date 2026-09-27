@@ -14,7 +14,7 @@ final storePaymentConfigDataSourceProvider =
 });
 
 final storePaymentConfigStreamProvider =
-    StreamProvider<StorePaymentConfig>((ref) {
+    StreamProvider.autoDispose<StorePaymentConfig>((ref) {
   try {
     final storeId = ref.watch(currentStoreIdProvider);
     final ds = ref.watch(storePaymentConfigDataSourceProvider);
@@ -24,7 +24,8 @@ final storePaymentConfigStreamProvider =
   }
 });
 
-final storePaymentConfigProvider = Provider<StorePaymentConfig>((ref) {
+final storePaymentConfigProvider =
+    Provider.autoDispose<StorePaymentConfig>((ref) {
   try {
     final asyncVal = ref.watch(storePaymentConfigStreamProvider);
     final storeId = ref.watch(currentStoreIdProvider);

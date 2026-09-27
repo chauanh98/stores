@@ -3,6 +3,7 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:stores/application/attendance/attendance_providers.dart';
+import 'package:stores/application/attendance/live_attendance_dashboard_provider.dart';
 import 'package:stores/application/auth/auth_providers.dart';
 import 'package:stores/core/theme/app_colors.dart';
 import 'package:stores/domain/attendance/attendance_record.dart';
@@ -23,6 +24,18 @@ class _FakeAuthNotifier extends StateNotifier<UserAccount?>
     state = null;
   }
 }
+
+class _FakeLiveAttendanceNotifier extends StateNotifier<LiveAttendanceState>
+    implements LiveAttendanceDashboardNotifier {
+  _FakeLiveAttendanceNotifier(super.state);
+
+  @override
+  Future<void> changeStore(String newStoreId) async {}
+
+  @override
+  Future<void> loadDashboard() async {}
+}
+
 
 void main() {
   group('LiveAttendanceDashboardPage Widget Tests', () {
@@ -169,5 +182,73 @@ void main() {
       final unselectedChip = chips.firstWhere((c) => !c.selected);
       expect(unselectedChip.backgroundColor, Colors.grey.shade100);
     });
+
+    testWidgets('Store bar renders clean store name without redundant "Chi nhánh:" label', (tester) async {
+      await tester.pumpWidget(createWidgetUnderTest());
+      await tester.pumpAndSettle();
+
+      // Store icon is present
+      expect(find.byIcon(Icons.store), findsOneWidget);
+      // Clean store name is displayed
+      expect(find.text('Chi nhánh Đông Thắng'), findsOneWidget);
+      // Redundant label "Chi nhánh: Chi nhánh..." or "Chi nhánh:" is absent
+      expect(find.text('Chi nhánh:'), findsNothing);
+      expect(find.text('Chi nhánh: Chi nhánh Đông Thắng'), findsNothing);
+    });
+
+    testWidgets('Absent staff ("Chưa đến") displays friendly store name instead of raw storeId', (tester) async {
+      const absentStaff = UserAccount(
+        username: 'staff_absent_1',
+        displayName: 'Nguyễn Văn Vắng',
+        role: 'nhanvien',
+        storeId: 'store_001',
+      );
+
+      final customDashboardState = LiveAttendanceState(
+        storeId: 'store_001',
+        date: today,
+        isLoading: false,
+        notArrivedStaff: [absentStaff],
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authProvider.overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
+            attendanceRepositoryProvider.overrideWithValue(fakeRepo),
+            currentStoreIdProvider.overrideWithValue('store_001'),
+            availableStoresProvider.overrideWith(
+              (ref) => Future.value({'store_001': 'Chi nhánh Đông Thắng'}),
+            ),
+            liveAttendanceDashboardProvider.overrideWith(
+              (ref) => _FakeLiveAttendanceNotifier(customDashboardState),
+            ),
+          ],
+          child: const MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            locale: Locale('vi'),
+            home: LiveAttendanceDashboardPage(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Tap on "Chưa đến" filter chip
+      final absentChip = find.textContaining('Chưa đến');
+      expect(absentChip, findsWidgets);
+      await tester.tap(absentChip.first);
+      await tester.pumpAndSettle();
+
+      // Verify that absent staff subtitle displays friendly store name instead of raw storeId
+      expect(
+        find.text('Tài khoản: staff_absent_1 • Chi nhánh Đông Thắng'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('store_001'), findsNothing);
+      expect(find.textContaining('Chi nhánh: store_001'), findsNothing);
+      expect(find.textContaining('Chi nhánh: Chi nhánh'), findsNothing);
+    });
   });
 }
+

@@ -62,15 +62,15 @@ void main() {
       };
       final m1Store1 = ProductModel.fromMap(mapBranch1Only, 'store_001');
       expect(m1Store1.branchStocks['store_001'], equals(12));
-      expect(m1Store1.branchStocks.containsKey('store_002'), isFalse);
+      expect(m1Store1.branchStocks['store_002'], equals(0));
       expect(m1Store1.toEntity().stockInBranch('store_001'), equals(12));
       expect(m1Store1.toEntity().stockInBranch('store_002'), equals(0));
 
       final m1Store2 = ProductModel.fromMap(mapBranch1Only, 'store_002');
-      expect(m1Store2.branchStocks['store_002'], equals(12));
-      expect(m1Store2.branchStocks.containsKey('store_001'), isFalse);
-      expect(m1Store2.toEntity().stockInBranch('store_001'), equals(0));
-      expect(m1Store2.toEntity().stockInBranch('store_002'), equals(12));
+      expect(m1Store2.branchStocks['store_001'], equals(12));
+      expect(m1Store2.branchStocks['store_002'], equals(0));
+      expect(m1Store2.toEntity().stockInBranch('store_001'), equals(12));
+      expect(m1Store2.toEntity().stockInBranch('store_002'), equals(0));
 
       // Case B: Only branch_2 present
       final mapBranch2Only = {
@@ -79,16 +79,16 @@ void main() {
         'branchStocks': {'branch_2': 7},
       };
       final m2Store1 = ProductModel.fromMap(mapBranch2Only, 'store_001');
+      expect(m2Store1.branchStocks['store_001'], equals(0));
       expect(m2Store1.branchStocks['store_002'], equals(7));
-      expect(m2Store1.branchStocks.containsKey('store_001'), isFalse);
       expect(m2Store1.toEntity().stockInBranch('store_001'), equals(0));
       expect(m2Store1.toEntity().stockInBranch('store_002'), equals(7));
 
       final m2Store2 = ProductModel.fromMap(mapBranch2Only, 'store_002');
-      expect(m2Store2.branchStocks['store_001'], equals(7));
-      expect(m2Store2.branchStocks.containsKey('store_002'), isFalse);
-      expect(m2Store2.toEntity().stockInBranch('store_001'), equals(7));
-      expect(m2Store2.toEntity().stockInBranch('store_002'), equals(0));
+      expect(m2Store2.branchStocks['store_001'], equals(0));
+      expect(m2Store2.branchStocks['store_002'], equals(7));
+      expect(m2Store2.toEntity().stockInBranch('store_001'), equals(0));
+      expect(m2Store2.toEntity().stockInBranch('store_002'), equals(7));
 
       // Case C: Null values inside branchStocks
       final mapNullValues = {
@@ -191,8 +191,8 @@ void main() {
       expect(model2.branchStocks['store_002'], equals(44));
 
       final model2Store2 = ProductModel.fromMap(mapTrimmed, 'store_002');
-      expect(model2Store2.branchStocks['store_001'], equals(44));
-      expect(model2Store2.branchStocks['store_002'], equals(33));
+      expect(model2Store2.branchStocks['store_001'], equals(33));
+      expect(model2Store2.branchStocks['store_002'], equals(44));
     });
 
     test('1.5. Edge Case: Missing or unknown sourceStoreId fallback behavior', () {
@@ -265,7 +265,7 @@ void main() {
         'name': 'Bàn chữ K mặt MDF - kệ trên dưới - 1m2',
         'price': 450000,
         'costPrice': 300000,
-        'branchStocks': {'branch_1': 5},
+        'branchStocks': {'branch_2': 5},
       };
 
       final vp88InStore1 = ProductModel.fromMap(vp88Store001Raw, 'store_001').toEntity();
@@ -317,12 +317,12 @@ void main() {
         {
           'id': 'VP88',
           'name': 'Bàn chữ K mặt MDF',
-          'branchStocks': {'branch_1': 5},
+          'branchStocks': {'branch_2': 5},
         },
         {
           'id': 'IPH',
           'name': 'iPhone 17',
-          'branchStocks': {'branch_1': 4, 'branch_2': 0},
+          'branchStocks': {'branch_1': 0, 'branch_2': 4},
         },
       ];
 

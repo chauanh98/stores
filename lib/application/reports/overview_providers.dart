@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/services/filter_storage_service.dart';
 import '../../domain/entities/user_account.dart';
 import '../auth/auth_providers.dart';
 
@@ -74,10 +75,40 @@ enum OverviewTimeRange {
 }
 
 // --- Overview Date Range Providers ---
-final overviewTimeRangeTypeProvider =
-    StateProvider<OverviewTimeRange>((ref) => OverviewTimeRange.thisMonth);
-final overviewCustomDateRangeProvider = StateProvider<DateTimeRange>(
-    (ref) => OverviewTimeRange.thisMonth.getRange());
+final overviewTimeRangeTypeProvider = StateProvider<OverviewTimeRange>((ref) {
+  final user = ref.watch(authProvider);
+  if (user == null) return OverviewTimeRange.today;
+
+  final storage = ref.watch(filterStorageServiceProvider);
+  final saved = storage.loadFilterSync('overview', user.username);
+  if (saved != null && saved['timeRangeType'] != null) {
+    try {
+      return OverviewTimeRange.values
+          .byName(saved['timeRangeType']?.toString() ?? '');
+    } catch (_) {}
+  }
+  return OverviewTimeRange.today;
+});
+
+final overviewCustomDateRangeProvider = StateProvider<DateTimeRange>((ref) {
+  final defaultRange = OverviewTimeRange.today.getRange();
+  final user = ref.watch(authProvider);
+  if (user == null) return defaultRange;
+
+  final storage = ref.watch(filterStorageServiceProvider);
+  final saved = storage.loadFilterSync('overview', user.username);
+  if (saved != null &&
+      saved['customStartDate'] != null &&
+      saved['customEndDate'] != null) {
+    final start = DateTime.tryParse(saved['customStartDate']?.toString() ?? '');
+    final end = DateTime.tryParse(saved['customEndDate']?.toString() ?? '');
+    if (start != null && end != null) {
+      return DateTimeRange(start: start, end: end);
+    }
+  }
+  return defaultRange;
+});
+
 final overviewActiveDateRangeProvider = Provider<DateTimeRange>((ref) {
   final type = ref.watch(overviewTimeRangeTypeProvider);
   if (type == OverviewTimeRange.custom) {
@@ -87,10 +118,40 @@ final overviewActiveDateRangeProvider = Provider<DateTimeRange>((ref) {
 });
 
 // --- Invoices Date Range Providers ---
-final invoicesTimeRangeTypeProvider =
-    StateProvider<OverviewTimeRange>((ref) => OverviewTimeRange.thisMonth);
-final invoicesCustomDateRangeProvider = StateProvider<DateTimeRange>(
-    (ref) => OverviewTimeRange.thisMonth.getRange());
+final invoicesTimeRangeTypeProvider = StateProvider<OverviewTimeRange>((ref) {
+  final user = ref.watch(authProvider);
+  if (user == null) return OverviewTimeRange.thisMonth;
+
+  final storage = ref.watch(filterStorageServiceProvider);
+  final saved = storage.loadFilterSync('invoices', user.username);
+  if (saved != null && saved['timeRangeType'] != null) {
+    try {
+      return OverviewTimeRange.values
+          .byName(saved['timeRangeType']?.toString() ?? '');
+    } catch (_) {}
+  }
+  return OverviewTimeRange.thisMonth;
+});
+
+final invoicesCustomDateRangeProvider = StateProvider<DateTimeRange>((ref) {
+  final defaultRange = OverviewTimeRange.thisMonth.getRange();
+  final user = ref.watch(authProvider);
+  if (user == null) return defaultRange;
+
+  final storage = ref.watch(filterStorageServiceProvider);
+  final saved = storage.loadFilterSync('invoices', user.username);
+  if (saved != null &&
+      saved['customStartDate'] != null &&
+      saved['customEndDate'] != null) {
+    final start = DateTime.tryParse(saved['customStartDate']?.toString() ?? '');
+    final end = DateTime.tryParse(saved['customEndDate']?.toString() ?? '');
+    if (start != null && end != null) {
+      return DateTimeRange(start: start, end: end);
+    }
+  }
+  return defaultRange;
+});
+
 final invoicesActiveDateRangeProvider = Provider<DateTimeRange>((ref) {
   final type = ref.watch(invoicesTimeRangeTypeProvider);
   if (type == OverviewTimeRange.custom) {
@@ -101,13 +162,41 @@ final invoicesActiveDateRangeProvider = Provider<DateTimeRange>((ref) {
 
 // --- Customer Date Range Providers ---
 // Null means "All time"
-final customerTimeRangeTypeProvider =
-    StateProvider.autoDispose<OverviewTimeRange?>((ref) => null);
-final customerCustomDateRangeProvider =
-    StateProvider.autoDispose<DateTimeRange>(
-        (ref) => OverviewTimeRange.thisMonth.getRange());
-final customerActiveDateRangeProvider =
-    Provider.autoDispose<DateTimeRange?>((ref) {
+final customerTimeRangeTypeProvider = StateProvider<OverviewTimeRange?>((ref) {
+  final user = ref.watch(authProvider);
+  if (user == null) return null;
+
+  final storage = ref.watch(filterStorageServiceProvider);
+  final saved = storage.loadFilterSync('customers', user.username);
+  if (saved != null && saved['timeRangeType'] != null) {
+    try {
+      return OverviewTimeRange.values
+          .byName(saved['timeRangeType']?.toString() ?? '');
+    } catch (_) {}
+  }
+  return null;
+});
+
+final customerCustomDateRangeProvider = StateProvider<DateTimeRange>((ref) {
+  final defaultRange = OverviewTimeRange.thisMonth.getRange();
+  final user = ref.watch(authProvider);
+  if (user == null) return defaultRange;
+
+  final storage = ref.watch(filterStorageServiceProvider);
+  final saved = storage.loadFilterSync('customers', user.username);
+  if (saved != null &&
+      saved['customStartDate'] != null &&
+      saved['customEndDate'] != null) {
+    final start = DateTime.tryParse(saved['customStartDate']?.toString() ?? '');
+    final end = DateTime.tryParse(saved['customEndDate']?.toString() ?? '');
+    if (start != null && end != null) {
+      return DateTimeRange(start: start, end: end);
+    }
+  }
+  return defaultRange;
+});
+
+final customerActiveDateRangeProvider = Provider<DateTimeRange?>((ref) {
   final type = ref.watch(customerTimeRangeTypeProvider);
   if (type == null) return null;
   if (type == OverviewTimeRange.custom) {
@@ -151,7 +240,7 @@ List<Branch> getMockBranches([String? currentStoreId]) {
 
 // Provider quản lý danh sách chi nhánh động lấy từ Firebase
 final branchesProvider = Provider<List<Branch>>((ref) {
-  final availableStores = ref.watch(availableStoresProvider).value ?? {};
+  final availableStores = ref.watch(availableStoresProvider).valueOrNull ?? {};
 
   final name1 = availableStores['store_001'] ?? 'Chi nhánh Đông Thắng';
   final name2 = availableStores['store_002'] ?? 'Chi nhánh Thới Bình';
@@ -165,18 +254,23 @@ final branchesProvider = Provider<List<Branch>>((ref) {
 // Provider danh sách các chi nhánh được chọn (mặc định chọn tất cả đối với Admin/Supervisor, khóa theo chi nhánh đối với Nhân viên)
 class SelectedBranchesNotifier extends StateNotifier<List<String>> {
   final UserAccount? _user;
+  final Ref? _ref;
 
-  SelectedBranchesNotifier([this._user]) : super(_initialBranches(_user));
+  SelectedBranchesNotifier([
+    this._user,
+    List<String>? initialBranches,
+    this._ref,
+  ]) : super(initialBranches ?? _initialBranches(_user));
 
   static List<String> _initialBranches(UserAccount? user) {
-    if (user != null && !user.canSwitchStore) {
+    if (user != null && user.isStaff) {
       return [user.storeId.isNotEmpty ? user.storeId : 'store_001'];
     }
     return mockBranches.map((b) => b.id).toList();
   }
 
   void toggleBranch(String branchId) {
-    if (_user != null && !_user.canSwitchStore) {
+    if (_user != null && _user.isStaff) {
       return;
     }
     if (state.contains(branchId)) {
@@ -187,31 +281,147 @@ class SelectedBranchesNotifier extends StateNotifier<List<String>> {
     } else {
       state = [...state, branchId];
     }
+    _persist();
   }
 
-  void selectAll() {
-    if (_user != null && !_user.canSwitchStore) {
+  void selectAll({bool persist = true}) {
+    if (_user != null && _user.isStaff) {
       return;
     }
     state = mockBranches.map((b) => b.id).toList();
+    if (persist) {
+      _persist();
+    }
   }
 
-  void clearAll() {
-    if (_user != null && !_user.canSwitchStore) {
+  void clearAll({bool persist = true}) {
+    if (_user != null && _user.isStaff) {
       return;
     }
     // Để tránh state trống rỗng lỗi hệ thống, chọn chi nhánh đầu tiên làm fallback
     state = [mockBranches.first.id];
+    if (persist) {
+      _persist();
+    }
+  }
+
+  void setBranches(List<String> branches, {bool persist = true}) {
+    if (_user != null && _user.isStaff) {
+      return;
+    }
+    if (branches.isEmpty) return;
+    state = List<String>.from(branches);
+    if (persist) {
+      _persist();
+    }
+  }
+
+  void _persist() {
+    final ref = _ref;
+    if (ref == null) return;
+    try {
+      persistOverviewFilters(ref, currentBranches: state);
+    } catch (_) {}
   }
 }
 
 final selectedBranchesProvider =
     StateNotifierProvider<SelectedBranchesNotifier, List<String>>((ref) {
   final user = ref.watch(authProvider);
-  return SelectedBranchesNotifier(user);
+  final selectedStore = ref.watch(selectedStoreIdProvider);
+
+  List<String>? initial;
+  if (user != null) {
+    if (user.isStaff) {
+      initial = [user.storeId.isNotEmpty ? user.storeId : 'store_001'];
+    } else {
+      final storage = ref.watch(filterStorageServiceProvider);
+      final saved = storage.loadFilterSync('overview', user.username);
+      if (saved != null && saved['selectedBranches'] is List) {
+        final list = (saved['selectedBranches'] as List)
+            .map((e) => e.toString())
+            .where((id) => id.isNotEmpty)
+            .toList();
+        if (list.isNotEmpty) {
+          initial = list;
+        }
+      }
+      if (initial == null &&
+          user.isAdmin &&
+          selectedStore != null &&
+          selectedStore.isNotEmpty &&
+          selectedStore != 'all') {
+        initial = [selectedStore];
+      }
+    }
+  }
+
+  return SelectedBranchesNotifier(user, initial, ref);
 });
 
 // Provider quản lý bộ lọc cửa hàng được chọn xem báo cáo trên trang Tổng quan (Chỉ dùng cho Admin)
 // Mặc định null nghĩa là xem cửa hàng hoạt động hiện tại (currentStoreIdProvider)
 // Giá trị 'all' nghĩa là xem gộp Tất cả cửa hàng
-final selectedStoreFilterProvider = StateProvider<String?>((ref) => null);
+final selectedStoreFilterProvider = StateProvider<String?>((ref) {
+  final user = ref.watch(authProvider);
+  if (user == null) return null;
+
+  final storage = ref.watch(filterStorageServiceProvider);
+  final saved = storage.loadFilterSync('overview', user.username);
+  if (saved != null && saved.containsKey('selectedStoreFilter')) {
+    final val = saved['selectedStoreFilter'];
+    return val is String ? val : null;
+  }
+  return null;
+});
+
+/// Persists all active Overview filters to user-scoped SharedPreferences:
+/// 'filter_prefs_${username}_overview'.
+void persistOverviewFilters(
+  dynamic ref, {
+  List<String>? currentBranches,
+  String? currentStoreFilter,
+  OverviewTimeRange? timeRangeType,
+  DateTimeRange? customDateRange,
+}) {
+  final user = ref.read(authProvider) as UserAccount?;
+  if (user == null) return;
+  final storage =
+      ref.read(filterStorageServiceProvider) as FilterStorageService;
+  final activeTimeRange = timeRangeType ??
+      (ref.read(overviewTimeRangeTypeProvider) as OverviewTimeRange);
+  final activeCustomRange = customDateRange ??
+      (ref.read(overviewCustomDateRangeProvider) as DateTimeRange);
+  final branches =
+      currentBranches ?? (ref.read(selectedBranchesProvider) as List<String>);
+  final storeFilter =
+      currentStoreFilter ?? (ref.read(selectedStoreFilterProvider) as String?);
+
+  storage.saveFilter(
+      'overview',
+      {
+        'version': 1,
+        'timeRangeType': activeTimeRange.name,
+        'customStartDate': activeCustomRange.start.toIso8601String(),
+        'customEndDate': activeCustomRange.end.toIso8601String(),
+        'selectedBranches': branches,
+        'selectedStoreFilter': storeFilter,
+      },
+      user.username);
+}
+
+/// Resets all Overview filters back to defaults and clears storage.
+Future<void> resetOverviewFilters(dynamic ref) async {
+  final user = ref.read(authProvider) as UserAccount?;
+  ref.read(overviewTimeRangeTypeProvider.notifier).state =
+      OverviewTimeRange.today;
+  ref.read(overviewCustomDateRangeProvider.notifier).state =
+      OverviewTimeRange.today.getRange();
+  ref.read(selectedBranchesProvider.notifier).selectAll(persist: false);
+  ref.read(selectedStoreFilterProvider.notifier).state = null;
+  if (user != null) {
+    final storage =
+        ref.read(filterStorageServiceProvider) as FilterStorageService;
+    await storage.clearFilter('overview', user.username);
+  }
+}

@@ -9,6 +9,7 @@ import '../../../domain/entities/supplier.dart';
 import '../../../domain/entities/supplier_debt_transaction.dart';
 import '../widgets/supplier_debt_adjustment_dialog.dart';
 import '../widgets/supplier_debt_payment_dialog.dart';
+import '../../common/widgets/date_grouped_list_view.dart';
 import 'add_edit_supplier_page.dart';
 
 class SupplierDetailPage extends ConsumerStatefulWidget {
@@ -96,7 +97,8 @@ class _SupplierDetailPageState extends ConsumerState<SupplierDetailPage>
   Widget build(BuildContext context) {
     final current = _getLiveSupplier();
     final currencyFormat = NumberFormat('#,###', 'vi_VN');
-    final debtTxsAsync = ref.watch(supplierDebtTransactionsProvider(current.id));
+    final debtTxsAsync =
+        ref.watch(supplierDebtTransactionsProvider(current.id));
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -105,7 +107,7 @@ class _SupplierDetailPageState extends ConsumerState<SupplierDetailPage>
           current.name,
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.edit, color: AppColors.primary),
@@ -129,7 +131,7 @@ class _SupplierDetailPageState extends ConsumerState<SupplierDetailPage>
         children: [
           // Top Summary Header Card
           Container(
-            color: Colors.white,
+            color: AppColors.white,
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
@@ -159,7 +161,7 @@ class _SupplierDetailPageState extends ConsumerState<SupplierDetailPage>
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
-                              color: Colors.black87,
+                              color: AppColors.textPrimary,
                             ),
                           ),
                           const SizedBox(height: 2),
@@ -171,8 +173,8 @@ class _SupplierDetailPageState extends ConsumerState<SupplierDetailPage>
                                 decoration: BoxDecoration(
                                   color: AppColors.surfaceLight,
                                   borderRadius: BorderRadius.circular(4),
-                                  border: Border.all(
-                                      color: AppColors.borderLight),
+                                  border:
+                                      Border.all(color: AppColors.borderLight),
                                 ),
                                 child: Text(
                                   current.code,
@@ -217,7 +219,7 @@ class _SupplierDetailPageState extends ConsumerState<SupplierDetailPage>
                                     ),
                                     const SizedBox(width: 4),
                                     const Icon(Icons.copy,
-                                        size: 11, color: Colors.grey),
+                                        size: 11, color: AppColors.grey400),
                                   ],
                                 ),
                               ),
@@ -256,7 +258,7 @@ class _SupplierDetailPageState extends ConsumerState<SupplierDetailPage>
                               style: const TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.black87,
+                                color: AppColors.textPrimary,
                               ),
                             ),
                           ],
@@ -356,7 +358,7 @@ class _SupplierDetailPageState extends ConsumerState<SupplierDetailPage>
 
           // Tab Bar
           Container(
-            color: Colors.white,
+            color: AppColors.white,
             child: TabBar(
               controller: _tabController,
               labelColor: AppColors.primary,
@@ -388,14 +390,14 @@ class _SupplierDetailPageState extends ConsumerState<SupplierDetailPage>
                   ),
                   data: (transactions) {
                     if (transactions.isEmpty) {
-                      return Center(
+                      return const Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(Icons.history,
-                                size: 48, color: Colors.grey.shade400),
-                            const SizedBox(height: 12),
-                            const Text(
+                                size: 48, color: AppColors.grey400),
+                            SizedBox(height: 12),
+                            Text(
                               'Chưa có lịch sử giao dịch công nợ',
                               style: TextStyle(
                                 fontSize: 14,
@@ -407,12 +409,13 @@ class _SupplierDetailPageState extends ConsumerState<SupplierDetailPage>
                       );
                     }
 
-                    return ListView.separated(
+                    return DateGroupedListView<SupplierDebtTransaction>(
                       padding: const EdgeInsets.all(12),
-                      itemCount: transactions.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 8),
-                      itemBuilder: (context, index) {
-                        final tx = transactions[index];
+                      items: transactions,
+                      dateSelector: (tx) => tx.date,
+                      itemUnit: 'giao dịch',
+                      currencyFormat: currencyFormat,
+                      itemBuilder: (context, tx) {
                         return _buildDebtTxCard(tx, currencyFormat);
                       },
                     );
@@ -427,27 +430,31 @@ class _SupplierDetailPageState extends ConsumerState<SupplierDetailPage>
                         'Mã nhà cung cấp', current.code, Icons.tag),
                     _buildDetailItem(
                         'Tên nhà cung cấp', current.name, Icons.business),
-                    _buildDetailItem('Số điện thoại',
+                    _buildDetailItem(
+                        'Số điện thoại',
                         current.phone.isNotEmpty ? current.phone : 'Chưa có',
                         Icons.phone),
-                    _buildDetailItem('Email',
+                    _buildDetailItem(
+                        'Email',
                         current.email.isNotEmpty ? current.email : 'Chưa có',
                         Icons.email),
-                    _buildDetailItem('Địa chỉ',
-                        current.address.isNotEmpty ? current.address : 'Chưa có',
-                        Icons.location_on),
-                    _buildDetailItem('Mã số thuế',
-                        current.taxCode ?? 'Chưa có', Icons.badge),
                     _buildDetailItem(
-                        'Chi nhánh', current.branch ?? 'Tất cả chi nhánh',
-                        Icons.store),
-                    _buildDetailItem('Ghi chú',
-                        current.note ?? 'Không có', Icons.notes),
-                    _buildDetailItem('Người tạo',
-                        current.createdBy ?? 'Admin', Icons.person),
+                        'Địa chỉ',
+                        current.address.isNotEmpty
+                            ? current.address
+                            : 'Chưa có',
+                        Icons.location_on),
+                    _buildDetailItem('Mã số thuế', current.taxCode ?? 'Chưa có',
+                        Icons.badge),
+                    _buildDetailItem('Chi nhánh',
+                        current.branch ?? 'Tất cả chi nhánh', Icons.store),
+                    _buildDetailItem(
+                        'Ghi chú', current.note ?? 'Không có', Icons.notes),
+                    _buildDetailItem('Người tạo', current.createdBy ?? 'Admin',
+                        Icons.person),
                     if (current.createdAt != null)
-                      _buildDetailItem('Ngày tạo', current.createdAt!,
-                          Icons.calendar_today),
+                      _buildDetailItem(
+                          'Ngày tạo', current.createdAt!, Icons.calendar_today),
                   ],
                 ),
               ],
@@ -492,7 +499,7 @@ class _SupplierDetailPageState extends ConsumerState<SupplierDetailPage>
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: AppColors.border),
       ),
@@ -503,8 +510,7 @@ class _SupplierDetailPageState extends ConsumerState<SupplierDetailPage>
           Row(
             children: [
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: badgeColor,
                   borderRadius: BorderRadius.circular(6),
@@ -552,7 +558,7 @@ class _SupplierDetailPageState extends ConsumerState<SupplierDetailPage>
                 style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: Colors.black87,
+                  color: AppColors.textPrimary,
                 ),
               ),
             ],
@@ -576,7 +582,7 @@ class _SupplierDetailPageState extends ConsumerState<SupplierDetailPage>
                 'Ghi chú: ${tx.note}',
                 style: const TextStyle(
                   fontSize: 12,
-                  color: Colors.black54,
+                  color: AppColors.textSecondary,
                   fontStyle: FontStyle.italic,
                 ),
               ),
@@ -591,7 +597,7 @@ class _SupplierDetailPageState extends ConsumerState<SupplierDetailPage>
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: AppColors.border),
       ),
@@ -617,7 +623,7 @@ class _SupplierDetailPageState extends ConsumerState<SupplierDetailPage>
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
-                    color: Colors.black87,
+                    color: AppColors.textPrimary,
                   ),
                 ),
               ],

@@ -43,11 +43,11 @@ class _RevenueChartSectionState extends ConsumerState<RevenueChartSection> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: AppColors.black.withOpacity(0.04),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -61,28 +61,34 @@ class _RevenueChartSectionState extends ConsumerState<RevenueChartSection> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: 3,
-                    height: 14,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(2),
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      width: 3,
+                      height: 14,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    isSingleDay
-                        ? 'Doanh thu theo giờ trong ngày'
-                        : 'Biểu đồ doanh thu',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.black87,
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        isSingleDay
+                            ? 'Doanh thu theo giờ trong ngày'
+                            : 'Biểu đồ doanh thu',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               Row(
                 children: [
@@ -94,9 +100,8 @@ class _RevenueChartSectionState extends ConsumerState<RevenueChartSection> {
                       color: AppColors.primary,
                       size: 20,
                     ),
-                    tooltip: _showChart
-                        ? 'Xem dạng danh sách'
-                        : 'Xem dạng biểu đồ',
+                    tooltip:
+                        _showChart ? 'Xem dạng danh sách' : 'Xem dạng biểu đồ',
                     onPressed: _toggleViewMode,
                     constraints: const BoxConstraints(),
                     padding: const EdgeInsets.all(4),
@@ -121,7 +126,8 @@ class _RevenueChartSectionState extends ConsumerState<RevenueChartSection> {
   // ===========================================================================
   // 1. Hourly Section (Cho 1 ngày)
   // ===========================================================================
-  Widget _buildHourlySection(BuildContext context, NumberFormat currencyFormat) {
+  Widget _buildHourlySection(
+      BuildContext context, NumberFormat currencyFormat) {
     final hourlyAsync = ref.watch(hourlyRevenueListProvider);
 
     return hourlyAsync.when(
@@ -147,7 +153,7 @@ class _RevenueChartSectionState extends ConsumerState<RevenueChartSection> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFEF3C7),
+                    color: AppColors.warningLight,
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
                       color: AppColors.chartOrange.withOpacity(0.4),
@@ -159,16 +165,20 @@ class _RevenueChartSectionState extends ConsumerState<RevenueChartSection> {
                     children: [
                       const Icon(
                         Icons.local_fire_department_rounded,
-                        color: Color(0xFFD97706),
+                        color: AppColors.warningMedium,
                         size: 16,
                       ),
                       const SizedBox(width: 6),
-                      Text(
-                        'Khung giờ cao điểm: ${peakHour.hourLabel} - ${(peakHour.hour + 1).toString().padLeft(2, '0')}:00',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF92400E),
+                      Flexible(
+                        child: Text(
+                          'Khung giờ cao điểm: ${peakHour.hourLabel} - ${(peakHour.hour + 1).toString().padLeft(2, '0')}:00',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.warningDeep,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       const SizedBox(width: 4),
@@ -229,9 +239,10 @@ class _RevenueChartSectionState extends ConsumerState<RevenueChartSection> {
           barRods: [
             BarChartRodData(
               toY: rev,
-              color: rev > 0 ? AppColors.primary : Colors.grey.shade200,
+              color: rev > 0 ? AppColors.primary : AppColors.grey200,
               width: 8,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(3)),
             ),
           ],
         ),
@@ -251,13 +262,14 @@ class _RevenueChartSectionState extends ConsumerState<RevenueChartSection> {
                 final hour = group.x.toInt();
                 final hourData = hourlyList.firstWhere(
                   (d) => d.hour == hour,
-                  orElse: () => HourlyRevenueData(hour: hour, revenue: 0, orderCount: 0),
+                  orElse: () =>
+                      HourlyRevenueData(hour: hour, revenue: 0, orderCount: 0),
                 );
                 final valStr = NumberFormat('#,###', 'vi_VN').format(rod.toY);
                 return BarTooltipItem(
                   '${hourData.hourLabel}\n$valStr đ (${hourData.orderCount} đơn)',
                   const TextStyle(
-                    color: Colors.white,
+                    color: AppColors.white,
                     fontWeight: FontWeight.bold,
                     fontSize: 11,
                   ),
@@ -280,7 +292,7 @@ class _RevenueChartSectionState extends ConsumerState<RevenueChartSection> {
                       child: Text(
                         '${hour}h',
                         style: const TextStyle(
-                          color: Colors.black54,
+                          color: AppColors.textSecondary,
                           fontSize: 9,
                           fontWeight: FontWeight.w500,
                         ),
@@ -299,19 +311,22 @@ class _RevenueChartSectionState extends ConsumerState<RevenueChartSection> {
                   if (value == 0) return const SizedBox.shrink();
                   return Text(
                     NumberFormat.compact(locale: 'vi_VN').format(value),
-                    style: const TextStyle(color: Colors.black45, fontSize: 9),
+                    style: const TextStyle(
+                        color: AppColors.textTertiary, fontSize: 9),
                   );
                 },
               ),
             ),
-            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           ),
           gridData: FlGridData(
             show: true,
             drawVerticalLine: false,
             getDrawingHorizontalLine: (value) => FlLine(
-              color: Colors.black.withOpacity(0.05),
+              color: AppColors.black.withOpacity(0.05),
               strokeWidth: 1,
             ),
           ),
@@ -334,7 +349,7 @@ class _RevenueChartSectionState extends ConsumerState<RevenueChartSection> {
         child: Center(
           child: Text(
             'Chưa có đơn hàng trong ngày',
-            style: TextStyle(color: Colors.black38, fontSize: 12),
+            style: TextStyle(color: AppColors.textMuted, fontSize: 12),
           ),
         ),
       );
@@ -358,7 +373,7 @@ class _RevenueChartSectionState extends ConsumerState<RevenueChartSection> {
                 style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: Colors.black87,
+                  color: AppColors.textPrimary,
                 ),
               ),
               Row(
@@ -376,13 +391,13 @@ class _RevenueChartSectionState extends ConsumerState<RevenueChartSection> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
+                      color: AppColors.grey100,
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
                       '${item.orderCount} đơn',
-                      style:
-                          const TextStyle(fontSize: 10, color: Colors.black54),
+                      style: const TextStyle(
+                          fontSize: 10, color: AppColors.textSecondary),
                     ),
                   ),
                 ],
@@ -471,7 +486,7 @@ class _RevenueChartSectionState extends ConsumerState<RevenueChartSection> {
         child: Center(
           child: Text(
             'Không có dữ liệu hiển thị',
-            style: TextStyle(color: Colors.black38),
+            style: TextStyle(color: AppColors.textMuted),
           ),
         ),
       );
@@ -528,7 +543,8 @@ class _RevenueChartSectionState extends ConsumerState<RevenueChartSection> {
               toY: rev,
               color: AppColors.primary,
               width: barWidth,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(3)),
               rodStackItems: rodStackItems.isNotEmpty ? rodStackItems : null,
             ),
           ],
@@ -552,15 +568,16 @@ class _RevenueChartSectionState extends ConsumerState<RevenueChartSection> {
                 String tooltipText = '${bucket.label}\nTổng: $valStr đ';
 
                 if (bucket.storeRevenues.length > 1) {
-                  final sortedStoreIds = bucket.storeRevenues.keys.toList()..sort();
+                  final sortedStoreIds = bucket.storeRevenues.keys.toList()
+                    ..sort();
                   final availableStores =
                       ref.read(availableStoresProvider).value ?? {};
                   for (final storeId in sortedStoreIds) {
                     final storeRev = bucket.storeRevenues[storeId] ?? 0.0;
                     if (storeRev > 0) {
                       final storeName = availableStores[storeId] ?? storeId;
-                      final storeValStr =
-                          NumberFormat.compact(locale: 'vi_VN').format(storeRev);
+                      final storeValStr = NumberFormat.compact(locale: 'vi_VN')
+                          .format(storeRev);
                       tooltipText += '\n• $storeName: $storeValStr đ';
                     }
                   }
@@ -569,7 +586,7 @@ class _RevenueChartSectionState extends ConsumerState<RevenueChartSection> {
                 return BarTooltipItem(
                   tooltipText,
                   const TextStyle(
-                    color: Colors.white,
+                    color: AppColors.white,
                     fontWeight: FontWeight.bold,
                     fontSize: 11,
                   ),
@@ -601,12 +618,14 @@ class _RevenueChartSectionState extends ConsumerState<RevenueChartSection> {
                       child: Text(
                         buckets[index].label,
                         style: TextStyle(
-                          color: Colors.black54,
-                          fontSize: (interval == ChartAggregationInterval.weekly ||
+                          color: AppColors.textSecondary,
+                          fontSize: (interval ==
+                                      ChartAggregationInterval.weekly ||
                                   interval == ChartAggregationInterval.monthly)
                               ? 10
                               : 9,
-                          fontWeight: (interval == ChartAggregationInterval.weekly ||
+                          fontWeight: (interval ==
+                                      ChartAggregationInterval.weekly ||
                                   interval == ChartAggregationInterval.monthly)
                               ? FontWeight.w600
                               : FontWeight.w500,
@@ -626,20 +645,23 @@ class _RevenueChartSectionState extends ConsumerState<RevenueChartSection> {
                   if (value == 0) return const SizedBox.shrink();
                   return Text(
                     NumberFormat.compact(locale: 'vi_VN').format(value),
-                    style: const TextStyle(color: Colors.black45, fontSize: 9),
+                    style: const TextStyle(
+                        color: AppColors.textTertiary, fontSize: 9),
                   );
                 },
                 reservedSize: 32,
               ),
             ),
-            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           ),
           gridData: FlGridData(
             show: true,
             drawVerticalLine: false,
             getDrawingHorizontalLine: (value) => FlLine(
-              color: Colors.black.withOpacity(0.05),
+              color: AppColors.black.withOpacity(0.05),
               strokeWidth: 1,
             ),
           ),
@@ -685,7 +707,7 @@ class _RevenueChartSectionState extends ConsumerState<RevenueChartSection> {
                     storeName,
                     style: const TextStyle(
                       fontSize: 11,
-                      color: Colors.black54,
+                      color: AppColors.textSecondary,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -714,7 +736,7 @@ class _RevenueChartSectionState extends ConsumerState<RevenueChartSection> {
         child: Center(
           child: Text(
             'Chưa có giao dịch phát sinh',
-            style: TextStyle(color: Colors.black38, fontSize: 13),
+            style: TextStyle(color: AppColors.textMuted, fontSize: 13),
           ),
         ),
       );
@@ -735,7 +757,8 @@ class _RevenueChartSectionState extends ConsumerState<RevenueChartSection> {
             children: [
               Text(
                 item.fullLabel,
-                style: const TextStyle(fontSize: 13, color: Colors.black87),
+                style:
+                    const TextStyle(fontSize: 13, color: AppColors.textPrimary),
               ),
               Row(
                 children: [
@@ -750,7 +773,8 @@ class _RevenueChartSectionState extends ConsumerState<RevenueChartSection> {
                   const SizedBox(width: 8),
                   Text(
                     '(${item.totalOrders} đơn)',
-                    style: const TextStyle(fontSize: 11, color: Colors.black45),
+                    style: const TextStyle(
+                        fontSize: 11, color: AppColors.textTertiary),
                   ),
                 ],
               ),
@@ -761,4 +785,3 @@ class _RevenueChartSectionState extends ConsumerState<RevenueChartSection> {
     );
   }
 }
-

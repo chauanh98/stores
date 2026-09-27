@@ -22,6 +22,7 @@ class Product {
   final String? noteTemplate;
   final String? components;
   final String? imageUrl;
+  final List<String> images;
 
   // Combo fields
   final bool isCombo;
@@ -53,6 +54,7 @@ class Product {
     this.noteTemplate,
     this.components,
     this.imageUrl,
+    this.images = const [],
     this.isCombo = false,
     this.comboComponents = const [],
     this.minStock,
@@ -67,6 +69,90 @@ class Product {
   int get stock => branchStocks.values.fold(0, (sum, val) => sum + val);
 
   // Helper getters
+  /// Trích xuất danh sách tất cả các URL ảnh từ chuỗi đầu vào.
+  /// Hỗ trợ cả Network URL (HTTP/HTTPS/GS) và Base64 Data URL (`data:image/...`),
+  /// đảm bảo không bị cắt đứt dấu phẩy phân tách bên trong Data URL.
+  static List<String> parseImageUrls(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return const [];
+    final trimmed = raw.trim();
+
+    if (!trimmed.contains(',')) {
+      if (trimmed.startsWith('http://') ||
+          trimmed.startsWith('https://') ||
+          trimmed.startsWith('gs://') ||
+          (trimmed.startsWith('data:image') && trimmed.contains('base64,'))) {
+        return [trimmed];
+      }
+      return const [];
+    }
+
+    if (trimmed.startsWith('data:image') &&
+        trimmed.contains('base64,') &&
+        !trimmed.contains(',http://') &&
+        !trimmed.contains(',https://') &&
+        !trimmed.contains(',gs://') &&
+        !trimmed.contains(',data:image') &&
+        !trimmed.contains(', http://') &&
+        !trimmed.contains(', https://') &&
+        !trimmed.contains(', gs://') &&
+        !trimmed.contains(', data:image')) {
+      return [trimmed];
+    }
+
+    final parts = trimmed.split(',');
+    final List<String> result = [];
+    final buffer = StringBuffer();
+
+    for (int i = 0; i < parts.length; i++) {
+      final part = parts[i];
+      if (buffer.isEmpty) {
+        buffer.write(part);
+      } else {
+        final nextTrimmed = part.trim();
+        final isNewBoundary = nextTrimmed.startsWith('http://') ||
+            nextTrimmed.startsWith('https://') ||
+            nextTrimmed.startsWith('gs://') ||
+            nextTrimmed.startsWith('data:image');
+
+        if (isNewBoundary) {
+          final finished = buffer.toString().trim();
+          if (finished.isNotEmpty) {
+            result.add(finished);
+          }
+          buffer.clear();
+          buffer.write(part);
+        } else {
+          buffer.write(',');
+          buffer.write(part);
+        }
+      }
+    }
+
+    final finished = buffer.toString().trim();
+    if (finished.isNotEmpty) {
+      result.add(finished);
+    }
+
+    return result
+        .map((u) => u.trim())
+        .where((u) =>
+            u.startsWith('http://') ||
+            u.startsWith('https://') ||
+            u.startsWith('gs://') ||
+            (u.startsWith('data:image') && u.contains('base64,')))
+        .toList();
+  }
+
+  /// Danh sách tất cả link ảnh hợp lệ (ưu tiên mảng images, hoặc tách chuỗi imageUrl chứa nhiều ảnh)
+  List<String> get allImageUrls {
+    if (images.isNotEmpty) return images;
+    return parseImageUrls(imageUrl);
+  }
+
+  /// Link ảnh chính (ảnh đầu tiên nếu có nhiều ảnh)
+  String? get primaryImageUrl =>
+      allImageUrls.isNotEmpty ? allImageUrls.first : null;
+
   bool get isOutOfStock => stock <= 0;
   bool isLowStock([int fallbackMin = 5]) =>
       stock > 0 && stock <= (minStock ?? fallbackMin);
@@ -148,6 +234,7 @@ class Product {
     String? noteTemplate,
     String? components,
     String? imageUrl,
+    List<String>? images,
     bool? isCombo,
     List<ComboComponent>? comboComponents,
     int? minStock,
@@ -173,6 +260,7 @@ class Product {
         noteTemplate: noteTemplate ?? this.noteTemplate,
         components: components ?? this.components,
         imageUrl: imageUrl ?? this.imageUrl,
+        images: images ?? this.images,
         isCombo: isCombo ?? this.isCombo,
         comboComponents: comboComponents ?? this.comboComponents,
         minStock: minStock ?? this.minStock,
@@ -181,4 +269,3 @@ class Product {
         allowSale: allowSale ?? this.allowSale,
       );
 }
-

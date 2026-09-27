@@ -9,7 +9,8 @@ import '../../../domain/entities/product.dart';
 
 class PosCategoryBar extends ConsumerWidget {
   final String selectedCategoryId;
-  final void Function(String categoryId, String categoryName)? onCategorySelected;
+  final void Function(String categoryId, String categoryName)?
+      onCategorySelected;
 
   const PosCategoryBar({
     super.key,
@@ -70,7 +71,8 @@ class PosCategoryBar extends ConsumerWidget {
       final pCatLower = p.category.trim().toLowerCase();
       if (pCatLower == catNameLower || pCatLower == catIdLower) return true;
       // Hỗ trợ trường hợp category phân cấp 'Laptop >> Gaming' hoặc 'Điện thoại'
-      if (pCatLower.contains(catNameLower) || catNameLower.contains(pCatLower)) {
+      if (pCatLower.contains(catNameLower) ||
+          catNameLower.contains(pCatLower)) {
         return true;
       }
       return false;
@@ -94,7 +96,7 @@ class PosCategoryBar extends ConsumerWidget {
         curve: Curves.easeInOut,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : Colors.white,
+          color: isSelected ? AppColors.primary : AppColors.white,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isSelected ? AppColors.primary : AppColors.border,
@@ -116,7 +118,7 @@ class PosCategoryBar extends ConsumerWidget {
             Icon(
               icon,
               size: 16,
-              color: isSelected ? Colors.white : Colors.black54,
+              color: isSelected ? AppColors.white : AppColors.textSecondary,
             ),
             const SizedBox(width: 6),
             Text(
@@ -124,7 +126,7 @@ class PosCategoryBar extends ConsumerWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                color: isSelected ? Colors.white : Colors.black87,
+                color: isSelected ? AppColors.white : AppColors.textPrimary,
               ),
             ),
             const SizedBox(width: 6),
@@ -132,7 +134,7 @@ class PosCategoryBar extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
                 color: isSelected
-                    ? Colors.white.withOpacity(0.25)
+                    ? AppColors.white.withOpacity(0.25)
                     : AppColors.background,
                 borderRadius: BorderRadius.circular(10),
               ),
@@ -141,7 +143,7 @@ class PosCategoryBar extends ConsumerWidget {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
-                  color: isSelected ? Colors.white : Colors.black54,
+                  color: isSelected ? AppColors.white : AppColors.textSecondary,
                 ),
               ),
             ),
@@ -154,7 +156,9 @@ class PosCategoryBar extends ConsumerWidget {
   IconData _getCategoryIcon(Category cat) {
     if (cat.id == 'all') return Icons.grid_view_rounded;
     final lower = cat.name.toLowerCase();
-    if (lower.contains('smart') || lower.contains('phone') || lower.contains('thoại')) {
+    if (lower.contains('smart') ||
+        lower.contains('phone') ||
+        lower.contains('thoại')) {
       return Icons.phone_android;
     }
     if (lower.contains('lap') || lower.contains('máy tính')) {
@@ -163,7 +167,10 @@ class PosCategoryBar extends ConsumerWidget {
     if (lower.contains('tab') || lower.contains('bảng')) {
       return Icons.tablet_android;
     }
-    if (lower.contains('head') || lower.contains('tai nghe') || lower.contains('phụ kiện') || lower.contains('access')) {
+    if (lower.contains('head') ||
+        lower.contains('tai nghe') ||
+        lower.contains('phụ kiện') ||
+        lower.contains('access')) {
       return Icons.headphones;
     }
     if (lower.contains('cam')) {

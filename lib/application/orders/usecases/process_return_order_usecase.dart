@@ -57,12 +57,13 @@ class ProcessReturnOrderUseCase {
       throw const ValidationException('Không thể trả hàng cho hóa đơn đã hủy.');
     }
     if (originalOrder.status != 'completed') {
-      throw const ValidationException('Chỉ có thể trả hàng cho hóa đơn đã hoàn thành.');
+      throw const ValidationException(
+          'Chỉ có thể trả hàng cho hóa đơn đã hoàn thành.');
     }
     if (returnItems.isEmpty) {
-      throw const ValidationException('Danh sách hàng trả không được để trống.');
+      throw const ValidationException(
+          'Danh sách hàng trả không được để trống.');
     }
-
 
     // Validate quantities against available in original order
     for (final returnItem in returnItems) {
@@ -84,11 +85,26 @@ class ProcessReturnOrderUseCase {
     final now = DateTime.now();
 
     // 2. Financial calculation
-    final totalRefund = returnItems.fold<double>(
+    final grossReturnTotal = returnItems.fold<double>(
         0.0, (sum, item) => sum + (item.price * item.quantity));
+
+    final double returnDiscount;
+    if (originalOrder.total > 0 && originalOrder.discount > 0) {
+      final ratio = (grossReturnTotal / originalOrder.total).clamp(0.0, 1.0);
+      returnDiscount = originalOrder.discount * ratio;
+    } else {
+      returnDiscount = 0.0;
+    }
+
+    final totalRefund = (grossReturnTotal - returnDiscount)
+        .clamp(0.0, originalOrder.netPayable);
     final remainingDebt = originalOrder.remainingDebt;
     final debtDeducted = min(totalRefund, remainingDebt);
-    final cashRefunded = (totalRefund - debtDeducted).clamp(0.0, double.infinity);
+    final maxCashRefund = originalOrder.amountPaid.clamp(0.0, double.infinity);
+    final cashRefunded = min(
+      (totalRefund - debtDeducted).clamp(0.0, double.infinity),
+      maxCashRefund,
+    );
 
     // 3. Product Inventory Stock Restoration & Logging
     for (final returnItem in returnItems) {
@@ -102,8 +118,8 @@ class ProcessReturnOrderUseCase {
               final qtyToRestore = returnItem.quantity * comp.quantity;
               final updatedStocks = _updateBranchStock(
                   childProduct.branchStocks, storeId, qtyToRestore);
-              await productRepository.upsert(
-                  childProduct.copyWith(branchStocks: updatedStocks));
+              await productRepository
+                  .upsert(childProduct.copyWith(branchStocks: updatedStocks));
 
               final tx = InventoryTransaction(
                 id: 'return_import_${now.millisecondsSinceEpoch}_${childProduct.id}',
@@ -122,8 +138,8 @@ class ProcessReturnOrderUseCase {
           }
         } else {
           final qtyToRestore = returnItem.quantity;
-          final updatedStocks = _updateBranchStock(
-              product.branchStocks, storeId, qtyToRestore);
+          final updatedStocks =
+              _updateBranchStock(product.branchStocks, storeId, qtyToRestore);
           await productRepository
               .upsert(product.copyWith(branchStocks: updatedStocks));
 
@@ -152,7 +168,8 @@ class ProcessReturnOrderUseCase {
       final customer = await customerRepository.fetchById(customerId);
       if (customer != null) {
         final currentDebt = customer.displayCurrentDebt;
-        final newDebt = (currentDebt - debtDeducted).clamp(0.0, double.infinity);
+        final newDebt =
+            (currentDebt - debtDeducted).clamp(0.0, double.infinity);
         final currentNetSales = customer.netSales ?? customer.totalSales ?? 0.0;
         final newNetSales =
             (currentNetSales - totalRefund).clamp(0.0, double.infinity);
@@ -175,8 +192,8 @@ class ProcessReturnOrderUseCase {
             note: 'Trừ nợ do trả hàng HĐ ${originalOrder.id}: ${reason ?? ''}',
             createdBy: currentUser.username,
           );
-          await customerDataSource!.saveDebtTransaction(
-              customer.id, debtTx.toMap());
+          await customerDataSource!
+              .saveDebtTransaction(customer.id, debtTx.toMap());
         }
       }
     }
@@ -199,7 +216,9 @@ class ProcessReturnOrderUseCase {
         updatedItems.every((i) => i.activeQuantity <= 0);
 
     final newTotal =
-        (originalOrder.total - totalRefund).clamp(0.0, double.infinity);
+        (originalOrder.total - grossReturnTotal).clamp(0.0, double.infinity);
+    final newDiscount =
+        (originalOrder.discount - returnDiscount).clamp(0.0, double.infinity);
     final newDebtAmount =
         (originalOrder.debtAmount - debtDeducted).clamp(0.0, double.infinity);
     final newAmountPaid =
@@ -208,6 +227,7 @@ class ProcessReturnOrderUseCase {
     final updatedOrder = originalOrder.copyWith(
       items: updatedItems,
       total: newTotal,
+      discount: newDiscount,
       debtAmount: newDebtAmount,
       amountPaid: newAmountPaid,
       status: allItemsFullyReturned ? 'returned' : originalOrder.status,

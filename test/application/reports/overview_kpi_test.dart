@@ -1,10 +1,13 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:stores/application/reports/overview_kpi_providers.dart';
+import 'package:stores/application/reports/revenue_providers.dart';
 import 'package:stores/domain/entities/customer_debt_transaction.dart';
 import 'package:stores/domain/entities/order.dart';
 import 'package:stores/domain/entities/overview_kpis.dart';
 import 'package:stores/domain/entities/product.dart';
+import 'package:stores/domain/entities/revenue_report.dart';
 
 import '../../fixtures/mock_report_data.dart';
 
@@ -25,7 +28,7 @@ void main() {
 
       final int orderCount = completedOrders.length;
       final double netRevenue =
-          completedOrders.fold<double>(0.0, (sum, o) => sum + o.total);
+          completedOrders.fold<double>(0.0, (sum, o) => sum + o.netPayable);
 
       // Cost price lookup map
       final costMap = {for (var p in products) p.id: p.costPrice};
@@ -465,6 +468,44 @@ void main() {
         expect(calculateGrowthPercent(0.0, 0.0), equals(0.0));
         expect(calculateGrowthPercent(100.0, 0.0), equals(100.0));
         expect(calculateGrowthPercent(0.0, 100.0), equals(-100.0));
+      });
+
+      test('overviewKPIsProvider computes net revenue and profit using netPayable for discounted orders', () async {
+        final currentRange = DateTimeRange(
+          start: DateTime(2026, 9, 21),
+          end: DateTime(2026, 9, 21, 23, 59, 59, 999),
+        );
+
+        final currentSummary = RevenueSummary(
+          startDate: currentRange.start,
+          endDate: currentRange.end,
+          totalRevenue: 2000000.0, // net after discount
+          totalCost: 1200000.0,
+          totalProfit: 800000.0,
+          totalOrders: 1,
+          totalItemsSold: 2,
+          dailyReports: const [],
+        );
+
+        final container = ProviderContainer(
+          overrides: [
+            overviewCurrentDateRangeProvider.overrideWithValue(currentRange),
+            revenueByDateRangeProvider(currentRange).overrideWith(
+              (ref) => Stream.value(currentSummary),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        // Await stream completion
+        await container.read(revenueByDateRangeProvider(currentRange).future);
+
+        final kpisAsync = container.read(overviewKPIsProvider);
+        expect(kpisAsync.hasValue, isTrue);
+        final kpis = kpisAsync.value!;
+        expect(kpis.netRevenue, equals(2000000.0));
+        expect(kpis.grossProfit, equals(800000.0));
+        expect(kpis.orderCount, equals(1));
       });
     });
   });

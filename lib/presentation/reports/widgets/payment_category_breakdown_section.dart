@@ -27,11 +27,11 @@ class PaymentCategoryBreakdownSection extends ConsumerWidget {
         // Card 1: Cơ Cấu Phương Thức Thanh Toán (Donut Chart)
         Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.white,
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: AppColors.black.withOpacity(0.04),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -59,7 +59,7 @@ class PaymentCategoryBreakdownSection extends ConsumerWidget {
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
-                        color: Colors.black87,
+                        color: AppColors.textPrimary,
                       ),
                     ),
                   ),
@@ -94,11 +94,11 @@ class PaymentCategoryBreakdownSection extends ConsumerWidget {
         // Card 2: Doanh Thu Theo Danh Mục Sản Phẩm (Category Revenue Share)
         Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.white,
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: AppColors.black.withOpacity(0.04),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -126,7 +126,7 @@ class PaymentCategoryBreakdownSection extends ConsumerWidget {
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
-                        color: Colors.black87,
+                        color: AppColors.textPrimary,
                       ),
                     ),
                   ),
@@ -173,7 +173,7 @@ class PaymentCategoryBreakdownSection extends ConsumerWidget {
         child: Center(
           child: Text(
             'Chưa có dữ liệu thanh toán trong kỳ',
-            style: TextStyle(color: Colors.black38, fontSize: 12),
+            style: TextStyle(color: AppColors.textMuted, fontSize: 12),
           ),
         ),
       );
@@ -193,7 +193,7 @@ class PaymentCategoryBreakdownSection extends ConsumerWidget {
           titleStyle: const TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: AppColors.white,
           ),
         ),
       if (payment.transferAmount > 0)
@@ -205,7 +205,7 @@ class PaymentCategoryBreakdownSection extends ConsumerWidget {
           titleStyle: const TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: AppColors.white,
           ),
         ),
       if (payment.debtAmount > 0)
@@ -217,7 +217,7 @@ class PaymentCategoryBreakdownSection extends ConsumerWidget {
           titleStyle: const TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: AppColors.white,
           ),
         ),
     ];
@@ -245,7 +245,7 @@ class PaymentCategoryBreakdownSection extends ConsumerWidget {
               const Icon(
                 Icons.account_balance_wallet_outlined,
                 size: 20,
-                color: Colors.black45,
+                color: AppColors.textTertiary,
               ),
             ],
           ),
@@ -324,7 +324,8 @@ class PaymentCategoryBreakdownSection extends ConsumerWidget {
           Flexible(
             child: Text(
               label,
-              style: const TextStyle(fontSize: 12, color: Colors.black87),
+              style:
+                  const TextStyle(fontSize: 12, color: AppColors.textPrimary),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -334,20 +335,20 @@ class PaymentCategoryBreakdownSection extends ConsumerWidget {
             style: const TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.bold,
-              color: Colors.black87,
+              color: AppColors.textPrimary,
             ),
           ),
           const SizedBox(width: 4),
           Text(
             '(${percent.toStringAsFixed(0)}%)',
-            style: const TextStyle(fontSize: 11, color: Colors.black45),
+            style: const TextStyle(fontSize: 11, color: AppColors.textTertiary),
           ),
           if (onTap != null) ...[
             const SizedBox(width: 2),
             const Icon(
               Icons.chevron_right,
               size: 14,
-              color: Colors.black38,
+              color: AppColors.textMuted,
             ),
           ],
         ],
@@ -356,7 +357,7 @@ class PaymentCategoryBreakdownSection extends ConsumerWidget {
 
     if (onTap != null) {
       return Material(
-        color: Colors.transparent,
+        color: AppColors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(6),
           onTap: onTap,
@@ -382,7 +383,7 @@ class PaymentCategoryBreakdownSection extends ConsumerWidget {
         child: Center(
           child: Text(
             'Chưa có dữ liệu danh mục trong kỳ',
-            style: TextStyle(color: Colors.black38, fontSize: 12),
+            style: TextStyle(color: AppColors.textMuted, fontSize: 12),
           ),
         ),
       );
@@ -407,7 +408,7 @@ class PaymentCategoryBreakdownSection extends ConsumerWidget {
         final color = palette[index % palette.length];
 
         return Material(
-          color: Colors.transparent,
+          color: AppColors.transparent,
           child: InkWell(
             borderRadius: BorderRadius.circular(8),
             onTap: () {
@@ -446,7 +447,7 @@ class PaymentCategoryBreakdownSection extends ConsumerWidget {
                                 style: const TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
-                                  color: Colors.black87,
+                                  color: AppColors.textPrimary,
                                 ),
                               ),
                             ),
@@ -456,7 +457,7 @@ class PaymentCategoryBreakdownSection extends ConsumerWidget {
                                 '(${cat.quantitySold} sp)',
                                 style: const TextStyle(
                                   fontSize: 10,
-                                  color: Colors.black45,
+                                  color: AppColors.textTertiary,
                                 ),
                               ),
                             ],
@@ -472,14 +473,14 @@ class PaymentCategoryBreakdownSection extends ConsumerWidget {
                             style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
-                              color: Colors.black87,
+                              color: AppColors.textPrimary,
                             ),
                           ),
                           const SizedBox(width: 2),
                           const Icon(
                             Icons.chevron_right,
                             size: 14,
-                            color: Colors.black38,
+                            color: AppColors.textMuted,
                           ),
                         ],
                       ),
@@ -490,7 +491,7 @@ class PaymentCategoryBreakdownSection extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(4),
                     child: LinearProgressIndicator(
                       value: (cat.percentage / 100).clamp(0.0, 1.0),
-                      backgroundColor: Colors.grey.shade100,
+                      backgroundColor: AppColors.grey100,
                       valueColor: AlwaysStoppedAnimation<Color>(color),
                       minHeight: 6,
                     ),

@@ -526,8 +526,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Initial: All 5 orders
-      expect(find.text('Số HĐ: 5'), findsOneWidget);
+      // Initial: Default status is 'completed' (R2) and orange KPI summary card is hidden (R3)
+      expect(find.text('Mã đơn: HD_COMP_03'), findsOneWidget);
+      expect(find.text('Mã đơn: HD_RET_01'), findsNothing);
 
       // Select 'Đơn trả hàng' ChoiceChip
       await tester.tap(find.widgetWithText(ChoiceChip, 'Đơn trả hàng'));

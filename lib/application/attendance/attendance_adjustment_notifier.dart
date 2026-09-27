@@ -30,13 +30,16 @@ class AttendanceAdjustmentState {
     return AttendanceAdjustmentState(
       adjustments: adjustments ?? this.adjustments,
       isLoading: isLoading ?? this.isLoading,
-      errorMessage: clearErrorMessage ? null : (errorMessage ?? this.errorMessage),
-      successMessage: clearSuccessMessage ? null : (successMessage ?? this.successMessage),
+      errorMessage:
+          clearErrorMessage ? null : (errorMessage ?? this.errorMessage),
+      successMessage:
+          clearSuccessMessage ? null : (successMessage ?? this.successMessage),
     );
   }
 }
 
-class AttendanceAdjustmentNotifier extends StateNotifier<AttendanceAdjustmentState> {
+class AttendanceAdjustmentNotifier
+    extends StateNotifier<AttendanceAdjustmentState> {
   final AttendanceRepository _repository;
   final UserAccount? _currentUser;
 
@@ -53,10 +56,13 @@ class AttendanceAdjustmentNotifier extends StateNotifier<AttendanceAdjustmentSta
     );
     try {
       final list = await _repository.getAdjustments(
-        storeId: _currentUser?.role.toLowerCase().trim() == 'admin' ? null : _currentUser?.storeId,
+        storeId: _currentUser?.role.toLowerCase().trim() == 'admin'
+            ? null
+            : _currentUser?.storeId,
         userId: _currentUser?.isStaff == true ? _currentUser?.username : null,
       );
-      list.sort((a, b) => (b.submittedAt ?? DateTime.now()).compareTo(a.submittedAt ?? DateTime.now()));
+      list.sort((a, b) => (b.submittedAt ?? DateTime.now())
+          .compareTo(a.submittedAt ?? DateTime.now()));
       state = state.copyWith(adjustments: list, isLoading: false);
     } catch (e) {
       state = state.copyWith(

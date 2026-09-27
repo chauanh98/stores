@@ -1,3 +1,4 @@
+import 'package:stores/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
@@ -136,8 +137,8 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
                     final idx = entry.key;
                     final item = entry.value;
                     final Product? product = products
-                        .where((p) => p.id == item.productId)
-                        .firstOrNull ??
+                            .where((p) => p.id == item.productId)
+                            .firstOrNull ??
                         (products.isNotEmpty ? products.first : null);
 
                     return Card(
@@ -243,10 +244,10 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
                                   onPressed: () =>
                                       setState(() => _items.removeAt(idx)),
                                   icon: const Icon(Icons.delete_outline,
-                                      color: Colors.red),
+                                      color: AppColors.danger),
                                   label: Text(l10n.delete,
-                                      style:
-                                          const TextStyle(color: Colors.red)),
+                                      style: const TextStyle(
+                                          color: AppColors.danger)),
                                 ),
                               ),
                           ],
@@ -374,9 +375,16 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
         );
       }).toList();
 
+      // 1) Fetch Customer to embed customerName and append purchases
+      final customerRepo = ref.read(customerRepositoryProvider);
+      final customer = widget.selectedCustomerId != null
+          ? await customerRepo.fetchById(widget.selectedCustomerId!)
+          : null;
+
       final order = Order(
         id: id,
         customerId: widget.selectedCustomerId!,
+        customerName: customer?.name,
         createdAt: now,
         items: orderItems,
         total: total,
@@ -385,12 +393,10 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
         paymentMethod: 'cash',
       );
 
-      // 1) Create order
+      // 2) Create order
       await ref.read(orderRepositoryProvider).create(order);
 
-      // 2) Append purchases vào Customer
-      final customerRepo = ref.read(customerRepositoryProvider);
-      final customer = await customerRepo.fetchById(widget.selectedCustomerId!);
+      // 3) Append purchases vào Customer
       if (customer != null) {
         final newPurchases = List<Purchase>.from(customer.purchases);
         for (final i in orderItems) {
@@ -503,7 +509,7 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Error: $e')));
+            .showSnackBar(SnackBar(content: Text('Lỗi: $e')));
       }
     } finally {
       if (mounted) setState(() => _saving = false);

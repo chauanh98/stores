@@ -47,7 +47,8 @@ class _PosCartTabBarState extends ConsumerState<PosCartTabBar> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: const Row(
           children: [
-            Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 24),
+            Icon(Icons.warning_amber_rounded,
+                color: AppColors.warning, size: 24),
             SizedBox(width: 8),
             Text(
               'Đóng hóa đơn tạm?',
@@ -62,12 +63,13 @@ class _PosCartTabBarState extends ConsumerState<PosCartTabBar> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogCtx).pop(false),
-            child: const Text('Bỏ qua', style: TextStyle(color: Colors.black54)),
+            child: const Text('Bỏ qua',
+                style: TextStyle(color: AppColors.textSecondary)),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.danger,
-              foregroundColor: Colors.white,
+              foregroundColor: AppColors.white,
             ),
             onPressed: () => Navigator.of(dialogCtx).pop(true),
             child: const Text('Đóng hóa đơn'),
@@ -90,13 +92,13 @@ class _PosCartTabBarState extends ConsumerState<PosCartTabBar> {
     return Container(
       height: 48,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.white,
         border: const Border(
           bottom: BorderSide(color: AppColors.border, width: 1),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: AppColors.black.withOpacity(0.02),
             blurRadius: 2,
             offset: const Offset(0, 1),
           ),
@@ -162,7 +164,7 @@ class _PosCartTabBarState extends ConsumerState<PosCartTabBar> {
           final itemCount = tab.totalItems;
 
           return Material(
-            color: Colors.transparent,
+            color: AppColors.transparent,
             child: InkWell(
               key: Key('pos_cart_tab_${tab.id}'),
               borderRadius: BorderRadius.circular(8),
@@ -197,7 +199,8 @@ class _PosCartTabBarState extends ConsumerState<PosCartTabBar> {
                     Icon(
                       Icons.receipt_outlined,
                       size: 14,
-                      color: isActive ? Colors.white : AppColors.textSecondary,
+                      color:
+                          isActive ? AppColors.white : AppColors.textSecondary,
                     ),
                     const SizedBox(width: 5),
                     Text(
@@ -207,7 +210,7 @@ class _PosCartTabBarState extends ConsumerState<PosCartTabBar> {
                         fontWeight:
                             isActive ? FontWeight.bold : FontWeight.w500,
                         color:
-                            isActive ? Colors.white : AppColors.textPrimary,
+                            isActive ? AppColors.white : AppColors.textPrimary,
                       ),
                     ),
                     if (itemCount > 0) ...[
@@ -217,7 +220,7 @@ class _PosCartTabBarState extends ConsumerState<PosCartTabBar> {
                             horizontal: 5, vertical: 1),
                         decoration: BoxDecoration(
                           color: isActive
-                              ? Colors.white
+                              ? AppColors.white
                               : AppColors.primary.withOpacity(0.12),
                           borderRadius: BorderRadius.circular(10),
                         ),
@@ -245,8 +248,8 @@ class _PosCartTabBarState extends ConsumerState<PosCartTabBar> {
                           Icons.close,
                           size: 14,
                           color: isActive
-                              ? Colors.white.withOpacity(0.85)
-                              : Colors.black45,
+                              ? AppColors.white.withOpacity(0.85)
+                              : AppColors.textTertiary,
                         ),
                       ),
                     ),

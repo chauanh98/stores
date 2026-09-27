@@ -43,10 +43,12 @@ class StorePaymentConfigModel {
     };
   }
 
-  factory StorePaymentConfigModel.fromMap(Map<dynamic, dynamic> map, [String? fallbackStoreId]) {
+  factory StorePaymentConfigModel.fromMap(Map<dynamic, dynamic> map,
+      [String? fallbackStoreId]) {
     return StorePaymentConfigModel(
       storeId: map['storeId']?.toString() ?? fallbackStoreId ?? '',
-      storeName: map['storeName']?.toString() ?? 'TRANG TRÍ NỘI THẤT KHÁNH ĐĂNG',
+      storeName:
+          map['storeName']?.toString() ?? 'TRANG TRÍ NỘI THẤT KHÁNH ĐĂNG',
       address: map['address']?.toString() ?? 'Chợ Cờ Đỏ, Xã Cờ Đỏ, Cần Thơ',
       phone: map['phone']?.toString() ?? '0917.865 300 - 0939.865 300',
       bankName: map['bankName']?.toString() ?? 'VIETINBANK',

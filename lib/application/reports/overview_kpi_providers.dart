@@ -56,8 +56,8 @@ final overviewPriorPeriodDateRangeProvider =
       final prevEnd = today.subtract(const Duration(days: 7));
       return DateTimeRange(
         start: prevStart,
-        end: DateTime(
-            prevEnd.year, prevEnd.month, prevEnd.day, 23, 59, 59, 999),
+        end:
+            DateTime(prevEnd.year, prevEnd.month, prevEnd.day, 23, 59, 59, 999),
       );
 
     case OverviewTimeRange.thisMonth:
@@ -94,12 +94,13 @@ final overviewPriorPeriodDateRangeProvider =
       // Tùy chỉnh -> Khoảng thời gian liền trước có cùng độ dài (duration)
       final customRange = ref.watch(overviewCustomDateRangeProvider);
       final duration = customRange.duration;
-      final prevEnd = customRange.start.subtract(const Duration(milliseconds: 1));
+      final prevEnd =
+          customRange.start.subtract(const Duration(milliseconds: 1));
       final prevStart = prevEnd.subtract(duration);
       return DateTimeRange(
         start: DateTime(prevStart.year, prevStart.month, prevStart.day),
-        end: DateTime(
-            prevEnd.year, prevEnd.month, prevEnd.day, 23, 59, 59, 999),
+        end:
+            DateTime(prevEnd.year, prevEnd.month, prevEnd.day, 23, 59, 59, 999),
       );
   }
 });
@@ -122,34 +123,29 @@ final overviewKPIsProvider =
   final currentRange = ref.watch(overviewCurrentDateRangeProvider);
   final priorRange = ref.watch(overviewPriorPeriodDateRangeProvider);
 
-  final currentSummaryAsync = ref.watch(revenueByDateRangeProvider(currentRange));
+  final currentSummaryAsync =
+      ref.watch(revenueByDateRangeProvider(currentRange));
   final priorSummaryAsync = ref.watch(revenueByDateRangeProvider(priorRange));
   final customersAsync = ref.watch(customerListNotifierProvider);
 
-  // Nếu bất kỳ luồng dữ liệu nào đang loading
-  if (currentSummaryAsync.isLoading ||
-      priorSummaryAsync.isLoading ||
-      customersAsync.isLoading) {
+  // Chỉ loading khi luồng dữ liệu chính kỳ hiện tại đang loading
+  if (currentSummaryAsync.isLoading) {
     return const AsyncValue.loading();
   }
 
-  // Nếu có lỗi phát sinh
+  // Nếu có lỗi phát sinh ở luồng dữ liệu chính
   if (currentSummaryAsync.hasError) {
     return AsyncValue.error(
         currentSummaryAsync.error!, currentSummaryAsync.stackTrace!);
   }
-  if (priorSummaryAsync.hasError) {
-    return AsyncValue.error(
-        priorSummaryAsync.error!, priorSummaryAsync.stackTrace!);
-  }
 
   final currentSummary = currentSummaryAsync.value;
-  final priorSummary = priorSummaryAsync.value;
-  final customers = customersAsync.value ?? [];
-
-  if (currentSummary == null || priorSummary == null) {
+  if (currentSummary == null) {
     return const AsyncValue.data(OverviewKPIs.empty);
   }
+
+  final priorSummary = priorSummaryAsync.valueOrNull;
+  final customers = customersAsync.valueOrNull ?? [];
 
   // Các chỉ số kỳ hiện tại
   final netRevenue = currentSummary.totalRevenue;
@@ -159,9 +155,9 @@ final overviewKPIsProvider =
   const returnGoodsValue = 0.0;
 
   // Các chỉ số kỳ trước
-  final priorRevenue = priorSummary.totalRevenue;
-  final priorOrders = priorSummary.totalOrders;
-  final priorProfit = priorSummary.totalProfit;
+  final priorRevenue = priorSummary?.totalRevenue ?? 0.0;
+  final priorOrders = priorSummary?.totalOrders ?? 0;
+  final priorProfit = priorSummary?.totalProfit ?? 0.0;
   final priorAov = priorOrders > 0 ? (priorRevenue / priorOrders) : 0.0;
 
   // Tính toán % tăng trưởng
@@ -174,7 +170,9 @@ final overviewKPIsProvider =
   // Tổng công nợ khách hàng cần thu
   final customerDebt = customers.fold<double>(
     0.0,
-    (sum, c) => sum + (c.currentDebt != null && c.currentDebt! > 0 ? c.currentDebt! : 0.0),
+    (sum, c) =>
+        sum +
+        (c.currentDebt != null && c.currentDebt! > 0 ? c.currentDebt! : 0.0),
   );
 
   final kpis = OverviewKPIs(
@@ -226,12 +224,13 @@ final hourlyRevenueListProvider =
 
     for (final order in completedOrders) {
       final hour = order.createdAt.hour;
-      hourlyRevenueMap[hour] = (hourlyRevenueMap[hour] ?? 0.0) + order.total;
+      hourlyRevenueMap[hour] =
+          (hourlyRevenueMap[hour] ?? 0.0) + order.netPayable;
       hourlyOrderCountMap[hour] = (hourlyOrderCountMap[hour] ?? 0) + 1;
 
       final branchKey = order.createdBy ?? 'store';
       final branchMap = hourlyBranchMap[hour] ?? {};
-      branchMap[branchKey] = (branchMap[branchKey] ?? 0.0) + order.total;
+      branchMap[branchKey] = (branchMap[branchKey] ?? 0.0) + order.netPayable;
       hourlyBranchMap[hour] = branchMap;
     }
 
@@ -272,8 +271,8 @@ final paymentBreakdownProvider =
     for (final order in completedOrders) {
       final method = order.paymentMethod.toLowerCase();
       final paid = order.amountPaid;
-      final orderDebt = order.debtAmount;
-      final orderTotal = order.total;
+      final orderDebt = order.remainingDebt;
+      final orderTotal = order.netPayable;
 
       total += orderTotal;
 
@@ -369,7 +368,8 @@ final categoryRevenueShareProvider =
   for (final entry in categoryRevenueMap.entries) {
     final catName = entry.key;
     final rev = entry.value;
-    final pct = totalCategoryRevenue > 0 ? (rev / totalCategoryRevenue) * 100 : 0.0;
+    final pct =
+        totalCategoryRevenue > 0 ? (rev / totalCategoryRevenue) * 100 : 0.0;
     final qty = categoryQtyMap[catName] ?? 0;
 
     list.add(CategoryRevenueShare(
@@ -455,8 +455,8 @@ enum TopProductsSortBy {
   quantity, // Số lượng
 }
 
-final topSellingSortByProvider =
-    StateProvider.autoDispose<TopProductsSortBy>((ref) => TopProductsSortBy.revenue);
+final topSellingSortByProvider = StateProvider.autoDispose<TopProductsSortBy>(
+    (ref) => TopProductsSortBy.revenue);
 
 final topSellingLimitProvider = StateProvider.autoDispose<int>((ref) => 5);
 
@@ -585,12 +585,12 @@ final topCustomersRankingProvider =
 
     final stat = customerStats[custId];
     if (stat != null) {
-      stat.totalSpent += order.total;
+      stat.totalSpent += order.netPayable;
       stat.orderCount += 1;
     } else {
       customerStats[custId] = _CustomerStat(
         customerId: custId,
-        totalSpent: order.total,
+        totalSpent: order.netPayable,
         orderCount: 1,
       );
     }
@@ -697,7 +697,9 @@ List<RevenueChartBucket> aggregateRevenueReports({
   }
 
   final Map<String, List<RevenueReport>> groupedMap = {};
-  final Map<String, ({String label, String fullLabel, DateTime start, DateTime end})> metaMap = {};
+  final Map<String,
+          ({String label, String fullLabel, DateTime start, DateTime end})>
+      metaMap = {};
 
   for (final report in dailyReports) {
     final date = report.date;
@@ -721,12 +723,18 @@ List<RevenueChartBucket> aggregateRevenueReports({
 
     groupedMap.putIfAbsent(key, () => []).add(report);
     if (!metaMap.containsKey(key)) {
-      metaMap[key] = (label: label, fullLabel: fullLabel, start: date, end: date);
+      metaMap[key] =
+          (label: label, fullLabel: fullLabel, start: date, end: date);
     } else {
       final existing = metaMap[key]!;
       final newEnd = date.isAfter(existing.end) ? date : existing.end;
       final newStart = date.isBefore(existing.start) ? date : existing.start;
-      metaMap[key] = (label: existing.label, fullLabel: existing.fullLabel, start: newStart, end: newEnd);
+      metaMap[key] = (
+        label: existing.label,
+        fullLabel: existing.fullLabel,
+        start: newStart,
+        end: newEnd
+      );
     }
   }
 
@@ -752,7 +760,8 @@ List<RevenueChartBucket> aggregateRevenueReports({
       totalItemsSold += r.totalItemsSold;
 
       r.storeRevenues.forEach((storeId, rev) {
-        mergedStoreRevenues[storeId] = (mergedStoreRevenues[storeId] ?? 0.0) + rev;
+        mergedStoreRevenues[storeId] =
+            (mergedStoreRevenues[storeId] ?? 0.0) + rev;
       });
     }
 
@@ -787,4 +796,3 @@ final aggregatedRevenueChartBucketsProvider =
     );
   });
 });
-

@@ -7,7 +7,6 @@ import '../../data/repositories/supplier_repository_impl.dart';
 import '../../domain/entities/supplier.dart';
 import '../../domain/entities/supplier_debt_transaction.dart';
 import '../../domain/repositories/supplier_repository.dart';
-import '../auth/auth_providers.dart';
 import 'supplier_list_notifier.dart';
 
 export 'supplier_list_notifier.dart';
@@ -52,12 +51,10 @@ final supplierFilterStatusProvider =
     StateProvider.autoDispose<SupplierFilterStatus>(
         (ref) => SupplierFilterStatus.all);
 
-final supplierDebtTransactionsProvider =
-    StreamProvider.autoDispose.family<List<SupplierDebtTransaction>, String>(
-        (ref, supplierId) {
-  final currentStore = ref.watch(currentStoreIdProvider);
+final supplierDebtTransactionsProvider = StreamProvider.autoDispose
+    .family<List<SupplierDebtTransaction>, String>((ref, supplierId) {
   final repo = ref.watch(supplierRepositoryProvider);
-  return repo.watchDebtTransactions(supplierId, storeId: currentStore);
+  return repo.watchDebtTransactions(supplierId);
 });
 
 List<Supplier> _filterSuppliers(
@@ -136,93 +133,6 @@ final supplierKpisProvider = Provider.autoDispose<SupplierKpis>((ref) {
 
 /// Seed initial suppliers if database is completely empty
 Future<void> seedSuppliers(Ref ref) async {
-  try {
-    final repo = ref.read(supplierRepositoryProvider);
-    final currentStore = ref.read(currentStoreIdProvider);
-
-    final initialSuppliers = [
-      Supplier(
-        id: 'NCC000001',
-        code: 'NCC000001',
-        name: 'Công ty Cổ phần Thế Giới Số (Digiworld)',
-        phone: '02839291234',
-        email: 'contact@digiworld.com.vn',
-        address: '195 Cô Bắc, P. Cô Giang, Quận 1, TP. Hồ Chí Minh',
-        taxCode: '0302861742',
-        totalPurchase: 145000000,
-        currentDebt: 32500000,
-        note: 'Nhà phân phối chính hãng Apple, Xiaomi, HP, ASUS',
-        status: 'active',
-        createdAt: DateTime.now().subtract(const Duration(days: 90)).toIso8601String(),
-        createdBy: 'Admin',
-      ),
-      Supplier(
-        id: 'NCC000002',
-        code: 'NCC000002',
-        name: 'Công ty TNHH Synnex FPT',
-        phone: '02473006666',
-        email: 'distribution@synnexfpt.com.vn',
-        address: 'Tòa nhà FPT Cầu Giấy, Phố Duy Tân, Cầu Giấy, Hà Nội',
-        taxCode: '0103636585',
-        totalPurchase: 98000000,
-        currentDebt: 15200000,
-        note: 'Đối tác linh kiện, laptop Dell, Asus, máy in Canon',
-        status: 'active',
-        createdAt: DateTime.now().subtract(const Duration(days: 60)).toIso8601String(),
-        createdBy: 'Admin',
-      ),
-      Supplier(
-        id: 'NCC000003',
-        code: 'NCC000003',
-        name: 'Công ty TNHH Samsung Electronics Việt Nam',
-        phone: '02838217300',
-        email: 'b2b.vn@samsung.com',
-        address: 'Số 2 Hải Triều, P. Bến Nghé, Quận 1, TP. Hồ Chí Minh',
-        taxCode: '0300401888',
-        totalPurchase: 76000000,
-        currentDebt: 0.0,
-        note: 'Nguồn hàng Samsung Galaxy, tablet, màn hình máy tính',
-        status: 'active',
-        createdAt: DateTime.now().subtract(const Duration(days: 45)).toIso8601String(),
-        createdBy: 'Admin',
-      ),
-      Supplier(
-        id: 'NCC000004',
-        code: 'NCC000004',
-        name: 'Công ty Cổ phần Công nghệ An Phát',
-        phone: '02435637003',
-        email: 'kd@anphatpc.com.vn',
-        address: '49 Thái Hà, Đống Đa, Hà Nội',
-        taxCode: '0101569420',
-        totalPurchase: 42000000,
-        currentDebt: 8700000,
-        note: 'Phụ kiện bàn phím, chuột, tai nghe cơ bản',
-        status: 'active',
-        createdAt: DateTime.now().subtract(const Duration(days: 30)).toIso8601String(),
-        createdBy: 'Admin',
-      ),
-    ];
-
-    for (final s in initialSuppliers) {
-      await repo.upsert(s, storeId: currentStore);
-      if (s.currentDebt > 0) {
-        await repo.recordDebtTransaction(
-          SupplierDebtTransaction(
-            id: 'TX_${s.code}_INIT',
-            supplierId: s.id,
-            date: DateTime.now().subtract(const Duration(days: 15)),
-            type: SupplierDebtType.importBill,
-            amount: s.currentDebt,
-            remainingDebt: s.currentDebt,
-            referenceCode: 'PN_INIT_${s.code}',
-            note: 'Dư nợ đầu kỳ từ đơn nhập kho gần nhất',
-            createdBy: 'Hệ thống',
-          ),
-          storeId: currentStore,
-        );
-      }
-    }
-  } catch (_) {
-    // Background seeding failure handled gracefully
-  }
+  // Production suppliers are stored in 'shared_suppliers'.
+  // We avoid seeding dummy consumer electronics data.
 }

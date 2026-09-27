@@ -490,7 +490,7 @@ void main() {
           branchStocks: {},
           category: '',
         );
-        expect(SampleImageHelper.getSampleImageUrl(emptyProd), SampleImageHelper.universalPlaceholderUrl);
+        expect(SampleImageHelper.getSampleImageUrl(emptyProd), '');
 
         const noiseProd = Product(
           id: 'f2',
@@ -501,9 +501,9 @@ void main() {
           branchStocks: {},
           category: '',
         );
-        expect(SampleImageHelper.getSampleImageUrl(noiseProd), SampleImageHelper.universalPlaceholderUrl);
+        expect(SampleImageHelper.getSampleImageUrl(noiseProd), '');
 
-        expect(SampleImageHelper.getSampleImageUrlForText('   '), SampleImageHelper.universalPlaceholderUrl);
+        expect(SampleImageHelper.getSampleImageUrlForText('   '), '');
       });
     });
 

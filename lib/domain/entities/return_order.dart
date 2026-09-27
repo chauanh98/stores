@@ -156,8 +156,8 @@ class ReturnOrder {
       orderId: map['orderId']?.toString() ?? '',
       customerId: map['customerId']?.toString() ?? '',
       storeId: map['storeId']?.toString() ?? '',
-      createdAt:
-          DateTime.tryParse(map['createdAt']?.toString() ?? '') ?? DateTime.now(),
+      createdAt: DateTime.tryParse(map['createdAt']?.toString() ?? '') ??
+          DateTime.now(),
       items: (map['items'] as List?)
               ?.map((e) => ReturnOrderItem.fromMap(e as Map))
               .toList() ??

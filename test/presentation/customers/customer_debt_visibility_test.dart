@@ -53,6 +53,13 @@ void main() {
     storeId: 'store_001',
   );
 
+  const adminUser = UserAccount(
+    username: 'admin_boss',
+    displayName: 'Chủ cửa hàng',
+    role: 'admin',
+    storeId: 'store_001',
+  );
+
   const customerWithDebt = Customer(
     id: 'cust_001',
     name: 'Nguyễn Văn Nam',
@@ -93,11 +100,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Customer name and total sales
+      // Customer name visible, but total sales hidden for Staff
       expect(find.text('Nguyễn Văn Nam'), findsOneWidget);
       expect(
           find.text(currencyFormat.format(customerWithDebt.totalSales)),
-          findsOneWidget);
+          findsNothing);
 
       // Customer debt is preserved and visible to staff cashiers
       expect(
@@ -106,7 +113,7 @@ void main() {
     });
 
     testWidgets(
-        'Hides debt indicator when customer current debt is 0',
+        'Hides debt indicator when customer current debt is 0 (Staff sees name and chevron, no sales/debt)',
         (tester) async {
       await tester.pumpWidget(
         _buildTestApp(
@@ -126,10 +133,37 @@ void main() {
       expect(find.text('Trần Thị Mai'), findsOneWidget);
       expect(
           find.text(currencyFormat.format(customerWithoutDebt.totalSales)),
-          findsOneWidget);
+          findsNothing);
 
       // No debt text
       expect(find.textContaining('Công nợ:'), findsNothing);
+      expect(find.byIcon(Icons.chevron_right), findsOneWidget);
+    });
+
+    testWidgets(
+        'Admin account sees total sales and debt on CustomerListTile',
+        (tester) async {
+      await tester.pumpWidget(
+        _buildTestApp(
+          child: const CustomerListTile(customer: customerWithDebt),
+          overrides: [
+            authProvider.overrideWith((ref) => _FakeAuthNotifier(adminUser)),
+            customerOrdersProvider(customerWithDebt.id)
+                .overrideWith((ref) => Stream.value(<Order>[])),
+            customerDebtTransactionsProvider(customerWithDebt.id).overrideWith(
+                (ref) => Stream.value(<CustomerDebtTransaction>[])),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Nguyễn Văn Nam'), findsOneWidget);
+      expect(
+          find.text(currencyFormat.format(customerWithDebt.totalSales)),
+          findsOneWidget);
+      expect(
+          find.text('Công nợ: ${currencyFormat.format(2500000.0)}'),
+          findsOneWidget);
     });
   });
 }

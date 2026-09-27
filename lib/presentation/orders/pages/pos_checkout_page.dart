@@ -20,6 +20,7 @@ import '../../../core/utils/combo_helper.dart';
 import '../../../core/utils/currency_input_formatter.dart';
 import '../../../core/utils/invoice_print_helper.dart';
 import '../../../core/utils/smart_cash_helper.dart';
+import '../../../core/utils/store_resolver_helper.dart';
 import '../../../core/utils/vietqr_helper.dart';
 import '../../../domain/entities/customer.dart';
 import '../../../domain/entities/customer_debt_transaction.dart';
@@ -109,8 +110,7 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
       returnChange = (actualPaid - netPay).clamp(0.0, double.infinity);
     } else {
       actualPaid = _customerPayment;
-      returnChange =
-          (_customerPayment - netPay).clamp(0.0, double.infinity);
+      returnChange = (_customerPayment - netPay).clamp(0.0, double.infinity);
     }
 
     final currencyFormat = NumberFormat('#,###', 'vi_VN');
@@ -118,9 +118,22 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text(l10n.checkout,
-            style: const TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.white,
+        title: Column(
+          children: [
+            Text(l10n.checkout,
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            Text(
+              ref.watch(posBranchNameProvider),
+              style: const TextStyle(
+                  fontSize: 11,
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.normal),
+            ),
+          ],
+        ),
+        centerTitle: true,
+        backgroundColor: AppColors.white,
       ),
       body: _isSaving
           ? const Center(child: LoadingIndicator())
@@ -148,7 +161,13 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                 ],
               ),
             ),
-      bottomNavigationBar: _buildBottomActionsBar(context, netPay, cart),
+      bottomNavigationBar: _buildBottomActionsBar(
+        context,
+        netPay,
+        cart,
+        totalAmount: totalAmount,
+        discountAmount: discountAmount,
+      ),
     );
   }
 
@@ -157,7 +176,7 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
     final l10n = AppLocalizations.of(context)!;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: AppColors.border),
       ),
@@ -173,7 +192,7 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                 style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
-                    color: Colors.black87),
+                    color: AppColors.textPrimary),
               ),
               InkWell(
                 onTap: () => _showCustomerListBottomSheet(context),
@@ -208,7 +227,7 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                         style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 15,
-                            color: Colors.black87),
+                            color: AppColors.textPrimary),
                       )
                     : Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -218,13 +237,13 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                             style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 15,
-                                color: Colors.black87),
+                                color: AppColors.textPrimary),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             '${_selectedCustomer!.phone} • ${_selectedCustomer!.address}',
                             style: const TextStyle(
-                                color: Colors.black54, fontSize: 12),
+                                color: AppColors.textSecondary, fontSize: 12),
                           ),
                           if (_selectedCustomer!.displayCurrentDebt > 0) ...[
                             const SizedBox(height: 4),
@@ -259,10 +278,28 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
       BuildContext context, Map<String, CartItem> cart, NumberFormat format) {
     final user = ref.read(authProvider);
     final l10n = AppLocalizations.of(context)!;
+    final selectedBranch = ref.watch(selectedPOSBranchProvider);
+    final allProducts = ref.watch(productListProvider).valueOrNull ?? [];
+
+    if (cart.isEmpty) {
+      return Container(
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.border),
+        ),
+        padding: const EdgeInsets.all(24),
+        alignment: Alignment.center,
+        child: const Text(
+          'Giỏ hàng đang trống',
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+        ),
+      );
+    }
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.border),
       ),
@@ -275,7 +312,7 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
             style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 14,
-                color: Colors.black87),
+                color: AppColors.textPrimary),
           ),
           const SizedBox(height: 12),
           ListView.separated(
@@ -285,6 +322,18 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
             separatorBuilder: (_, __) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
               final item = cart.values.elementAt(index);
+              final catalogProduct = allProducts.firstWhere(
+                (p) => p.id == item.product.id,
+                orElse: () => item.product,
+              );
+              final availableStock = ComboHelper.getAvailableStock(
+                product: catalogProduct,
+                branchId: selectedBranch,
+                allProducts: allProducts,
+              );
+              final bool isOutOfStock = availableStock <= 0;
+              final bool isInsufficient = item.quantity > availableStock;
+
               return InkWell(
                 onTap: user?.isAdmin == true
                     ? () => _showEditPriceDialog(context, ref, item)
@@ -295,7 +344,8 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       ProductImageThumbnail(
-                        imageUrl: item.product.imageUrl,
+                        imageUrl: item.product.primaryImageUrl ??
+                            item.product.imageUrl,
                         productName: item.product.name,
                         categoryName: item.product.category,
                         size: 38,
@@ -314,7 +364,7 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                                     style: const TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 13,
-                                        color: Colors.black87),
+                                        color: AppColors.textPrimary),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -330,8 +380,29 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                             Text(
                               '${l10n.quantity}: ${item.quantity} x ${format.format(item.price)} đ${item.customPrice != null ? ' (Gốc: ${format.format(item.product.price)}đ)' : ''}',
                               style: const TextStyle(
-                                  color: Colors.black54, fontSize: 11),
+                                  color: AppColors.textSecondary, fontSize: 11),
                             ),
+                            if (isOutOfStock) ...[
+                              const SizedBox(height: 2),
+                              const Text(
+                                'Hết hàng tại chi nhánh này',
+                                style: TextStyle(
+                                  color: AppColors.danger,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ] else if (isInsufficient) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                'Không đủ hàng (Tồn: $availableStock, Cần: ${item.quantity})',
+                                style: const TextStyle(
+                                  color: AppColors.warning,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
                             if (item.product.isCombo &&
                                 item.product.comboComponents.isNotEmpty) ...[
                               const SizedBox(height: 2),
@@ -346,12 +417,30 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                           ],
                         ),
                       ),
-                      Text(
-                        '${format.format(item.total)} đ',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                            color: Colors.black87),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '${format.format(item.total)} đ',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: AppColors.textPrimary),
+                          ),
+                          const SizedBox(width: 4),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline,
+                                size: 18, color: AppColors.danger),
+                            tooltip: 'Xóa khỏi giỏ',
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            onPressed: () {
+                              ref
+                                  .read(cartProvider.notifier)
+                                  .removeFromCart(item.product.id);
+                            },
+                          ),
+                        ],
                       )
                     ],
                   ),
@@ -410,7 +499,7 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
   Widget _buildOrderNoteCard(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: AppColors.border),
       ),
@@ -420,14 +509,14 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
         children: [
           const Row(
             children: [
-              Icon(Icons.notes, size: 18, color: Colors.black87),
+              Icon(Icons.notes, size: 18, color: AppColors.textPrimary),
               SizedBox(width: 8),
               Text(
                 'Ghi chú đơn hàng',
                 style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
-                    color: Colors.black87),
+                    color: AppColors.textPrimary),
               ),
             ],
           ),
@@ -437,7 +526,8 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
             maxLines: 2,
             decoration: InputDecoration(
               hintText: 'Nhập ghi chú cho đơn hàng (nếu có)...',
-              hintStyle: const TextStyle(fontSize: 13, color: Colors.black38),
+              hintStyle:
+                  const TextStyle(fontSize: 13, color: AppColors.textMuted),
               contentPadding:
                   const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               border: OutlineInputBorder(
@@ -476,7 +566,7 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: AppColors.border),
       ),
@@ -494,8 +584,8 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
               Row(
                 children: [
                   Text(l10n.orderDiscount,
-                      style:
-                          const TextStyle(color: Colors.black54, fontSize: 13)),
+                      style: const TextStyle(
+                          color: AppColors.textSecondary, fontSize: 13)),
                   if (user?.isAdmin == true) ...[
                     const SizedBox(width: 8),
                     ToggleButtons(
@@ -524,6 +614,7 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                 width: 120,
                 height: 36,
                 child: TextField(
+                  key: const Key('pos_discount_textfield'),
                   controller: _discountController,
                   enabled: user?.isAdmin == true,
                   decoration: InputDecoration(
@@ -556,13 +647,14 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(l10n.paymentMethod,
-                  style: const TextStyle(color: Colors.black54, fontSize: 13)),
+                  style: const TextStyle(
+                      color: AppColors.textSecondary, fontSize: 13)),
               DropdownButtonHideUnderline(
                 child: DropdownButton<String>(
                   value: _paymentMethod,
                   style: const TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      color: AppColors.textPrimary,
                       fontSize: 13),
                   onChanged: (v) {
                     if (v != null) {
@@ -590,7 +682,8 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                   items: [
                     DropdownMenuItem(value: 'cash', child: Text(l10n.cash)),
                     DropdownMenuItem(
-                        value: 'transfer', child: Text(l10n.transfer)),
+                        value: 'transfer',
+                        child: Text(l10n.paymentMethodTransfer)),
                     const DropdownMenuItem(
                         value: 'split', child: Text('Kết hợp (TM + CK)')),
                   ],
@@ -607,7 +700,8 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text('Tiền mặt đưa',
-                    style: TextStyle(color: Colors.black54, fontSize: 13)),
+                    style: TextStyle(
+                        color: AppColors.textSecondary, fontSize: 13)),
                 SizedBox(
                   width: 150,
                   height: 40,
@@ -658,7 +752,8 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text('Chuyển khoản (VietQR)',
-                    style: TextStyle(color: Colors.black54, fontSize: 13)),
+                    style: TextStyle(
+                        color: AppColors.textSecondary, fontSize: 13)),
                 SizedBox(
                   width: 150,
                   height: 40,
@@ -682,8 +777,7 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                       if (_transferPaymentController.text.isNotEmpty) {
                         _transferPaymentController.selection = TextSelection(
                           baseOffset: 0,
-                          extentOffset:
-                              _transferPaymentController.text.length,
+                          extentOffset: _transferPaymentController.text.length,
                         );
                       }
                     },
@@ -723,8 +817,8 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                     decoration: BoxDecoration(
                       color: AppColors.primary.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(4),
-                      border: Border.all(
-                          color: AppColors.primary.withOpacity(0.3)),
+                      border:
+                          Border.all(color: AppColors.primary.withOpacity(0.3)),
                     ),
                     child: const Text(
                       'CK toàn bộ',
@@ -750,17 +844,17 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
+                      color: AppColors.success.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(4),
                       border:
-                          Border.all(color: Colors.green.withOpacity(0.3)),
+                          Border.all(color: AppColors.success.withOpacity(0.3)),
                     ),
                     child: const Text(
                       'TM toàn bộ',
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
-                        color: Colors.green,
+                        color: AppColors.success,
                       ),
                     ),
                   ),
@@ -779,16 +873,16 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.grey.withOpacity(0.12),
+                      color: AppColors.grey400.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: Colors.grey.shade300),
+                      border: Border.all(color: AppColors.grey300),
                     ),
                     child: const Text(
                       'Xóa',
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        color: AppColors.textPrimary,
                       ),
                     ),
                   ),
@@ -801,15 +895,15 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  _paymentMethod == 'transfer'
-                      ? 'Số tiền CK'
-                      : l10n.amountPaid,
-                  style: const TextStyle(color: Colors.black54, fontSize: 13),
+                  _paymentMethod == 'transfer' ? 'Số tiền CK' : l10n.amountPaid,
+                  style: const TextStyle(
+                      color: AppColors.textSecondary, fontSize: 13),
                 ),
                 SizedBox(
                   width: 150,
                   height: 42,
                   child: TextField(
+                    key: const Key('pos_customer_payment_textfield'),
                     controller: _paymentController,
                     keyboardType: TextInputType.number,
                     inputFormatters: [
@@ -871,13 +965,13 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                     });
                   },
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       color: AppColors.primary.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(4),
-                      border: Border.all(
-                          color: AppColors.primary.withOpacity(0.3)),
+                      border:
+                          Border.all(color: AppColors.primary.withOpacity(0.3)),
                     ),
                     child: const Text(
                       'Trả đủ',
@@ -898,19 +992,19 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                     });
                   },
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.grey.withOpacity(0.12),
+                      color: AppColors.grey400.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: Colors.grey.shade300),
+                      border: Border.all(color: AppColors.grey300),
                     ),
                     child: const Text(
                       'Xóa',
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        color: AppColors.textPrimary,
                       ),
                     ),
                   ),
@@ -925,7 +1019,7 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
 
           _buildSummaryDetailRow(
               l10n.changeDue, '${format.format(returnChange)} đ', false,
-              color: Colors.green),
+              color: AppColors.success),
 
           // Hiển thị VietQR preview khi chuyển khoản hoặc thanh toán kết hợp
           if (_paymentMethod == 'transfer') ...[
@@ -949,8 +1043,7 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
   }
 
   Widget _buildQuickCashChips(double netPay, NumberFormat format) {
-    final suggestions =
-        SmartCashHelper.generateSmartCashSuggestions(netPay);
+    final suggestions = SmartCashHelper.generateSmartCashSuggestions(netPay);
     if (suggestions.isEmpty) return const SizedBox.shrink();
 
     return Column(
@@ -961,7 +1054,7 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
           'Gợi ý tiền mặt thông minh:',
           style: TextStyle(
               fontSize: 12,
-              color: Colors.black54,
+              color: AppColors.textSecondary,
               fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 6),
@@ -979,7 +1072,7 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                 child: ActionChip(
                   backgroundColor: isExact
                       ? AppColors.primary.withOpacity(0.12)
-                      : Colors.grey.withOpacity(0.08),
+                      : AppColors.grey400.withOpacity(0.08),
                   side: BorderSide(
                     color: isExact ? AppColors.primary : AppColors.border,
                   ),
@@ -988,14 +1081,14 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: isExact ? FontWeight.bold : FontWeight.w600,
-                      color: isExact ? AppColors.primary : Colors.black87,
+                      color:
+                          isExact ? AppColors.primary : AppColors.textPrimary,
                     ),
                   ),
                   onPressed: () {
                     if (_paymentMethod == 'split') {
                       final cash = suggestedAmount.clamp(0.0, netPay);
-                      final transfer =
-                          (netPay - cash).clamp(0.0, netPay);
+                      final transfer = (netPay - cash).clamp(0.0, netPay);
                       setState(() {
                         _splitCashAmount = cash;
                         _splitTransferAmount = transfer;
@@ -1044,9 +1137,9 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
       margin: const EdgeInsets.only(top: 14),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.blue.withOpacity(0.04),
+        color: AppColors.primary.withOpacity(0.04),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.blue.withOpacity(0.2)),
+        border: Border.all(color: AppColors.primary.withOpacity(0.2)),
       ),
       child: Column(
         children: [
@@ -1069,10 +1162,9 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                 ],
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.1),
+                  color: AppColors.success.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: const Text(
@@ -1080,7 +1172,7 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
-                    color: Colors.green,
+                    color: AppColors.success,
                   ),
                 ),
               ),
@@ -1096,12 +1188,13 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                 errorBuilder: (_, __, ___) => Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    border: Border.all(color: Colors.black12),
+                    border: Border.all(color: AppColors.borderLight),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Text(
                     'Không thể nạp ảnh VietQR',
-                    style: TextStyle(fontSize: 12, color: Colors.black54),
+                    style:
+                        TextStyle(fontSize: 12, color: AppColors.textSecondary),
                   ),
                 ),
               ),
@@ -1118,7 +1211,7 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
             style: const TextStyle(
               fontWeight: FontWeight.w600,
               fontSize: 12,
-              color: Colors.black87,
+              color: AppColors.textPrimary,
             ),
           ),
         ],
@@ -1132,13 +1225,14 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label,
-            style: const TextStyle(color: Colors.black54, fontSize: 13)),
+            style:
+                const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
         Text(
           value,
           style: TextStyle(
             fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
             fontSize: isBold ? 15 : 13,
-            color: color ?? Colors.black87,
+            color: color ?? AppColors.textPrimary,
           ),
         ),
       ],
@@ -1147,14 +1241,19 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
 
   // 4. Thanh hành động dưới cùng
   Widget _buildBottomActionsBar(
-      BuildContext context, double netPay, Map<String, CartItem> cart) {
+    BuildContext context,
+    double netPay,
+    Map<String, CartItem> cart, {
+    double totalAmount = 0.0,
+    double discountAmount = 0.0,
+  }) {
     final l10n = AppLocalizations.of(context)!;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: AppColors.black.withOpacity(0.08),
             blurRadius: 10,
             offset: const Offset(0, -2),
           )
@@ -1166,7 +1265,15 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
           // Nút Lưu tạm
           Expanded(
             child: OutlinedButton(
-              onPressed: () => _confirmSaveDraft(context, netPay, cart),
+              onPressed: cart.isEmpty
+                  ? null
+                  : () => _confirmSaveDraft(
+                        context,
+                        netPay,
+                        cart,
+                        totalAmount: totalAmount,
+                        discountAmount: discountAmount,
+                      ),
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: AppColors.primary),
                 foregroundColor: AppColors.primary,
@@ -1183,10 +1290,17 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
           // Nút Thanh toán
           Expanded(
             child: ElevatedButton(
-              onPressed: () => _processPayment(netPay, cart),
+              onPressed: cart.isEmpty
+                  ? null
+                  : () => _processPayment(
+                        netPay,
+                        cart,
+                        totalAmount: totalAmount,
+                        discountAmount: discountAmount,
+                      ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
+                foregroundColor: AppColors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8)),
@@ -1207,7 +1321,7 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.only(
           topLeft: Radius.circular(16),
@@ -1278,10 +1392,18 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                         data: (customers) {
                           final filteredCustomers = searchQuery.isEmpty
                               ? customers
-                              : customers.where((c) =>
-                                  c.name.toLowerCase().contains(searchQuery) ||
-                                  c.phone.toLowerCase().contains(searchQuery) ||
-                                  c.address.toLowerCase().contains(searchQuery)).toList();
+                              : customers
+                                  .where((c) =>
+                                      c.name
+                                          .toLowerCase()
+                                          .contains(searchQuery) ||
+                                      c.phone
+                                          .toLowerCase()
+                                          .contains(searchQuery) ||
+                                      c.address
+                                          .toLowerCase()
+                                          .contains(searchQuery))
+                                  .toList();
 
                           return Flexible(
                             child: ListView.builder(
@@ -1332,8 +1454,7 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                             ),
                           );
                         },
-                        loading: () =>
-                            const Center(child: LoadingIndicator()),
+                        loading: () => const Center(child: LoadingIndicator()),
                         error: (e, _) =>
                             Center(child: Text('${l10n.notFound}: $e')),
                       )
@@ -1457,7 +1578,7 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                     scaffoldMessenger.showSnackBar(
                       SnackBar(
                           content: Text(l10n.addCustomerSuccess),
-                          backgroundColor: Colors.green),
+                          backgroundColor: AppColors.success),
                     );
                   } catch (e) {
                     if (!mounted) return;
@@ -1479,7 +1600,12 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
 
   // Popup xác nhận Lưu tạm đơn hàng nháp
   void _confirmSaveDraft(
-      BuildContext context, double netPay, Map<String, CartItem> cart) {
+    BuildContext context,
+    double netPay,
+    Map<String, CartItem> cart, {
+    double totalAmount = 0.0,
+    double discountAmount = 0.0,
+  }) {
     final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
@@ -1495,7 +1621,13 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
             FilledButton(
               onPressed: () async {
                 Navigator.pop(context);
-                await _submitOrder(netPay, cart, isDraft: true);
+                await _submitOrder(
+                  netPay,
+                  cart,
+                  isDraft: true,
+                  totalAmount: totalAmount,
+                  discountAmount: discountAmount,
+                );
               },
               style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
               child: Text(l10n.saveDraft),
@@ -1508,14 +1640,40 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
 
   // Xử lý thực hiện Thanh toán đơn hàng chính thức
   Future<void> _processPayment(
-      double netPay, Map<String, CartItem> cart) async {
-    await _submitOrder(netPay, cart, isDraft: false);
+    double netPay,
+    Map<String, CartItem> cart, {
+    double totalAmount = 0.0,
+    double discountAmount = 0.0,
+  }) async {
+    await _submitOrder(
+      netPay,
+      cart,
+      isDraft: false,
+      totalAmount: totalAmount,
+      discountAmount: discountAmount,
+    );
   }
 
   // Submit Order lên Firebase và thực hiện logic kho
-  Future<void> _submitOrder(double netPay, Map<String, CartItem> cart,
-      {required bool isDraft}) async {
+  Future<void> _submitOrder(
+    double netPay,
+    Map<String, CartItem> cart, {
+    required bool isDraft,
+    double totalAmount = 0.0,
+    double discountAmount = 0.0,
+  }) async {
     final l10n = AppLocalizations.of(context)!;
+    if (cart.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Giỏ hàng đang trống!'),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      }
+      return;
+    }
     setState(() => _isSaving = true);
 
     try {
@@ -1658,7 +1816,7 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                 SnackBar(
                   content:
                       Text('${currentProduct.name} - ${l10n.outOfStockMsg}'),
-                  backgroundColor: Colors.red,
+                  backgroundColor: AppColors.danger,
                 ),
               );
             }
@@ -1672,7 +1830,7 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                 SnackBar(
                   content: Text(
                       '${currentProduct.name} - ${l10n.notEnoughStock} (Còn: $availableStock, Cần: ${item.quantity})'),
-                  backgroundColor: Colors.red,
+                  backgroundColor: AppColors.danger,
                 ),
               );
             }
@@ -1682,6 +1840,9 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
       }
 
       final currentUser = ref.read(authProvider);
+      final selectedBranch = ref.read(selectedPOSBranchProvider);
+      final grossTotal =
+          totalAmount > 0 ? totalAmount : (netPay + discountAmount);
       final String? orderNote = _noteController.text.trim().isNotEmpty
           ? _noteController.text.trim()
           : null;
@@ -1690,15 +1851,18 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
       final order = Order(
         id: id,
         customerId: customerId,
+        customerName: _selectedCustomer?.name,
         createdAt: now,
         items: orderItems,
-        total: netPay,
+        total: grossTotal,
+        discount: discountAmount,
         status: isDraft ? 'draft' : 'completed',
         amountPaid: paidAmount,
         debtAmount: debtAmount,
         paymentMethod: _paymentMethod,
         createdBy: currentUser?.username,
         createdByName: currentUser?.name,
+        storeId: selectedBranch,
         cashAmount: finalCashAmount,
         transferAmount: finalTransferAmount,
         note: orderNote,
@@ -1735,7 +1899,7 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
 
           final updatedCustomer = customer.copyWith(
             purchases: newPurchases,
-            totalSales: currentTotalSales + netPay,
+            totalSales: currentTotalSales + grossTotal,
             netSales: currentNetSales + netPay,
             currentDebt: newDebt,
             lastTransactionDate: now.toIso8601String(),
@@ -1795,6 +1959,15 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                     childKey = 'store_002';
                   }
                 }
+                if (!childBranchStocks.containsKey(childKey)) {
+                  for (final k in childBranchStocks.keys) {
+                    if (StoreResolverHelper.normalizeStoreId(k) ==
+                        StoreResolverHelper.normalizeStoreId(selectedBranch)) {
+                      childKey = k;
+                      break;
+                    }
+                  }
+                }
                 final currentChildStock = childBranchStocks[childKey] ?? 0;
                 final qtyToDeduct = item.quantity * comp.quantity;
                 childBranchStocks[childKey] =
@@ -1842,6 +2015,15 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                 targetKey = 'store_002';
               }
             }
+            if (!branchStocks.containsKey(targetKey)) {
+              for (final k in branchStocks.keys) {
+                if (StoreResolverHelper.normalizeStoreId(k) ==
+                    StoreResolverHelper.normalizeStoreId(selectedBranch)) {
+                  targetKey = k;
+                  break;
+                }
+              }
+            }
             final currentStock = branchStocks[targetKey] ?? 0;
             branchStocks[targetKey] =
                 (currentStock - item.quantity).clamp(0, 99999);
@@ -1872,10 +2054,8 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
       ref.invalidate(orderRepositoryProvider);
       ref.invalidate(customerListNotifierProvider);
 
-      // Reset activeOrderIdProvider nếu là đơn hoàn thành
-      if (!isDraft) {
-        ref.read(activeOrderIdProvider.notifier).state = null;
-      }
+      // Reset activeOrderIdProvider unconditionally to prevent draft ID reuse in subsequent orders
+      ref.read(activeOrderIdProvider.notifier).state = null;
 
       // Clear giỏ hàng Riverpod
       ref.read(cartProvider.notifier).clearCart();
@@ -1890,7 +2070,8 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
           builder: (dialogCtx) => AlertDialog(
             title: Row(
               children: [
-                const Icon(Icons.check_circle, color: Colors.green, size: 28),
+                const Icon(Icons.check_circle,
+                    color: AppColors.success, size: 28),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -1924,7 +2105,8 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                 },
                 icon: const Icon(Icons.print),
                 label: const Text('In Hóa Đơn'),
-                style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
+                style:
+                    FilledButton.styleFrom(backgroundColor: AppColors.primary),
               ),
             ],
           ),

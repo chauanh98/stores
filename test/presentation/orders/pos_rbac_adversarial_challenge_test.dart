@@ -20,12 +20,73 @@ import 'package:stores/presentation/products/pages/product_detail_page.dart';
 
 // Mock HTTP client for image assets in tests
 final _transparentPixelPng = [
-  0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D,
-  0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
-  0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4, 0x89, 0x00, 0x00, 0x00,
-  0x0A, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9C, 0x63, 0x00, 0x01, 0x00, 0x00,
-  0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00, 0x00, 0x00, 0x00, 0x49,
-  0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82
+  0x89,
+  0x50,
+  0x4E,
+  0x47,
+  0x0D,
+  0x0A,
+  0x1A,
+  0x0A,
+  0x00,
+  0x00,
+  0x00,
+  0x0D,
+  0x49,
+  0x48,
+  0x44,
+  0x52,
+  0x00,
+  0x00,
+  0x00,
+  0x01,
+  0x00,
+  0x00,
+  0x00,
+  0x01,
+  0x08,
+  0x06,
+  0x00,
+  0x00,
+  0x00,
+  0x1F,
+  0x15,
+  0xC4,
+  0x89,
+  0x00,
+  0x00,
+  0x00,
+  0x0A,
+  0x49,
+  0x44,
+  0x41,
+  0x54,
+  0x78,
+  0x9C,
+  0x63,
+  0x00,
+  0x01,
+  0x00,
+  0x00,
+  0x05,
+  0x00,
+  0x01,
+  0x0D,
+  0x0A,
+  0x2D,
+  0xB4,
+  0x00,
+  0x00,
+  0x00,
+  0x00,
+  0x49,
+  0x45,
+  0x4E,
+  0x44,
+  0xAE,
+  0x42,
+  0x60,
+  0x82
 ];
 
 class _MockHttpOverrides extends HttpOverrides {
@@ -257,7 +318,8 @@ void main() {
   );
 
   group('CHALLENGE 1: Barcode Scanner & Search Bypass Attempts on POS', () {
-    testWidgets('POS Catalog hides disabled products under all search modes (Barcode, Code, Name)',
+    testWidgets(
+        'POS Catalog hides disabled products under all search modes (Barcode, Code, Name)',
         (tester) async {
       final catalog = [activeProduct1, disabledProduct1, disabledProduct2];
 
@@ -305,7 +367,8 @@ void main() {
       expect(find.text('Nước tăng lực RedBull 250ml'), findsOneWidget);
     });
 
-    test('CartNotifier direct manipulation strictly rejects disabled products', () {
+    test('CartNotifier direct manipulation strictly rejects disabled products',
+        () {
       final cart = CartNotifier();
 
       // Direct addToCart call with disabled product
@@ -333,10 +396,13 @@ void main() {
       // Attempt to add disabled product again while active product exists
       cart.addToCart(disabledProduct1);
       expect(cart.state.length, equals(1),
-          reason: 'Disabled product must not be added to cart even if cart has items');
+          reason:
+              'Disabled product must not be added to cart even if cart has items');
     });
 
-    test('Large-scale synthetic catalog stress test: POS filters 50 active vs 50 disabled products', () {
+    test(
+        'Large-scale synthetic catalog stress test: POS filters 50 active vs 50 disabled products',
+        () {
       final activeList = List.generate(
         50,
         (i) => Product(
@@ -385,21 +451,22 @@ void main() {
     });
   });
 
-  group('CHALLENGE 2: Role-Based Access Control (RBAC) & Escalation Defense', () {
+  group('CHALLENGE 2: Role-Based Access Control (RBAC) & Escalation Defense',
+      () {
     test('UserAccount role permissions matrix strictly enforced', () {
       // Supervisor: full access
       expect(supervisorUser.isSupervisor, isTrue);
-      expect(supervisorUser.isAdmin, isTrue);
+      expect(supervisorUser.isAdmin, isFalse);
       expect(supervisorUser.isStaff, isFalse);
       expect(supervisorUser.canManageProducts, isTrue);
       expect(supervisorUser.canViewCostPrice, isTrue);
 
-      // Admin: full product management, no cost price view
+      // Admin: full product management and cost price view
       expect(adminUser.isSupervisor, isFalse);
       expect(adminUser.isAdmin, isTrue);
       expect(adminUser.isStaff, isFalse);
       expect(adminUser.canManageProducts, isTrue);
-      expect(adminUser.canViewCostPrice, isFalse);
+      expect(adminUser.canViewCostPrice, isTrue);
 
       // Staff (nhanvien): blocked from product management
       expect(staffUser.isSupervisor, isFalse);
@@ -427,7 +494,7 @@ void main() {
         storeId: 'store_001',
       );
       expect(dirtySupervisor.isSupervisor, isTrue);
-      expect(dirtySupervisor.isAdmin, isTrue);
+      expect(dirtySupervisor.isAdmin, isFalse);
       expect(dirtySupervisor.canManageProducts, isTrue);
 
       const dirtyStaff = UserAccount(
@@ -439,7 +506,8 @@ void main() {
       expect(dirtyStaff.canManageProducts, isFalse);
     });
 
-    testWidgets('Staff in ProductDetailPage cannot toggle allowSale or edit product',
+    testWidgets(
+        'Staff in ProductDetailPage cannot toggle allowSale or edit product',
         (tester) async {
       tester.view.physicalSize = const Size(1080, 2400);
       tester.view.devicePixelRatio = 1.0;
@@ -477,7 +545,8 @@ void main() {
       expect(mockRepo.upsertCallCount, equals(0));
     });
 
-    testWidgets('Admin in ProductDetailPage can toggle allowSale and persists to Repository',
+    testWidgets(
+        'Admin in ProductDetailPage can toggle allowSale and persists to Repository',
         (tester) async {
       tester.view.physicalSize = const Size(1080, 2400);
       tester.view.devicePixelRatio = 1.0;
@@ -517,7 +586,8 @@ void main() {
       expect(mockRepo.lastUpserted?.allowSale, isFalse);
     });
 
-    testWidgets('Staff in AddProductPage has disabled allowSale switch and warning banner',
+    testWidgets(
+        'Staff in AddProductPage has disabled allowSale switch and warning banner',
         (tester) async {
       tester.view.physicalSize = const Size(1080, 2400);
       tester.view.devicePixelRatio = 1.0;

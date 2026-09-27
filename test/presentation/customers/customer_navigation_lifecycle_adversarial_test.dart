@@ -415,7 +415,19 @@ void main() {
       expect((tester.widget(newSearchBox) as TextField).controller?.text,
           isEmpty);
 
-      // b) All customers are visible (tab reset to "Tất cả", NOT stale "Hết nợ" or "Còn nợ")
+      // b) Re-opening retains the selected tab ("Hết nợ"), so debtors are filtered out
+      expect(find.text('Khách Nợ Không Đồng'), findsOneWidget);
+      expect(find.text('Khách Nợ Null'), findsOneWidget);
+      expect(find.text('Khách Nợ Mười Triệu'), findsNothing);
+      expect(find.text('Khách Nợ Ba Triệu'), findsNothing);
+
+      // c) Tapping "Đặt lại" resets the debt filter back to "Tất cả"
+      final resetBtn = find.byKey(const Key('reset_customer_filters_button'));
+      expect(resetBtn, findsOneWidget);
+      await tester.tap(resetBtn);
+      await tester.pumpAndSettle();
+
+      // Now all customers are visible
       expect(find.text('Khách Nợ Mười Triệu'), findsOneWidget);
       expect(find.text('Khách Nợ Ba Triệu'), findsOneWidget);
       expect(find.text('Khách Nợ Không Đồng'), findsOneWidget);

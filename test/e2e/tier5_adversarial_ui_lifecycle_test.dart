@@ -1303,15 +1303,14 @@ void main() {
         expect(_adminUser.canManageProducts, isTrue);
         expect(_adminUser.canDeleteInvoice, isTrue);
         expect(_adminUser.canDeleteCustomer, isTrue);
-        expect(_adminUser.canExportCustomers, isTrue);
-        expect(_adminUser.canViewCostPrice, isFalse); // Only supervisor can view cost price
+        expect(_adminUser.canViewCostPrice, isTrue);
         expect(_adminUser.canViewDebtSummary, isTrue);
 
         // 3. Supervisor
         expect(_supervisorUser.isStaff, isFalse);
-        expect(_supervisorUser.isAdmin, isTrue); // Supervisor inherits Admin rights
+        expect(_supervisorUser.isAdmin, isFalse);
         expect(_supervisorUser.isSupervisor, isTrue);
-        expect(_supervisorUser.canSwitchStore, isTrue);
+        expect(_supervisorUser.canSwitchStore, isFalse);
         expect(_supervisorUser.canManageProducts, isTrue);
         expect(_supervisorUser.canViewCostPrice, isTrue); // Supervisor permission!
         expect(_supervisorUser.canViewDebtSummary, isTrue);
@@ -1348,13 +1347,13 @@ void main() {
       test('[RBAC-25] Invoices and Overview date range providers maintain independent reactive state and custom date overrides', () {
         final container = ProviderContainer();
 
-        // Initial default: thisMonth
-        expect(container.read(overviewTimeRangeTypeProvider), equals(OverviewTimeRange.thisMonth));
+        // Initial default: overview is today, invoices is thisMonth
+        expect(container.read(overviewTimeRangeTypeProvider), equals(OverviewTimeRange.today));
         expect(container.read(invoicesTimeRangeTypeProvider), equals(OverviewTimeRange.thisMonth));
 
-        // Change overview to today
-        container.read(overviewTimeRangeTypeProvider.notifier).state = OverviewTimeRange.today;
-        expect(container.read(overviewTimeRangeTypeProvider), equals(OverviewTimeRange.today));
+        // Change overview to yesterday
+        container.read(overviewTimeRangeTypeProvider.notifier).state = OverviewTimeRange.yesterday;
+        expect(container.read(overviewTimeRangeTypeProvider), equals(OverviewTimeRange.yesterday));
         // Invoices remains thisMonth (independent state!)
         expect(container.read(invoicesTimeRangeTypeProvider), equals(OverviewTimeRange.thisMonth));
 

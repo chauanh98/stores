@@ -56,7 +56,9 @@ class StoreGpsConfigNotifier extends StateNotifier<StoreGpsConfigState> {
   }
 
   Future<void> loadConfig(String storeId) async {
-    state = state.copyWith(storeId: storeId, isLoading: true, errorMessage: null);
+    if (!mounted) return;
+    state =
+        state.copyWith(storeId: storeId, isLoading: true, errorMessage: null);
     try {
       final config = await _repository.getStoreGpsConfig(storeId) ??
           StoreGpsConfig(
@@ -65,8 +67,10 @@ class StoreGpsConfigNotifier extends StateNotifier<StoreGpsConfigState> {
             longitude: 105.788000,
             allowedRadiusMeters: GeoDistanceHelper.defaultAllowedRadiusMeters,
           );
+      if (!mounted) return;
       state = state.copyWith(config: config, isLoading: false);
     } catch (e) {
+      if (!mounted) return;
       state = state.copyWith(
         isLoading: false,
         errorMessage: 'Lỗi tải cấu hình GPS chi nhánh: $e',
@@ -79,9 +83,12 @@ class StoreGpsConfigNotifier extends StateNotifier<StoreGpsConfigState> {
   }
 
   Future<bool> saveConfig(StoreGpsConfig config) async {
-    state = state.copyWith(isSaving: true, errorMessage: null, successMessage: null);
+    if (!mounted) return false;
+    state = state.copyWith(
+        isSaving: true, errorMessage: null, successMessage: null);
     try {
       await _repository.saveStoreGpsConfig(config);
+      if (!mounted) return false;
       state = state.copyWith(
         config: config,
         isSaving: false,
@@ -89,6 +96,7 @@ class StoreGpsConfigNotifier extends StateNotifier<StoreGpsConfigState> {
       );
       return true;
     } catch (e) {
+      if (!mounted) return false;
       state = state.copyWith(
         isSaving: false,
         errorMessage: 'Lỗi lưu cấu hình GPS: $e',

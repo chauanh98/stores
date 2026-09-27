@@ -43,6 +43,13 @@ void main() {
       storeId: 'store_001',
     );
 
+    const adminUser = UserAccount(
+      username: 'admin_1',
+      displayName: 'Chủ shop',
+      role: 'admin',
+      storeId: 'store_001',
+    );
+
     final now = DateTime.now();
 
     setUp(() {
@@ -94,6 +101,12 @@ void main() {
           authProvider.overrideWith((ref) => _FakeAuthNotifier(user)),
           attendanceRepositoryProvider.overrideWithValue(fakeRepo),
           currentStoreIdProvider.overrideWithValue('store_001'),
+          availableStoresProvider.overrideWith(
+            (ref) => Future.value({
+              'store_001': 'Chi nhánh Đông Thắng',
+              'store_002': 'Chi nhánh Thới Bình',
+            }),
+          ),
         ],
         child: MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -194,5 +207,21 @@ void main() {
       expect(tabBar.indicatorColor, AppColors.primary);
       expect(tabBar.indicatorWeight, 3);
     });
+
+    testWidgets('Admin user sees store selector bar without duplicate "Chi nhánh:" and can switch store', (tester) async {
+      await tester.pumpWidget(createWidgetUnderTest(user: adminUser, isPersonalOnly: false));
+      await tester.pumpAndSettle();
+
+      // Store icon is rendered
+      expect(find.byIcon(Icons.store), findsOneWidget);
+      // Clean store name is displayed without redundant "Chi nhánh: Chi nhánh..."
+      expect(find.text('Chi nhánh Đông Thắng'), findsOneWidget);
+      expect(find.text('Chi nhánh:'), findsNothing);
+      expect(find.text('Chi nhánh: Chi nhánh Đông Thắng'), findsNothing);
+
+      // Dropdown exists for Admin
+      expect(find.byType(DropdownButton<String>), findsOneWidget);
+    });
   });
 }
+

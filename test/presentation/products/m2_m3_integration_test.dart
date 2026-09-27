@@ -236,8 +236,8 @@ void main() {
                 onPressed: () async {
                   selectedUrl = await SampleImagePickerDialog.show(
                     ctx,
-                    productName: 'Nước ngọt Coca Cola 330ml',
-                    category: 'Đồ uống',
+                    productName: 'Bàn ăn 6 ghế mặt đá',
+                    category: 'Phòng ăn & Bếp',
                   );
                 },
                 child: const Text('Open Picker'),
@@ -258,7 +258,7 @@ void main() {
       expect(find.byType(TextField), findsOneWidget);
 
       // Tap on a suggested image card to select it
-      final firstCard = find.text('Nước ngọt có ga & Nước tăng lực');
+      final firstCard = find.text('Bàn ăn mặt đá cẩm thạch chống xước & Bàn trà sofa, Bàn cafe');
       expect(firstCard, findsWidgets);
       await tester.tap(firstCard.first);
       await tester.pumpAndSettle();

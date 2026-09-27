@@ -5,6 +5,7 @@ import '../../../application/attendance/attendance_providers.dart';
 import '../../../application/attendance/store_gps_config_notifier.dart';
 import '../../../application/auth/auth_providers.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/store_resolver_helper.dart';
 import '../../../domain/attendance/geo_distance_helper.dart';
 import '../../../domain/attendance/shift.dart';
 import '../../../domain/attendance/store_gps_config.dart';
@@ -76,7 +77,7 @@ class _ShiftConfigPageState extends ConsumerState<ShiftConfigPage>
             fontSize: 18,
           ),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.white,
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
         iconTheme: const IconThemeData(color: AppColors.textPrimary),
@@ -113,7 +114,7 @@ class _ShiftConfigPageState extends ConsumerState<ShiftConfigPage>
       floatingActionButton: (_tabController.index == 0 && canManage)
           ? FloatingActionButton(
               backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
+              foregroundColor: AppColors.white,
               onPressed: () => _showShiftEditDialog(null),
               child: const Icon(Icons.add),
             )
@@ -144,7 +145,8 @@ class _ShiftConfigPageState extends ConsumerState<ShiftConfigPage>
               backgroundColor: AppColors.primary.withOpacity(0.12),
               child: const Icon(Icons.schedule, color: AppColors.primary),
             ),
-            title: Text(shift.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+            title: Text(shift.name,
+                style: const TextStyle(fontWeight: FontWeight.bold)),
             subtitle: Text(
               '${shift.startTime} - ${shift.endTime} • Chuẩn: ${shift.standardWorkHours}h • Ân hạn: ${shift.gracePeriodMinutes}p',
               style: const TextStyle(fontSize: 12),
@@ -154,25 +156,36 @@ class _ShiftConfigPageState extends ConsumerState<ShiftConfigPage>
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.edit_outlined, color: AppColors.primary),
+                        icon: const Icon(Icons.edit_outlined,
+                            color: AppColors.primary),
                         onPressed: () => _showShiftEditDialog(shift),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.delete_outline, color: AppColors.danger),
+                        icon: const Icon(Icons.delete_outline,
+                            color: AppColors.danger),
                         onPressed: () async {
                           final confirm = await showDialog<bool>(
                             context: context,
                             builder: (ctx) => AlertDialog(
                               title: const Text('Xác nhận xóa'),
-                              content: Text('Bạn có chắc muốn xóa ca "${shift.name}"?'),
+                              content: Text(
+                                  'Bạn có chắc muốn xóa ca "${shift.name}"?'),
                               actions: [
-                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
-                                TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Xóa', style: TextStyle(color: AppColors.danger))),
+                                TextButton(
+                                    onPressed: () => Navigator.pop(ctx, false),
+                                    child: const Text('Hủy')),
+                                TextButton(
+                                    onPressed: () => Navigator.pop(ctx, true),
+                                    child: const Text('Xóa',
+                                        style: TextStyle(
+                                            color: AppColors.danger))),
                               ],
                             ),
                           );
                           if (confirm == true) {
-                            ref.read(shiftListNotifierProvider.notifier).deleteShift(shift.id);
+                            ref
+                                .read(shiftListNotifierProvider.notifier)
+                                .deleteShift(shift.id);
                           }
                         },
                       ),
@@ -218,7 +231,8 @@ class _ShiftConfigPageState extends ConsumerState<ShiftConfigPage>
                   Expanded(
                     child: Text(
                       'Cấu hình Geofence GPS Chi nhánh',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -229,32 +243,44 @@ class _ShiftConfigPageState extends ConsumerState<ShiftConfigPage>
 
               // Store Selector for Admin
               if (user?.role.toLowerCase().trim() == 'admin') ...[
-                const Text('Chọn Chi nhánh cấu hình:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                const Text('Chọn Chi nhánh cấu hình:',
+                    style:
+                        TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                 const SizedBox(height: 6),
                 DropdownButtonFormField<String>(
-                  value: storeNames.containsKey(currentStoreId) ? currentStoreId : null,
-                  decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true),
+                  value: storeNames.containsKey(currentStoreId)
+                      ? currentStoreId
+                      : null,
+                  decoration: const InputDecoration(
+                      border: OutlineInputBorder(), isDense: true),
                   items: storeNames.entries.map((e) {
                     return DropdownMenuItem(value: e.key, child: Text(e.value));
                   }).toList(),
                   onChanged: canManage
                       ? (newStore) {
                           if (newStore != null) {
-                            ref.read(storeGpsConfigNotifierProvider.notifier).loadConfig(newStore);
+                            ref
+                                .read(storeGpsConfigNotifierProvider.notifier)
+                                .loadConfig(newStore);
                           }
                         }
                       : null,
                 ),
                 const SizedBox(height: 14),
               ] else ...[
-                Text('Chi nhánh: $currentStoreName', style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text(
+                  StoreResolverHelper.formatStoreLabel(currentStoreName,
+                      storeNames: storeNames),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(height: 14),
               ],
 
               TextField(
                 controller: _latController,
                 readOnly: !canManage,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
                 decoration: const InputDecoration(
                   labelText: 'Vĩ độ (Latitude) *',
                   hintText: 'Ví dụ: 10.035000',
@@ -267,7 +293,8 @@ class _ShiftConfigPageState extends ConsumerState<ShiftConfigPage>
               TextField(
                 controller: _lngController,
                 readOnly: !canManage,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
                 decoration: const InputDecoration(
                   labelText: 'Kinh độ (Longitude) *',
                   hintText: 'Ví dụ: 105.788000',
@@ -280,7 +307,8 @@ class _ShiftConfigPageState extends ConsumerState<ShiftConfigPage>
               TextField(
                 controller: _radiusController,
                 readOnly: !canManage,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
                 decoration: const InputDecoration(
                   labelText: 'Bán kính cho phép chấm công (mét) *',
                   hintText: 'Mặc định: 150 mét',
@@ -300,12 +328,16 @@ class _ShiftConfigPageState extends ConsumerState<ShiftConfigPage>
                 onPressed: canManage
                     ? () async {
                         final messenger = ScaffoldMessenger.of(context);
-                        final pos = await ref.read(storeGpsConfigNotifierProvider.notifier).getCurrentGpsCoordinates();
+                        final pos = await ref
+                            .read(storeGpsConfigNotifierProvider.notifier)
+                            .getCurrentGpsCoordinates();
                         if (pos != null) {
                           _latController.text = pos.latitude.toString();
                           _lngController.text = pos.longitude.toString();
                           messenger.showSnackBar(
-                            SnackBar(content: Text('Đã lấy tọa độ: ${pos.latitude}, ${pos.longitude}')),
+                            SnackBar(
+                                content: Text(
+                                    'Đã lấy tọa độ: ${pos.latitude}, ${pos.longitude}')),
                           );
                         }
                       }
@@ -319,20 +351,29 @@ class _ShiftConfigPageState extends ConsumerState<ShiftConfigPage>
                 child: ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    foregroundColor: AppColors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
                   ),
                   icon: state.isSaving
-                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                              color: AppColors.white, strokeWidth: 2))
                       : const Icon(Icons.save),
-                  label: Text(state.isSaving ? 'ĐANG LƯU...' : 'LƯU CẤU HÌNH GPS'),
+                  label:
+                      Text(state.isSaving ? 'ĐANG LƯU...' : 'LƯU CẤU HÌNH GPS'),
                   onPressed: (state.isSaving || !canManage)
                       ? null
                       : () async {
                           final messenger = ScaffoldMessenger.of(context);
-                          final lat = double.tryParse(_latController.text) ?? 10.035;
-                          final lng = double.tryParse(_lngController.text) ?? 105.788;
-                          final rad = double.tryParse(_radiusController.text) ?? GeoDistanceHelper.defaultAllowedRadiusMeters;
+                          final lat =
+                              double.tryParse(_latController.text) ?? 10.035;
+                          final lng =
+                              double.tryParse(_lngController.text) ?? 105.788;
+                          final rad = double.tryParse(_radiusController.text) ??
+                              GeoDistanceHelper.defaultAllowedRadiusMeters;
 
                           final newConfig = StoreGpsConfig(
                             storeId: currentStoreId,
@@ -343,10 +384,13 @@ class _ShiftConfigPageState extends ConsumerState<ShiftConfigPage>
                             address: _addressController.text.trim(),
                           );
 
-                          final success = await ref.read(storeGpsConfigNotifierProvider.notifier).saveConfig(newConfig);
+                          final success = await ref
+                              .read(storeGpsConfigNotifierProvider.notifier)
+                              .saveConfig(newConfig);
                           if (success) {
                             messenger.showSnackBar(
-                              const SnackBar(content: Text('Cập nhật GPS thành công!')),
+                              const SnackBar(
+                                  content: Text('Cập nhật GPS thành công!')),
                             );
                           }
                         },
@@ -363,32 +407,44 @@ class _ShiftConfigPageState extends ConsumerState<ShiftConfigPage>
     final nameCtrl = TextEditingController(text: shift?.name ?? '');
     final startCtrl = TextEditingController(text: shift?.startTime ?? '08:00');
     final endCtrl = TextEditingController(text: shift?.endTime ?? '12:00');
-    final graceCtrl = TextEditingController(text: (shift?.gracePeriodMinutes ?? 15).toString());
-    final hoursCtrl = TextEditingController(text: (shift?.standardWorkHours ?? 4.0).toString());
+    final graceCtrl = TextEditingController(
+        text: (shift?.gracePeriodMinutes ?? 15).toString());
+    final hoursCtrl = TextEditingController(
+        text: (shift?.standardWorkHours ?? 4.0).toString());
     String shiftType = shift?.type ?? 'morning';
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title: Text(shift == null ? 'Thêm ca làm việc mới' : 'Chỉnh sửa ca làm việc'),
+          title: Text(
+              shift == null ? 'Thêm ca làm việc mới' : 'Chỉnh sửa ca làm việc'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
                   controller: nameCtrl,
-                  decoration: const InputDecoration(labelText: 'Tên ca *', hintText: 'Ca Sáng', border: OutlineInputBorder(), isDense: true),
+                  decoration: const InputDecoration(
+                      labelText: 'Tên ca *',
+                      hintText: 'Ca Sáng',
+                      border: OutlineInputBorder(),
+                      isDense: true),
                 ),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
                   value: shiftType,
-                  decoration: const InputDecoration(labelText: 'Loại ca', border: OutlineInputBorder(), isDense: true),
+                  decoration: const InputDecoration(
+                      labelText: 'Loại ca',
+                      border: OutlineInputBorder(),
+                      isDense: true),
                   items: const [
                     DropdownMenuItem(value: 'morning', child: Text('Ca Sáng')),
-                    DropdownMenuItem(value: 'afternoon', child: Text('Ca Chiều')),
+                    DropdownMenuItem(
+                        value: 'afternoon', child: Text('Ca Chiều')),
                     DropdownMenuItem(value: 'evening', child: Text('Ca Tối')),
-                    DropdownMenuItem(value: 'flexible', child: Text('Ca Linh hoạt')),
+                    DropdownMenuItem(
+                        value: 'flexible', child: Text('Ca Linh hoạt')),
                   ],
                   onChanged: (v) {
                     if (v != null) setDialogState(() => shiftType = v);
@@ -400,14 +456,22 @@ class _ShiftConfigPageState extends ConsumerState<ShiftConfigPage>
                     Expanded(
                       child: TextField(
                         controller: startCtrl,
-                        decoration: const InputDecoration(labelText: 'Giờ bắt đầu', hintText: '08:00', border: OutlineInputBorder(), isDense: true),
+                        decoration: const InputDecoration(
+                            labelText: 'Giờ bắt đầu',
+                            hintText: '08:00',
+                            border: OutlineInputBorder(),
+                            isDense: true),
                       ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: TextField(
                         controller: endCtrl,
-                        decoration: const InputDecoration(labelText: 'Giờ kết thúc', hintText: '12:00', border: OutlineInputBorder(), isDense: true),
+                        decoration: const InputDecoration(
+                            labelText: 'Giờ kết thúc',
+                            hintText: '12:00',
+                            border: OutlineInputBorder(),
+                            isDense: true),
                       ),
                     ),
                   ],
@@ -419,15 +483,24 @@ class _ShiftConfigPageState extends ConsumerState<ShiftConfigPage>
                       child: TextField(
                         controller: graceCtrl,
                         keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(labelText: 'Ân hạn (phút)', hintText: '15', border: OutlineInputBorder(), isDense: true),
+                        decoration: const InputDecoration(
+                            labelText: 'Ân hạn (phút)',
+                            hintText: '15',
+                            border: OutlineInputBorder(),
+                            isDense: true),
                       ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: TextField(
                         controller: hoursCtrl,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        decoration: const InputDecoration(labelText: 'Chuẩn (giờ)', hintText: '4.0', border: OutlineInputBorder(), isDense: true),
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
+                        decoration: const InputDecoration(
+                            labelText: 'Chuẩn (giờ)',
+                            hintText: '4.0',
+                            border: OutlineInputBorder(),
+                            isDense: true),
                       ),
                     ),
                   ],
@@ -436,15 +509,19 @@ class _ShiftConfigPageState extends ConsumerState<ShiftConfigPage>
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.white),
               onPressed: () {
                 final name = nameCtrl.text.trim();
                 if (name.isEmpty) return;
 
                 final newShift = Shift(
-                  id: shift?.id ?? 'shift_${DateTime.now().millisecondsSinceEpoch}',
+                  id: shift?.id ??
+                      'shift_${DateTime.now().millisecondsSinceEpoch}',
                   name: name,
                   startTime: startCtrl.text.trim(),
                   endTime: endCtrl.text.trim(),
@@ -453,7 +530,9 @@ class _ShiftConfigPageState extends ConsumerState<ShiftConfigPage>
                   type: shiftType,
                 );
 
-                ref.read(shiftListNotifierProvider.notifier).saveShift(newShift);
+                ref
+                    .read(shiftListNotifierProvider.notifier)
+                    .saveShift(newShift);
                 Navigator.pop(ctx);
               },
               child: const Text('Lưu ca'),

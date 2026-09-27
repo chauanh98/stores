@@ -120,11 +120,11 @@ class Customer {
   double get displayCurrentDebt => currentDebt ?? 0.0;
 
   double effectiveTotalSales(List<Order> orders) {
-    if (totalSales != null && totalSales! > 0) {
-      return totalSales!;
+    if (orders.isNotEmpty) {
+      final activeOrders = orders.where((o) => !o.isCancelled);
+      return activeOrders.fold<double>(0.0, (sum, o) => sum + o.total);
     }
-    final orderSum = orders.fold<double>(0.0, (sum, o) => sum + o.total);
-    return orderSum > 0 ? orderSum : (totalSales ?? 0.0);
+    return totalSales ?? 0.0;
   }
 
   double effectiveCurrentDebt(
@@ -134,9 +134,9 @@ class Customer {
         ..sort((a, b) => b.date.compareTo(a.date));
       return sorted.first.remainingDebt;
     }
-    if (currentDebt != null) {
-      return currentDebt!;
+    if (orders.isNotEmpty) {
+      return orders.fold<double>(0.0, (sum, o) => sum + o.remainingDebt);
     }
-    return orders.fold<double>(0.0, (sum, o) => sum + o.total);
+    return currentDebt ?? 0.0;
   }
 }

@@ -164,7 +164,7 @@
   "changeDue": "Tiền thừa trả khách",
   "paymentMethod": "Phương thức",
   "cash": "Tiền mặt",
-  "transfer": "Chuyển khoản",
+  "paymentMethodTransfer": "Chuyển khoản",
   "saveDraft": "Lưu tạm",
   "selectCustomer": "Chọn khách hàng",
   "fullNameRequired": "Họ và tên *",
@@ -203,7 +203,6 @@
   "timeRange": "Thời gian",
   "allBranchesCombined": "Tất cả chi nhánh (Xem gộp)",
   "store": "Cửa hàng",
-  "profit": "Lợi nhuận",
   "invoiceCountLabel": "{count} hoá đơn",
   "@invoiceCountLabel": {
     "placeholders": {
@@ -217,7 +216,6 @@
   "shipping": "Giao hàng",
   "staff": "Nhân viên",
   "taxAndAccounting": "Thuế & Kế toán",
-  "revenue": "Doanh thu",
   "noData": "Không có dữ liệu hiển thị",
   "noTransactions": "Không có giao dịch nào trong khoảng thời gian này",
   "ordersCount": "({count} đơn)",
@@ -396,7 +394,7 @@
     }
   },
   "performedBy": "Người thực hiện",
-  "createdBy": "Người lập đơn",
+  "orderCreatedBy": "Người lập đơn",
   "roleSupervisor": "Giám sát / Chủ chuỗi",
   "roleAdmin": "Quản lý Cửa hàng",
   "roleStaff": "Nhân viên Bán hàng",
@@ -439,5 +437,63 @@
   "noBrandFound": "Không tìm thấy thương hiệu nào",
   "noCategoryFound": "Chưa có nhóm hàng nào",
   "logoutAccount": "Đăng xuất tài khoản",
-  "confirmLogoutApp": "Bạn có chắc chắn muốn đăng xuất khỏi ứng dụng?"
+  "confirmLogoutApp": "Bạn có chắc chắn muốn đăng xuất khỏi ứng dụng?",
+
+  "commonContinue": "Tiếp tục",
+  "commonDone": "Hoàn thành",
+  "commonResetFilter": "Đặt lại bộ lọc",
+  "commonSaveDraft": "Lưu tạm",
+  "commonDraftReceipt": "Phiếu tạm",
+  "commonCompleted": "Đã hoàn thành",
+  "commonCancelled": "Đã hủy",
+  "commonOutOfStock": "Hết hàng",
+  "commonInStock": "Còn hàng",
+  "commonHasDebt": "Còn nợ",
+  "commonNoDebt": "Hết nợ",
+  "commonSupplier": "Nhà cung cấp",
+  "commonCostPrice": "Giá vốn",
+  "commonTotalSalesAmount": "Tổng tiền hàng:",
+  "commonTotalPaidAmount": "Đã thanh toán:",
+
+  "inventoryCreateReceipt": "Tạo phiếu nhập hàng",
+  "inventoryReceiptDetail": "Chi tiết phiếu nhập",
+  "inventoryReceiptCode": "Mã phiếu nhập",
+  "inventoryReceiptHistory": "Lịch sử nhập kho",
+  "inventoryImportPrice": "Giá nhập",
+  "inventoryLastImportPrice": "Giá nhập gần nhất",
+  "inventoryDiscount": "Giảm giá",
+  "inventoryAmount": "Thành tiền",
+  "inventoryConfirmExitTitle": "Rời khỏi màn hình nhập hàng?",
+  "inventoryConfirmExitMsg": "Dữ liệu đang nhập sẽ bị mất nếu không lưu tạm.",
+  "inventoryStay": "Ở lại",
+  "inventoryLeave": "Rời khỏi",
+  "inventoryConfirmCancelTitle": "Xác nhận hủy phiếu nhập",
+  "inventoryCancelReasonHint": "Nhập lý do hủy phiếu (bắt buộc)...",
+  "inventoryCancelSuccess": "Hủy phiếu nhập thành công và đã hoàn trả tồn kho",
+  "inventoryDeleteDraftSuccess": "Đã xóa phiếu tạm",
+
+  "attendanceDashboard": "Chấm công GPS & Quản lý Ca",
+  "attendancePersonalTimesheet": "Bảng công cá nhân",
+  "attendanceWorking": "Đang làm việc",
+  "attendanceLateToday": "Đi muộn hôm nay",
+  "attendanceNotArrived": "Chưa đến",
+  "attendanceEarlyLeave": "Về sớm",
+  "attendanceTotalWorkHours": "Tổng giờ làm",
+  "attendanceDeleteShiftConfirm": "Bạn có chắc muốn xóa ca \"{shiftName}\"?",
+  "@attendanceDeleteShiftConfirm": {
+    "placeholders": {
+      "shiftName": { "type": "String" }
+    }
+  },
+  "attendanceUpdateGpsSuccess": "Cập nhật GPS thành công!",
+  "attendanceNoRecordsFilter": "Không có bản ghi chấm công nào phù hợp bộ lọc.",
+  "attendanceNoDataMonth": "Không có dữ liệu chấm công trong tháng này.",
+
+  "accountDeleteConfirm": "Bạn có chắc chắn muốn xóa tài khoản \"{username}\" khỏi hệ thống? Hành động này không thể hoàn tác.",
+  "@accountDeleteConfirm": {
+    "placeholders": {
+      "username": { "type": "String" }
+    }
+  },
+  "accountConfirmNewPassword": "Xác nhận mật khẩu mới"
 }

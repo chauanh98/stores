@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+
+import '../../../core/extensions/context_extensions.dart';
 
 import '../../../application/customers/customers_providers.dart';
 import '../../../core/theme/app_colors.dart';
@@ -43,18 +44,18 @@ class _CustomerDebtAdjustmentPageState
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = context.l10n;
     final currencyFormat = NumberFormat('#,###', 'vi_VN');
     final dateStr = DateFormat('dd/MM/yyyy HH:mm').format(_selectedDate);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.white,
       appBar: AppBar(
         title: Text(
           l10n.debtAdjustmentTitle,
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.white,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -64,14 +65,15 @@ class _CustomerDebtAdjustmentPageState
             // Nợ hiện tại
             Text(
               l10n.currentDebt,
-              style: const TextStyle(fontSize: 14, color: Colors.black54),
+              style:
+                  const TextStyle(fontSize: 14, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 6),
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               decoration: BoxDecoration(
-                color: Colors.grey.shade100,
+                color: AppColors.grey100,
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: AppColors.border),
               ),
@@ -80,7 +82,7 @@ class _CustomerDebtAdjustmentPageState
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+                  color: AppColors.textPrimary,
                 ),
               ),
             ),
@@ -89,7 +91,8 @@ class _CustomerDebtAdjustmentPageState
             // Giá trị nợ điều chỉnh
             Text(
               l10n.adjustedDebtValue,
-              style: const TextStyle(fontSize: 14, color: Colors.black54),
+              style:
+                  const TextStyle(fontSize: 14, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 6),
             TextField(
@@ -113,7 +116,8 @@ class _CustomerDebtAdjustmentPageState
             // Thời gian
             Text(
               l10n.timeRange,
-              style: const TextStyle(fontSize: 14, color: Colors.black54),
+              style:
+                  const TextStyle(fontSize: 14, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 6),
             InkWell(
@@ -132,7 +136,8 @@ class _CustomerDebtAdjustmentPageState
                       dateStr,
                       style: const TextStyle(fontSize: 15),
                     ),
-                    const Icon(Icons.chevron_right, color: Colors.black54),
+                    const Icon(Icons.chevron_right,
+                        color: AppColors.textSecondary),
                   ],
                 ),
               ),
@@ -142,7 +147,8 @@ class _CustomerDebtAdjustmentPageState
             // Ghi chú
             Text(
               l10n.note,
-              style: const TextStyle(fontSize: 14, color: Colors.black54),
+              style:
+                  const TextStyle(fontSize: 14, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 6),
             TextField(
@@ -179,7 +185,7 @@ class _CustomerDebtAdjustmentPageState
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(
-                          color: Colors.white, strokeWidth: 2),
+                          color: AppColors.white, strokeWidth: 2),
                     )
                   : Text(
                       l10n.update,
@@ -274,7 +280,7 @@ class _CustomerDebtAdjustmentPageState
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(l10n.debtUpdateSuccess),
-            backgroundColor: Colors.green,
+            backgroundColor: AppColors.success,
           ),
         );
         Navigator.pop(context);
@@ -284,7 +290,7 @@ class _CustomerDebtAdjustmentPageState
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
               content: Text('${l10n.importError}: $e'),
-              backgroundColor: Colors.red),
+              backgroundColor: AppColors.danger),
         );
       }
     } finally {

@@ -5,6 +5,7 @@ import '../../../application/attendance/attendance_adjustment_notifier.dart';
 import '../../../application/attendance/monthly_timesheet_notifier.dart';
 import '../../../application/auth/auth_providers.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/store_resolver_helper.dart';
 import '../../../domain/attendance/attendance_record.dart';
 import '../../../domain/entities/user_account.dart';
 import '../widgets/attendance_status_badge.dart';
@@ -52,8 +53,15 @@ class _MonthlyTimesheetPageState extends ConsumerState<MonthlyTimesheetPage>
     final user = ref.watch(authProvider);
     final timesheetState = ref.watch(monthlyTimesheetNotifierProvider);
     final adjustmentState = ref.watch(attendanceAdjustmentNotifierProvider);
+    final storeNamesAsync = ref.watch(availableStoresProvider);
+    final storeNames = storeNamesAsync.valueOrNull ?? {};
 
     final isStaff = widget.isPersonalOnly || (user?.isStaff == true);
+    final currentStoreId = timesheetState.storeId;
+    final currentStoreName = StoreResolverHelper.resolveStoreName(
+      currentStoreId,
+      storeNames: storeNames,
+    );
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -66,7 +74,7 @@ class _MonthlyTimesheetPageState extends ConsumerState<MonthlyTimesheetPage>
             fontSize: 18,
           ),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.white,
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
         iconTheme: const IconThemeData(color: AppColors.textPrimary),
@@ -97,9 +105,80 @@ class _MonthlyTimesheetPageState extends ConsumerState<MonthlyTimesheetPage>
       ),
       body: Column(
         children: [
+          // Store Selector Bar (Admin can toggle / Supervisor locked)
+          if (!isStaff) ...[
+            Container(
+              color: AppColors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                children: [
+                  const Icon(Icons.store, color: AppColors.primary, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: user?.role.toLowerCase().trim() == 'admin'
+                        ? DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: storeNames.containsKey(currentStoreId)
+                                  ? currentStoreId
+                                  : null,
+                              hint: Text(
+                                currentStoreName,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              isExpanded: true,
+                              items: storeNames.entries.map((e) {
+                                return DropdownMenuItem(
+                                  value: e.key,
+                                  child: Text(
+                                    e.value,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.textPrimary,
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                              onChanged: (newStore) {
+                                if (newStore != null) {
+                                  ref
+                                      .read(monthlyTimesheetNotifierProvider
+                                          .notifier)
+                                      .changeStore(newStore);
+                                }
+                              },
+                            ),
+                          )
+                        : Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: AppColors.surfaceHighlight,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              currentStoreName,
+                              style: const TextStyle(
+                                color: AppColors.primaryDark,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+          ],
+
           // Month Selector Bar
           Container(
-            color: Colors.white,
+            color: AppColors.white,
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -110,9 +189,15 @@ class _MonthlyTimesheetPageState extends ConsumerState<MonthlyTimesheetPage>
                   constraints: const BoxConstraints(),
                   visualDensity: VisualDensity.compact,
                   onPressed: () {
-                    final prevMonth = timesheetState.month == 1 ? 12 : timesheetState.month - 1;
-                    final prevYear = timesheetState.month == 1 ? timesheetState.year - 1 : timesheetState.year;
-                    ref.read(monthlyTimesheetNotifierProvider.notifier).changeMonth(prevYear, prevMonth);
+                    final prevMonth = timesheetState.month == 1
+                        ? 12
+                        : timesheetState.month - 1;
+                    final prevYear = timesheetState.month == 1
+                        ? timesheetState.year - 1
+                        : timesheetState.year;
+                    ref
+                        .read(monthlyTimesheetNotifierProvider.notifier)
+                        .changeMonth(prevYear, prevMonth);
                   },
                 ),
                 Expanded(
@@ -120,12 +205,14 @@ class _MonthlyTimesheetPageState extends ConsumerState<MonthlyTimesheetPage>
                     mainAxisAlignment: MainAxisAlignment.center,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.calendar_month, color: AppColors.primary, size: 20),
+                      const Icon(Icons.calendar_month,
+                          color: AppColors.primary, size: 20),
                       const SizedBox(width: 8),
                       Flexible(
                         child: Text(
                           'Tháng ${timesheetState.month.toString().padLeft(2, '0')}/${timesheetState.year}',
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -139,9 +226,15 @@ class _MonthlyTimesheetPageState extends ConsumerState<MonthlyTimesheetPage>
                   constraints: const BoxConstraints(),
                   visualDensity: VisualDensity.compact,
                   onPressed: () {
-                    final nextMonth = timesheetState.month == 12 ? 1 : timesheetState.month + 1;
-                    final nextYear = timesheetState.month == 12 ? timesheetState.year + 1 : timesheetState.year;
-                    ref.read(monthlyTimesheetNotifierProvider.notifier).changeMonth(nextYear, nextMonth);
+                    final nextMonth = timesheetState.month == 12
+                        ? 1
+                        : timesheetState.month + 1;
+                    final nextYear = timesheetState.month == 12
+                        ? timesheetState.year + 1
+                        : timesheetState.year;
+                    ref
+                        .read(monthlyTimesheetNotifierProvider.notifier)
+                        .changeMonth(nextYear, nextMonth);
                   },
                 ),
               ],
@@ -182,29 +275,34 @@ class _MonthlyTimesheetPageState extends ConsumerState<MonthlyTimesheetPage>
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppColors.white,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: AppColors.border),
             ),
             child: Row(
               children: [
                 Expanded(
-                  child: _buildKpiItem('Tổng giờ làm', '${personal?.totalHoursWorked ?? 0}h', AppColors.primary),
+                  child: _buildKpiItem('Tổng giờ làm',
+                      '${personal?.totalHoursWorked ?? 0}h', AppColors.primary),
                 ),
                 Expanded(
-                  child: _buildKpiItem('Ca hoàn tất', '${personal?.shiftsCompleted ?? 0}', AppColors.success),
+                  child: _buildKpiItem('Ca hoàn tất',
+                      '${personal?.shiftsCompleted ?? 0}', AppColors.success),
                 ),
                 Expanded(
-                  child: _buildKpiItem('Đi muộn', '${personal?.lateCount ?? 0}', AppColors.warning),
+                  child: _buildKpiItem('Đi muộn', '${personal?.lateCount ?? 0}',
+                      AppColors.warning),
                 ),
                 Expanded(
-                  child: _buildKpiItem('Về sớm', '${personal?.earlyLeaveCount ?? 0}', const Color(0xFFC2410C)),
+                  child: _buildKpiItem('Về sớm',
+                      '${personal?.earlyLeaveCount ?? 0}', AppColors.orange700),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 16),
-          const Text('Chi tiết các ngày làm việc:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+          const Text('Chi tiết các ngày làm việc:',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
           const SizedBox(height: 10),
           if (records.isEmpty)
             const Center(
@@ -255,14 +353,19 @@ class _MonthlyTimesheetPageState extends ConsumerState<MonthlyTimesheetPage>
             leading: CircleAvatar(
               backgroundColor: AppColors.primary.withOpacity(0.15),
               child: Text(
-                item.userName.isNotEmpty ? item.userName[0].toUpperCase() : 'NV',
-                style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
+                item.userName.isNotEmpty
+                    ? item.userName[0].toUpperCase()
+                    : 'NV',
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold, color: AppColors.primary),
               ),
             ),
-            title: Text(item.userName, style: const TextStyle(fontWeight: FontWeight.bold)),
+            title: Text(item.userName,
+                style: const TextStyle(fontWeight: FontWeight.bold)),
             subtitle: Text(
               '${item.totalHoursWorked} giờ • ${item.shiftsCompleted} ca • Muộn: ${item.lateCount} lần',
-              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              style:
+                  const TextStyle(fontSize: 12, color: AppColors.textSecondary),
             ),
             children: [
               const Divider(height: 1),
@@ -274,21 +377,27 @@ class _MonthlyTimesheetPageState extends ConsumerState<MonthlyTimesheetPage>
                     Row(
                       children: [
                         Expanded(
-                          child: _buildKpiItem('Tổng giờ', '${item.totalHoursWorked}h', AppColors.primary),
+                          child: _buildKpiItem('Tổng giờ',
+                              '${item.totalHoursWorked}h', AppColors.primary),
                         ),
                         Expanded(
-                          child: _buildKpiItem('Ca làm', '${item.shiftsCompleted}', AppColors.success),
+                          child: _buildKpiItem('Ca làm',
+                              '${item.shiftsCompleted}', AppColors.success),
                         ),
                         Expanded(
-                          child: _buildKpiItem('Đi muộn', '${item.lateCount}', AppColors.warning),
+                          child: _buildKpiItem('Đi muộn', '${item.lateCount}',
+                              AppColors.warning),
                         ),
                         Expanded(
-                          child: _buildKpiItem('Tăng ca', '${item.overtimeMinutes}p', AppColors.supervisor),
+                          child: _buildKpiItem('Tăng ca',
+                              '${item.overtimeMinutes}p', AppColors.supervisor),
                         ),
                       ],
                     ),
                     const SizedBox(height: 12),
-                    const Text('Nhật ký chấm công:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    const Text('Nhật ký chấm công:',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 13)),
                     const SizedBox(height: 6),
                     ...item.records.map((r) => _buildRecordTile(r)),
                   ],
@@ -320,9 +429,12 @@ class _MonthlyTimesheetPageState extends ConsumerState<MonthlyTimesheetPage>
       separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (context, index) {
         final adj = adjustments[index];
-        final inStr = '${adj.requestedCheckIn.hour.toString().padLeft(2, '0')}:${adj.requestedCheckIn.minute.toString().padLeft(2, '0')}';
-        final outStr = '${adj.requestedCheckOut.hour.toString().padLeft(2, '0')}:${adj.requestedCheckOut.minute.toString().padLeft(2, '0')}';
-        final dateStr = '${adj.requestedCheckIn.day}/${adj.requestedCheckIn.month}/${adj.requestedCheckIn.year}';
+        final inStr =
+            '${adj.requestedCheckIn.hour.toString().padLeft(2, '0')}:${adj.requestedCheckIn.minute.toString().padLeft(2, '0')}';
+        final outStr =
+            '${adj.requestedCheckOut.hour.toString().padLeft(2, '0')}:${adj.requestedCheckOut.minute.toString().padLeft(2, '0')}';
+        final dateStr =
+            '${adj.requestedCheckIn.day}/${adj.requestedCheckIn.month}/${adj.requestedCheckIn.year}';
 
         Color statusColor = AppColors.warning;
         if (adj.isApproved) statusColor = AppColors.success;
@@ -345,37 +457,47 @@ class _MonthlyTimesheetPageState extends ConsumerState<MonthlyTimesheetPage>
                     Expanded(
                       child: Text(
                         adj.userName,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 15),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: statusColor.withOpacity(0.15),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
                         adj.status.label,
-                        style: TextStyle(color: statusColor, fontSize: 12, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                            color: statusColor,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 6),
-                Text('Ngày: $dateStr • Giờ xin điều chỉnh: $inStr - $outStr', style: const TextStyle(fontSize: 13)),
+                Text('Ngày: $dateStr • Giờ xin điều chỉnh: $inStr - $outStr',
+                    style: const TextStyle(fontSize: 13)),
                 const SizedBox(height: 4),
                 Text(
                   'Lý do: "${adj.reason}"',
-                  style: const TextStyle(fontSize: 13, fontStyle: FontStyle.italic, color: AppColors.textSecondary),
+                  style: const TextStyle(
+                      fontSize: 13,
+                      fontStyle: FontStyle.italic,
+                      color: AppColors.textSecondary),
                 ),
                 if (adj.reviewedBy != null) ...[
                   const SizedBox(height: 6),
                   Text(
                     'Người duyệt: ${adj.reviewedBy}${adj.reviewNote != null ? ' (Ghi chú: ${adj.reviewNote})' : ''}',
-                    style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                    style: const TextStyle(
+                        fontSize: 12, color: AppColors.textSecondary),
                   ),
                 ],
                 if (adj.isPending && (user?.canAdjustAttendance == true)) ...[
@@ -395,12 +517,16 @@ class _MonthlyTimesheetPageState extends ConsumerState<MonthlyTimesheetPage>
                           ),
                           onPressed: () {
                             final user = ref.read(authProvider);
-                            ref.read(attendanceAdjustmentNotifierProvider.notifier).reject(
+                            ref
+                                .read(attendanceAdjustmentNotifierProvider
+                                    .notifier)
+                                .reject(
                                   adjustmentId: adj.id,
                                   reviewedBy: user?.username ?? 'manager',
                                 );
                           },
-                          child: const Text('Từ chối', maxLines: 1, overflow: TextOverflow.ellipsis),
+                          child: const Text('Từ chối',
+                              maxLines: 1, overflow: TextOverflow.ellipsis),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -408,18 +534,22 @@ class _MonthlyTimesheetPageState extends ConsumerState<MonthlyTimesheetPage>
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.success,
-                            foregroundColor: Colors.white,
+                            foregroundColor: AppColors.white,
                             padding: const EdgeInsets.symmetric(horizontal: 12),
                             visualDensity: VisualDensity.compact,
                           ),
                           onPressed: () {
                             final user = ref.read(authProvider);
-                            ref.read(attendanceAdjustmentNotifierProvider.notifier).approve(
+                            ref
+                                .read(attendanceAdjustmentNotifierProvider
+                                    .notifier)
+                                .approve(
                                   adjustmentId: adj.id,
                                   reviewedBy: user?.username ?? 'manager',
                                 );
                           },
-                          child: const Text('Duyệt công', maxLines: 1, overflow: TextOverflow.ellipsis),
+                          child: const Text('Duyệt công',
+                              maxLines: 1, overflow: TextOverflow.ellipsis),
                         ),
                       ),
                     ],
@@ -434,8 +564,10 @@ class _MonthlyTimesheetPageState extends ConsumerState<MonthlyTimesheetPage>
   }
 
   Widget _buildRecordTile(AttendanceRecord r) {
-    final dateStr = '${r.date.day.toString().padLeft(2, '0')}/${r.date.month.toString().padLeft(2, '0')}';
-    final inStr = '${r.checkInTime.hour.toString().padLeft(2, '0')}:${r.checkInTime.minute.toString().padLeft(2, '0')}';
+    final dateStr =
+        '${r.date.day.toString().padLeft(2, '0')}/${r.date.month.toString().padLeft(2, '0')}';
+    final inStr =
+        '${r.checkInTime.hour.toString().padLeft(2, '0')}:${r.checkInTime.minute.toString().padLeft(2, '0')}';
     final outStr = r.checkOutTime != null
         ? '${r.checkOutTime!.hour.toString().padLeft(2, '0')}:${r.checkOutTime!.minute.toString().padLeft(2, '0')}'
         : '--:--';
@@ -449,7 +581,9 @@ class _MonthlyTimesheetPageState extends ConsumerState<MonthlyTimesheetPage>
       ),
       child: Row(
         children: [
-          Text(dateStr, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+          Text(dateStr,
+              style:
+                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
           const SizedBox(width: 6),
           Expanded(
             child: Text(
@@ -460,7 +594,9 @@ class _MonthlyTimesheetPageState extends ConsumerState<MonthlyTimesheetPage>
             ),
           ),
           const SizedBox(width: 6),
-          Text('${r.totalWorkHours}h', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+          Text('${r.totalWorkHours}h',
+              style:
+                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
           const SizedBox(width: 6),
           Flexible(
             child: AttendanceStatusBadge(
@@ -483,7 +619,8 @@ class _MonthlyTimesheetPageState extends ConsumerState<MonthlyTimesheetPage>
       children: [
         Text(
           value,
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color),
+          style: TextStyle(
+              fontSize: 16, fontWeight: FontWeight.bold, color: color),
           textAlign: TextAlign.center,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,

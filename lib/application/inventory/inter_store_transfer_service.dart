@@ -1,6 +1,8 @@
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/utils/store_resolver_helper.dart';
+import '../../data/models/product_model.dart';
 import '../../domain/entities/product.dart';
 
 class InterStoreTransferService {
@@ -19,10 +21,21 @@ class InterStoreTransferService {
     String? createdByName,
   }) async {
     try {
-      if (sourceStoreId.isEmpty || targetStoreId.isEmpty) return 'Chi nhánh không hợp lệ';
+      if (sourceStoreId.isEmpty || targetStoreId.isEmpty)
+        return 'Chi nhánh không hợp lệ';
       if (quantity <= 0) return 'Số lượng phải lớn hơn 0';
-      if (product.stock < quantity) return 'Không đủ số lượng trong kho';
       if (sourceStoreId == targetStoreId) return 'Không thể chuyển cùng kho';
+
+      final normSource = StoreResolverHelper.normalizeStoreId(sourceStoreId);
+      final normTarget = StoreResolverHelper.normalizeStoreId(targetStoreId);
+      if (normSource.isNotEmpty && normSource == normTarget) {
+        return 'Không thể chuyển cùng kho';
+      }
+
+      final sourceCurrentStock = product.stockInBranch(sourceStoreId);
+      if (sourceCurrentStock < quantity) {
+        return 'Không đủ số lượng trong kho';
+      }
 
       final updates = <String, dynamic>{};
       final now = DateTime.now();
@@ -44,21 +57,60 @@ class InterStoreTransferService {
       final sourceLabel = getStoreName(sourceStoreId, sourceStoreName);
       final targetLabel = getStoreName(targetStoreId, targetStoreName);
 
-      // 1. Deduct from source store product's branchStocks
-      final sourceBranchStocks = Map<String, int>.from(product.branchStocks);
-      String sourceKey = sourceStoreId;
-      if (!sourceBranchStocks.containsKey(sourceStoreId)) {
-        if (sourceStoreId == 'store_001' && sourceBranchStocks.containsKey('branch_1')) {
-          sourceKey = 'branch_1';
-        } else if (sourceStoreId == 'store_002' && sourceBranchStocks.containsKey('branch_2')) {
-          sourceKey = 'branch_2';
+      // Inspect target store stock in DB if exists to avoid overwriting newer stock
+      int targetCurrentStock = product.stockInBranch(targetStoreId);
+      DataSnapshot? targetProductSnap;
+      if (_db != null) {
+        targetProductSnap =
+            await _db.ref('stores/$targetStoreId/products/${product.id}').get();
+        if (targetProductSnap.exists && targetProductSnap.value is Map) {
+          final tMap =
+              Map<dynamic, dynamic>.from(targetProductSnap.value as Map);
+          final tModel = ProductModel.fromMap(tMap, targetStoreId);
+          final snapTargetStock =
+              tModel.toEntity().stockInBranch(targetStoreId);
+          if (snapTargetStock > targetCurrentStock) {
+            targetCurrentStock = snapTargetStock;
+          }
         }
       }
-      final sourceBranchStock = sourceBranchStocks[sourceKey] ?? product.stock;
-      sourceBranchStocks[sourceKey] =
-          (sourceBranchStock - quantity).clamp(0, 999999);
+
+      final newSourceStock = (sourceCurrentStock - quantity).clamp(0, 999999);
+      final newTargetStock = targetCurrentStock + quantity;
+
+      // Build unified, synchronized branchStocks for both stores
+      final updatedBranchStocks = Map<String, int>.from(product.branchStocks);
+      updatedBranchStocks[sourceStoreId] = newSourceStock;
+      updatedBranchStocks[targetStoreId] = newTargetStock;
+      if (normSource.isNotEmpty)
+        updatedBranchStocks[normSource] = newSourceStock;
+      if (normTarget.isNotEmpty)
+        updatedBranchStocks[normTarget] = newTargetStock;
+
+      if (normSource == 'store_001' ||
+          normTarget == 'store_001' ||
+          sourceStoreId == 'store_001' ||
+          targetStoreId == 'store_001') {
+        final s1 = (normSource == 'store_001' || sourceStoreId == 'store_001')
+            ? newSourceStock
+            : newTargetStock;
+        updatedBranchStocks['store_001'] = s1;
+        updatedBranchStocks['branch_1'] = s1;
+      }
+      if (normSource == 'store_002' ||
+          normTarget == 'store_002' ||
+          sourceStoreId == 'store_002' ||
+          targetStoreId == 'store_002') {
+        final s2 = (normSource == 'store_002' || sourceStoreId == 'store_002')
+            ? newSourceStock
+            : newTargetStock;
+        updatedBranchStocks['store_002'] = s2;
+        updatedBranchStocks['branch_2'] = s2;
+      }
+
+      // 1. Update source store product's branchStocks
       updates['stores/$sourceStoreId/products/${product.id}/branchStocks'] =
-          sourceBranchStocks;
+          updatedBranchStocks;
 
       // 2. Add Export transaction to source store
       final exportTxId = 'tx_${timestamp}_export';
@@ -75,52 +127,19 @@ class InterStoreTransferService {
         if (createdByName != null) 'createdByName': createdByName,
       };
 
-      // 3. Add to target store product's branchStocks
-      if (_db == null) return null;
-      final targetProductSnap =
-          await _db.ref('stores/$targetStoreId/products/${product.id}').get();
-
-      if (targetProductSnap.exists && targetProductSnap.value != null) {
-        final map = Map<dynamic, dynamic>.from(targetProductSnap.value as Map);
-        Map<String, int> targetBranchStocks = {};
-        if (map['branchStocks'] != null && map['branchStocks'] is Map) {
-          targetBranchStocks = Map<String, int>.from(
-            (map['branchStocks'] as Map)
-                .map((k, v) => MapEntry(k.toString(), (v as num).toInt())),
-          );
-        }
-        String targetKey = targetStoreId;
-        if (!targetBranchStocks.containsKey(targetStoreId)) {
-          if (targetStoreId == 'store_001' && targetBranchStocks.containsKey('branch_1')) {
-            targetKey = 'branch_1';
-          } else if (targetStoreId == 'store_002' && targetBranchStocks.containsKey('branch_2')) {
-            targetKey = 'branch_2';
-          }
-        }
-        final currentTargetStock = targetBranchStocks[targetKey] ??
-            (map['stock'] as num? ?? 0).toInt();
-        targetBranchStocks[targetKey] = currentTargetStock + quantity;
-
+      // 3. Update or create target store product with unified branchStocks
+      if (targetProductSnap != null &&
+          targetProductSnap.exists &&
+          targetProductSnap.value != null) {
         updates['stores/$targetStoreId/products/${product.id}/branchStocks'] =
-            targetBranchStocks;
+            updatedBranchStocks;
       } else {
-        // Create new product record in target store
-        updates['stores/$targetStoreId/products/${product.id}'] = {
-          'id': product.id,
-          'name': product.name,
-          'code': product.code,
-          'barcode': product.barcode,
-          'brand': product.brand,
-          'model': product.model,
-          'price': product.price,
-          'costPrice': product.costPrice,
-          'branchStocks': {targetStoreId: quantity, sourceStoreId: 0},
-          'category': product.category,
-          'unit': product.unit,
-          'description': product.description,
-          'imageUrl': product.imageUrl,
-          'isCombo': product.isCombo,
-        };
+        // Create full product record in target store
+        final fullTargetProduct = ProductModel.fromEntity(
+          product.copyWith(branchStocks: updatedBranchStocks),
+        ).toMap();
+        updates['stores/$targetStoreId/products/${product.id}'] =
+            fullTargetProduct;
       }
 
       // 4. Add Import transaction to target store
@@ -138,6 +157,7 @@ class InterStoreTransferService {
         if (createdByName != null) 'createdByName': createdByName,
       };
 
+      if (_db == null) return null;
       await _db.ref().update(updates);
       return null; // success
     } catch (e) {

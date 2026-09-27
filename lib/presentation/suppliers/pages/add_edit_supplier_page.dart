@@ -16,7 +16,8 @@ class AddEditSupplierPage extends ConsumerStatefulWidget {
   const AddEditSupplierPage({super.key, this.supplier});
 
   @override
-  ConsumerState<AddEditSupplierPage> createState() => _AddEditSupplierPageState();
+  ConsumerState<AddEditSupplierPage> createState() =>
+      _AddEditSupplierPageState();
 }
 
 class _AddEditSupplierPageState extends ConsumerState<AddEditSupplierPage> {
@@ -68,7 +69,8 @@ class _AddEditSupplierPageState extends ConsumerState<AddEditSupplierPage> {
     if (_codeController.text.isNotEmpty) return;
     final suppliers = ref.read(supplierListNotifierProvider).value ?? [];
     final existingCodes = suppliers.map((s) => s.code).toList();
-    final nextCode = CodeGeneratorHelper.generateNextSupplierCode(existingCodes);
+    final nextCode =
+        CodeGeneratorHelper.generateNextSupplierCode(existingCodes);
     setState(() {
       _codeController.text = nextCode;
     });
@@ -129,7 +131,8 @@ class _AddEditSupplierPageState extends ConsumerState<AddEditSupplierPage> {
             : null,
         status: widget.supplier?.status ?? 'active',
         branch: widget.supplier?.branch,
-        createdAt: widget.supplier?.createdAt ?? DateTime.now().toIso8601String(),
+        createdAt:
+            widget.supplier?.createdAt ?? DateTime.now().toIso8601String(),
         createdBy: createdBy,
       );
 
@@ -188,7 +191,7 @@ class _AddEditSupplierPageState extends ConsumerState<AddEditSupplierPage> {
           _isEditing ? 'Chỉnh Sửa Nhà Cung Cấp' : 'Thêm Nhà Cung Cấp Mới',
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.white,
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 8.0),
@@ -371,7 +374,7 @@ class _AddEditSupplierPageState extends ConsumerState<AddEditSupplierPage> {
                       height: 18,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: Colors.white,
+                        color: AppColors.white,
                       ),
                     )
                   : const Icon(Icons.save),
@@ -395,7 +398,7 @@ class _AddEditSupplierPageState extends ConsumerState<AddEditSupplierPage> {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.border),
       ),
@@ -408,7 +411,7 @@ class _AddEditSupplierPageState extends ConsumerState<AddEditSupplierPage> {
             style: const TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 12,
-              color: Colors.black54,
+              color: AppColors.textSecondary,
               letterSpacing: 0.5,
             ),
           ),

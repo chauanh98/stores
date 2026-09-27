@@ -134,7 +134,7 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
             content: Text(
               'Đã thu ${_currencyFormat.format(amount)} đ thành công cho hóa đơn ${widget.order.id}.',
             ),
-            backgroundColor: Colors.green,
+            backgroundColor: AppColors.success,
           ),
         );
       }
@@ -220,7 +220,7 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
                       _buildInfoRow(
                         'Đã thanh toán:',
                         '${_currencyFormat.format(widget.order.amountPaid)} đ',
-                        color: Colors.green,
+                        color: AppColors.success,
                       ),
                       const SizedBox(height: 6),
                       _buildInfoRow(
@@ -240,7 +240,7 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 13,
-                    color: Colors.black87,
+                    color: AppColors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -261,7 +261,7 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
                       color: AppColors.primary,
                     ),
                     filled: true,
-                    fillColor: Colors.grey.shade50,
+                    fillColor: AppColors.grey50,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                       borderSide: const BorderSide(color: AppColors.border),
@@ -330,7 +330,7 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 13,
-                    color: Colors.black87,
+                    color: AppColors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -345,7 +345,7 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
                           decoration: BoxDecoration(
                             color: _paymentMethod == 'cash'
                                 ? AppColors.primary.withOpacity(0.1)
-                                : Colors.white,
+                                : AppColors.white,
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
                               color: _paymentMethod == 'cash'
@@ -363,7 +363,7 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
                                 size: 18,
                                 color: _paymentMethod == 'cash'
                                     ? AppColors.primary
-                                    : Colors.black54,
+                                    : AppColors.textSecondary,
                               ),
                               const SizedBox(width: 6),
                               Text(
@@ -375,7 +375,7 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
                                       : FontWeight.normal,
                                   color: _paymentMethod == 'cash'
                                       ? AppColors.primary
-                                      : Colors.black87,
+                                      : AppColors.textPrimary,
                                 ),
                               ),
                             ],
@@ -394,7 +394,7 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
                           decoration: BoxDecoration(
                             color: _paymentMethod == 'transfer'
                                 ? AppColors.primary.withOpacity(0.1)
-                                : Colors.white,
+                                : AppColors.white,
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
                               color: _paymentMethod == 'transfer'
@@ -412,7 +412,7 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
                                 size: 18,
                                 color: _paymentMethod == 'transfer'
                                     ? AppColors.primary
-                                    : Colors.black54,
+                                    : AppColors.textSecondary,
                               ),
                               const SizedBox(width: 6),
                               Text(
@@ -424,7 +424,7 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
                                       : FontWeight.normal,
                                   color: _paymentMethod == 'transfer'
                                       ? AppColors.primary
-                                      : Colors.black87,
+                                      : AppColors.textPrimary,
                                 ),
                               ),
                             ],
@@ -442,7 +442,7 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 13,
-                    color: Colors.black87,
+                    color: AppColors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -453,7 +453,7 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
                   decoration: InputDecoration(
                     hintText: 'Nhập ghi chú thu nợ...',
                     filled: true,
-                    fillColor: Colors.grey.shade50,
+                    fillColor: AppColors.grey50,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                       borderSide: const BorderSide(color: AppColors.border),
@@ -487,7 +487,7 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
                           side: const BorderSide(color: AppColors.border),
                         ),
                         child: const Text('Hủy bỏ',
-                            style: TextStyle(color: Colors.black87)),
+                            style: TextStyle(color: AppColors.textPrimary)),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -508,7 +508,7 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
                                 width: 20,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  color: Colors.white,
+                                  color: AppColors.white,
                                 ),
                               )
                             : const Text(
@@ -542,7 +542,7 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
       children: [
         Text(
           label,
-          style: const TextStyle(fontSize: 13, color: Colors.black54),
+          style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
         ),
         const SizedBox(width: 8),
         Flexible(
@@ -556,7 +556,7 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
-                    color: color ?? Colors.black87,
+                    color: color ?? AppColors.textPrimary,
                   ),
                 ),
               ),
@@ -564,7 +564,8 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
                 const SizedBox(width: 4),
                 Text(
                   '($phone)',
-                  style: const TextStyle(fontSize: 12, color: Colors.black45),
+                  style: const TextStyle(
+                      fontSize: 12, color: AppColors.textTertiary),
                 ),
               ],
             ],

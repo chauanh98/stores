@@ -48,14 +48,16 @@ void main() {
         expect(emptyStockProduct.hasStock, isFalse);
       });
 
-      test('stockInBranch returns 0 for any query when branchStocks is empty', () {
+      test('stockInBranch returns 0 for any query when branchStocks is empty',
+          () {
         expect(emptyStockProduct.stockInBranch('store_001'), equals(0));
         expect(emptyStockProduct.stockInBranch('store_002'), equals(0));
         expect(emptyStockProduct.stockInBranch('branch_1'), equals(0));
         expect(emptyStockProduct.stockInBranch('branch_2'), equals(0));
         expect(emptyStockProduct.stockInBranch('ĐT'), equals(0));
         expect(emptyStockProduct.stockInBranch('TB'), equals(0));
-        expect(emptyStockProduct.stockInBranch('Chi nhánh Đông Thắng'), equals(0));
+        expect(
+            emptyStockProduct.stockInBranch('Chi nhánh Đông Thắng'), equals(0));
         expect(emptyStockProduct.stockInBranch('store_999'), equals(0));
         expect(emptyStockProduct.stockInBranch(''), equals(0));
         expect(emptyStockProduct.stockInBranch('   '), equals(0));
@@ -79,7 +81,8 @@ void main() {
     // Edge Case 2: Legacy maps with single 'stock' field
     // -------------------------------------------------------------
     group('Edge Case 2: Legacy maps with single "stock" field fallback', () {
-      test('fromMap populates store_001 with old stock and store_002 with 0', () {
+      test('fromMap populates store_001 with old stock and store_002 with 0',
+          () {
         final legacyMap = {
           'id': 'p_legacy_single',
           'name': 'Legacy Single Stock Product',
@@ -151,7 +154,9 @@ void main() {
         expect(productNormal.stockInBranch('!@#\$%^&*()'), equals(0));
       });
 
-      test('Product containing unknown custom store IDs preserves and resolves them', () {
+      test(
+          'Product containing unknown custom store IDs preserves and resolves them',
+          () {
         const productCustom = Product(
           id: 'p_custom',
           name: 'Product with custom branches',
@@ -222,7 +227,9 @@ void main() {
     // Edge Case 5: Non-standard Vietnamese branch names & accents
     // -------------------------------------------------------------
     group('Edge Case 5: Non-standard Vietnamese branch names & aliases', () {
-      test('Resolves case-insensitive and unaccented variations of standard branches', () {
+      test(
+          'Resolves case-insensitive and unaccented variations of standard branches',
+          () {
         const product = Product(
           id: 'p_vn',
           name: 'Vietnamese Product',
@@ -253,14 +260,17 @@ void main() {
         expect(product.stockInBranch('THỚI BÌNH'), equals(200));
         expect(product.stockInBranch('thoi binh'), equals(200));
         expect(product.stockInBranch('THOI BINH'), equals(200));
-        expect(product.stockInBranch('thời bình'), equals(200)); // Common tone mark typo
+        expect(product.stockInBranch('thời bình'),
+            equals(200)); // Common tone mark typo
         expect(product.stockInBranch('THỜI BÌNH'), equals(200));
         expect(product.stockInBranch('Chi Nhánh Thới Bình'), equals(200));
         expect(product.stockInBranch('tb'), equals(200));
         expect(product.stockInBranch('TB'), equals(200));
       });
 
-      test('Resolves custom Vietnamese branch names when stored directly as map keys', () {
+      test(
+          'Resolves custom Vietnamese branch names when stored directly as map keys',
+          () {
         const customVnProduct = Product(
           id: 'p_custom_vn',
           name: 'Custom VN Branches Product',
@@ -278,7 +288,8 @@ void main() {
         expect(customVnProduct.stock, equals(135));
         expect(customVnProduct.stockInBranch('Chi nhánh Cần Thơ'), equals(30));
         expect(customVnProduct.stockInBranch('chi nhánh cần thơ'), equals(30));
-        expect(customVnProduct.stockInBranch('  Kho Tổng Bình Dương  '), equals(45));
+        expect(customVnProduct.stockInBranch('  Kho Tổng Bình Dương  '),
+            equals(45));
         expect(customVnProduct.stockInBranch('Chi nhánh TP.HCM'), equals(60));
         expect(customVnProduct.stockInBranch('chi nhánh tp.hcm'), equals(60));
       });
@@ -288,7 +299,9 @@ void main() {
     // Edge Case 6: Negative numbers & extreme bounds
     // -------------------------------------------------------------
     group('Edge Case 6: Negative stock numbers and extreme bounds', () {
-      test('Handles negative stock in single branch while total remains positive', () {
+      test(
+          'Handles negative stock in single branch while total remains positive',
+          () {
         const netPositiveProd = Product(
           id: 'p_net_pos',
           name: 'Net Positive Stock',
@@ -326,7 +339,9 @@ void main() {
             reason: 'Negative stock is considered Out of Stock, not Low Stock');
       });
 
-      test('ComboHelper returns 0 available combo stock if any child component is negative', () {
+      test(
+          'ComboHelper returns 0 available combo stock if any child component is negative',
+          () {
         const comp1 = Product(
           id: 'c1',
           name: 'Component 1',
@@ -396,7 +411,9 @@ void main() {
     // Edge Case 7: Firebase RTDB Malformed & Mixed Data Types
     // -------------------------------------------------------------
     group('Edge Case 7: Firebase RTDB Malformed & Mixed Data Types', () {
-      test('ProductModel.fromMap parses stringified numbers, doubles, and ignores invalid types in branchStocks', () {
+      test(
+          'ProductModel.fromMap parses stringified numbers, doubles, and ignores invalid types in branchStocks',
+          () {
         final dirtyMap = {
           'id': 'p_dirty',
           'name': 'Dirty RTDB Record',
@@ -422,7 +439,8 @@ void main() {
         expect(model.branchStocks['store_006'], equals(0));
       });
 
-      test('ProductModel.fromMap handles branchStocks being non-Map gracefully', () {
+      test('ProductModel.fromMap handles branchStocks being non-Map gracefully',
+          () {
         final corruptMap = {
           'id': 'p_corrupt',
           'name': 'Corrupt BranchStocks',
@@ -441,7 +459,8 @@ void main() {
     // Edge Case 8: ProductTile Widget Stress Testing
     // -------------------------------------------------------------
     group('Edge Case 8: ProductTile Widget Stress Testing', () {
-      testWidgets('ProductTile handles empty branchStocks without throwing error',
+      testWidgets(
+          'ProductTile handles empty branchStocks without throwing error',
           (tester) async {
         const product = Product(
           id: 'p_ui_empty',
@@ -457,7 +476,8 @@ void main() {
           _buildTestApp(
             child: const ProductTile(product: product),
             overrides: [
-              productListProvider.overrideWith((ref) => Stream.value([product])),
+              productListProvider
+                  .overrideWith((ref) => Stream.value([product])),
             ],
           ),
         );
@@ -470,7 +490,8 @@ void main() {
         expect(find.byIcon(Icons.storefront_outlined), findsNothing);
       });
 
-      testWidgets('ProductTile formats complex multi-branch network badges correctly',
+      testWidgets(
+          'ProductTile formats complex multi-branch network badges correctly',
           (tester) async {
         const product = Product(
           id: 'p_ui_multi',
@@ -494,7 +515,8 @@ void main() {
           _buildTestApp(
             child: const ProductTile(product: product),
             overrides: [
-              productListProvider.overrideWith((ref) => Stream.value([product])),
+              productListProvider
+                  .overrideWith((ref) => Stream.value([product])),
             ],
           ),
         );
@@ -507,12 +529,14 @@ void main() {
         // Formatted line should contain:
         // ĐT: 10 | TB: 20 | CN3: 30 | CN999: 5 | CN10: 15 | AG: 8 | Kho Tổng: 50
         expect(
-          find.textContaining('ĐT: 10 | TB: 20 | CN3: 30 | CN999: 5 | CN10: 15 | AG: 8 | Kho Tổng: 50'),
+          find.textContaining(
+              'ĐT: 10 | TB: 20 | CN3: 30 | CN999: 5 | CN10: 15 | AG: 8 | Kho Tổng: 50'),
           findsOneWidget,
         );
       });
 
-      testWidgets('ProductTile renders negative stock and extreme large numbers gracefully',
+      testWidgets(
+          'ProductTile renders negative stock and extreme large numbers gracefully',
           (tester) async {
         const product = Product(
           id: 'p_extreme',
@@ -531,7 +555,8 @@ void main() {
           _buildTestApp(
             child: const ProductTile(product: product),
             overrides: [
-              productListProvider.overrideWith((ref) => Stream.value([product])),
+              productListProvider
+                  .overrideWith((ref) => Stream.value([product])),
             ],
           ),
         );
@@ -579,7 +604,9 @@ void main() {
     // Edge Case 10: ComboHelper Boundary Conditions
     // -------------------------------------------------------------
     group('Edge Case 10: ComboHelper Boundary Conditions', () {
-      test('ComboHelper returns 0 if combo component quantity is <= 0 or child is missing', () {
+      test(
+          'ComboHelper returns 0 if combo component quantity is <= 0 or child is missing',
+          () {
         const combo = Product(
           id: 'cb_invalid_spec',
           name: 'Invalid Combo Spec',
@@ -620,18 +647,21 @@ void main() {
           isCombo: false,
         );
 
-        expect(ComboHelper.getAvailableStock(
-          product: nonCombo,
-          branchId: 'store_001',
-          allProducts: [nonCombo],
-        ), equals(42));
+        expect(
+            ComboHelper.getAvailableStock(
+              product: nonCombo,
+              branchId: 'store_001',
+              allProducts: [nonCombo],
+            ),
+            equals(42));
 
-        expect(ComboHelper.getTotalAvailableStock(
-          product: nonCombo,
-          allProducts: [nonCombo],
-        ), equals(42));
+        expect(
+            ComboHelper.getTotalAvailableStock(
+              product: nonCombo,
+              allProducts: [nonCombo],
+            ),
+            equals(42));
       });
     });
   });
 }
-

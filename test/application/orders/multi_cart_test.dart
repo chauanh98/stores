@@ -6,6 +6,14 @@ import 'package:stores/domain/entities/order_item.dart';
 import 'package:stores/domain/entities/product.dart';
 
 void main() {
+  setUp(() {
+    MultiCartNotifier.resetBranchCartsCache();
+  });
+
+  tearDown(() {
+    MultiCartNotifier.resetBranchCartsCache();
+  });
+
   group('CartTab & MultiCartState Domain Model Tests', () {
     const productA = Product(
       id: 'p_01',

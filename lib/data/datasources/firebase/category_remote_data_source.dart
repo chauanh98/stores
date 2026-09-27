@@ -26,65 +26,79 @@ class CategoryRemoteDataSource {
     return [];
   }
 
-  /// Optimized: dùng onChildAdded/Changed/Removed thay vì onValue
+  /// Optimized: dùng debounced stream cho onChildAdded và onValue.take(1) kiểm tra node rỗng,
+  /// loại bỏ hoàn toàn _ref.get() để tránh tải kép dữ liệu categories.
   Stream<List<Map>> watchAll() {
     final ref = _ref;
     if (ref == null) return const Stream.empty();
 
     final controller = StreamController<List<Map>>();
     final Map<String, Map> cache = {};
-    bool initialLoaded = false;
+    Timer? debounceTimer;
+    bool hasEmitted = false;
 
-    void safeEmit() {
-      if (initialLoaded && !controller.isClosed) {
-        controller.add(cache.values.toList());
-      }
+    void debouncedEmit() {
+      debounceTimer?.cancel();
+      debounceTimer = Timer(const Duration(milliseconds: 50), () {
+        if (!controller.isClosed) {
+          hasEmitted = true;
+          controller.add(cache.values.toList());
+        }
+      });
     }
 
     final addSub = ref.onChildAdded.listen((event) {
       final val = event.snapshot.value;
       if (val is Map) {
-        cache[event.snapshot.key!] = Map.from(val);
-        safeEmit();
+        final map = Map.from(val);
+        final id = map['id']?.toString() ?? event.snapshot.key;
+        if (id != null) {
+          cache[id] = map;
+          debouncedEmit();
+        }
       }
     });
 
     final changeSub = ref.onChildChanged.listen((event) {
       final val = event.snapshot.value;
       if (val is Map) {
-        cache[event.snapshot.key!] = Map.from(val);
-        safeEmit();
+        final map = Map.from(val);
+        final id = map['id']?.toString() ?? event.snapshot.key;
+        if (id != null) {
+          cache[id] = map;
+          if (!controller.isClosed) {
+            controller.add(cache.values.toList());
+          }
+        }
       }
     });
 
     final removeSub = ref.onChildRemoved.listen((event) {
-      cache.remove(event.snapshot.key);
-      safeEmit();
-    });
-
-    ref.get().then((snap) {
-      final value = snap.value;
-      if (value != null) {
-        final initialList = _parseSnapshot(value);
-        for (final item in initialList) {
-          final id = item['id']?.toString();
-          if (id != null) {
-            cache[id] = item;
-          }
+      final key = event.snapshot.key;
+      if (key != null) {
+        cache.remove(key);
+        cache.removeWhere((k, v) => v['id']?.toString() == key);
+        if (!controller.isClosed) {
+          controller.add(cache.values.toList());
         }
       }
-      initialLoaded = true;
-      safeEmit();
-    }).catchError((err) {
-      if (!controller.isClosed) {
-        controller.addError(err);
+    });
+
+    final emptyCheckSub = ref.limitToFirst(1).onValue.take(1).listen((event) {
+      if (event.snapshot.value == null) {
+        if (cache.isEmpty && !hasEmitted && !controller.isClosed) {
+          hasEmitted = true;
+          controller.add([]);
+        }
       }
     });
 
     controller.onCancel = () {
+      debounceTimer?.cancel();
       addSub.cancel();
       changeSub.cancel();
       removeSub.cancel();
+      emptyCheckSub.cancel();
     };
 
     return controller.stream;

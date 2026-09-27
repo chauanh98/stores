@@ -47,3 +47,24 @@ app.*.map.json
 **/GoogleService-Info.plist
 lib/firebase_options.dart
 firebase.json
+
+# Ephemeral agent working directories
+.agents/*
+!.agents/agents/
+!.agents/rules/
+!.agents/skills/
+ORIGINAL_REQUEST.md
+PROJECT.md
+TEST_INFRA.md
+TEST_READY.md
+
+# Environment and credentials
+.env
+.env.*
+*.env
+
+# Data staging, import folders, and migration scripts
+data_staging/
+DATA_IMPORT/
+__pycache__/
+

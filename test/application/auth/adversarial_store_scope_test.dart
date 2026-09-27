@@ -11,9 +11,9 @@ void main() {
         'ADMIN': (isAdmin: true, isSupervisor: false, isStaff: false, canSwitch: true, canDebt: true),
         'Admin': (isAdmin: true, isSupervisor: false, isStaff: false, canSwitch: true, canDebt: true),
         'aDmIn': (isAdmin: true, isSupervisor: false, isStaff: false, canSwitch: true, canDebt: true),
-        'SUPERVISOR': (isAdmin: true, isSupervisor: true, isStaff: false, canSwitch: true, canDebt: true),
-        'Supervisor': (isAdmin: true, isSupervisor: true, isStaff: false, canSwitch: true, canDebt: true),
-        'sUpErViSoR': (isAdmin: true, isSupervisor: true, isStaff: false, canSwitch: true, canDebt: true),
+        'SUPERVISOR': (isAdmin: false, isSupervisor: true, isStaff: false, canSwitch: false, canDebt: true),
+        'Supervisor': (isAdmin: false, isSupervisor: true, isStaff: false, canSwitch: false, canDebt: true),
+        'sUpErViSoR': (isAdmin: false, isSupervisor: true, isStaff: false, canSwitch: false, canDebt: true),
         'NHANVIEN': (isAdmin: false, isSupervisor: false, isStaff: true, canSwitch: false, canDebt: false),
         'NhanVien': (isAdmin: false, isSupervisor: false, isStaff: true, canSwitch: false, canDebt: false),
         'nhanvien': (isAdmin: false, isSupervisor: false, isStaff: true, canSwitch: false, canDebt: false),
@@ -38,7 +38,7 @@ void main() {
     test('Whitespace and newline padding in roles are safely trimmed', () {
       final paddedRoles = [
         ('  admin  ', true, false, true, true),
-        ('\t\nsupervisor\r\n ', true, true, true, true),
+        ('\t\nsupervisor\r\n ', false, true, false, true),
         ('  nhanvien \n', false, false, false, false),
       ];
 

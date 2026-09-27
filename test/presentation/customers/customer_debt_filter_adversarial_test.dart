@@ -462,8 +462,8 @@ void main() {
     });
   });
 
-  group('Adversarial Challenge 5: Staff Store Scoping Isolation with Debt Filter', () {
-    testWidgets('Staff user sees only their store debt and count in "Còn nợ" tab',
+  group('Adversarial Challenge 5: Staff Store Scoping Isolation with Customer Debt RBAC', () {
+    testWidgets('Staff user does not see other store customers and debt summary/filter are hidden',
         (tester) async {
       tester.view.physicalSize = const Size(1080, 2400);
       tester.view.devicePixelRatio = 1.0;
@@ -484,13 +484,10 @@ void main() {
       // It must NOT appear!
       expect(find.text('Khách Chi Nhánh Khác'), findsNothing);
 
-      // Total debt should NOT include store_002 (10,000,000)
-      // Total debt = 0.0001 + 2,000,000 + 2,000,000 + 50,000,000 = 54,000,000.0001
-      final totalDebtFinder = find.byKey(const Key('total_debt_summary_text'));
-      expect(
-        (tester.widget(totalDebtFinder) as Text).data,
-        equals(currencyFormat.format(54000000.0001)),
-      );
+      // Under Customer Debt RBAC, total debt summary and debt filter bar are strictly hidden for Staff:
+      expect(find.byKey(const Key('total_debt_summary_text')), findsNothing);
+      expect(find.byKey(const Key('debt_filter_tab_inDebt')), findsNothing);
+      expect(find.byKey(const Key('debt_filter_tab_cleared')), findsNothing);
     });
   });
 

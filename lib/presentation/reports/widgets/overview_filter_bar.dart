@@ -38,145 +38,232 @@ class OverviewFilterBar extends ConsumerWidget {
     String branchLabel;
     if (storeFilter == 'all') {
       branchLabel = l10n?.allBranchesCombined ?? 'Tất cả chi nhánh';
-    } else if (selectedBranchIds.length == mockBranches.length) {
+    } else if (mockBranches.isNotEmpty &&
+        selectedBranchIds.length == mockBranches.length) {
       branchLabel = l10n?.allBranches ?? 'Tất cả chi nhánh';
     } else if (selectedBranchIds.length == 1) {
       branchLabel = mockBranches
           .firstWhere(
             (b) => b.id == selectedBranchIds.first,
-            orElse: () => mockBranches.first,
+            orElse: () => mockBranches.isNotEmpty
+                ? mockBranches.first
+                : Branch(selectedBranchIds.first, selectedBranchIds.first),
           )
           .name;
     } else {
       branchLabel = '${selectedBranchIds.length} chi nhánh';
     }
 
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          // Nút mở BottomSheet chọn thời gian
-          InkWell(
-            onTap: () => _showDateRangeBottomSheet(context, ref),
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: AppColors.primary.withOpacity(0.2),
-                  width: 0.8,
-                ),
-              ),
+    final isDefaultTimeRange = timeRangeType == OverviewTimeRange.today;
+    final isAllBranches = selectedBranchIds.length == mockBranches.length;
+    final hasActiveFilter = !isDefaultTimeRange ||
+        !isAllBranches ||
+        (storeFilter != null && storeFilter != 'all');
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isFinite = constraints.maxWidth.isFinite;
+        final minRowWidth = isFinite
+            ? (constraints.maxWidth - 32.0).clamp(0.0, double.infinity)
+            : 0.0;
+        return Container(
+          color: AppColors.white,
+          width: isFinite ? double.infinity : null,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            physics: const BouncingScrollPhysics(),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minWidth: minRowWidth),
               child: Row(
-                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Icon(
-                    Icons.calendar_today_rounded,
-                    size: 14,
-                    color: AppColors.primary,
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Nút mở BottomSheet chọn thời gian
+                      InkWell(
+                        onTap: () => _showDateRangeBottomSheet(context, ref),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: AppColors.primary.withOpacity(0.2),
+                              width: 0.8,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.calendar_today_rounded,
+                                size: 14,
+                                color: AppColors.primary,
+                              ),
+                              const SizedBox(width: 6),
+                              ConstrainedBox(
+                                constraints:
+                                    const BoxConstraints(maxWidth: 130),
+                                child: Text(
+                                  dateLabel,
+                                  style: const TextStyle(
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 13,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              const Icon(
+                                Icons.keyboard_arrow_down_rounded,
+                                size: 18,
+                                color: AppColors.primary,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      if (hasActiveFilter) ...[
+                        const SizedBox(width: 8),
+                        InkWell(
+                          key: const Key('reset_overview_filters_button'),
+                          onTap: () => resetOverviewFilters(ref),
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: AppColors.danger.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: AppColors.danger.withOpacity(0.25),
+                                width: 0.8,
+                              ),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.refresh_rounded,
+                                  size: 14,
+                                  color: AppColors.danger,
+                                ),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Đặt lại',
+                                  style: TextStyle(
+                                    color: AppColors.danger,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
-                  const SizedBox(width: 6),
-                  Text(
-                    dateLabel,
-                    style: const TextStyle(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  const Icon(
-                    Icons.keyboard_arrow_down_rounded,
-                    size: 18,
-                    color: AppColors.primary,
+
+                  // Nút mở BottomSheet chọn chi nhánh (nếu có quyền chuyển kho/chi nhánh)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8.0),
+                    child: canSwitchStore
+                        ? InkWell(
+                            onTap: () =>
+                                _showBranchFilterBottomSheet(context, ref),
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: AppColors.grey100,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: AppColors.grey300,
+                                  width: 0.8,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.store_rounded,
+                                    size: 15,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  ConstrainedBox(
+                                    constraints:
+                                        const BoxConstraints(maxWidth: 150),
+                                    child: Text(
+                                      branchLabel,
+                                      style: const TextStyle(
+                                        color: AppColors.textPrimary,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 13,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const Icon(
+                                    Icons.keyboard_arrow_down_rounded,
+                                    size: 18,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        : Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.store_rounded,
+                                size: 14,
+                                color: AppColors.textTertiary,
+                              ),
+                              const SizedBox(width: 4),
+                              ConstrainedBox(
+                                constraints:
+                                    const BoxConstraints(maxWidth: 150),
+                                child: Text(
+                                  branchLabel,
+                                  style: const TextStyle(
+                                    color: AppColors.textSecondary,
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 12,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
                   ),
                 ],
               ),
             ),
           ),
-
-          // Nút mở BottomSheet chọn chi nhánh (nếu có quyền chuyển kho/chi nhánh)
-          if (canSwitchStore)
-            InkWell(
-              onTap: () => _showBranchFilterBottomSheet(context, ref),
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: Colors.grey.shade300,
-                    width: 0.8,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.store_rounded,
-                      size: 15,
-                      color: Colors.black54,
-                    ),
-                    const SizedBox(width: 6),
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 150),
-                      child: Text(
-                        branchLabel,
-                        style: const TextStyle(
-                          color: Colors.black87,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    const Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      size: 18,
-                      color: Colors.black54,
-                    ),
-                  ],
-                ),
-              ),
-            )
-          else
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.store_rounded,
-                  size: 14,
-                  color: Colors.black45,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  branchLabel,
-                  style: const TextStyle(
-                    color: Colors.black54,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-        ],
-      ),
+        );
+      },
     );
   }
 
   void _showDateRangeBottomSheet(BuildContext context, WidgetRef ref) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -197,7 +284,7 @@ class OverviewFilterBar extends ConsumerWidget {
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: Colors.black87,
+                          color: AppColors.textPrimary,
                         ),
                       ),
                     ),
@@ -209,10 +296,12 @@ class OverviewFilterBar extends ConsumerWidget {
                         title: Text(
                           type.label,
                           style: TextStyle(
-                            color:
-                                isSelected ? AppColors.primary : Colors.black87,
-                            fontWeight:
-                                isSelected ? FontWeight.bold : FontWeight.normal,
+                            color: isSelected
+                                ? AppColors.primary
+                                : AppColors.textPrimary,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
                             fontSize: 14,
                           ),
                         ),
@@ -247,16 +336,26 @@ class OverviewFilterBar extends ConsumerWidget {
                             );
                             if (picked != null) {
                               ref
-                                  .read(overviewCustomDateRangeProvider.notifier)
+                                  .read(
+                                      overviewCustomDateRangeProvider.notifier)
                                   .state = picked;
                               ref
                                   .read(overviewTimeRangeTypeProvider.notifier)
                                   .state = OverviewTimeRange.custom;
+                              persistOverviewFilters(
+                                ref,
+                                timeRangeType: OverviewTimeRange.custom,
+                                customDateRange: picked,
+                              );
                             }
                           } else {
                             ref
                                 .read(overviewTimeRangeTypeProvider.notifier)
                                 .state = type;
+                            persistOverviewFilters(
+                              ref,
+                              timeRangeType: type,
+                            );
                           }
                         },
                       );
@@ -275,7 +374,7 @@ class OverviewFilterBar extends ConsumerWidget {
   void _showBranchFilterBottomSheet(BuildContext context, WidgetRef ref) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -303,7 +402,7 @@ class OverviewFilterBar extends ConsumerWidget {
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
-                              color: Colors.black87,
+                              color: AppColors.textPrimary,
                             ),
                           ),
                           TextButton(

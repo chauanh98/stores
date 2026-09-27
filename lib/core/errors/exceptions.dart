@@ -1,6 +1,7 @@
 class UnauthorizedException implements Exception {
   final String message;
-  const UnauthorizedException([this.message = 'Bạn không có quyền thực hiện thao tác này.']);
+  const UnauthorizedException(
+      [this.message = 'Bạn không có quyền thực hiện thao tác này.']);
 
   @override
   String toString() => 'UnauthorizedException: $message';

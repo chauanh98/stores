@@ -29,7 +29,8 @@ class CollectInvoiceDebtUseCase {
       throw const ValidationException('Không thể thu nợ cho hóa đơn đã hủy.');
     }
     if (order.status != 'completed') {
-      throw const ValidationException('Chỉ có thể thu nợ cho hóa đơn đã hoàn thành.');
+      throw const ValidationException(
+          'Chỉ có thể thu nợ cho hóa đơn đã hoàn thành.');
     }
     if (amount <= 0) {
       throw const ValidationException('Số tiền thu nợ phải lớn hơn 0.');
@@ -44,7 +45,8 @@ class CollectInvoiceDebtUseCase {
 
     // 2. Financial calculation
     final newAmountPaid = order.amountPaid + amount;
-    final newDebtAmount = (order.debtAmount - amount).clamp(0.0, double.infinity);
+    final newDebtAmount =
+        (order.remainingDebt - amount).clamp(0.0, double.infinity);
 
     // 3. Update Order
     final updatedOrder = order.copyWith(
@@ -61,7 +63,8 @@ class CollectInvoiceDebtUseCase {
       final customer = await customerRepository.fetchById(customerId);
       if (customer != null) {
         final currentDebt = customer.displayCurrentDebt;
-        final newCustomerDebt = (currentDebt - amount).clamp(0.0, double.infinity);
+        final newCustomerDebt =
+            (currentDebt - amount).clamp(0.0, double.infinity);
         final updatedCustomer = customer.copyWith(currentDebt: newCustomerDebt);
         await customerRepository.upsert(updatedCustomer);
 
@@ -79,8 +82,8 @@ class CollectInvoiceDebtUseCase {
                 'Thu nợ hóa đơn ${order.id}${note != null && note.trim().isNotEmpty ? ': $note' : ''} (${paymentMethod == 'transfer' ? 'Chuyển khoản' : 'Tiền mặt'})',
             createdBy: currentUser.username,
           );
-          await customerDataSource!.saveDebtTransaction(
-              customer.id, debtTx.toMap());
+          await customerDataSource!
+              .saveDebtTransaction(customer.id, debtTx.toMap());
         }
       }
     }

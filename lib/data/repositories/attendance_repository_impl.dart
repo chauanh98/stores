@@ -13,7 +13,8 @@ import '../models/shift_model.dart';
 import '../models/store_gps_config_model.dart';
 
 /// Repository implementation for ShiftRepository and AttendanceRepository.
-class AttendanceRepositoryImpl implements AttendanceRepository, ShiftRepository {
+class AttendanceRepositoryImpl
+    implements AttendanceRepository, ShiftRepository {
   final AttendanceRemoteDataSource _dataSource;
 
   AttendanceRepositoryImpl(this._dataSource);
@@ -89,7 +90,8 @@ class AttendanceRepositoryImpl implements AttendanceRepository, ShiftRepository 
     required int month,
     String? userId,
   }) async {
-    final prefix = '${year.toString().padLeft(4, '0')}-${month.toString().padLeft(2, '0')}';
+    final prefix =
+        '${year.toString().padLeft(4, '0')}-${month.toString().padLeft(2, '0')}';
     final models = await _dataSource.getAttendances(
       storeId: storeId,
       userId: userId,
@@ -201,13 +203,15 @@ class AttendanceRepositoryImpl implements AttendanceRepository, ShiftRepository 
 
     // If approved, update the corresponding attendance record
     if (status == AdjustmentStatus.approved && target.attendanceId.isNotEmpty) {
-      final attendances = await _dataSource.getAttendances(storeId: target.storeId);
+      final attendances =
+          await _dataSource.getAttendances(storeId: target.storeId);
       for (final att in attendances) {
         if (att.id == target.attendanceId) {
           final domainAtt = att.toDomain();
           final parsedIn = DateTime.parse(target.requestedCheckIn);
           final parsedOut = DateTime.parse(target.requestedCheckOut);
-          final workHours = AttendanceRecord.calculateWorkHours(parsedIn, parsedOut);
+          final workHours =
+              AttendanceRecord.calculateWorkHours(parsedIn, parsedOut);
 
           final adjustedRecord = domainAtt.copyWith(
             checkInTime: parsedIn,
@@ -217,7 +221,8 @@ class AttendanceRepositoryImpl implements AttendanceRepository, ShiftRepository 
             adjustmentId: target.id,
             updatedAt: DateTime.now(),
           );
-          await _dataSource.updateAttendance(AttendanceRecordModel.fromDomain(adjustedRecord));
+          await _dataSource.updateAttendance(
+              AttendanceRecordModel.fromDomain(adjustedRecord));
           break;
         }
       }

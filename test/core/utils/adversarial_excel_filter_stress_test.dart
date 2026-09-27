@@ -695,19 +695,28 @@ void main() {
       };
     }
 
-    test('4. Complex filter: status=cancelled + paymentMethod=transfer + debtStatus=debt', () {
-      final filtered = applyFiltersAdversarial(
+    test('4. Complex filter: status=cancelled + paymentMethod=transfer (cancelled orders have 0 debt)', () {
+      // Cancelled orders have remainingDebt == 0, so debtStatus == 'debt' matches 0 orders
+      final filteredDebt = applyFiltersAdversarial(
         testOrders,
         status: 'cancelled',
         paymentMethod: 'transfer',
         debtStatus: 'debt',
+      );
+      expect(filteredDebt, isEmpty, reason: 'Cancelled orders must have 0 debt and cannot match debt filter');
+
+      // With debtStatus == 'all', cancelled order is found and has remainingDebt == 0.0
+      final filtered = applyFiltersAdversarial(
+        testOrders,
+        status: 'cancelled',
+        paymentMethod: 'transfer',
       );
 
       expect(filtered.length, 1);
       expect(filtered.first.id, 'HD_004');
       expect(filtered.first.isCancelled, isTrue);
       expect(filtered.first.paymentMethod, 'transfer');
-      expect(filtered.first.remainingDebt, greaterThan(0));
+      expect(filtered.first.remainingDebt, equals(0.0));
 
       // Check reactive KPI calculation for cancelled orders:
       // totalInvoices counts cancelled, but totalRevenue/totalPaid/totalDebt EXCLUDE cancelled orders

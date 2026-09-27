@@ -34,11 +34,11 @@ class TopRankingsSection extends ConsumerWidget {
         // Card 1: Top Hàng Bán Chạy
         Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.white,
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: AppColors.black.withOpacity(0.04),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -70,7 +70,7 @@ class TopRankingsSection extends ConsumerWidget {
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w700,
-                              color: Colors.black87,
+                              color: AppColors.textPrimary,
                             ),
                           ),
                         ),
@@ -78,7 +78,7 @@ class TopRankingsSection extends ConsumerWidget {
                     ),
                   ),
                   Material(
-                    color: Colors.transparent,
+                    color: AppColors.transparent,
                     child: InkWell(
                       borderRadius: BorderRadius.circular(6),
                       onTap: () {
@@ -117,7 +117,7 @@ class TopRankingsSection extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(2),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
+                  color: AppColors.grey100,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -127,18 +127,16 @@ class TopRankingsSection extends ConsumerWidget {
                       label: 'Doanh thu',
                       isSelected: sortBy == TopProductsSortBy.revenue,
                       onTap: () {
-                        ref
-                            .read(topSellingSortByProvider.notifier)
-                            .state = TopProductsSortBy.revenue;
+                        ref.read(topSellingSortByProvider.notifier).state =
+                            TopProductsSortBy.revenue;
                       },
                     ),
                     _buildSortTab(
                       label: 'Số lượng',
                       isSelected: sortBy == TopProductsSortBy.quantity,
                       onTap: () {
-                        ref
-                            .read(topSellingSortByProvider.notifier)
-                            .state = TopProductsSortBy.quantity;
+                        ref.read(topSellingSortByProvider.notifier).state =
+                            TopProductsSortBy.quantity;
                       },
                     ),
                   ],
@@ -176,11 +174,11 @@ class TopRankingsSection extends ConsumerWidget {
         // Card 2: Top Khách Hàng Chi Tiêu Nhiều Nhất
         Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.white,
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: AppColors.black.withOpacity(0.04),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -212,7 +210,7 @@ class TopRankingsSection extends ConsumerWidget {
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w700,
-                              color: Colors.black87,
+                              color: AppColors.textPrimary,
                             ),
                           ),
                         ),
@@ -220,7 +218,7 @@ class TopRankingsSection extends ConsumerWidget {
                     ),
                   ),
                   Material(
-                    color: Colors.transparent,
+                    color: AppColors.transparent,
                     child: InkWell(
                       borderRadius: BorderRadius.circular(6),
                       onTap: () {
@@ -254,12 +252,10 @@ class TopRankingsSection extends ConsumerWidget {
                   ),
                 ],
               ),
-
               const SizedBox(height: 14),
-
               topCustomersAsync.when(
-                data: (customers) =>
-                    _buildCustomersList(context, ref, customers, currencyFormat),
+                data: (customers) => _buildCustomersList(
+                    context, ref, customers, currencyFormat),
                 loading: () => const SizedBox(
                   height: 120,
                   child: Center(
@@ -296,12 +292,12 @@ class TopRankingsSection extends ConsumerWidget {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.transparent,
+          color: isSelected ? AppColors.white : AppColors.transparent,
           borderRadius: BorderRadius.circular(6),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.06),
+                    color: AppColors.black.withOpacity(0.06),
                     blurRadius: 3,
                     offset: const Offset(0, 1),
                   ),
@@ -313,7 +309,7 @@ class TopRankingsSection extends ConsumerWidget {
           style: TextStyle(
             fontSize: 11,
             fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-            color: isSelected ? AppColors.primary : Colors.black54,
+            color: isSelected ? AppColors.primary : AppColors.textSecondary,
           ),
         ),
       ),
@@ -335,7 +331,7 @@ class TopRankingsSection extends ConsumerWidget {
         child: Center(
           child: Text(
             'Chưa có dữ liệu bán hàng trong kỳ',
-            style: TextStyle(color: Colors.black38, fontSize: 12),
+            style: TextStyle(color: AppColors.textMuted, fontSize: 12),
           ),
         ),
       );
@@ -352,7 +348,7 @@ class TopRankingsSection extends ConsumerWidget {
         final rank = index + 1;
 
         return Material(
-          color: Colors.transparent,
+          color: AppColors.transparent,
           child: InkWell(
             borderRadius: BorderRadius.circular(8),
             onTap: () {
@@ -360,12 +356,14 @@ class TopRankingsSection extends ConsumerWidget {
               final storeProducts = ref.read(productListProvider).value;
               Product? resolvedProduct;
               if (allProducts != null) {
-                resolvedProduct =
-                    allProducts.where((p) => p.id == item.productId).firstOrNull;
+                resolvedProduct = allProducts
+                    .where((p) => p.id == item.productId)
+                    .firstOrNull;
               }
               if (resolvedProduct == null && storeProducts != null) {
-                resolvedProduct =
-                    storeProducts.where((p) => p.id == item.productId).firstOrNull;
+                resolvedProduct = storeProducts
+                    .where((p) => p.id == item.productId)
+                    .firstOrNull;
               }
               Navigator.of(context).push(
                 MaterialPageRoute(
@@ -407,7 +405,7 @@ class TopRankingsSection extends ConsumerWidget {
                           style: const TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            color: Colors.black87,
+                            color: AppColors.textPrimary,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -417,7 +415,7 @@ class TopRankingsSection extends ConsumerWidget {
                           'Đã bán: ${item.quantity}',
                           style: const TextStyle(
                             fontSize: 11,
-                            color: Colors.black54,
+                            color: AppColors.textSecondary,
                           ),
                         ),
                       ],
@@ -437,7 +435,7 @@ class TopRankingsSection extends ConsumerWidget {
                   const Icon(
                     Icons.chevron_right,
                     size: 16,
-                    color: Colors.black38,
+                    color: AppColors.textMuted,
                   ),
                 ],
               ),
@@ -463,7 +461,7 @@ class TopRankingsSection extends ConsumerWidget {
         child: Center(
           child: Text(
             'Chưa có dữ liệu khách hàng trong kỳ',
-            style: TextStyle(color: Colors.black38, fontSize: 12),
+            style: TextStyle(color: AppColors.textMuted, fontSize: 12),
           ),
         ),
       );
@@ -484,7 +482,7 @@ class TopRankingsSection extends ConsumerWidget {
             : 'K';
 
         return Material(
-          color: Colors.transparent,
+          color: AppColors.transparent,
           child: InkWell(
             borderRadius: BorderRadius.circular(8),
             onTap: () async {
@@ -560,7 +558,7 @@ class TopRankingsSection extends ConsumerWidget {
                           style: const TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            color: Colors.black87,
+                            color: AppColors.textPrimary,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -573,7 +571,7 @@ class TopRankingsSection extends ConsumerWidget {
                               : '${item.orderCount} đơn hàng',
                           style: const TextStyle(
                             fontSize: 11,
-                            color: Colors.black54,
+                            color: AppColors.textSecondary,
                           ),
                         ),
                       ],
@@ -586,14 +584,14 @@ class TopRankingsSection extends ConsumerWidget {
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
-                      color: Colors.black87,
+                      color: AppColors.textPrimary,
                     ),
                   ),
                   const SizedBox(width: 4),
                   const Icon(
                     Icons.chevron_right,
                     size: 16,
-                    color: Colors.black38,
+                    color: AppColors.textMuted,
                   ),
                 ],
               ),
@@ -606,17 +604,17 @@ class TopRankingsSection extends ConsumerWidget {
 
   Widget _buildRankBadge(int rank) {
     Color badgeColor;
-    Color textColor = Colors.white;
+    Color textColor = AppColors.white;
 
     if (rank == 1) {
-      badgeColor = const Color(0xFFEAB308); // Gold
+      badgeColor = AppColors.medalGold; // Gold
     } else if (rank == 2) {
-      badgeColor = const Color(0xFF94A3B8); // Silver
+      badgeColor = AppColors.medalSilver; // Silver
     } else if (rank == 3) {
-      badgeColor = const Color(0xFFD97706); // Bronze
+      badgeColor = AppColors.medalBronze; // Bronze
     } else {
-      badgeColor = Colors.grey.shade200;
-      textColor = Colors.black54;
+      badgeColor = AppColors.grey200;
+      textColor = AppColors.textSecondary;
     }
 
     return Container(

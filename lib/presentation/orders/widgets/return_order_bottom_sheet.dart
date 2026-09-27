@@ -29,7 +29,7 @@ class ReturnOrderBottomSheet extends ConsumerStatefulWidget {
     return showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -71,8 +71,7 @@ class _ReturnOrderBottomSheetState
   void _setSelectAll(bool selectAll) {
     setState(() {
       for (final item in widget.order.items) {
-        _returnQuantities[item.productId] =
-            selectAll ? item.activeQuantity : 0;
+        _returnQuantities[item.productId] = selectAll ? item.activeQuantity : 0;
       }
     });
   }
@@ -88,6 +87,11 @@ class _ReturnOrderBottomSheetState
     for (final item in widget.order.items) {
       final qty = _returnQuantities[item.productId] ?? 0;
       total += qty * item.price;
+    }
+    if (widget.order.total > 0 && widget.order.discount > 0) {
+      final ratio = (total / widget.order.total).clamp(0.0, 1.0);
+      final returnDiscount = widget.order.discount * ratio;
+      return (total - returnDiscount).clamp(0.0, widget.order.netPayable);
     }
     return total;
   }
@@ -106,7 +110,9 @@ class _ReturnOrderBottomSheetState
   }
 
   double get _cashRefunded {
-    return (_totalReturnAmount - _debtDeducted).clamp(0.0, double.infinity);
+    final afterDebt =
+        (_totalReturnAmount - _debtDeducted).clamp(0.0, double.infinity);
+    return min(afterDebt, widget.order.amountPaid);
   }
 
   Future<void> _submitReturn() async {
@@ -173,7 +179,7 @@ class _ReturnOrderBottomSheetState
               'Trả hàng thành công: Hoàn ${_currencyFormat.format(result.cashRefunded)} đ'
               '${result.debtDeducted > 0 ? ', trừ nợ ${_currencyFormat.format(result.debtDeducted)} đ' : ''}.',
             ),
-            backgroundColor: Colors.green,
+            backgroundColor: AppColors.success,
           ),
         );
       }
@@ -194,8 +200,8 @@ class _ReturnOrderBottomSheetState
   Widget build(BuildContext context) {
     final hasActiveReturn = widget.order.items.any((i) => i.activeQuantity > 0);
     final isAllSelected = hasActiveReturn &&
-        widget.order.items.every(
-            (i) => _returnQuantities[i.productId] == i.activeQuantity);
+        widget.order.items
+            .every((i) => _returnQuantities[i.productId] == i.activeQuantity);
 
     return Container(
       constraints: BoxConstraints(
@@ -215,24 +221,32 @@ class _ReturnOrderBottomSheetState
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Trả hàng - Hóa đơn ${widget.order.id}',
-                    style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Trả hàng - Hóa đơn ${widget.order.id}',
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  const Text(
-                    'Chọn sản phẩm và số lượng cần trả lại',
-                    style: TextStyle(fontSize: 12, color: Colors.black54),
-                  ),
-                ],
+                    const SizedBox(height: 2),
+                    const Text(
+                      'Chọn sản phẩm và số lượng cần trả lại',
+                      style: TextStyle(
+                          fontSize: 12, color: AppColors.textSecondary),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               IconButton(
                 icon: const Icon(Icons.close),
                 onPressed: _isLoading ? null : () => Navigator.pop(context),
@@ -246,20 +260,22 @@ class _ReturnOrderBottomSheetState
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Danh sách sản phẩm (${widget.order.items.length})',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                    color: Colors.black87,
+                Flexible(
+                  child: Text(
+                    'Danh sách sản phẩm (${widget.order.items.length})',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: AppColors.textPrimary,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                const SizedBox(width: 8),
                 TextButton.icon(
                   onPressed: () => _setSelectAll(!isAllSelected),
                   icon: Icon(
-                    isAllSelected
-                        ? Icons.remove_done
-                        : Icons.done_all,
+                    isAllSelected ? Icons.remove_done : Icons.done_all,
                     size: 16,
                     color: AppColors.primary,
                   ),
@@ -292,8 +308,8 @@ class _ReturnOrderBottomSheetState
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: isFullyReturned
-                            ? Colors.grey.shade100
-                            : Colors.white,
+                            ? AppColors.grey100
+                            : AppColors.white,
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
                           color: currentReturnQty > 0
@@ -315,9 +331,11 @@ class _ReturnOrderBottomSheetState
                                     fontSize: 13.5,
                                     fontWeight: FontWeight.bold,
                                     color: isFullyReturned
-                                        ? Colors.black45
-                                        : Colors.black87,
+                                        ? AppColors.textTertiary
+                                        : AppColors.textPrimary,
                                   ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                                 const SizedBox(height: 3),
                                 Text(
@@ -329,22 +347,25 @@ class _ReturnOrderBottomSheetState
                                   ),
                                 ),
                                 const SizedBox(height: 3),
-                                Row(
+                                Wrap(
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  spacing: 6,
+                                  runSpacing: 2,
                                   children: [
                                     Text(
                                       'Đã mua: ${item.quantity}',
                                       style: const TextStyle(
                                         fontSize: 11,
-                                        color: Colors.black54,
+                                        color: AppColors.textSecondary,
                                       ),
                                     ),
-                                    if (item.returnedQuantity > 0) ...[
-                                      const SizedBox(width: 8),
+                                    if (item.returnedQuantity > 0)
                                       Container(
                                         padding: const EdgeInsets.symmetric(
                                             horizontal: 6, vertical: 1),
                                         decoration: BoxDecoration(
-                                          color: Colors.orange.withOpacity(0.1),
+                                          color: AppColors.warning
+                                              .withOpacity(0.1),
                                           borderRadius:
                                               BorderRadius.circular(4),
                                         ),
@@ -353,11 +374,10 @@ class _ReturnOrderBottomSheetState
                                           style: const TextStyle(
                                             fontSize: 10.5,
                                             fontWeight: FontWeight.bold,
-                                            color: Colors.orange,
+                                            color: AppColors.warning,
                                           ),
                                         ),
                                       ),
-                                    ],
                                   ],
                                 ),
                               ],
@@ -368,14 +388,14 @@ class _ReturnOrderBottomSheetState
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
-                                color: Colors.grey.shade200,
+                                color: AppColors.grey200,
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: const Text(
                                 'Đã trả hết',
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: Colors.black54,
+                                  color: AppColors.textSecondary,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -385,12 +405,12 @@ class _ReturnOrderBottomSheetState
                             Row(
                               children: [
                                 IconButton(
-                                  key: Key('decrement_return_${item.productId}'),
-                                  icon: const Icon(
-                                      Icons.remove_circle_outline),
+                                  key:
+                                      Key('decrement_return_${item.productId}'),
+                                  icon: const Icon(Icons.remove_circle_outline),
                                   color: currentReturnQty > 0
                                       ? AppColors.primary
-                                      : Colors.black26,
+                                      : AppColors.textDisabled,
                                   onPressed: currentReturnQty > 0
                                       ? () => _updateQuantity(
                                             item.productId,
@@ -402,14 +422,14 @@ class _ReturnOrderBottomSheetState
                                   constraints: const BoxConstraints(),
                                 ),
                                 Container(
-                                  margin: const EdgeInsets.symmetric(
-                                      horizontal: 8),
+                                  margin:
+                                      const EdgeInsets.symmetric(horizontal: 8),
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 10, vertical: 4),
                                   decoration: BoxDecoration(
                                     color: currentReturnQty > 0
                                         ? AppColors.primary.withOpacity(0.1)
-                                        : Colors.grey.shade100,
+                                        : AppColors.grey100,
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: Text(
@@ -419,17 +439,17 @@ class _ReturnOrderBottomSheetState
                                       fontSize: 13,
                                       color: currentReturnQty > 0
                                           ? AppColors.primary
-                                          : Colors.black87,
+                                          : AppColors.textPrimary,
                                     ),
                                   ),
                                 ),
                                 IconButton(
-                                  key: Key('increment_return_${item.productId}'),
-                                  icon:
-                                      const Icon(Icons.add_circle_outline),
+                                  key:
+                                      Key('increment_return_${item.productId}'),
+                                  icon: const Icon(Icons.add_circle_outline),
                                   color: currentReturnQty < activeQty
                                       ? AppColors.primary
-                                      : Colors.black26,
+                                      : AppColors.textDisabled,
                                   onPressed: currentReturnQty < activeQty
                                       ? () => _updateQuantity(
                                             item.productId,
@@ -455,8 +475,8 @@ class _ReturnOrderBottomSheetState
                     decoration: BoxDecoration(
                       color: AppColors.primary.withOpacity(0.06),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                          color: AppColors.primary.withOpacity(0.2)),
+                      border:
+                          Border.all(color: AppColors.primary.withOpacity(0.2)),
                     ),
                     child: Column(
                       children: [
@@ -470,14 +490,14 @@ class _ReturnOrderBottomSheetState
                           _buildSummaryRow(
                             'Trừ vào công nợ HĐ:',
                             '-${_currencyFormat.format(_debtDeducted)} đ',
-                            color: Colors.orange.shade800,
+                            color: AppColors.warningDark,
                           ),
                         ],
                         const Divider(height: 14, color: AppColors.divider),
                         _buildSummaryRow(
                           'Hoàn tiền thực tế cho khách:',
                           '${_currencyFormat.format(_cashRefunded)} đ',
-                          color: Colors.green.shade700,
+                          color: AppColors.successDark,
                           isBold: true,
                           fontSize: 14,
                         ),
@@ -488,14 +508,16 @@ class _ReturnOrderBottomSheetState
 
                   // Payment method for refund
                   if (_cashRefunded > 0) ...[
-                    Row(
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 8,
+                      runSpacing: 6,
                       children: [
                         const Text(
                           'Hình thức hoàn tiền: ',
                           style: TextStyle(
                               fontSize: 12.5, fontWeight: FontWeight.bold),
                         ),
-                        const SizedBox(width: 8),
                         ChoiceChip(
                           label: const Text('Tiền mặt',
                               style: TextStyle(fontSize: 12)),
@@ -506,7 +528,6 @@ class _ReturnOrderBottomSheetState
                             }
                           },
                         ),
-                        const SizedBox(width: 8),
                         ChoiceChip(
                           label: const Text('Chuyển khoản',
                               style: TextStyle(fontSize: 12)),
@@ -530,7 +551,7 @@ class _ReturnOrderBottomSheetState
                       hintText: 'Nhập lý do trả hàng (không bắt buộc)...',
                       labelText: 'Lý do trả hàng',
                       filled: true,
-                      fillColor: Colors.grey.shade50,
+                      fillColor: AppColors.grey50,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
                         borderSide: const BorderSide(color: AppColors.border),
@@ -551,11 +572,12 @@ class _ReturnOrderBottomSheetState
             height: 48,
             child: FilledButton(
               key: const Key('confirm_return_order_button'),
-              onPressed:
-                  (_totalReturnItemsCount <= 0 || _isLoading) ? null : _submitReturn,
+              onPressed: (_totalReturnItemsCount <= 0 || _isLoading)
+                  ? null
+                  : _submitReturn,
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.primary,
-                disabledBackgroundColor: Colors.grey.shade300,
+                disabledBackgroundColor: AppColors.grey300,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -566,7 +588,7 @@ class _ReturnOrderBottomSheetState
                       width: 20,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: Colors.white,
+                        color: AppColors.white,
                       ),
                     )
                   : Text(
@@ -576,7 +598,7 @@ class _ReturnOrderBottomSheetState
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
-                        color: Colors.white,
+                        color: AppColors.white,
                       ),
                     ),
             ),
@@ -596,20 +618,28 @@ class _ReturnOrderBottomSheetState
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: fontSize,
-            color: Colors.black54,
-            fontWeight: isBold ? FontWeight.w600 : FontWeight.normal,
+        Flexible(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: fontSize,
+              color: AppColors.textSecondary,
+              fontWeight: isBold ? FontWeight.w600 : FontWeight.normal,
+            ),
+            overflow: TextOverflow.ellipsis,
           ),
         ),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: fontSize,
-            fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
-            color: color ?? Colors.black87,
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            value,
+            style: TextStyle(
+              fontSize: fontSize,
+              fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
+              color: color ?? AppColors.textPrimary,
+            ),
+            textAlign: TextAlign.end,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],

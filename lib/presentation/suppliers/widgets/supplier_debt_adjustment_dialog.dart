@@ -56,7 +56,9 @@ class _SupplierDebtAdjustmentDialogState
       final user = ref.read(authProvider);
       final createdBy = user?.username ?? 'Admin';
 
-      await ref.read(supplierListNotifierProvider.notifier).recordDebtAdjustment(
+      await ref
+          .read(supplierListNotifierProvider.notifier)
+          .recordDebtAdjustment(
             supplierId: widget.supplier.id,
             newDebt: newDebt,
             note: _noteController.text.trim().isNotEmpty
@@ -187,7 +189,7 @@ class _SupplierDebtAdjustmentDialogState
                   height: 16,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: Colors.white,
+                    color: AppColors.white,
                   ),
                 )
               : const Text('Cập nhật nợ'),

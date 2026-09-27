@@ -60,8 +60,11 @@ void main() {
     purchases: [],
   );
 
-  group('Adversarial Challenge 1: Backward Compatibility of Cart Providers', () {
-    test('Standalone CartNotifier without Ref functions independently without errors', () {
+  group('Adversarial Challenge 1: Backward Compatibility of Cart Providers',
+      () {
+    test(
+        'Standalone CartNotifier without Ref functions independently without errors',
+        () {
       final standaloneNotifier = CartNotifier();
       expect(standaloneNotifier.state, isEmpty);
 
@@ -107,7 +110,9 @@ void main() {
       expect(standaloneNotifier.state, isEmpty);
     });
 
-    test('cartProvider bridges with multiCartProvider across all operations in lockstep', () {
+    test(
+        'cartProvider bridges with multiCartProvider across all operations in lockstep',
+        () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
@@ -136,7 +141,8 @@ void main() {
 
       // 3. Update price via cartProvider.notifier
       container.read(cartProvider.notifier).updatePrice('prod_1', 22000.0);
-      expect(container.read(cartProvider)['prod_1']!.customPrice, equals(22000.0));
+      expect(
+          container.read(cartProvider)['prod_1']!.customPrice, equals(22000.0));
       expect(container.read(cartTotalAmountProvider), equals(66000.0));
 
       // 4. Decrease quantity via cartProvider.notifier
@@ -147,7 +153,8 @@ void main() {
       // 5. Add second product
       container.read(cartProvider.notifier).addToCart(p2, quantity: 1);
       expect(container.read(cartTotalItemsProvider), equals(3));
-      expect(container.read(cartTotalAmountProvider), equals(44000.0 + 35000.0));
+      expect(
+          container.read(cartTotalAmountProvider), equals(44000.0 + 35000.0));
 
       // 6. Remove product via cartProvider.notifier
       container.read(cartProvider.notifier).removeFromCart('prod_1');
@@ -164,8 +171,11 @@ void main() {
     });
   });
 
-  group('Adversarial Challenge 2: Multi-Tab Scaling & Strict Data Isolation', () {
-    test('Creating 20 tabs sequentially numbers titles cleanly and maintains active selection', () {
+  group('Adversarial Challenge 2: Multi-Tab Scaling & Strict Data Isolation',
+      () {
+    test(
+        'Creating 20 tabs sequentially numbers titles cleanly and maintains active selection',
+        () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
@@ -186,7 +196,9 @@ void main() {
       ]);
     });
 
-    test('Multiple tabs hold strictly isolated carts, customers, discounts, and notes', () {
+    test(
+        'Multiple tabs hold strictly isolated carts, customers, discounts, and notes',
+        () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
@@ -227,11 +239,16 @@ void main() {
       expect(container.read(cartProvider)['prod_1']!.quantity, equals(2));
       expect(container.read(cartTotalItemsProvider), equals(2));
       expect(container.read(cartTotalAmountProvider), equals(50000.0));
-      expect(container.read(multiCartProvider).activeTab.customer, equals(cust1));
-      expect(container.read(multiCartProvider).activeTab.discount, equals(10.0));
-      expect(container.read(multiCartProvider).activeTab.isDiscountPercent, isTrue);
-      expect(container.read(multiCartProvider).activeTab.note, equals('Khách quen Tab 1'));
-      expect(container.read(multiCartProvider).activeTab.activeOrderId, equals('order_draft_1'));
+      expect(
+          container.read(multiCartProvider).activeTab.customer, equals(cust1));
+      expect(
+          container.read(multiCartProvider).activeTab.discount, equals(10.0));
+      expect(container.read(multiCartProvider).activeTab.isDiscountPercent,
+          isTrue);
+      expect(container.read(multiCartProvider).activeTab.note,
+          equals('Khách quen Tab 1'));
+      expect(container.read(multiCartProvider).activeTab.activeOrderId,
+          equals('order_draft_1'));
 
       // --- Switch to Tab 2 ---
       multiNotifier.switchTab(tab2Id);
@@ -239,11 +256,16 @@ void main() {
       expect(container.read(cartProvider)['prod_2']!.quantity, equals(3));
       expect(container.read(cartTotalItemsProvider), equals(3));
       expect(container.read(cartTotalAmountProvider), equals(105000.0));
-      expect(container.read(multiCartProvider).activeTab.customer, equals(cust2));
-      expect(container.read(multiCartProvider).activeTab.discount, equals(50000.0));
-      expect(container.read(multiCartProvider).activeTab.isDiscountPercent, isFalse);
-      expect(container.read(multiCartProvider).activeTab.note, equals('Giao trưa Tab 2'));
-      expect(container.read(multiCartProvider).activeTab.activeOrderId, equals('order_draft_2'));
+      expect(
+          container.read(multiCartProvider).activeTab.customer, equals(cust2));
+      expect(container.read(multiCartProvider).activeTab.discount,
+          equals(50000.0));
+      expect(container.read(multiCartProvider).activeTab.isDiscountPercent,
+          isFalse);
+      expect(container.read(multiCartProvider).activeTab.note,
+          equals('Giao trưa Tab 2'));
+      expect(container.read(multiCartProvider).activeTab.activeOrderId,
+          equals('order_draft_2'));
 
       // --- Checkout simulation on Tab 2: clearCart only affects Tab 2 ---
       container.read(cartProvider.notifier).clearCart();
@@ -254,7 +276,8 @@ void main() {
       multiNotifier.switchTab(tab1Id);
       expect(container.read(cartProvider).length, equals(1));
       expect(container.read(cartProvider)['prod_1']!.quantity, equals(2));
-      expect(container.read(multiCartProvider).activeTab.customer, equals(cust1));
+      expect(
+          container.read(multiCartProvider).activeTab.customer, equals(cust1));
 
       // Switch back to Tab 3 -> Tab 3 is fully intact!
       multiNotifier.switchTab(tab3Id);
@@ -263,7 +286,9 @@ void main() {
     });
   });
 
-  group('Adversarial Challenge 3: Complex Tab Closure, Re-indexing & Self-Healing', () {
+  group(
+      'Adversarial Challenge 3: Complex Tab Closure, Re-indexing & Self-Healing',
+      () {
     test('Closing middle active tab safely focuses preceding neighbor', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
@@ -305,7 +330,9 @@ void main() {
       expect(state.activeTabId, equals(tab2Id));
     });
 
-    test('Closing all tabs down to zero triggers automatic self-healing default tab', () {
+    test(
+        'Closing all tabs down to zero triggers automatic self-healing default tab',
+        () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
@@ -326,7 +353,9 @@ void main() {
     });
   });
 
-  group('Adversarial Challenge 4: PosCartTabBar UI Lifecycle & Interactive Stress', () {
+  group(
+      'Adversarial Challenge 4: PosCartTabBar UI Lifecycle & Interactive Stress',
+      () {
     Widget buildTestHost({required ProviderContainer container}) {
       return UncontrolledProviderScope(
         container: container,
@@ -342,7 +371,9 @@ void main() {
       );
     }
 
-    testWidgets('PosCartTabBar handles rapid tab creation, tab switching, and dialog interactions', (tester) async {
+    testWidgets(
+        'PosCartTabBar handles rapid tab creation, tab switching, and dialog interactions',
+        (tester) async {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
@@ -395,7 +426,8 @@ void main() {
       expect(container.read(multiCartProvider).tabs.length, equals(4));
       expect(find.text('Hóa đơn 5'), findsNothing);
       // Active tab shifted to Hóa đơn 4
-      expect(container.read(multiCartProvider).activeTab.title, equals('Hóa đơn 4'));
+      expect(container.read(multiCartProvider).activeTab.title,
+          equals('Hóa đơn 4'));
 
       // 6. Close an empty tab (Hóa đơn 4) -> Closes immediately with 0 dialogs
       final tab4Id = container.read(multiCartProvider).activeTabId;
@@ -407,7 +439,8 @@ void main() {
       expect(find.text('Hóa đơn 4'), findsNothing);
     });
 
-    testWidgets('Renaming tab updates PosCartTabBar display text reactively', (tester) async {
+    testWidgets('Renaming tab updates PosCartTabBar display text reactively',
+        (tester) async {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
@@ -417,7 +450,9 @@ void main() {
       final tab1Id = container.read(multiCartProvider).activeTabId;
       expect(find.text('Hóa đơn 1'), findsOneWidget);
 
-      container.read(multiCartProvider.notifier).renameTab(tab1Id, 'Bàn 04 - VIP');
+      container
+          .read(multiCartProvider.notifier)
+          .renameTab(tab1Id, 'Bàn 04 - VIP');
       await tester.pumpAndSettle();
 
       expect(find.text('Hóa đơn 1'), findsNothing);

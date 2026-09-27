@@ -102,7 +102,7 @@ class _StorePaymentSettingsPageState
           'Cấu hình Hóa đơn & VietQR',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.white,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -171,10 +171,10 @@ class _StorePaymentSettingsPageState
               const SizedBox(height: 12),
               Card(
                 elevation: 0,
-                color: Colors.white,
+                color: AppColors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(color: Colors.grey.shade300),
+                  side: const BorderSide(color: AppColors.grey300),
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
@@ -233,7 +233,8 @@ class _StorePaymentSettingsPageState
                         ),
                         subtitle: const Text(
                           'Tự động tạo mã QR thanh toán ngân hàng trên mỗi phiếu in',
-                          style: TextStyle(fontSize: 12, color: Colors.black54),
+                          style: TextStyle(
+                              fontSize: 12, color: AppColors.textSecondary),
                         ),
                         value: _showVietQR,
                         activeColor: AppColors.primary,
@@ -354,18 +355,19 @@ class _StorePaymentSettingsPageState
                           ? 360
                           : 320,
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.white,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade300),
+                    border: Border.all(color: AppColors.grey300),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.06),
+                        color: AppColors.black.withOpacity(0.06),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
                     ],
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -400,7 +402,7 @@ class _StorePaymentSettingsPageState
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
-                          color: Colors.black87,
+                          color: AppColors.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -411,7 +413,7 @@ class _StorePaymentSettingsPageState
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                           fontSize: 11,
-                          color: Colors.black54,
+                          color: AppColors.textSecondary,
                         ),
                       ),
                       Text(
@@ -419,7 +421,7 @@ class _StorePaymentSettingsPageState
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                           fontSize: 11,
-                          color: Colors.black54,
+                          color: AppColors.textSecondary,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -439,7 +441,8 @@ class _StorePaymentSettingsPageState
                       const Text(
                         'Mã HĐ: HD000001 • 19/08/2026 10:30',
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 10, color: Colors.black54),
+                        style: TextStyle(
+                            fontSize: 10, color: AppColors.textSecondary),
                       ),
                       const SizedBox(height: 6),
                       const Text(
@@ -567,7 +570,7 @@ class _StorePaymentSettingsPageState
                               Text(
                                 '${VietQRHelper.supportedBanks[_selectedBankId] ?? _selectedBankId} - ${_accountNoController.text}',
                                 style: const TextStyle(
-                                    fontSize: 9, color: Colors.black87),
+                                    fontSize: 9, color: AppColors.textPrimary),
                               ),
                             ],
                           ),
@@ -585,7 +588,7 @@ class _StorePaymentSettingsPageState
                         style: const TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
-                          color: Colors.black54,
+                          color: AppColors.textSecondary,
                         ),
                       ),
                     ],
@@ -608,7 +611,7 @@ class _StorePaymentSettingsPageState
                     ),
                   ),
                   child: _isSaving
-                      ? const CircularProgressIndicator(color: Colors.white)
+                      ? const CircularProgressIndicator(color: AppColors.white)
                       : const Text(
                           'Lưu Cấu Hình Hóa Đơn',
                           style: TextStyle(
@@ -686,8 +689,9 @@ class _StorePaymentSettingsPageState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Đã cập nhật thông tin nhận tiền & hóa đơn thành công!'),
-            backgroundColor: Colors.green,
+            content:
+                Text('Đã cập nhật thông tin nhận tiền & hóa đơn thành công!'),
+            backgroundColor: AppColors.success,
           ),
         );
         Navigator.pop(context);

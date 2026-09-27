@@ -54,10 +54,11 @@ class _MockProcessReturnOrderUseCase implements ProcessReturnOrderUseCase {
     capturedReason = reason;
     capturedRefundMethod = refundPaymentMethod;
 
-    final totalReturn = returnItems.fold<double>(
-        0.0, (sum, i) => sum + (i.price * i.quantity));
-    final debtDeducted =
-        totalReturn > originalOrder.remainingDebt ? originalOrder.remainingDebt : totalReturn;
+    final totalReturn =
+        returnItems.fold<double>(0.0, (sum, i) => sum + (i.price * i.quantity));
+    final debtDeducted = totalReturn > originalOrder.remainingDebt
+        ? originalOrder.remainingDebt
+        : totalReturn;
     final cashRefunded = totalReturn - debtDeducted;
 
     final returnOrder = ReturnOrder(
@@ -127,7 +128,8 @@ void main() {
         productId: 'prod_case',
         productName: 'Ốp lưng Silicon',
         quantity: 3,
-        returnedQuantity: 1, // 1 already returned, 2 active
+        returnedQuantity: 1,
+        // 1 already returned, 2 active
         price: 200000.0,
         warrantyMonths: 0,
         purchaseDate: DateTime.now(),
@@ -136,14 +138,17 @@ void main() {
         productId: 'prod_cable',
         productName: 'Cáp sạc Type-C Braided',
         quantity: 2,
-        returnedQuantity: 0, // 2 active
+        returnedQuantity: 0,
+        // 2 active
         price: 300000.0,
         warrantyMonths: 6,
         purchaseDate: DateTime.now(),
       ),
     ],
-    total: 1000000.0, // (2*200k + 2*300k) = 1.000.000
-    amountPaid: 600000.0, // 400.000 remaining debt
+    total: 1000000.0,
+    // (2*200k + 2*300k) = 1.000.000
+    amountPaid: 600000.0,
+    // 400.000 remaining debt
     debtAmount: 400000.0,
     status: 'completed',
     paymentMethod: 'cash',
@@ -241,7 +246,8 @@ void main() {
       expect(find.text('Xác nhận trả hàng (3 sản phẩm)'), findsOneWidget);
     });
 
-    testWidgets('Select all toggle selects all active items at max available quantities',
+    testWidgets(
+        'Select all toggle selects all active items at max available quantities',
         (tester) async {
       tester.view.physicalSize = const Size(800, 1200);
       tester.view.devicePixelRatio = 1.0;

@@ -28,13 +28,19 @@ class InvoicePrintHelper {
     final currencyFormat = NumberFormat('#,###', 'vi_VN');
     final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
 
-    final subtotal = order.items.fold(0.0, (sum, item) => sum + (item.price * item.quantity));
-    final discount = (subtotal - order.total) > 0.5 ? (subtotal - order.total) : 0.0;
-    final remainingAmount = (order.total - order.amountPaid).clamp(0.0, double.infinity);
+    final subtotal = order.items
+        .fold(0.0, (sum, item) => sum + (item.price * item.quantity));
+    final discount =
+        (subtotal - order.total) > 0.5 ? (subtotal - order.total) : 0.0;
+    final remainingAmount =
+        (order.total - order.amountPaid).clamp(0.0, double.infinity);
 
     final customerName = customer?.name ??
-        (order.customerId == 'khach_le' || order.customerId.isEmpty ? 'Khách lẻ' : order.customerId);
-    final customerCode = customer?.id ?? (order.customerId == 'khach_le' ? '' : order.customerId);
+        (order.customerId == 'khach_le' || order.customerId.isEmpty
+            ? 'Khách lẻ'
+            : order.customerId);
+    final customerCode = customer?.id ??
+        (order.customerId == 'khach_le' ? '' : order.customerId);
     final customerPhone = customer?.phone ?? '';
     final customerAddress = customer?.address ?? '';
 
@@ -213,13 +219,15 @@ class InvoicePrintHelper {
                                     width: 70,
                                     height: 70,
                                     decoration: pw.BoxDecoration(
-                                      border: pw.Border.all(color: PdfColors.grey),
+                                      border:
+                                          pw.Border.all(color: PdfColors.grey),
                                     ),
                                     child: pw.Center(
                                       child: pw.Text(
                                         'VietQR Payment',
                                         textAlign: pw.TextAlign.center,
-                                        style: pw.TextStyle(font: font, fontSize: 8),
+                                        style: pw.TextStyle(
+                                            font: font, fontSize: 8),
                                       ),
                                     ),
                                   ),
@@ -271,19 +279,27 @@ class InvoicePrintHelper {
               // 4. BẢNG CHI TIẾT SẢN PHẨM
               pw.TableHelper.fromTextArray(
                 context: context,
-                border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
+                border:
+                    pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
                 headerStyle: pw.TextStyle(font: fontBold, fontSize: 9),
                 cellStyle: pw.TextStyle(font: font, fontSize: 9),
-                headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
+                headerDecoration:
+                    const pw.BoxDecoration(color: PdfColors.grey200),
                 columnWidths: {
                   0: const pw.FixedColumnWidth(25), // TT
-                  1: const pw.FlexColumnWidth(4),   // Tên hàng
+                  1: const pw.FlexColumnWidth(4), // Tên hàng
                   2: const pw.FixedColumnWidth(35), // SL
-                  3: const pw.FlexColumnWidth(2),   // Đơn giá
-                  4: const pw.FlexColumnWidth(2),   // Thành tiền
+                  3: const pw.FlexColumnWidth(2), // Đơn giá
+                  4: const pw.FlexColumnWidth(2), // Thành tiền
                 },
                 cellAlignment: pw.Alignment.centerLeft,
-                headers: <String>['TT', 'Tên hàng', 'SL', 'Đơn giá', 'Thành tiền'],
+                headers: <String>[
+                  'TT',
+                  'Tên hàng',
+                  'SL',
+                  'Đơn giá',
+                  'Thành tiền'
+                ],
                 data: List<List<String>>.generate(order.items.length, (index) {
                   final item = order.items[index];
                   return [
@@ -307,7 +323,8 @@ class InvoicePrintHelper {
                     child: pw.Column(
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
-                        if (order.note != null && order.note!.trim().isNotEmpty) ...[
+                        if (order.note != null &&
+                            order.note!.trim().isNotEmpty) ...[
                           pw.Text(
                             'Ghi chú: ${order.note!.trim()}',
                             style: pw.TextStyle(font: font, fontSize: 9),
@@ -332,29 +349,41 @@ class InvoicePrintHelper {
                           _buildSummaryPdfRow('Giảm giá:',
                               '${currencyFormat.format(discount)} đ', font),
                           pw.SizedBox(height: 2),
-                          _buildSummaryPdfRow('Sau giảm:',
-                              '${currencyFormat.format(order.total)} đ', fontBold),
+                          _buildSummaryPdfRow(
+                              'Sau giảm:',
+                              '${currencyFormat.format(order.total)} đ',
+                              fontBold),
                         ] else ...[
-                          _buildSummaryPdfRow('Tổng cộng:',
-                              '${currencyFormat.format(order.total)} đ', fontBold),
+                          _buildSummaryPdfRow(
+                              'Tổng cộng:',
+                              '${currencyFormat.format(order.total)} đ',
+                              fontBold),
                         ],
                         pw.SizedBox(height: 2),
-                        _buildSummaryPdfRow('Đã thanh toán:',
-                            '${currencyFormat.format(order.amountPaid)} đ', font),
+                        _buildSummaryPdfRow(
+                            'Đã thanh toán:',
+                            '${currencyFormat.format(order.amountPaid)} đ',
+                            font),
                         if (order.paymentMethod == 'split') ...[
                           pw.SizedBox(height: 1),
-                          _buildSummaryPdfRow('  - Tiền mặt:',
-                              '${currencyFormat.format(order.cashAmount ?? 0.0)} đ', font,
+                          _buildSummaryPdfRow(
+                              '  - Tiền mặt:',
+                              '${currencyFormat.format(order.cashAmount ?? 0.0)} đ',
+                              font,
                               fontSize: 8),
                           pw.SizedBox(height: 1),
-                          _buildSummaryPdfRow('  - Chuyển khoản:',
-                              '${currencyFormat.format(order.transferAmount ?? 0.0)} đ', font,
+                          _buildSummaryPdfRow(
+                              '  - Chuyển khoản:',
+                              '${currencyFormat.format(order.transferAmount ?? 0.0)} đ',
+                              font,
                               fontSize: 8),
                         ],
                         pw.SizedBox(height: 2),
                         pw.Divider(thickness: 0.5, color: PdfColors.grey400),
-                        _buildSummaryPdfRow('Còn lại:',
-                            '${currencyFormat.format(remainingAmount)} đ', fontBold,
+                        _buildSummaryPdfRow(
+                            'Còn lại:',
+                            '${currencyFormat.format(remainingAmount)} đ',
+                            fontBold,
                             fontSize: 11),
                       ],
                     ),
@@ -469,10 +498,12 @@ class InvoicePrintHelper {
               // Bảng món hàng
               pw.TableHelper.fromTextArray(
                 context: context,
-                border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
+                border:
+                    pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
                 headerStyle: pw.TextStyle(font: fontBold, fontSize: 8),
                 cellStyle: pw.TextStyle(font: font, fontSize: 7.5),
-                headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
+                headerDecoration:
+                    const pw.BoxDecoration(color: PdfColors.grey200),
                 columnWidths: {
                   0: const pw.FixedColumnWidth(16), // TT
                   1: const pw.FlexColumnWidth(3.5), // Tên hàng
@@ -497,28 +528,35 @@ class InvoicePrintHelper {
               // Tổng kết thanh toán
               if (discount > 0) ...[
                 _buildSummaryPdfRow('Tổng tiền hàng:',
-                    '${currencyFormat.format(subtotal)} đ', font, fontSize: 8),
+                    '${currencyFormat.format(subtotal)} đ', font,
+                    fontSize: 8),
                 pw.SizedBox(height: 2),
-                _buildSummaryPdfRow('Giảm giá:',
-                    '-${currencyFormat.format(discount)} đ', font, fontSize: 8),
+                _buildSummaryPdfRow(
+                    'Giảm giá:', '-${currencyFormat.format(discount)} đ', font,
+                    fontSize: 8),
                 pw.SizedBox(height: 2),
                 _buildSummaryPdfRow('Khách cần trả:',
-                    '${currencyFormat.format(order.total)} đ', fontBold, fontSize: 9),
+                    '${currencyFormat.format(order.total)} đ', fontBold,
+                    fontSize: 9),
               ] else ...[
                 _buildSummaryPdfRow('Tổng cộng:',
-                    '${currencyFormat.format(order.total)} đ', fontBold, fontSize: 9),
+                    '${currencyFormat.format(order.total)} đ', fontBold,
+                    fontSize: 9),
               ],
               pw.SizedBox(height: 2),
               _buildSummaryPdfRow('Đã thanh toán:',
-                  '${currencyFormat.format(order.amountPaid)} đ', font, fontSize: 8),
+                  '${currencyFormat.format(order.amountPaid)} đ', font,
+                  fontSize: 8),
               if (order.paymentMethod == 'split') ...[
                 pw.SizedBox(height: 1),
                 _buildSummaryPdfRow('  - Tiền mặt:',
                     '${currencyFormat.format(order.cashAmount ?? 0.0)} đ', font,
                     fontSize: 7.5),
                 pw.SizedBox(height: 1),
-                _buildSummaryPdfRow('  - Chuyển khoản:',
-                    '${currencyFormat.format(order.transferAmount ?? 0.0)} đ', font,
+                _buildSummaryPdfRow(
+                    '  - Chuyển khoản:',
+                    '${currencyFormat.format(order.transferAmount ?? 0.0)} đ',
+                    font,
                     fontSize: 7.5),
               ],
               pw.SizedBox(height: 2),
@@ -653,15 +691,17 @@ class InvoicePrintHelper {
               // Bảng món
               pw.TableHelper.fromTextArray(
                 context: context,
-                border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
+                border:
+                    pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
                 headerStyle: pw.TextStyle(font: fontBold, fontSize: 6.5),
                 cellStyle: pw.TextStyle(font: font, fontSize: 6.5),
-                headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
+                headerDecoration:
+                    const pw.BoxDecoration(color: PdfColors.grey200),
                 columnWidths: {
                   0: const pw.FixedColumnWidth(12), // TT
-                  1: const pw.FlexColumnWidth(3),   // Tên hàng
+                  1: const pw.FlexColumnWidth(3), // Tên hàng
                   2: const pw.FixedColumnWidth(16), // SL
-                  3: const pw.FlexColumnWidth(2),   // Đơn giá
+                  3: const pw.FlexColumnWidth(2), // Đơn giá
                   4: const pw.FlexColumnWidth(2.2), // Thành tiền
                 },
                 headers: <String>['TT', 'Tên', 'SL', 'Giá', 'T.Tiền'],
@@ -680,29 +720,36 @@ class InvoicePrintHelper {
 
               // Tổng tiền
               if (discount > 0) ...[
-                _buildSummaryPdfRow('Tổng tiền:',
-                    '${currencyFormat.format(subtotal)} đ', font, fontSize: 7),
+                _buildSummaryPdfRow(
+                    'Tổng tiền:', '${currencyFormat.format(subtotal)} đ', font,
+                    fontSize: 7),
                 pw.SizedBox(height: 1),
-                _buildSummaryPdfRow('Giảm giá:',
-                    '-${currencyFormat.format(discount)} đ', font, fontSize: 7),
+                _buildSummaryPdfRow(
+                    'Giảm giá:', '-${currencyFormat.format(discount)} đ', font,
+                    fontSize: 7),
                 pw.SizedBox(height: 1),
                 _buildSummaryPdfRow('Cần trả:',
-                    '${currencyFormat.format(order.total)} đ', fontBold, fontSize: 8),
+                    '${currencyFormat.format(order.total)} đ', fontBold,
+                    fontSize: 8),
               ] else ...[
                 _buildSummaryPdfRow('Tổng cộng:',
-                    '${currencyFormat.format(order.total)} đ', fontBold, fontSize: 8),
+                    '${currencyFormat.format(order.total)} đ', fontBold,
+                    fontSize: 8),
               ],
               pw.SizedBox(height: 1),
               _buildSummaryPdfRow('Đã thanh toán:',
-                  '${currencyFormat.format(order.amountPaid)} đ', font, fontSize: 7),
+                  '${currencyFormat.format(order.amountPaid)} đ', font,
+                  fontSize: 7),
               if (order.paymentMethod == 'split') ...[
                 pw.SizedBox(height: 1),
                 _buildSummaryPdfRow('  - TM:',
                     '${currencyFormat.format(order.cashAmount ?? 0.0)} đ', font,
                     fontSize: 6.5),
                 pw.SizedBox(height: 1),
-                _buildSummaryPdfRow('  - CK:',
-                    '${currencyFormat.format(order.transferAmount ?? 0.0)} đ', font,
+                _buildSummaryPdfRow(
+                    '  - CK:',
+                    '${currencyFormat.format(order.transferAmount ?? 0.0)} đ',
+                    font,
                     fontSize: 6.5),
               ],
               pw.SizedBox(height: 1),

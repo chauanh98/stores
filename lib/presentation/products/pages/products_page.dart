@@ -1,25 +1,27 @@
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:stores/core/theme/app_colors.dart';
 import 'package:stores/presentation/common/widgets/loading_indicator.dart';
 
 import '../../../application/auth/auth_providers.dart';
-import '../../../application/inventory/inventory_providers.dart';
 import '../../../application/products/products_providers.dart';
+import '../../../application/products/usecases/import_products_usecase.dart';
+import '../../../core/services/filter_storage_service.dart';
 import '../../../core/utils/excel_helper.dart';
+import '../../../core/utils/file_saver.dart';
 import '../../../core/utils/sample_image_helper.dart';
-import '../../../domain/entities/inventory_transaction.dart';
 import '../../../domain/entities/product.dart';
-import '../../../domain/entities/transaction_type.dart';
+import '../../../domain/entities/user_account.dart';
 import '../../common/widgets/error_view.dart';
 import '../../common/widgets/scroll_aware_fab.dart';
 import '../../inventories/pages/import_inventory_page.dart';
+import '../widgets/category_filter_bottom_sheet.dart';
 import '../widgets/product_tile.dart';
 import 'add_product_page.dart';
 
@@ -32,10 +34,10 @@ class ProductsPage extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<ProductsPage> createState() => _ProductsPageState();
+  ConsumerState<ProductsPage> createState() => ProductsPageState();
 }
 
-class _ProductsPageState extends ConsumerState<ProductsPage> {
+class ProductsPageState extends ConsumerState<ProductsPage> {
   final _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   int _currentLimit = 50;
@@ -44,12 +46,271 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
-    if (widget.initialCategory != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final storage = ref.read(filterStorageServiceProvider);
+      final user = ref.read(authProvider);
+      if (widget.initialCategory != null) {
         ref.read(productCategoryFilterProvider.notifier).state =
             widget.initialCategory!;
+        ref.read(productSelectedCategoriesProvider.notifier).state = {
+          widget.initialCategory!
+        };
+        await _persistProductsFilters();
+      } else {
+        // Hydrate from storage if present
+        final saved = await storage.loadFilter('products', user?.username);
+        if (saved != null &&
+            mounted &&
+            ref.read(authProvider)?.username == user?.username) {
+          if (saved['selectedCategories'] is List) {
+            final cats = (saved['selectedCategories'] as List)
+                .map((e) => e.toString().trim())
+                .where((e) => e.isNotEmpty && e != 'null' && e != 'All')
+                .toSet();
+            ref.read(productSelectedCategoriesProvider.notifier).state = cats;
+            if (cats.isNotEmpty) {
+              ref.read(productCategoryFilterProvider.notifier).state =
+                  cats.length == 1 ? cats.first : 'All';
+            }
+          } else if (saved['category'] != null) {
+            final cat = saved['category'].toString().trim();
+            ref.read(productCategoryFilterProvider.notifier).state = cat;
+            if (cat.isNotEmpty && cat != 'null' && cat != 'All') {
+              ref.read(productSelectedCategoriesProvider.notifier).state = {
+                cat
+              };
+            }
+          }
+          if (saved['productTypes'] is List) {
+            final types = (saved['productTypes'] as List)
+                .map((e) => e.toString())
+                .map((name) => ProductTypeFilter.values
+                    .cast<ProductTypeFilter?>()
+                    .firstWhere(
+                      (v) => v?.name == name,
+                      orElse: () => null,
+                    ))
+                .whereType<ProductTypeFilter>()
+                .toSet();
+            if (types.isNotEmpty) {
+              ref.read(productTypeFilterProvider.notifier).state = types;
+            }
+          }
+          if (saved['stockStatus'] != null) {
+            final status = StockStatus.values.firstWhere(
+              (e) => e.name == saved['stockStatus']?.toString(),
+              orElse: () => StockStatus.all,
+            );
+            ref.read(productStockStatusFilterProvider.notifier).state = status;
+          }
+        }
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant ProductsPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialCategory != null &&
+        widget.initialCategory != oldWidget.initialCategory) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        ref.read(productCategoryFilterProvider.notifier).state =
+            widget.initialCategory!;
+        ref.read(productSelectedCategoriesProvider.notifier).state = {
+          widget.initialCategory!
+        };
+        await _persistProductsFilters();
       });
     }
+  }
+
+  Future<void> _persistProductsFilters() async {
+    final user = ref.read(authProvider);
+    final categories = ref.read(productSelectedCategoriesProvider);
+    final productTypes = ref.read(productTypeFilterProvider);
+    final stockStatus = ref.read(productStockStatusFilterProvider);
+    final legacyCategory = ref.read(productCategoryFilterProvider);
+
+    await ref.read(filterStorageServiceProvider).saveFilter(
+        'products',
+        {
+          'category': legacyCategory,
+          'selectedCategories': categories.toList(),
+          'productTypes': productTypes.map((e) => e.name).toList(),
+          'stockStatus': stockStatus.name,
+        },
+        user?.username);
+  }
+
+  void _setCategories(Set<String> categories) {
+    final clean = categories
+        .map((c) => c.trim())
+        .where((c) => c.isNotEmpty && c != 'All' && c != 'Tất cả')
+        .toSet();
+    ref.read(productSelectedCategoriesProvider.notifier).state = clean;
+    ref.read(productCategoryFilterProvider.notifier).state =
+        clean.length == 1 ? clean.first : 'All';
+    _persistProductsFilters();
+    setState(() {
+      _currentLimit = 50;
+    });
+  }
+
+  void _setCategory(String category) {
+    final target =
+        (category == 'All' || category == 'Tất cả') ? 'All' : category.trim();
+    ref.read(productCategoryFilterProvider.notifier).state = target;
+    ref.read(productSelectedCategoriesProvider.notifier).state =
+        target == 'All' ? const <String>{} : {target};
+    _persistProductsFilters();
+    setState(() {
+      _currentLimit = 50;
+    });
+  }
+
+  void _setStockStatus(StockStatus status) {
+    ref.read(productStockStatusFilterProvider.notifier).state = status;
+    _persistProductsFilters();
+    setState(() {
+      _currentLimit = 50;
+    });
+  }
+
+  void _setProductTypes(Set<ProductTypeFilter> types) {
+    ref.read(productTypeFilterProvider.notifier).state = types;
+    _persistProductsFilters();
+    setState(() {
+      _currentLimit = 50;
+    });
+  }
+
+  void _showProductTypeFilterBottomSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.transparent,
+      isScrollControlled: true,
+      constraints: BoxConstraints(
+        maxWidth: MediaQuery.of(context).size.width,
+      ),
+      builder: (ctx) {
+        return Consumer(
+          builder: (context, ref, _) {
+            final currentTypes = ref.watch(productTypeFilterProvider);
+            return Container(
+              width: double.infinity,
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width,
+              ),
+              decoration: const BoxDecoration(
+                color: AppColors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: SafeArea(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Center(
+                      child: Container(
+                        margin: const EdgeInsets.only(top: 10, bottom: 6),
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: AppColors.grey300,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Expanded(
+                            child: Text(
+                              'Chọn loại hàng',
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                          ),
+                          TextButton(
+                            key: const Key('select_all_product_types_button'),
+                            onPressed: () {
+                              _setProductTypes({
+                                ProductTypeFilter.standard,
+                                ProductTypeFilter.combo,
+                                ProductTypeFilter.service,
+                              });
+                            },
+                            child: const Text('Tất cả'),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Divider(height: 1, color: AppColors.dividerLight),
+                    CheckboxListTile(
+                      key: const Key('product_type_checkbox_standard'),
+                      title: const Text('Hàng hóa thường'),
+                      value: currentTypes.contains(ProductTypeFilter.standard),
+                      activeColor: AppColors.primary,
+                      onChanged: (val) {
+                        final updated =
+                            Set<ProductTypeFilter>.from(currentTypes);
+                        if (val == true) {
+                          updated.add(ProductTypeFilter.standard);
+                        } else {
+                          updated.remove(ProductTypeFilter.standard);
+                        }
+                        _setProductTypes(updated);
+                      },
+                    ),
+                    CheckboxListTile(
+                      key: const Key('product_type_checkbox_combo'),
+                      title: const Text('Combo - Đóng gói'),
+                      value: currentTypes.contains(ProductTypeFilter.combo),
+                      activeColor: AppColors.primary,
+                      onChanged: (val) {
+                        final updated =
+                            Set<ProductTypeFilter>.from(currentTypes);
+                        if (val == true) {
+                          updated.add(ProductTypeFilter.combo);
+                        } else {
+                          updated.remove(ProductTypeFilter.combo);
+                        }
+                        _setProductTypes(updated);
+                      },
+                    ),
+                    CheckboxListTile(
+                      key: const Key('product_type_checkbox_service'),
+                      title: const Text('Dịch vụ'),
+                      value: currentTypes.contains(ProductTypeFilter.service),
+                      activeColor: AppColors.primary,
+                      onChanged: (val) {
+                        final updated =
+                            Set<ProductTypeFilter>.from(currentTypes);
+                        if (val == true) {
+                          updated.add(ProductTypeFilter.service);
+                        } else {
+                          updated.remove(ProductTypeFilter.service);
+                        }
+                        _setProductTypes(updated);
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   void _onScroll() {
@@ -78,13 +339,72 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
     final processedAsync = ref.watch(processedProductsProvider);
     final search = ref.watch(productSearchQueryProvider);
     final selectedCategory = ref.watch(productCategoryFilterProvider);
+    final selectedCategories = ref.watch(productSelectedCategoriesProvider);
+    final selectedProductTypes = ref.watch(productTypeFilterProvider);
     final selectedBrand = ref.watch(productBrandFilterProvider);
     final stockStatus = ref.watch(productStockStatusFilterProvider);
     final sortOption = ref.watch(productSortOptionProvider);
 
     final user = ref.watch(authProvider);
+
+    ref.listen<UserAccount?>(authProvider, (prev, next) {
+      if (next != null && (prev == null || prev.username != next.username)) {
+        ref
+            .read(filterStorageServiceProvider)
+            .loadFilter('products', next.username)
+            .then((saved) {
+          if (saved != null &&
+              mounted &&
+              ref.read(authProvider)?.username == next.username) {
+            if (saved['selectedCategories'] is List) {
+              final cats = (saved['selectedCategories'] as List)
+                  .map((e) => e.toString().trim())
+                  .where((e) => e.isNotEmpty && e != 'null' && e != 'All')
+                  .toSet();
+              ref.read(productSelectedCategoriesProvider.notifier).state = cats;
+              if (cats.isNotEmpty) {
+                ref.read(productCategoryFilterProvider.notifier).state =
+                    cats.length == 1 ? cats.first : 'All';
+              }
+            } else if (saved['category'] != null) {
+              final cat = saved['category'].toString().trim();
+              ref.read(productCategoryFilterProvider.notifier).state = cat;
+              if (cat.isNotEmpty && cat != 'null' && cat != 'All') {
+                ref.read(productSelectedCategoriesProvider.notifier).state = {
+                  cat
+                };
+              }
+            }
+            if (saved['productTypes'] is List) {
+              final types = (saved['productTypes'] as List)
+                  .map((e) => e.toString())
+                  .map((name) => ProductTypeFilter.values
+                      .cast<ProductTypeFilter?>()
+                      .firstWhere(
+                        (v) => v?.name == name,
+                        orElse: () => null,
+                      ))
+                  .whereType<ProductTypeFilter>()
+                  .toSet();
+              if (types.isNotEmpty) {
+                ref.read(productTypeFilterProvider.notifier).state = types;
+              }
+            }
+            if (saved['stockStatus'] != null) {
+              final status = StockStatus.values.firstWhere(
+                (e) => e.name == saved['stockStatus']?.toString(),
+                orElse: () => StockStatus.all,
+              );
+              ref.read(productStockStatusFilterProvider.notifier).state =
+                  status;
+            }
+          }
+        });
+      }
+    });
+
     final canManageProducts = user?.canManageProducts ?? false;
-    final isSupervisor = user?.isSupervisor == true;
+    final canViewCostValue = user?.canViewCostPrice == true;
 
     return Scaffold(
       appBar: AppBar(
@@ -92,6 +412,7 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
         actions: [
           if (canManageProducts)
             PopupMenuButton<String>(
+              key: const Key('products_excel_actions_menu'),
               icon: const Icon(Icons.more_vert),
               tooltip: 'Thao tác sản phẩm',
               onSelected: (value) {
@@ -115,43 +436,49 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                   child: Row(
                     children: [
                       const Icon(Icons.inventory_2_outlined,
-                          color: Colors.blueGrey),
+                          color: AppColors.grey400),
                       const SizedBox(width: 8),
-                      Text(l10n.importProduct),
+                      Expanded(child: Text(l10n.importProduct)),
                     ],
                   ),
                 ),
-                PopupMenuItem<String>(
-                  value: 'import_excel',
-                  child: Row(
-                    children: [
-                      const Icon(Icons.upload_file, color: AppColors.primary),
-                      const SizedBox(width: 8),
-                      Text(l10n.importExcel),
-                    ],
+                if (kIsWeb && (user?.isAdmin == true)) ...[
+                  PopupMenuItem<String>(
+                    value: 'import_excel',
+                    child: Row(
+                      children: [
+                        const Icon(Icons.upload_file, color: AppColors.primary),
+                        const SizedBox(width: 8),
+                        Expanded(child: Text(l10n.importExcel)),
+                      ],
+                    ),
                   ),
-                ),
-                PopupMenuItem<String>(
-                  value: 'export_excel',
-                  child: Row(
-                    children: [
-                      const Icon(Icons.download, color: Colors.green),
-                      const SizedBox(width: 8),
-                      Text(l10n.exportExcel),
-                    ],
+                  PopupMenuItem<String>(
+                    value: 'export_excel',
+                    child: Row(
+                      children: [
+                        const Icon(Icons.download, color: AppColors.success),
+                        const SizedBox(width: 8),
+                        Expanded(child: Text(l10n.exportExcel)),
+                      ],
+                    ),
                   ),
-                ),
+                ],
                 const PopupMenuDivider(),
                 const PopupMenuItem<String>(
                   value: 'auto_assign_images',
                   child: Row(
                     children: [
-                      Icon(Icons.auto_awesome, color: Colors.amber),
+                      Icon(Icons.auto_awesome, color: AppColors.warning),
                       SizedBox(width: 8),
-                      Text('Tự động gán ảnh mẫu',
+                      Expanded(
+                        child: Text(
+                          'Tự động gán ảnh mẫu',
                           style: TextStyle(
                               fontWeight: FontWeight.w600,
-                              color: Colors.black87)),
+                              color: AppColors.textPrimary),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -182,7 +509,7 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                         },
                       )
                     : null,
-                fillColor: Colors.white,
+                fillColor: AppColors.white,
                 filled: true,
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -215,6 +542,8 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
               categories: data.categories,
               brands: data.brands,
               selectedCategory: selectedCategory,
+              selectedCategories: selectedCategories,
+              selectedProductTypes: selectedProductTypes,
               selectedBrand: selectedBrand,
               sortOption: sortOption,
             ),
@@ -233,7 +562,7 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                       count: data.totalProducts,
                       totalStock: data.totalStock,
                       totalCostValue: data.totalCostValue,
-                      isSupervisor: isSupervisor,
+                      canViewCostValue: canViewCostValue,
                       l10n: l10n,
                     ),
                     Expanded(
@@ -266,7 +595,7 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
               child: FloatingActionButton(
                 heroTag: 'addProductFab',
                 backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
+                foregroundColor: AppColors.white,
                 onPressed: _navigateToAddProduct,
                 child: const Icon(Icons.add),
               ),
@@ -280,21 +609,70 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
     required List<String> categories,
     required List<String> brands,
     required String selectedCategory,
+    required Set<String> selectedCategories,
+    required Set<ProductTypeFilter> selectedProductTypes,
     required String? selectedBrand,
     required ProductSortOption sortOption,
   }) {
     final isStockFiltered = stockStatus != StockStatus.all;
-    final isCategoryFiltered = selectedCategory != 'All';
+    final isTypeFiltered =
+        selectedProductTypes.length < ProductTypeFilter.values.length;
+
+    final effectiveCategory =
+        (selectedCategory.trim().isNotEmpty && selectedCategory != 'All')
+            ? selectedCategory
+            : 'All';
+    final isCategoryFiltered = (selectedCategories.isNotEmpty &&
+            !selectedCategories.contains('All')) ||
+        (effectiveCategory != 'All');
+
     final isBrandFiltered = selectedBrand != null;
     final isSortFiltered = sortOption != ProductSortOption.stockDesc;
-    final hasActiveFilters = isStockFiltered ||
-        isCategoryFiltered ||
-        isBrandFiltered ||
-        isSortFiltered;
+
+    int activeFilterCount = 0;
+    if (isStockFiltered) activeFilterCount++;
+    if (isTypeFiltered) activeFilterCount++;
+    if (isCategoryFiltered) activeFilterCount++;
+    if (isBrandFiltered) activeFilterCount++;
+    if (isSortFiltered) activeFilterCount++;
+    final hasActiveFilters = activeFilterCount > 0;
+
+    final String productTypeLabel;
+    if (selectedProductTypes.length == ProductTypeFilter.values.length) {
+      productTypeLabel = 'Loại hàng';
+    } else if (selectedProductTypes.length == 1) {
+      final single = selectedProductTypes.first;
+      switch (single) {
+        case ProductTypeFilter.standard:
+          productTypeLabel = 'Hàng thường';
+          break;
+        case ProductTypeFilter.combo:
+          productTypeLabel = 'Combo';
+          break;
+        case ProductTypeFilter.service:
+          productTypeLabel = 'Dịch vụ';
+          break;
+      }
+    } else {
+      productTypeLabel = 'Loại hàng (${selectedProductTypes.length})';
+    }
+
+    final String categoryFilterLabel;
+    if (selectedCategories.isEmpty || selectedCategories.contains('All')) {
+      if (effectiveCategory == 'All') {
+        categoryFilterLabel = 'Tất cả nhóm hàng';
+      } else {
+        categoryFilterLabel = effectiveCategory;
+      }
+    } else if (selectedCategories.length == 1) {
+      categoryFilterLabel = selectedCategories.first;
+    } else {
+      categoryFilterLabel = 'Nhóm hàng (${selectedCategories.length})';
+    }
 
     return Container(
       decoration: const BoxDecoration(
-        color: Colors.white,
+        color: AppColors.white,
         border: Border(
           top: BorderSide(color: AppColors.dividerLight),
           bottom: BorderSide(color: AppColors.divider),
@@ -314,8 +692,7 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                     : AppColors.surface,
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color:
-                      isStockFiltered ? AppColors.primary : AppColors.border,
+                  color: isStockFiltered ? AppColors.primary : AppColors.border,
                 ),
               ),
               child: DropdownButtonHideUnderline(
@@ -323,28 +700,22 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                   value: stockStatus,
                   isDense: true,
                   style: TextStyle(
-                    color:
-                        isStockFiltered ? AppColors.primary : Colors.black87,
-                    fontWeight: isStockFiltered
-                        ? FontWeight.bold
-                        : FontWeight.w600,
+                    color: isStockFiltered
+                        ? AppColors.primary
+                        : AppColors.textPrimary,
+                    fontWeight:
+                        isStockFiltered ? FontWeight.bold : FontWeight.w600,
                     fontSize: 12,
                   ),
                   icon: Icon(
                     Icons.arrow_drop_down,
-                    color: isStockFiltered
-                        ? AppColors.primary
-                        : AppColors.primary,
+                    color:
+                        isStockFiltered ? AppColors.primary : AppColors.primary,
                     size: 18,
                   ),
                   onChanged: (v) {
                     if (v != null) {
-                      ref
-                          .read(productStockStatusFilterProvider.notifier)
-                          .state = v;
-                      setState(() {
-                        _currentLimit = 50;
-                      });
+                      _setStockStatus(v);
                     }
                   },
                   items: const [
@@ -352,30 +723,91 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                       value: StockStatus.all,
                       child: Text(
                         'Tất cả',
-                        style: TextStyle(fontSize: 12, color: Colors.black87),
+                        style: TextStyle(
+                            fontSize: 12, color: AppColors.textPrimary),
                       ),
                     ),
                     DropdownMenuItem(
                       value: StockStatus.inStock,
                       child: Text(
                         'Còn hàng (> 0)',
-                        style: TextStyle(fontSize: 12, color: Colors.black87),
+                        style: TextStyle(
+                            fontSize: 12, color: AppColors.textPrimary),
                       ),
                     ),
                     DropdownMenuItem(
                       value: StockStatus.outOfStock,
                       child: Text(
                         'Hết hàng (= 0)',
-                        style: TextStyle(fontSize: 12, color: Colors.black87),
+                        style: TextStyle(
+                            fontSize: 12, color: AppColors.textPrimary),
                       ),
                     ),
                     DropdownMenuItem(
                       value: StockStatus.belowMinStock,
                       child: Text(
                         'Dưới định mức',
-                        style: TextStyle(fontSize: 12, color: Colors.black87),
+                        style: TextStyle(
+                            fontSize: 12, color: AppColors.textPrimary),
                       ),
                     ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+
+            // 1b. Loại hàng (Product Types)
+            Container(
+              key: const Key('product_type_filter_button'),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              decoration: BoxDecoration(
+                color: isTypeFiltered
+                    ? AppColors.primary.withOpacity(0.08)
+                    : AppColors.surface,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isTypeFiltered ? AppColors.primary : AppColors.border,
+                ),
+              ),
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => _showProductTypeFilterBottomSheet(context),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      productTypeLabel,
+                      style: TextStyle(
+                        color: isTypeFiltered
+                            ? AppColors.primary
+                            : AppColors.primary,
+                        fontWeight:
+                            isTypeFiltered ? FontWeight.bold : FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                    ),
+                    if (isTypeFiltered) ...[
+                      const SizedBox(width: 4),
+                      InkWell(
+                        key: const Key('clear_product_type_filter_button'),
+                        onTap: () {
+                          _setProductTypes({
+                            ProductTypeFilter.standard,
+                            ProductTypeFilter.combo,
+                            ProductTypeFilter.service,
+                          });
+                        },
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 2),
+                          child: Icon(Icons.close,
+                              color: AppColors.primary, size: 16),
+                        ),
+                      ),
+                    ] else ...[
+                      const Icon(Icons.arrow_drop_down,
+                          color: AppColors.primary, size: 18),
+                    ],
                   ],
                 ),
               ),
@@ -391,53 +823,171 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                     : AppColors.surface,
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: isCategoryFiltered
-                      ? AppColors.primary
-                      : AppColors.border,
+                  color:
+                      isCategoryFiltered ? AppColors.primary : AppColors.border,
                 ),
               ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: categories.contains(selectedCategory)
-                      ? selectedCategory
-                      : 'All',
-                  isDense: true,
-                  style: TextStyle(
-                    color: isCategoryFiltered
-                        ? AppColors.primary
-                        : AppColors.primary,
-                    fontWeight: isCategoryFiltered
-                        ? FontWeight.bold
-                        : FontWeight.w600,
-                    fontSize: 12,
-                  ),
-                  icon: const Icon(Icons.arrow_drop_down,
-                      color: AppColors.primary, size: 18),
-                  onChanged: (v) {
-                    if (v != null) {
-                      ref
-                          .read(productCategoryFilterProvider.notifier)
-                          .state = v;
-                      setState(() {
-                        _currentLimit = 50;
-                      });
-                    }
-                  },
-                  items: categories
-                      .map((c) => DropdownMenuItem(
-                            value: c,
-                            child: Text(
-                              c == 'All' ? 'Tất cả nhóm hàng' : c,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Colors.black87,
-                              ),
-                            ),
-                          ))
-                      .toList(),
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  CategoryFilterBottomSheet.show(
+                    context,
+                    currentCategory: effectiveCategory,
+                    initialSelectedCategories: selectedCategories,
+                    onCategoriesSelected: (cats) {
+                      _setCategories(cats);
+                    },
+                  );
+                },
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        key: const Key('product_category_dropdown'),
+                        value: 'All',
+                        isDense: true,
+                        disabledHint: Text(
+                          categoryFilterLabel,
+                          style: TextStyle(
+                            color: isCategoryFiltered
+                                ? AppColors.primary
+                                : AppColors.primary,
+                            fontWeight: isCategoryFiltered
+                                ? FontWeight.bold
+                                : FontWeight.w600,
+                            fontSize: 12,
+                          ),
+                        ),
+                        style: TextStyle(
+                          color: isCategoryFiltered
+                              ? AppColors.primary
+                              : AppColors.primary,
+                          fontWeight: isCategoryFiltered
+                              ? FontWeight.bold
+                              : FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                        icon: const SizedBox.shrink(),
+                        onChanged: null,
+                        items: categories
+                            .map((c) => DropdownMenuItem(
+                                  value: c,
+                                  child: Text(
+                                    c == 'All' ? categoryFilterLabel : c,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.textPrimary,
+                                    ),
+                                  ),
+                                ))
+                            .toList(),
+                      ),
+                    ),
+                    if (isCategoryFiltered) ...[
+                      const SizedBox(width: 4),
+                      InkWell(
+                        key: const Key('clear_category_filter_button'),
+                        onTap: () => _setCategory('All'),
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 2),
+                          child: Icon(Icons.close,
+                              color: AppColors.primary, size: 16),
+                        ),
+                      ),
+                    ] else ...[
+                      const Icon(Icons.arrow_drop_down,
+                          color: AppColors.primary, size: 18),
+                    ],
+                  ],
                 ),
               ),
             ),
+
+            // Đặt lại bộ lọc (Reset Filters)
+            if (hasActiveFilters) ...[
+              const SizedBox(width: 8),
+              Tooltip(
+                message: 'Đặt lại bộ lọc',
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.primary),
+                  ),
+                  child: InkWell(
+                    key: const Key('reset_product_filters_button'),
+                    onTap: () async {
+                      ref
+                          .read(productStockStatusFilterProvider.notifier)
+                          .state = StockStatus.all;
+                      ref.read(productCategoryFilterProvider.notifier).state =
+                          'All';
+                      ref
+                          .read(productSelectedCategoriesProvider.notifier)
+                          .state = const <String>{};
+                      ref.read(productTypeFilterProvider.notifier).state =
+                          const {
+                        ProductTypeFilter.standard,
+                        ProductTypeFilter.combo,
+                        ProductTypeFilter.service,
+                      };
+                      ref.read(productBrandFilterProvider.notifier).state =
+                          null;
+                      ref.read(productSortOptionProvider.notifier).state =
+                          ProductSortOption.stockDesc;
+                      final user = ref.read(authProvider);
+                      await ref
+                          .read(filterStorageServiceProvider)
+                          .clearFilter('products', user?.username);
+                      setState(() {
+                        _currentLimit = 50;
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 6),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.refresh,
+                              color: AppColors.primary, size: 16),
+                          const SizedBox(width: 4),
+                          const Text(
+                            'Đặt lại',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                          if (activeFilterCount > 1) ...[
+                            const SizedBox(width: 4),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 5, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                '$activeFilterCount',
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.white,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(width: 8),
 
             // 3. Thương hiệu (Brand)
@@ -449,32 +999,29 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                     : AppColors.surface,
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: isBrandFiltered
-                      ? AppColors.primary
-                      : AppColors.border,
+                  color: isBrandFiltered ? AppColors.primary : AppColors.border,
                 ),
               ),
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<String?>(
-                  value: (selectedBrand != null &&
-                          brands.contains(selectedBrand))
-                      ? selectedBrand
-                      : null,
+                  value:
+                      (selectedBrand != null && brands.contains(selectedBrand))
+                          ? selectedBrand
+                          : null,
                   isDense: true,
                   style: TextStyle(
-                    color: isBrandFiltered
-                        ? AppColors.primary
-                        : AppColors.primary,
-                    fontWeight: isBrandFiltered
-                        ? FontWeight.bold
-                        : FontWeight.w600,
+                    color:
+                        isBrandFiltered ? AppColors.primary : AppColors.primary,
+                    fontWeight:
+                        isBrandFiltered ? FontWeight.bold : FontWeight.w600,
                     fontSize: 12,
                   ),
                   icon: const Icon(Icons.arrow_drop_down,
                       color: AppColors.primary, size: 18),
                   hint: const Text(
                     'Tất cả thương hiệu',
-                    style: TextStyle(fontSize: 12, color: Colors.black87),
+                    style:
+                        TextStyle(fontSize: 12, color: AppColors.textPrimary),
                   ),
                   onChanged: (v) {
                     ref.read(productBrandFilterProvider.notifier).state = v;
@@ -487,8 +1034,8 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                       value: null,
                       child: Text(
                         'Tất cả thương hiệu',
-                        style:
-                            TextStyle(fontSize: 12, color: Colors.black87),
+                        style: TextStyle(
+                            fontSize: 12, color: AppColors.textPrimary),
                       ),
                     ),
                     ...brands.map((b) => DropdownMenuItem<String?>(
@@ -497,7 +1044,7 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                             b,
                             style: const TextStyle(
                               fontSize: 12,
-                              color: Colors.black87,
+                              color: AppColors.textPrimary,
                             ),
                           ),
                         )),
@@ -516,9 +1063,7 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                     : AppColors.surface,
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: isSortFiltered
-                      ? AppColors.primary
-                      : AppColors.border,
+                  color: isSortFiltered ? AppColors.primary : AppColors.border,
                 ),
               ),
               child: DropdownButtonHideUnderline(
@@ -526,12 +1071,10 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                   value: sortOption,
                   isDense: true,
                   style: TextStyle(
-                    color: isSortFiltered
-                        ? AppColors.primary
-                        : AppColors.primary,
-                    fontWeight: isSortFiltered
-                        ? FontWeight.bold
-                        : FontWeight.w600,
+                    color:
+                        isSortFiltered ? AppColors.primary : AppColors.primary,
+                    fontWeight:
+                        isSortFiltered ? FontWeight.bold : FontWeight.w600,
                     fontSize: 12,
                   ),
                   icon: const Icon(Icons.sort,
@@ -549,83 +1092,42 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                       value: ProductSortOption.stockDesc,
                       child: Text('Tồn kho: Cao → Thấp',
                           style: TextStyle(
-                              fontSize: 12, color: Colors.black87)),
+                              fontSize: 12, color: AppColors.textPrimary)),
                     ),
                     DropdownMenuItem(
                       value: ProductSortOption.stockAsc,
                       child: Text('Tồn kho: Thấp → Cao',
                           style: TextStyle(
-                              fontSize: 12, color: Colors.black87)),
+                              fontSize: 12, color: AppColors.textPrimary)),
                     ),
                     DropdownMenuItem(
                       value: ProductSortOption.nameAsc,
                       child: Text('Tên: A → Z',
                           style: TextStyle(
-                              fontSize: 12, color: Colors.black87)),
+                              fontSize: 12, color: AppColors.textPrimary)),
                     ),
                     DropdownMenuItem(
                       value: ProductSortOption.nameDesc,
                       child: Text('Tên: Z → A',
                           style: TextStyle(
-                              fontSize: 12, color: Colors.black87)),
+                              fontSize: 12, color: AppColors.textPrimary)),
                     ),
                     DropdownMenuItem(
                       value: ProductSortOption.priceAsc,
                       child: Text('Giá: Thấp → Cao',
                           style: TextStyle(
-                              fontSize: 12, color: Colors.black87)),
+                              fontSize: 12, color: AppColors.textPrimary)),
                     ),
                     DropdownMenuItem(
                       value: ProductSortOption.priceDesc,
                       child: Text('Giá: Cao → Thấp',
                           style: TextStyle(
-                              fontSize: 12, color: Colors.black87)),
+                              fontSize: 12, color: AppColors.textPrimary)),
                     ),
                   ],
                 ),
               ),
             ),
-
-            // 5. Đặt lại bộ lọc (Reset Filters)
-            if (hasActiveFilters) ...[
-              const SizedBox(width: 8),
-              Tooltip(
-                message: 'Đặt lại bộ lọc',
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.primary),
-                  ),
-                  child: IconButton(
-                    icon: const Icon(Icons.refresh,
-                        color: AppColors.primary, size: 18),
-                    tooltip: 'Đặt lại bộ lọc',
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 6),
-                    constraints:
-                        const BoxConstraints(minHeight: 32, minWidth: 32),
-                    onPressed: () {
-                      ref
-                          .read(productStockStatusFilterProvider.notifier)
-                          .state = StockStatus.all;
-                      ref
-                          .read(productCategoryFilterProvider.notifier)
-                          .state = 'All';
-                      ref
-                          .read(productBrandFilterProvider.notifier)
-                          .state = null;
-                      ref
-                          .read(productSortOptionProvider.notifier)
-                          .state = ProductSortOption.stockDesc;
-                      setState(() {
-                        _currentLimit = 50;
-                      });
-                    },
-                  ),
-                ),
-              ),
-            ],
           ],
         ),
       ),
@@ -636,14 +1138,14 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
     required int count,
     required int totalStock,
     required double totalCostValue,
-    required bool isSupervisor,
+    required bool canViewCostValue,
     required AppLocalizations l10n,
   }) {
     final currencyFormat = NumberFormat('#,###', 'vi_VN');
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: AppColors.surfaceInfo,
         borderRadius: BorderRadius.circular(10),
@@ -654,20 +1156,19 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Flexible(
+              Expanded(
                 child: Row(
-                  mainAxisSize: MainAxisSize.min,
                   children: [
                     const Icon(Icons.inventory_2_outlined,
                         size: 16, color: AppColors.primary),
                     const SizedBox(width: 6),
-                    Flexible(
+                    Expanded(
                       child: Text(
                         l10n.totalProducts(count),
                         style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 13,
-                          color: Colors.black87,
+                          color: AppColors.textPrimary,
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -676,12 +1177,16 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                 ),
               ),
               const SizedBox(width: 8),
-              Text(
-                l10n.totalStockCount(totalStock),
-                style: const TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 14,
-                  color: AppColors.primary,
+              Flexible(
+                child: Text(
+                  l10n.totalStockCount(totalStock),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                    color: AppColors.primary,
+                  ),
+                  textAlign: TextAlign.end,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
@@ -692,53 +1197,60 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    isSupervisor
-                        ? Icons.account_balance_wallet_outlined
-                        : Icons.lock_outline,
-                    size: 15,
-                    color: isSupervisor ? Colors.teal : Colors.grey,
-                  ),
-                  const SizedBox(width: 6),
-                  const Text(
-                    'Giá trị kho:',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.black54,
-                      fontWeight: FontWeight.w500,
+              Flexible(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      canViewCostValue
+                          ? Icons.account_balance_wallet_outlined
+                          : Icons.lock_outline,
+                      size: 15,
+                      color: canViewCostValue
+                          ? AppColors.chartTeal
+                          : AppColors.grey400,
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 6),
+                    const Flexible(
+                      child: Text(
+                        'Giá trị kho:',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(width: 8),
-              if (isSupervisor)
+              if (canViewCostValue)
                 Flexible(
                   child: Text(
                     '${currencyFormat.format(totalCostValue)} đ',
                     style: const TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 13,
-                      color: Colors.teal,
+                      color: AppColors.chartTeal,
                     ),
-                    overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.end,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 )
               else
                 const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.lock, size: 13, color: Colors.grey),
+                    Icon(Icons.lock, size: 13, color: AppColors.grey400),
                     SizedBox(width: 4),
                     Text(
                       '***',
                       style: TextStyle(
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w700,
                         fontSize: 13,
-                        color: Colors.grey,
+                        color: AppColors.grey400,
                       ),
                     ),
                   ],
@@ -768,11 +1280,15 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
   }
 
   Future<void> _importProducts() async {
+    final user = ref.read(authProvider);
+    if (!kIsWeb || (user?.isAdmin != true)) return;
+
     final l10n = AppLocalizations.of(context)!;
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['xlsx'],
+        allowedExtensions: ['xlsx', 'xls'],
+        withData: true,
       );
 
       if (result == null || result.files.isEmpty) {
@@ -802,52 +1318,24 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
       );
 
       final importedProducts = ExcelHelper.parseProducts(bytes);
-      final productRepo = ref.read(productRepositoryProvider);
-      final inventoryRepo = ref.read(inventoryRepositoryProvider);
-      final now = DateTime.now();
-
-      int addedCount = 0;
-      int updatedCount = 0;
-
-      for (final product in importedProducts) {
-        final existing = await productRepo.fetchById(product.id);
-        if (existing != null) {
-          final merged = product.copyWith(
-            branchStocks: existing.branchStocks,
-            imageUrl: existing.imageUrl,
-          );
-          await productRepo.upsert(merged);
-          updatedCount++;
-        } else {
-          await productRepo.upsert(product);
-          for (final entry in product.branchStocks.entries) {
-            if (entry.value > 0) {
-              final tx = InventoryTransaction(
-                id: 'import_${now.millisecondsSinceEpoch}_${product.id}_${entry.key}',
-                productId: product.id,
-                type: TransactionType.import,
-                quantity: entry.value,
-                date: now,
-                note: 'Nhập tồn đầu kỳ từ file Excel (${entry.key})',
-                importPrice: product.costPrice,
-                storeId: entry.key,
+      final currentStoreId = ref.read(currentStoreIdProvider);
+      final importResult =
+          await ref.read(importProductsUseCaseProvider).execute(
+                products: importedProducts,
+                targetStoreId: currentStoreId,
               );
-              await inventoryRepo.record(tx);
-            }
-          }
-          addedCount++;
-        }
-      }
 
       ref.invalidate(productListProvider);
 
       if (mounted) {
-        Navigator.of(context).pop();
+        if (Navigator.of(context).canPop()) {
+          Navigator.of(context).pop();
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-                '${l10n.importSuccess} (Thêm: $addedCount, Sửa: $updatedCount)'),
-            backgroundColor: Colors.green,
+            content: Text(importResult.toSummaryString()),
+            backgroundColor:
+                importResult.errors > 0 ? AppColors.warning : AppColors.success,
           ),
         );
       }
@@ -859,7 +1347,7 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('${l10n.importError}: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppColors.danger,
           ),
         );
       }
@@ -867,6 +1355,9 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
   }
 
   Future<void> _exportProducts() async {
+    final user = ref.read(authProvider);
+    if (!kIsWeb || (user?.isAdmin != true)) return;
+
     final l10n = AppLocalizations.of(context)!;
     try {
       final productsAsync = ref.read(productListProvider);
@@ -876,27 +1367,28 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
       );
 
       if (products.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.noDataToExport)),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l10n.noDataToExport)),
+          );
+        }
         return;
       }
 
+      if (!mounted) return;
       showDialog(
         context: context,
         barrierDismissible: false,
         builder: (_) => const Center(child: CircularProgressIndicator()),
       );
 
-      final file = await ExcelHelper.exportProducts(products);
+      final bytes = await ExcelHelper.exportProducts(products);
 
       if (mounted) {
-        Navigator.of(context).pop();
-
-        await Share.shareXFiles(
-          [XFile(file.path)],
-          subject: 'Danh sách sản phẩm',
-        );
+        if (Navigator.of(context).canPop()) {
+          Navigator.of(context).pop();
+        }
+        await saveExcelFile(bytes, 'DanhSachSanPham_Export.xlsx');
       }
     } catch (e) {
       if (mounted) {
@@ -906,12 +1398,18 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Lỗi xuất file: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppColors.danger,
           ),
         );
       }
     }
   }
+
+  @visibleForTesting
+  Future<void> testImportProducts() => _importProducts();
+
+  @visibleForTesting
+  Future<void> testExportProducts() => _exportProducts();
 
   Future<void> _autoAssignSampleImages() async {
     final productsAsync = ref.read(productListProvider);
@@ -998,7 +1496,7 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Đã tự động gán ảnh thành công cho $count sản phẩm!'),
-            backgroundColor: Colors.green,
+            backgroundColor: AppColors.success,
             duration: const Duration(seconds: 4),
           ),
         );
@@ -1011,7 +1509,7 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Có lỗi xảy ra: $e (Đã gán được $count sản phẩm)'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppColors.danger,
           ),
         );
       }

@@ -27,9 +27,7 @@ class SupplierListTile extends ConsumerWidget {
         leading: CircleAvatar(
           backgroundColor: AppColors.primary.withOpacity(0.1),
           child: Text(
-            supplier.name.isNotEmpty
-                ? supplier.name[0].toUpperCase()
-                : 'N',
+            supplier.name.isNotEmpty ? supplier.name[0].toUpperCase() : 'N',
             style: const TextStyle(
               color: AppColors.primary,
               fontWeight: FontWeight.bold,
@@ -44,7 +42,7 @@ class SupplierListTile extends ConsumerWidget {
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 15,
-                  color: Colors.black87,
+                  color: AppColors.textPrimary,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -124,7 +122,7 @@ class SupplierListTile extends ConsumerWidget {
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 13,
-                color: Colors.black87,
+                color: AppColors.textPrimary,
               ),
             ),
             const SizedBox(height: 4),

@@ -49,7 +49,8 @@ class AttendanceAdjustmentModel {
     };
   }
 
-  factory AttendanceAdjustmentModel.fromMap(Map<dynamic, dynamic> map, {String? id}) {
+  factory AttendanceAdjustmentModel.fromMap(Map<dynamic, dynamic> map,
+      {String? id}) {
     return AttendanceAdjustmentModel(
       id: id ?? map['id']?.toString() ?? '',
       attendanceId: map['attendanceId']?.toString() ?? '',

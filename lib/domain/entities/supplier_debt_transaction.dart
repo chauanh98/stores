@@ -61,10 +61,13 @@ class SupplierDebtTransaction {
   final String supplierId;
   final DateTime date;
   final SupplierDebtType type;
+
   /// Biến động nợ (+ tăng nợ NCC, - giảm nợ NCC)
   final double amount;
+
   /// Dư nợ còn lại sau giao dịch
   final double remainingDebt;
+
   /// Mã tham chiếu (mã phiếu nhập, mã phiếu chi,...)
   final String? referenceCode;
   final String? note;

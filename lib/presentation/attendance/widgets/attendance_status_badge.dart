@@ -36,27 +36,30 @@ class AttendanceStatusBadge extends StatelessWidget {
     } else {
       switch (status) {
         case AttendanceStatus.onTime:
-          bg = AppColors.successLight;
-          fg = AppColors.success;
+          bg = AppColors.attendanceOnTimeBg;
+          fg = AppColors.attendanceOnTimeText;
           label = 'Đúng giờ';
           icon = Icons.check_circle_outline;
           break;
         case AttendanceStatus.late:
-          bg = AppColors.warningLight;
-          fg = const Color(0xFFB45309);
+          bg = AppColors.attendanceLateBg;
+          fg = AppColors.attendanceLateText;
           label = lateMinutes > 0 ? 'Muộn $lateMinutes phút' : 'Đi muộn';
           icon = Icons.warning_amber_rounded;
           break;
         case AttendanceStatus.earlyLeave:
-          bg = const Color(0xFFFFEDD5);
-          fg = const Color(0xFFC2410C);
-          label = earlyLeaveMinutes > 0 ? 'Về sớm $earlyLeaveMinutes phút' : 'Về sớm';
+          bg = AppColors.attendanceEarlyLeaveBg;
+          fg = AppColors.attendanceEarlyLeaveText;
+          label = earlyLeaveMinutes > 0
+              ? 'Về sớm $earlyLeaveMinutes phút'
+              : 'Về sớm';
           icon = Icons.directions_walk;
           break;
         case AttendanceStatus.overtime:
           bg = AppColors.supervisorLight;
           fg = AppColors.supervisor;
-          label = overtimeMinutes > 0 ? 'Tăng ca $overtimeMinutes phút' : 'Tăng ca';
+          label =
+              overtimeMinutes > 0 ? 'Tăng ca $overtimeMinutes phút' : 'Tăng ca';
           icon = Icons.more_time;
           break;
       }

@@ -1,3 +1,4 @@
+import '../../../core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -160,9 +161,9 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.error, size: 64, color: Colors.red),
+                const Icon(Icons.error, size: 64, color: AppColors.danger),
                 const SizedBox(height: 16),
-                Text('Error: $error'),
+                Text('Lỗi: $error'),
                 ElevatedButton(
                   onPressed: () =>
                       ref.invalidate(revenueByDateProvider(_selectedDate)),
@@ -207,9 +208,9 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.error, size: 64, color: Colors.red),
+                const Icon(Icons.error, size: 64, color: AppColors.danger),
                 const SizedBox(height: 16),
-                Text('Error: $error'),
+                Text('Lỗi: $error'),
                 ElevatedButton(
                   onPressed: () => ref.invalidate(
                       revenueByDateRangeProvider(_selectedDateRange!)),
@@ -247,7 +248,7 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
                     l10n.revenue,
                     NumberFormat.currency(locale: 'vi_VN', symbol: 'đ')
                         .format(report.totalRevenue),
-                    Colors.green,
+                    AppColors.success,
                     Icons.attach_money,
                   ),
                 ),
@@ -258,7 +259,7 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
                       l10n.expense,
                       NumberFormat.currency(locale: 'vi_VN', symbol: 'đ')
                           .format(report.totalCost),
-                      Colors.red,
+                      AppColors.danger,
                       Icons.shopping_cart,
                     ),
                   ),
@@ -274,7 +275,9 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
                       l10n.profit,
                       NumberFormat.currency(locale: 'vi_VN', symbol: 'đ')
                           .format(report.profit),
-                      report.profit >= 0 ? Colors.blue : Colors.orange,
+                      report.profit >= 0
+                          ? AppColors.primary
+                          : AppColors.warning,
                       Icons.trending_up,
                     ),
                   ),
@@ -284,7 +287,7 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
                   child: _buildMetricCard(
                     l10n.orders,
                     '${report.totalOrders}',
-                    Colors.purple,
+                    AppColors.supervisor,
                     Icons.receipt,
                   ),
                 ),
@@ -320,7 +323,7 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
                     l10n.totalRevenue,
                     NumberFormat.currency(locale: 'vi_VN', symbol: 'đ')
                         .format(summary.totalRevenue),
-                    Colors.green,
+                    AppColors.success,
                     Icons.attach_money,
                   ),
                 ),
@@ -331,7 +334,7 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
                       l10n.totalExpense,
                       NumberFormat.currency(locale: 'vi_VN', symbol: 'đ')
                           .format(summary.totalCost),
-                      Colors.red,
+                      AppColors.danger,
                       Icons.shopping_cart,
                     ),
                   ),
@@ -347,7 +350,9 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
                       l10n.totalProfit,
                       NumberFormat.currency(locale: 'vi_VN', symbol: 'đ')
                           .format(summary.totalProfit),
-                      summary.totalProfit >= 0 ? Colors.blue : Colors.orange,
+                      summary.totalProfit >= 0
+                          ? AppColors.primary
+                          : AppColors.warning,
                       Icons.trending_up,
                     ),
                   ),
@@ -357,7 +362,7 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
                   child: _buildMetricCard(
                     l10n.totalOrders,
                     '${summary.totalOrders}',
-                    Colors.purple,
+                    AppColors.supervisor,
                     Icons.receipt,
                   ),
                 ),
@@ -414,12 +419,13 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
             padding: const EdgeInsets.all(24),
             child: Column(
               children: [
-                Icon(Icons.inventory_2, size: 48, color: Colors.grey[400]),
+                const Icon(Icons.inventory_2,
+                    size: 48, color: AppColors.grey400),
                 const SizedBox(height: 8),
                 Text(
                   l10n.notFound,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: Colors.grey[600],
+                        color: AppColors.grey600,
                       ),
                 ),
               ],
@@ -501,7 +507,9 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
                   Text(
                     '${l10n.profit}: ${NumberFormat.currency(locale: 'vi_VN', symbol: 'đ').format(pr.profit)}',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: pr.profit >= 0 ? Colors.green : Colors.red,
+                          color: pr.profit >= 0
+                              ? AppColors.success
+                              : AppColors.danger,
                           fontWeight: FontWeight.w600,
                         ),
                     textAlign: TextAlign.right,
@@ -510,7 +518,9 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
                   Text(
                     '${pr.profitMargin.toStringAsFixed(1)}%',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: pr.profit >= 0 ? Colors.green : Colors.red,
+                          color: pr.profit >= 0
+                              ? AppColors.success
+                              : AppColors.danger,
                         ),
                     textAlign: TextAlign.right,
                   ),
@@ -575,7 +585,7 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
               NumberFormat.currency(locale: 'vi_VN', symbol: 'đ')
                   .format(report.totalRevenue),
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.green,
+                    color: AppColors.success,
                     fontWeight: FontWeight.w600,
                   ),
             ),
@@ -585,7 +595,9 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
                 NumberFormat.currency(locale: 'vi_VN', symbol: 'đ')
                     .format(report.profit),
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: report.profit >= 0 ? Colors.blue : Colors.red,
+                      color: report.profit >= 0
+                          ? AppColors.primary
+                          : AppColors.danger,
                       fontWeight: FontWeight.w600,
                     ),
               ),

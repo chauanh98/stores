@@ -35,7 +35,7 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
       appBar: AppBar(
         title: Text(l10n.newCategoryTitle,
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.save, color: AppColors.primary),
@@ -67,7 +67,7 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
                               style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 14,
-                                  color: Colors.black87),
+                                  color: AppColors.textPrimary),
                             ),
                             const SizedBox(height: 16),
                             // Tên nhóm
@@ -92,12 +92,13 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
                               contentPadding: EdgeInsets.zero,
                               title: Text(l10n.parentCategoryLabel,
                                   style: const TextStyle(
-                                      fontSize: 13, color: Colors.black54)),
+                                      fontSize: 13,
+                                      color: AppColors.textSecondary)),
                               subtitle: Text(
                                 _parentCategory?.name ?? l10n.notFound,
                                 style: const TextStyle(
                                     fontWeight: FontWeight.bold,
-                                    color: Colors.black87,
+                                    color: AppColors.textPrimary,
                                     fontSize: 15),
                               ),
                               trailing: const Icon(Icons.chevron_right),

@@ -109,9 +109,8 @@ void main() {
           reason: 'Admin MUST be able to manage VietQR (R2)');
       expect(admin.canViewDebtSummary, isTrue,
           reason: 'Admin MUST be able to view customer debt summary (R2)');
-      expect(admin.canViewCostPrice, isFalse,
-          reason:
-              'Admin CANNOT view cost price/gross profit under any circumstance (R2)');
+      expect(admin.canViewCostPrice, isTrue,
+          reason: 'Admin CAN view cost price/gross profit (Store Owner)');
 
       // Other admin permissions
       expect(admin.canManageProducts, isTrue);
@@ -127,19 +126,19 @@ void main() {
         storeId: 'store_001',
       );
 
-      // Core requirements for Supervisor: all 4 permissions TRUE
-      expect(sup.isAdmin, isTrue);
+      // Core requirements for Supervisor
+      expect(sup.isAdmin, isFalse);
       expect(sup.isSupervisor, isTrue);
       expect(sup.isStaff, isFalse);
       expect(sup.canSwitchStore, isTrue);
-      expect(sup.canManagePaymentConfig, isTrue);
+      expect(sup.canManagePaymentConfig, isFalse);
       expect(sup.canViewDebtSummary, isTrue);
       expect(sup.canViewCostPrice, isTrue);
 
       // Other supervisor permissions
       expect(sup.canManageProducts, isTrue);
-      expect(sup.canDeleteInvoice, isTrue);
-      expect(sup.canDeleteCustomer, isTrue);
+      expect(sup.canDeleteInvoice, isFalse);
+      expect(sup.canDeleteCustomer, isFalse);
       expect(sup.canEditPriceAndDiscount, isTrue);
     });
 
@@ -168,13 +167,13 @@ void main() {
 
     test('4. Role casing variations & trimming', () {
       final roleCases = [
-        ('ADMIN', true, false, true, true, true, false),
-        ('Admin', true, false, true, true, true, false),
-        ('aDmIn', true, false, true, true, true, false),
-        ('  admin \n', true, false, true, true, true, false),
-        ('SUPERVISOR', true, true, true, true, true, true),
-        ('Supervisor', true, true, true, true, true, true),
-        ('  supervisor\t', true, true, true, true, true, true),
+        ('ADMIN', true, false, true, true, true, true),
+        ('Admin', true, false, true, true, true, true),
+        ('aDmIn', true, false, true, true, true, true),
+        ('  admin \n', true, false, true, true, true, true),
+        ('SUPERVISOR', false, true, true, false, true, true),
+        ('Supervisor', false, true, true, false, true, true),
+        ('  supervisor\t', false, true, true, false, true, true),
         ('NHANVIEN', false, false, false, false, false, false),
         ('NhanVien', false, false, false, false, false, false),
         (' nhanvien ', false, false, false, false, false, false),
@@ -220,7 +219,6 @@ void main() {
         'root',
         'superuser',
         'ADMINISTRATOR',
-        'owner',
         'boss',
         'cashier',
         'staff',
@@ -260,8 +258,12 @@ void main() {
         <dynamic, dynamic>{'role': null},
         <dynamic, dynamic>{'role': 12345},
         <dynamic, dynamic>{'role': true},
-        <dynamic, dynamic>{'role': ['admin']},
-        <dynamic, dynamic>{'role': {'admin': true}},
+        <dynamic, dynamic>{
+          'role': ['admin']
+        },
+        <dynamic, dynamic>{
+          'role': {'admin': true}
+        },
       ];
 
       for (final map in malformedInputs) {
@@ -322,13 +324,16 @@ void main() {
     });
   });
 
-  group('Requirement R1 & R2 - OverviewFilterBar Single Row & Branch Interactivity', () {
+  group(
+      'Requirement R1 & R2 - OverviewFilterBar Single Row & Branch Interactivity',
+      () {
     testWidgets('OverviewFilterBar is single-row: quick chip row is eliminated',
         (tester) async {
       await tester.pumpWidget(
         _buildTestApp(
           overrides: [
-            authProvider.overrideWith((ref) => _DynamicAuthNotifier(mockAdminUser)),
+            authProvider
+                .overrideWith((ref) => _DynamicAuthNotifier(mockAdminUser)),
           ],
           child: const OverviewFilterBar(),
         ),
@@ -336,11 +341,11 @@ void main() {
       await tester.pumpAndSettle();
 
       // Main bar shows Date Range selector & Branch selector
-      expect(find.text('Tháng này'), findsOneWidget);
+      expect(find.text('Hôm nay'), findsOneWidget);
       expect(find.text('Tất cả chi nhánh'), findsOneWidget);
 
       // Redundant quick filter chips are NOT in the main bar row
-      expect(find.text('Hôm nay'), findsNothing);
+      expect(find.text('Tháng này'), findsNothing);
       expect(find.text('Hôm qua'), findsNothing);
       expect(find.text('7 ngày qua'), findsNothing);
       expect(find.text('Tháng trước'), findsNothing);
@@ -352,7 +357,8 @@ void main() {
       await tester.pumpWidget(
         _buildTestApp(
           overrides: [
-            authProvider.overrideWith((ref) => _DynamicAuthNotifier(mockAdminUser)),
+            authProvider
+                .overrideWith((ref) => _DynamicAuthNotifier(mockAdminUser)),
           ],
           child: const OverviewFilterBar(),
         ),
@@ -375,13 +381,13 @@ void main() {
     });
 
     testWidgets(
-        'Supervisor: Branch selector is interactive and opens branch picker bottom sheet',
+        'Admin: Branch selector is interactive and opens branch picker bottom sheet',
         (tester) async {
       await tester.pumpWidget(
         _buildTestApp(
           overrides: [
             authProvider
-                .overrideWith((ref) => _DynamicAuthNotifier(mockSupervisorUser)),
+                .overrideWith((ref) => _DynamicAuthNotifier(mockAdminUser)),
           ],
           child: const OverviewFilterBar(),
         ),
@@ -402,7 +408,8 @@ void main() {
       await tester.pumpWidget(
         _buildTestApp(
           overrides: [
-            authProvider.overrideWith((ref) => _DynamicAuthNotifier(mockStaffUser)),
+            authProvider
+                .overrideWith((ref) => _DynamicAuthNotifier(mockStaffUser)),
           ],
           child: const OverviewFilterBar(),
         ),
@@ -426,14 +433,17 @@ void main() {
     });
   });
 
-  group('Requirement R2 - KPIMetricsSection Gross Profit & Debt Summary Isolation', () {
+  group(
+      'Requirement R2 - KPIMetricsSection Gross Profit & Debt Summary Isolation',
+      () {
     testWidgets(
-        'Admin: Debt summary IS visible, Gross Profit is STRICTLY HIDDEN',
+        'Admin: Debt summary IS visible, Gross Profit IS VISIBLE and toggleable',
         (tester) async {
       await tester.pumpWidget(
         _buildTestApp(
           overrides: [
-            authProvider.overrideWith((ref) => _DynamicAuthNotifier(mockAdminUser)),
+            authProvider
+                .overrideWith((ref) => _DynamicAuthNotifier(mockAdminUser)),
             profitVisibilityProvider.overrideWith((ref) => true),
             overviewKPIsProvider
                 .overrideWith((ref) => const AsyncValue.data(standardKPIs)),
@@ -445,22 +455,18 @@ void main() {
 
       // Net revenue visible
       expect(find.text('Doanh thu thuần'), findsOneWidget);
-      expect(
-          find.text('${currencyFormat.format(standardKPIs.netRevenue)} đ'),
+      expect(find.text('${currencyFormat.format(standardKPIs.netRevenue)} đ'),
           findsOneWidget);
 
-      // Gross profit STRICTLY HIDDEN
-      expect(find.text('Lợi nhuận gộp'), findsNothing);
-      expect(
-          find.text('${currencyFormat.format(standardKPIs.grossProfit)} đ'),
-          findsNothing);
-      expect(find.byIcon(Icons.visibility_outlined), findsNothing);
-      expect(find.byIcon(Icons.visibility_off_outlined), findsNothing);
+      // Gross profit VISIBLE
+      expect(find.text('Lợi nhuận gộp'), findsOneWidget);
+      expect(find.text('${currencyFormat.format(standardKPIs.grossProfit)} đ'),
+          findsOneWidget);
+      expect(find.byIcon(Icons.visibility_outlined), findsOneWidget);
 
       // Customer debt summary IS VISIBLE
       expect(find.text('Công nợ khách hàng cần thu'), findsOneWidget);
-      expect(
-          find.text('${currencyFormat.format(standardKPIs.customerDebt)} đ'),
+      expect(find.text('${currencyFormat.format(standardKPIs.customerDebt)} đ'),
           findsOneWidget);
       expect(find.text('Sổ nợ'), findsOneWidget);
     });
@@ -471,8 +477,8 @@ void main() {
       await tester.pumpWidget(
         _buildTestApp(
           overrides: [
-            authProvider
-                .overrideWith((ref) => _DynamicAuthNotifier(mockSupervisorUser)),
+            authProvider.overrideWith(
+                (ref) => _DynamicAuthNotifier(mockSupervisorUser)),
             profitVisibilityProvider.overrideWith((ref) => true),
             overviewKPIsProvider
                 .overrideWith((ref) => const AsyncValue.data(standardKPIs)),
@@ -485,8 +491,7 @@ void main() {
       // Both visible
       expect(find.text('Doanh thu thuần'), findsOneWidget);
       expect(find.text('Lợi nhuận gộp'), findsOneWidget);
-      expect(
-          find.text('${currencyFormat.format(standardKPIs.grossProfit)} đ'),
+      expect(find.text('${currencyFormat.format(standardKPIs.grossProfit)} đ'),
           findsOneWidget);
       expect(find.text('Công nợ khách hàng cần thu'), findsOneWidget);
 
@@ -498,13 +503,13 @@ void main() {
       expect(find.byIcon(Icons.visibility_off_outlined), findsOneWidget);
     });
 
-    testWidgets(
-        'Staff: BOTH Debt summary and Gross Profit are STRICTLY HIDDEN',
+    testWidgets('Staff: BOTH Debt summary and Gross Profit are STRICTLY HIDDEN',
         (tester) async {
       await tester.pumpWidget(
         _buildTestApp(
           overrides: [
-            authProvider.overrideWith((ref) => _DynamicAuthNotifier(mockStaffUser)),
+            authProvider
+                .overrideWith((ref) => _DynamicAuthNotifier(mockStaffUser)),
             profitVisibilityProvider.overrideWith((ref) => true),
             overviewKPIsProvider
                 .overrideWith((ref) => const AsyncValue.data(standardKPIs)),
@@ -519,14 +524,12 @@ void main() {
 
       // Gross profit HIDDEN
       expect(find.text('Lợi nhuận gộp'), findsNothing);
-      expect(
-          find.text('${currencyFormat.format(standardKPIs.grossProfit)} đ'),
+      expect(find.text('${currencyFormat.format(standardKPIs.grossProfit)} đ'),
           findsNothing);
 
       // Debt summary HIDDEN
       expect(find.text('Công nợ khách hàng cần thu'), findsNothing);
-      expect(
-          find.text('${currencyFormat.format(standardKPIs.customerDebt)} đ'),
+      expect(find.text('${currencyFormat.format(standardKPIs.customerDebt)} đ'),
           findsNothing);
     });
   });
@@ -537,7 +540,8 @@ void main() {
       await tester.pumpWidget(
         _buildTestApp(
           overrides: [
-            authProvider.overrideWith((ref) => _DynamicAuthNotifier(mockAdminUser)),
+            authProvider
+                .overrideWith((ref) => _DynamicAuthNotifier(mockAdminUser)),
             currentStoreNameProvider
                 .overrideWith((ref) async => 'Chi nhánh Đông Thắng'),
             availableStoresProvider.overrideWith((ref) async => {
@@ -560,41 +564,38 @@ void main() {
       expect(find.text('CHUYỂN ĐỔI CỬA HÀNG'), findsOneWidget);
     });
 
-    testWidgets('Supervisor: VietQR config is accessible on MorePage',
+    testWidgets(
+        'Supervisor: VietQR config and Store Switching are HIDDEN on MorePage',
+        (tester) async {
+      await tester.pumpWidget(
+        _buildTestApp(
+          overrides: [
+            authProvider.overrideWith(
+                (ref) => _DynamicAuthNotifier(mockSupervisorUser)),
+            currentStoreNameProvider
+                .overrideWith((ref) async => 'Chi nhánh Đông Thắng'),
+            availableStoresProvider.overrideWith((ref) async => {
+                  'store_001': 'Chi nhánh Đông Thắng',
+                  'store_002': 'Chi nhánh Thời Bình',
+                }),
+          ],
+          child: const MorePage(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Cấu hình VietQR'), findsNothing);
+      expect(find.text('CHUYỂN ĐỔI CỬA HÀNG'), findsNothing);
+    });
+
+    testWidgets(
+        'Staff: VietQR config and Store Switching are HIDDEN on MorePage',
         (tester) async {
       await tester.pumpWidget(
         _buildTestApp(
           overrides: [
             authProvider
-                .overrideWith((ref) => _DynamicAuthNotifier(mockSupervisorUser)),
-            currentStoreNameProvider
-                .overrideWith((ref) async => 'Chi nhánh Đông Thắng'),
-            availableStoresProvider.overrideWith((ref) async => {
-                  'store_001': 'Chi nhánh Đông Thắng',
-                  'store_002': 'Chi nhánh Thời Bình',
-                }),
-          ],
-          child: const MorePage(),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.text('Cấu hình VietQR'), findsOneWidget);
-
-      await tester.scrollUntilVisible(
-        find.text('CHUYỂN ĐỔI CỬA HÀNG'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-      expect(find.text('CHUYỂN ĐỔI CỬA HÀNG'), findsOneWidget);
-    });
-
-    testWidgets('Staff: VietQR config and Store Switching are HIDDEN on MorePage',
-        (tester) async {
-      await tester.pumpWidget(
-        _buildTestApp(
-          overrides: [
-            authProvider.overrideWith((ref) => _DynamicAuthNotifier(mockStaffUser)),
+                .overrideWith((ref) => _DynamicAuthNotifier(mockStaffUser)),
             currentStoreNameProvider
                 .overrideWith((ref) async => 'Chi nhánh Đông Thắng'),
             availableStoresProvider.overrideWith((ref) async => {
@@ -621,7 +622,8 @@ void main() {
       await tester.pumpWidget(
         _buildTestApp(
           overrides: [
-            authProvider.overrideWith((ref) => _DynamicAuthNotifier(mockStaffUser)),
+            authProvider
+                .overrideWith((ref) => _DynamicAuthNotifier(mockStaffUser)),
             storePaymentConfigProvider.overrideWithValue(mockConfig),
           ],
           child: const StorePaymentSettingsPage(),
@@ -646,7 +648,8 @@ void main() {
       await tester.pumpWidget(
         _buildTestApp(
           overrides: [
-            authProvider.overrideWith((ref) => _DynamicAuthNotifier(mockAdminUser)),
+            authProvider
+                .overrideWith((ref) => _DynamicAuthNotifier(mockAdminUser)),
             storePaymentConfigProvider.overrideWithValue(mockConfig),
           ],
           child: const StorePaymentSettingsPage(),
@@ -659,7 +662,8 @@ void main() {
     });
   });
 
-  group('Adversarial Stress Test: Rapid Live Role Transitions (50+ switches)', () {
+  group('Adversarial Stress Test: Rapid Live Role Transitions (50+ switches)',
+      () {
     testWidgets(
         'Mounted tree handles rapid live switches between Supervisor, Admin, Staff and Unknown roles without error',
         (tester) async {
@@ -721,7 +725,7 @@ void main() {
           expect(find.text('Công nợ khách hàng cần thu'), findsOneWidget);
         } else if (currentRole.isAdmin) {
           expect(find.text('Admin'), findsOneWidget);
-          expect(find.text('Lợi nhuận gộp'), findsNothing);
+          expect(find.text('Lợi nhuận gộp'), findsOneWidget);
           expect(find.text('Công nợ khách hàng cần thu'), findsOneWidget);
         } else {
           expect(find.text('Admin'), findsNothing);

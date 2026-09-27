@@ -65,7 +65,8 @@ class SupplierDebtTransactionModel {
     );
   }
 
-  factory SupplierDebtTransactionModel.fromDomain(SupplierDebtTransaction domain) {
+  factory SupplierDebtTransactionModel.fromDomain(
+      SupplierDebtTransaction domain) {
     return SupplierDebtTransactionModel(
       id: domain.id,
       supplierId: domain.supplierId,

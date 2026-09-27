@@ -64,7 +64,8 @@ Widget _buildTestApp({
 }) {
   return ProviderScope(
     overrides: [
-      authProvider.overrideWith((ref) => _FakeAuthNotifier(const UserAccount(
+      authProvider.overrideWith((ref) =>
+          _FakeAuthNotifier(const UserAccount(
             username: 'admin_01',
             displayName: 'Quản trị viên',
             role: 'admin',
@@ -72,10 +73,11 @@ Widget _buildTestApp({
           ))),
       currentStoreIdProvider.overrideWith((ref) => 'store_001'),
       branchesProvider.overrideWithValue(_defaultBranches),
-      availableStoresProvider.overrideWith((ref) async => {
-            'store_001': 'Chi nhánh Đông Thắng',
-            'store_002': 'Chi nhánh Thời Bình',
-          }),
+      availableStoresProvider.overrideWith((ref) async =>
+      {
+        'store_001': 'Chi nhánh Đông Thắng',
+        'store_002': 'Chi nhánh Thời Bình',
+      }),
       ...overrides,
     ],
     child: MaterialApp(
@@ -214,7 +216,7 @@ void main() {
       quantity: 8,
       date: DateTime(2026, 8, 16, 11, 0),
       note:
-          'Cân bằng kho trực tiếp (Tồn cũ: 10 -> Tồn mới: 18, chênh lệch: +8)',
+      'Cân bằng kho trực tiếp (Tồn cũ: 10 -> Tồn mới: 18, chênh lệch: +8)',
       importPrice: 11000,
       createdBy: 'supervisor_01',
       createdByName: 'Chủ chuỗi Cửa hàng',
@@ -222,708 +224,742 @@ void main() {
   ];
 
   group('Milestone 4: Product Information Card & Converted Units Display', () {
-    testWidgets('Renders all product details (SKU, barcode, brand, category, base unit, image)',
-        (tester) async {
-      tester.view.physicalSize = const Size(1000, 2400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
+    testWidgets(
+        'Renders all product details (SKU, barcode, brand, category, base unit, image)',
+            (tester) async {
+          tester.view.physicalSize = const Size(1000, 2400);
+          tester.view.devicePixelRatio = 1.0;
+          addTearDown(tester.view.resetPhysicalSize);
 
-      await tester.pumpWidget(
-        _buildTestApp(
-          child: ProductDetailPage(product: sampleProduct),
-          overrides: [
-            authProvider
-                .overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
-            productListProvider
-                .overrideWith((ref) => Stream.value([sampleProduct])),
-            transactionsByProductProvider(sampleProduct.id)
-                .overrideWith((ref) => Stream.value(sampleTransactions)),
-          ],
-        ),
-      );
-      await tester.pumpAndSettle();
+          await tester.pumpWidget(
+            _buildTestApp(
+              child: ProductDetailPage(product: sampleProduct),
+              overrides: [
+                authProvider
+                    .overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
+                productListProvider
+                    .overrideWith((ref) => Stream.value([sampleProduct])),
+                transactionsByProductProvider(sampleProduct.id)
+                    .overrideWith((ref) => Stream.value(sampleTransactions)),
+              ],
+            ),
+          );
+          await tester.pumpAndSettle();
 
-      // Product Header
-      expect(find.text('Bia Saigon Special 330ml'), findsWidgets);
-      expect(find.text('Còn hàng (80)'), findsOneWidget);
+          // Product Header
+          expect(find.text('Bia Saigon Special 330ml'), findsWidgets);
+          expect(find.text('Còn hàng (80)'), findsOneWidget);
 
-      // Basic info card rows
-      expect(find.text('Mã hàng'), findsOneWidget);
-      expect(find.text('BSG01'), findsWidgets);
-      expect(find.text('Mã vạch'), findsWidgets);
-      expect(find.text('893111111001'), findsOneWidget);
-      expect(find.text('Thương hiệu'), findsOneWidget);
-      expect(find.text('Sabeco'), findsWidgets);
-      expect(find.text('Nhóm hàng'), findsOneWidget);
-      expect(find.text('Bách hóa >> Đồ uống >> Bia & Rượu'), findsOneWidget);
-      expect(find.text('Đơn vị cơ bản'), findsOneWidget);
-      expect(find.text('Lon'), findsOneWidget);
-      expect(find.text('Giá bán'), findsOneWidget);
-      expect(find.text('15.000 đ'), findsOneWidget);
+          // Basic info card rows
+          expect(find.text('Mã hàng'), findsOneWidget);
+          expect(find.text('BSG01'), findsWidgets);
+          expect(find.text('Mã vạch'), findsWidgets);
+          expect(find.text('893111111001'), findsOneWidget);
+          expect(find.text('Thương hiệu'), findsOneWidget);
+          expect(find.text('Sabeco'), findsWidgets);
+          expect(find.text('Nhóm hàng'), findsOneWidget);
+          expect(
+              find.text('Bách hóa >> Đồ uống >> Bia & Rượu'), findsOneWidget);
+          expect(find.text('Đơn vị cơ bản'), findsOneWidget);
+          expect(find.text('Lon'), findsOneWidget);
+          expect(find.text('Giá bán'), findsOneWidget);
+          expect(find.text('15.000 đ'), findsOneWidget);
 
-      // Converted Units Table
-      expect(find.text('Đơn vị tính quy đổi'), findsOneWidget);
-      expect(find.text('2 đơn vị'), findsOneWidget);
-      expect(find.text('Lốc (6 lon)'), findsOneWidget);
-      expect(find.text('1 Lốc (6 lon) = 6 Lon'), findsOneWidget);
-      expect(find.text('88.000 đ'), findsOneWidget);
-      expect(find.text('Thùng (24 lon)'), findsOneWidget);
-      expect(find.text('1 Thùng (24 lon) = 24 Lon'), findsOneWidget);
-      expect(find.text('345.000 đ'), findsOneWidget);
-    });
+          // Converted Units Table
+          expect(find.text('Đơn vị tính quy đổi'), findsOneWidget);
+          expect(find.text('2 đơn vị'), findsOneWidget);
+          expect(find.text('Lốc (6 lon)'), findsOneWidget);
+          expect(find.text('1 Lốc (6 lon) = 6 Lon'), findsOneWidget);
+          expect(find.text('88.000 đ'), findsOneWidget);
+          expect(find.text('Thùng (24 lon)'), findsOneWidget);
+          expect(find.text('1 Thùng (24 lon) = 24 Lon'), findsOneWidget);
+          expect(find.text('345.000 đ'), findsOneWidget);
+        });
 
     testWidgets('Renders combo components card when product is combo',
-        (tester) async {
-      tester.view.physicalSize = const Size(1000, 2400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
+            (tester) async {
+          tester.view.physicalSize = const Size(1000, 2400);
+          tester.view.devicePixelRatio = 1.0;
+          addTearDown(tester.view.resetPhysicalSize);
 
-      await tester.pumpWidget(
-        _buildTestApp(
-          child: const ProductDetailPage(product: sampleComboProduct),
-          overrides: [
-            authProvider
-                .overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
-            productListProvider
-                .overrideWith((ref) => Stream.value([sampleProduct, sampleComboProduct])),
-            transactionsByProductProvider(sampleComboProduct.id)
-                .overrideWith((ref) => Stream.value([])),
-          ],
-        ),
-      );
-      await tester.pumpAndSettle();
+          await tester.pumpWidget(
+            _buildTestApp(
+              child: const ProductDetailPage(product: sampleComboProduct),
+              overrides: [
+                authProvider
+                    .overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
+                productListProvider
+                    .overrideWith((ref) =>
+                    Stream.value([sampleProduct, sampleComboProduct])),
+                transactionsByProductProvider(sampleComboProduct.id)
+                    .overrideWith((ref) => Stream.value([])),
+              ],
+            ),
+          );
+          await tester.pumpAndSettle();
 
-      expect(find.text('COMBO'), findsOneWidget);
-      expect(find.text('Thành phần trong Combo'), findsOneWidget);
-      expect(find.text('1 món'), findsOneWidget);
-      expect(find.text('x4'), findsOneWidget);
-      expect(find.text('Bia Saigon Special 330ml'), findsOneWidget);
-    });
+          expect(find.text('COMBO'), findsOneWidget);
+          expect(find.text('Thành phần trong Combo'), findsOneWidget);
+          expect(find.text('1 món'), findsOneWidget);
+          expect(find.text('x4'), findsOneWidget);
+          expect(find.text('Bia Saigon Special 330ml'), findsOneWidget);
+        });
   });
 
   group('Milestone 4: Cost Price Security & Dynamic Eye Toggle', () {
     testWidgets('Staff: Cost price is strictly HIDDEN everywhere',
-        (tester) async {
-      tester.view.physicalSize = const Size(1000, 2400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
+            (tester) async {
+          tester.view.physicalSize = const Size(1000, 2400);
+          tester.view.devicePixelRatio = 1.0;
+          addTearDown(tester.view.resetPhysicalSize);
 
-      await tester.pumpWidget(
-        _buildTestApp(
-          child: ProductDetailPage(product: sampleProduct),
-          overrides: [
-            authProvider.overrideWith((ref) => _FakeAuthNotifier(staffUser)),
-            productListProvider
-                .overrideWith((ref) => Stream.value([sampleProduct])),
-            transactionsByProductProvider(sampleProduct.id)
-                .overrideWith((ref) => Stream.value(sampleTransactions)),
-          ],
-        ),
-      );
-      await tester.pumpAndSettle();
+          await tester.pumpWidget(
+            _buildTestApp(
+              child: ProductDetailPage(product: sampleProduct),
+              overrides: [
+                authProvider.overrideWith((ref) =>
+                    _FakeAuthNotifier(staffUser)),
+                productListProvider
+                    .overrideWith((ref) => Stream.value([sampleProduct])),
+                transactionsByProductProvider(sampleProduct.id)
+                    .overrideWith((ref) => Stream.value(sampleTransactions)),
+              ],
+            ),
+          );
+          await tester.pumpAndSettle();
 
-      // In Basic Info Card: No 'Giá vốn' row
-      expect(find.text('Giá vốn'), findsNothing);
-      expect(find.text('11.000 đ'), findsNothing);
+          // In Basic Info Card: No 'Giá vốn' row
+          expect(find.text('Giá vốn'), findsNothing);
+          expect(find.text('11.000 đ'), findsNothing);
 
-      // Eye toggle icon is NOT present for Staff
-      expect(find.byIcon(Icons.visibility_outlined), findsNothing);
-      expect(find.byIcon(Icons.visibility_off_outlined), findsNothing);
+          // Eye toggle icon is NOT present for Staff
+          expect(find.byIcon(Icons.visibility_outlined), findsNothing);
+          expect(find.byIcon(Icons.visibility_off_outlined), findsNothing);
 
-      // In Converted units: No cost prices
-      expect(find.textContaining('Vốn:'), findsNothing);
+          // In Converted units: No cost prices
+          expect(find.textContaining('Vốn:'), findsNothing);
 
-      // In Stock card history: Import price is hidden
-      expect(find.textContaining('Giá nhập:'), findsNothing);
-    });
+          // In Stock card history: Import price is hidden
+          expect(find.textContaining('Giá nhập:'), findsNothing);
+        });
 
-    testWidgets('Admin: Cost price is strictly HIDDEN (canViewCostPrice is false)',
-        (tester) async {
-      tester.view.physicalSize = const Size(1000, 2400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
+    testWidgets(
+        'Admin: Cost price is VISIBLE and has interactive eye toggle (canViewCostPrice is true)',
+            (tester) async {
+          tester.view.physicalSize = const Size(1000, 2400);
+          tester.view.devicePixelRatio = 1.0;
+          addTearDown(tester.view.resetPhysicalSize);
 
-      await tester.pumpWidget(
-        _buildTestApp(
-          child: ProductDetailPage(product: sampleProduct),
-          overrides: [
-            authProvider.overrideWith((ref) => _FakeAuthNotifier(adminUser)),
-            productListProvider
-                .overrideWith((ref) => Stream.value([sampleProduct])),
-            transactionsByProductProvider(sampleProduct.id)
-                .overrideWith((ref) => Stream.value(sampleTransactions)),
-          ],
-        ),
-      );
-      await tester.pumpAndSettle();
+          await tester.pumpWidget(
+            _buildTestApp(
+              child: ProductDetailPage(product: sampleProduct),
+              overrides: [
+                authProvider.overrideWith((ref) =>
+                    _FakeAuthNotifier(adminUser)),
+                productListProvider
+                    .overrideWith((ref) => Stream.value([sampleProduct])),
+                transactionsByProductProvider(sampleProduct.id)
+                    .overrideWith((ref) => Stream.value(sampleTransactions)),
+              ],
+            ),
+          );
+          await tester.pumpAndSettle();
 
-      expect(find.text('Giá vốn'), findsNothing);
-      expect(find.text('11.000 đ'), findsNothing);
-      expect(find.byIcon(Icons.visibility_outlined), findsNothing);
-      expect(find.byIcon(Icons.visibility_off_outlined), findsNothing);
-      expect(find.textContaining('Vốn:'), findsNothing);
-      expect(find.textContaining('Giá nhập:'), findsNothing);
-    });
+          expect(find.text('Giá vốn'), findsOneWidget);
+          expect(find.text('••••••'), findsWidgets);
+          expect(find.text('11.000 đ'), findsNothing);
 
-    testWidgets('Supervisor: Cost price has interactive eye toggle to reveal / mask prices',
-        (tester) async {
-      tester.view.physicalSize = const Size(1000, 2400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
+          // Toggle eye button to show prices
+          final eyeButton = find.byTooltip('Ẩn / Hiện giá vốn');
+          expect(eyeButton, findsOneWidget);
 
-      await tester.pumpWidget(
-        _buildTestApp(
-          child: ProductDetailPage(product: sampleProduct),
-          overrides: [
-            authProvider
-                .overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
-            productListProvider
-                .overrideWith((ref) => Stream.value([sampleProduct])),
-            transactionsByProductProvider(sampleProduct.id)
-                .overrideWith((ref) => Stream.value(sampleTransactions)),
-          ],
-        ),
-      );
-      await tester.pumpAndSettle();
+          await tester.tap(eyeButton);
+          await tester.pumpAndSettle();
 
-      // Supervisor sees 'Giá vốn' row
-      expect(find.text('Giá vốn'), findsOneWidget);
+          // Now cost price is revealed!
+          expect(find.text('11.000 đ'), findsWidgets);
+          expect(find.text('Vốn: 65.000 đ'), findsOneWidget);
+          expect(find.text('Vốn: 260.000 đ'), findsOneWidget);
+        });
 
-      // Initially showCostPriceProvider is false -> displays masked '••••••'
-      expect(find.text('••••••'), findsWidgets);
-      expect(find.text('11.000 đ'), findsNothing);
+    testWidgets(
+        'Supervisor: Cost price has interactive eye toggle to reveal / mask prices',
+            (tester) async {
+          tester.view.physicalSize = const Size(1000, 2400);
+          tester.view.devicePixelRatio = 1.0;
+          addTearDown(tester.view.resetPhysicalSize);
 
-      // Toggle eye button to show prices
-      final eyeButton = find.byTooltip('Ẩn / Hiện giá vốn');
-      expect(eyeButton, findsOneWidget);
+          await tester.pumpWidget(
+            _buildTestApp(
+              child: ProductDetailPage(product: sampleProduct),
+              overrides: [
+                authProvider
+                    .overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
+                productListProvider
+                    .overrideWith((ref) => Stream.value([sampleProduct])),
+                transactionsByProductProvider(sampleProduct.id)
+                    .overrideWith((ref) => Stream.value(sampleTransactions)),
+              ],
+            ),
+          );
+          await tester.pumpAndSettle();
 
-      await tester.tap(eyeButton);
-      await tester.pumpAndSettle();
+          // Supervisor sees 'Giá vốn' row
+          expect(find.text('Giá vốn'), findsOneWidget);
 
-      // Now cost price is revealed!
-      expect(find.text('11.000 đ'), findsWidgets);
-      expect(find.text('Vốn: 65.000 đ'), findsOneWidget); // Unit 1 cost
-      expect(find.text('Vốn: 260.000 đ'), findsOneWidget); // Unit 2 cost
-      expect(find.text('Giá nhập: 11.000 đ'), findsOneWidget); // Transaction import price
+          // Initially showCostPriceProvider is false -> displays masked '••••••'
+          expect(find.text('••••••'), findsWidgets);
+          expect(find.text('11.000 đ'), findsNothing);
 
-      // Toggle eye button again to hide prices
-      await tester.tap(eyeButton);
-      await tester.pumpAndSettle();
+          // Toggle eye button to show prices
+          final eyeButton = find.byTooltip('Ẩn / Hiện giá vốn');
+          expect(eyeButton, findsOneWidget);
 
-      // Prices are masked again
-      expect(find.text('••••••'), findsWidgets);
-      expect(find.text('Vốn: ••••••'), findsNWidgets(2));
-      expect(find.text('Giá nhập: ••••••'), findsOneWidget);
-    });
+          await tester.tap(eyeButton);
+          await tester.pumpAndSettle();
+
+          // Now cost price is revealed!
+          expect(find.text('11.000 đ'), findsWidgets);
+          expect(find.text('Vốn: 65.000 đ'), findsOneWidget); // Unit 1 cost
+          expect(find.text('Vốn: 260.000 đ'), findsOneWidget); // Unit 2 cost
+          expect(find.text('Giá nhập: 11.000 đ'),
+              findsOneWidget); // Transaction import price
+
+          // Toggle eye button again to hide prices
+          await tester.tap(eyeButton);
+          await tester.pumpAndSettle();
+
+          // Prices are masked again
+          expect(find.text('••••••'), findsWidgets);
+          expect(find.text('Vốn: ••••••'), findsNWidgets(2));
+          expect(find.text('Giá nhập: ••••••'), findsOneWidget);
+        });
   });
 
   group('Milestone 4: Inline Branch Stock Allocation Table', () {
     testWidgets('Displays breakdown for all branches and total inventory count',
-        (tester) async {
-      tester.view.physicalSize = const Size(1000, 2400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
+            (tester) async {
+          tester.view.physicalSize = const Size(1000, 2400);
+          tester.view.devicePixelRatio = 1.0;
+          addTearDown(tester.view.resetPhysicalSize);
 
-      await tester.pumpWidget(
-        _buildTestApp(
-          child: ProductDetailPage(product: sampleProduct),
-          overrides: [
-            authProvider
-                .overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
-            productListProvider
-                .overrideWith((ref) => Stream.value([sampleProduct])),
-            transactionsByProductProvider(sampleProduct.id)
-                .overrideWith((ref) => Stream.value([])),
-          ],
-        ),
-      );
-      await tester.pumpAndSettle();
+          await tester.pumpWidget(
+            _buildTestApp(
+              child: ProductDetailPage(product: sampleProduct),
+              overrides: [
+                authProvider
+                    .overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
+                productListProvider
+                    .overrideWith((ref) => Stream.value([sampleProduct])),
+                transactionsByProductProvider(sampleProduct.id)
+                    .overrideWith((ref) => Stream.value([])),
+              ],
+            ),
+          );
+          await tester.pumpAndSettle();
 
-      // Table Header & Title
-      expect(find.text('Phân bổ tồn kho theo chi nhánh'), findsOneWidget);
-      expect(find.text('Tổng: 80'), findsOneWidget);
+          // Table Header & Title
+          expect(find.text('Phân bổ tồn kho theo chi nhánh'), findsOneWidget);
+          expect(find.text('Tổng: 80'), findsOneWidget);
 
-      // Branch allocations
-      expect(find.text('Chi nhánh Đông Thắng'), findsOneWidget);
-      expect(find.text('50'), findsOneWidget);
-      expect(find.text('Chi nhánh Thời Bình'), findsOneWidget);
-      expect(find.text('30'), findsOneWidget);
+          // Branch allocations
+          expect(find.text('Chi nhánh Đông Thắng'), findsOneWidget);
+          expect(find.text('50'), findsOneWidget);
+          expect(find.text('Chi nhánh Thời Bình'), findsOneWidget);
+          expect(find.text('30'), findsOneWidget);
 
-      // Total row
-      expect(find.text('Tổng tồn toàn chuỗi'), findsOneWidget);
-      expect(find.text('80'), findsWidgets);
-    });
+          // Total row
+          expect(find.text('Tổng tồn toàn chuỗi'), findsOneWidget);
+          expect(find.text('80'), findsWidgets);
+        });
   });
 
   group('Milestone 4: Interactive Stock Card History & 4 Filter Tabs', () {
-    testWidgets('Renders 4 filter tabs and filters transactions chronologically',
-        (tester) async {
-      tester.view.physicalSize = const Size(1000, 2400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
+    testWidgets(
+        'Renders 4 filter tabs and filters transactions chronologically',
+            (tester) async {
+          tester.view.physicalSize = const Size(1000, 2400);
+          tester.view.devicePixelRatio = 1.0;
+          addTearDown(tester.view.resetPhysicalSize);
 
-      await tester.pumpWidget(
-        _buildTestApp(
-          child: ProductDetailPage(product: sampleProduct),
-          overrides: [
-            authProvider
-                .overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
-            productListProvider
-                .overrideWith((ref) => Stream.value([sampleProduct])),
-            transactionsByProductProvider(sampleProduct.id)
-                .overrideWith((ref) => Stream.value(sampleTransactions)),
-          ],
-        ),
-      );
-      await tester.pumpAndSettle();
+          await tester.pumpWidget(
+            _buildTestApp(
+              child: ProductDetailPage(product: sampleProduct),
+              overrides: [
+                authProvider
+                    .overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
+                productListProvider
+                    .overrideWith((ref) => Stream.value([sampleProduct])),
+                transactionsByProductProvider(sampleProduct.id)
+                    .overrideWith((ref) => Stream.value(sampleTransactions)),
+              ],
+            ),
+          );
+          await tester.pumpAndSettle();
 
-      // Stock Card Header & 5 Tabs
-      expect(find.text('Lịch sử thẻ kho'), findsOneWidget);
-      expect(find.text('Tất cả'), findsOneWidget);
-      expect(find.text('Nhập hàng'), findsWidgets);
-      expect(find.text('Bán hàng / Xuất'), findsWidgets);
-      expect(find.text('Chuyển kho'), findsWidgets);
-      expect(find.text('Cân bằng kho'), findsWidgets);
+          // Stock Card Header & 5 Tabs
+          expect(find.text('Lịch sử thẻ kho'), findsOneWidget);
+          expect(find.text('Tất cả'), findsOneWidget);
+          expect(find.text('Nhập hàng'), findsWidgets);
+          expect(find.text('Bán hàng / Xuất'), findsWidgets);
+          expect(find.text('Chuyển kho'), findsWidgets);
+          expect(find.text('Cân bằng kho'), findsWidgets);
 
-      // Initial: Tab 'Tất cả' shows all 4 transactions
-      expect(find.text('Nhập lô hàng Sabeco tháng 8'), findsOneWidget);
-      expect(find.text('Bán hàng (Mã đơn: HD-20260815-001)'), findsOneWidget);
-      expect(
-          find.text('Chuyển kho từ Chi nhánh Đông Thắng sang Thời Bình'),
-          findsOneWidget);
-      expect(
-          find.text('Cân bằng kho trực tiếp (Tồn cũ: 10 -> Tồn mới: 18, chênh lệch: +8)'),
-          findsOneWidget);
-      expect(find.text('+50'), findsOneWidget);
-      expect(find.text('-12'), findsOneWidget);
-      expect(find.text('-20'), findsOneWidget);
-      expect(find.text('+8'), findsOneWidget);
+          // Initial: Tab 'Tất cả' shows all 4 transactions
+          expect(find.text('Nhập lô hàng Sabeco tháng 8'), findsOneWidget);
+          expect(
+              find.text('Bán hàng (Mã đơn: HD-20260815-001)'), findsOneWidget);
+          expect(
+              find.text('Chuyển kho từ Chi nhánh Đông Thắng sang Thời Bình'),
+              findsOneWidget);
+          expect(
+              find.text(
+                  'Cân bằng kho trực tiếp (Tồn cũ: 10 -> Tồn mới: 18, chênh lệch: +8)'),
+              findsOneWidget);
+          expect(find.text('+50'), findsOneWidget);
+          expect(find.text('-12'), findsOneWidget);
+          expect(find.text('-20'), findsOneWidget);
+          expect(find.text('+8'), findsOneWidget);
 
-      // 1. Filter: 'Nhập hàng' (tap Segment in SegmentedButton)
-      final importTab = find.descendant(
-        of: find.byType(SegmentedButton<int>),
-        matching: find.text('Nhập hàng'),
-      );
-      await tester.tap(importTab);
-      await tester.pumpAndSettle();
+          // 1. Filter: 'Nhập hàng' (tap Segment in SegmentedButton)
+          final importTab = find.descendant(
+            of: find.byType(SegmentedButton<int>),
+            matching: find.text('Nhập hàng'),
+          );
+          await tester.tap(importTab);
+          await tester.pumpAndSettle();
 
-      expect(find.text('Nhập lô hàng Sabeco tháng 8'), findsOneWidget);
-      expect(find.text('Bán hàng (Mã đơn: HD-20260815-001)'), findsNothing);
-      expect(
-          find.text('Chuyển kho từ Chi nhánh Đông Thắng sang Thời Bình'),
-          findsNothing);
-      expect(
-          find.text('Cân bằng kho trực tiếp (Tồn cũ: 10 -> Tồn mới: 18, chênh lệch: +8)'),
-          findsNothing);
+          expect(find.text('Nhập lô hàng Sabeco tháng 8'), findsOneWidget);
+          expect(find.text('Bán hàng (Mã đơn: HD-20260815-001)'), findsNothing);
+          expect(
+              find.text('Chuyển kho từ Chi nhánh Đông Thắng sang Thời Bình'),
+              findsNothing);
+          expect(
+              find.text(
+                  'Cân bằng kho trực tiếp (Tồn cũ: 10 -> Tồn mới: 18, chênh lệch: +8)'),
+              findsNothing);
 
-      // 2. Filter: 'Bán hàng / Xuất' (tap Segment in SegmentedButton)
-      final exportTab = find.descendant(
-        of: find.byType(SegmentedButton<int>),
-        matching: find.text('Bán hàng / Xuất'),
-      );
-      await tester.tap(exportTab);
-      await tester.pumpAndSettle();
+          // 2. Filter: 'Bán hàng / Xuất' (tap Segment in SegmentedButton)
+          final exportTab = find.descendant(
+            of: find.byType(SegmentedButton<int>),
+            matching: find.text('Bán hàng / Xuất'),
+          );
+          await tester.tap(exportTab);
+          await tester.pumpAndSettle();
 
-      expect(find.text('Bán hàng (Mã đơn: HD-20260815-001)'), findsOneWidget);
-      expect(find.text('Nhập lô hàng Sabeco tháng 8'), findsNothing);
-      expect(
-          find.text('Chuyển kho từ Chi nhánh Đông Thắng sang Thời Bình'),
-          findsNothing);
-      expect(
-          find.text('Cân bằng kho trực tiếp (Tồn cũ: 10 -> Tồn mới: 18, chênh lệch: +8)'),
-          findsNothing);
+          expect(
+              find.text('Bán hàng (Mã đơn: HD-20260815-001)'), findsOneWidget);
+          expect(find.text('Nhập lô hàng Sabeco tháng 8'), findsNothing);
+          expect(
+              find.text('Chuyển kho từ Chi nhánh Đông Thắng sang Thời Bình'),
+              findsNothing);
+          expect(
+              find.text(
+                  'Cân bằng kho trực tiếp (Tồn cũ: 10 -> Tồn mới: 18, chênh lệch: +8)'),
+              findsNothing);
 
-      // 3. Filter: 'Chuyển kho' (tap Segment in SegmentedButton)
-      final transferTab = find.descendant(
-        of: find.byType(SegmentedButton<int>),
-        matching: find.text('Chuyển kho'),
-      );
-      await tester.tap(transferTab);
-      await tester.pumpAndSettle();
+          // 3. Filter: 'Chuyển kho' (tap Segment in SegmentedButton)
+          final transferTab = find.descendant(
+            of: find.byType(SegmentedButton<int>),
+            matching: find.text('Chuyển kho'),
+          );
+          await tester.tap(transferTab);
+          await tester.pumpAndSettle();
 
-      expect(
-          find.text('Chuyển kho từ Chi nhánh Đông Thắng sang Thời Bình'),
-          findsOneWidget);
-      expect(find.text('Nhập lô hàng Sabeco tháng 8'), findsNothing);
-      expect(find.text('Bán hàng (Mã đơn: HD-20260815-001)'), findsNothing);
-      expect(
-          find.text('Cân bằng kho trực tiếp (Tồn cũ: 10 -> Tồn mới: 18, chênh lệch: +8)'),
-          findsNothing);
+          expect(
+              find.text('Chuyển kho từ Chi nhánh Đông Thắng sang Thời Bình'),
+              findsOneWidget);
+          expect(find.text('Nhập lô hàng Sabeco tháng 8'), findsNothing);
+          expect(find.text('Bán hàng (Mã đơn: HD-20260815-001)'), findsNothing);
+          expect(
+              find.text(
+                  'Cân bằng kho trực tiếp (Tồn cũ: 10 -> Tồn mới: 18, chênh lệch: +8)'),
+              findsNothing);
 
-      // 4. Filter: 'Cân bằng kho' (tap Segment in SegmentedButton)
-      final auditTab = find.descendant(
-        of: find.byType(SegmentedButton<int>),
-        matching: find.text('Cân bằng kho'),
-      );
-      await tester.tap(auditTab);
-      await tester.pumpAndSettle();
+          // 4. Filter: 'Cân bằng kho' (tap Segment in SegmentedButton)
+          final auditTab = find.descendant(
+            of: find.byType(SegmentedButton<int>),
+            matching: find.text('Cân bằng kho'),
+          );
+          await tester.tap(auditTab);
+          await tester.pumpAndSettle();
 
-      expect(
-          find.text('Cân bằng kho trực tiếp (Tồn cũ: 10 -> Tồn mới: 18, chênh lệch: +8)'),
-          findsOneWidget);
-      expect(find.text('+8'), findsOneWidget);
-      expect(find.text('Nhập lô hàng Sabeco tháng 8'), findsNothing);
-      expect(find.text('Bán hàng (Mã đơn: HD-20260815-001)'), findsNothing);
-      expect(
-          find.text('Chuyển kho từ Chi nhánh Đông Thắng sang Thời Bình'),
-          findsNothing);
+          expect(
+              find.text(
+                  'Cân bằng kho trực tiếp (Tồn cũ: 10 -> Tồn mới: 18, chênh lệch: +8)'),
+              findsOneWidget);
+          expect(find.text('+8'), findsOneWidget);
+          expect(find.text('Nhập lô hàng Sabeco tháng 8'), findsNothing);
+          expect(find.text('Bán hàng (Mã đơn: HD-20260815-001)'), findsNothing);
+          expect(
+              find.text('Chuyển kho từ Chi nhánh Đông Thắng sang Thời Bình'),
+              findsNothing);
 
-      // 5. Return to 'Tất cả'
-      final allTab = find.descendant(
-        of: find.byType(SegmentedButton<int>),
-        matching: find.text('Tất cả'),
-      );
-      await tester.tap(allTab);
-      await tester.pumpAndSettle();
+          // 5. Return to 'Tất cả'
+          final allTab = find.descendant(
+            of: find.byType(SegmentedButton<int>),
+            matching: find.text('Tất cả'),
+          );
+          await tester.tap(allTab);
+          await tester.pumpAndSettle();
 
-      expect(find.text('Nhập lô hàng Sabeco tháng 8'), findsOneWidget);
-      expect(find.text('Bán hàng (Mã đơn: HD-20260815-001)'), findsOneWidget);
-      expect(
-          find.text('Cân bằng kho trực tiếp (Tồn cũ: 10 -> Tồn mới: 18, chênh lệch: +8)'),
-          findsOneWidget);
-    });
+          expect(find.text('Nhập lô hàng Sabeco tháng 8'), findsOneWidget);
+          expect(
+              find.text('Bán hàng (Mã đơn: HD-20260815-001)'), findsOneWidget);
+          expect(
+              find.text(
+                  'Cân bằng kho trực tiếp (Tồn cũ: 10 -> Tồn mới: 18, chênh lệch: +8)'),
+              findsOneWidget);
+        });
 
     testWidgets('Displays empty state message when product has no transactions',
-        (tester) async {
-      tester.view.physicalSize = const Size(1000, 2400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
+            (tester) async {
+          tester.view.physicalSize = const Size(1000, 2400);
+          tester.view.devicePixelRatio = 1.0;
+          addTearDown(tester.view.resetPhysicalSize);
 
-      await tester.pumpWidget(
-        _buildTestApp(
-          child: ProductDetailPage(product: sampleProduct),
-          overrides: [
-            authProvider
-                .overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
-            productListProvider
-                .overrideWith((ref) => Stream.value([sampleProduct])),
-            transactionsByProductProvider(sampleProduct.id)
-                .overrideWith((ref) => Stream.value([])),
-          ],
-        ),
-      );
-      await tester.pumpAndSettle();
+          await tester.pumpWidget(
+            _buildTestApp(
+              child: ProductDetailPage(product: sampleProduct),
+              overrides: [
+                authProvider
+                    .overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
+                productListProvider
+                    .overrideWith((ref) => Stream.value([sampleProduct])),
+                transactionsByProductProvider(sampleProduct.id)
+                    .overrideWith((ref) => Stream.value([])),
+              ],
+            ),
+          );
+          await tester.pumpAndSettle();
 
-      expect(find.text('Chưa có lịch sử giao dịch'), findsOneWidget);
-    });
+          expect(find.text('Chưa có lịch sử giao dịch'), findsOneWidget);
+        });
   });
 
   group('Milestone 4: Quick Action Shortcuts Bar & Barcode Print Dialog', () {
     testWidgets('Quick action shortcuts bar renders all 4 buttons',
-        (tester) async {
-      tester.view.physicalSize = const Size(1000, 2400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
+            (tester) async {
+          tester.view.physicalSize = const Size(1000, 2400);
+          tester.view.devicePixelRatio = 1.0;
+          addTearDown(tester.view.resetPhysicalSize);
 
-      await tester.pumpWidget(
-        _buildTestApp(
-          child: ProductDetailPage(product: sampleProduct),
-          overrides: [
-            authProvider
-                .overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
-            productListProvider
-                .overrideWith((ref) => Stream.value([sampleProduct])),
-            transactionsByProductProvider(sampleProduct.id)
-                .overrideWith((ref) => Stream.value([])),
-          ],
-        ),
-      );
-      await tester.pumpAndSettle();
+          await tester.pumpWidget(
+            _buildTestApp(
+              child: ProductDetailPage(product: sampleProduct),
+              overrides: [
+                authProvider
+                    .overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
+                productListProvider
+                    .overrideWith((ref) => Stream.value([sampleProduct])),
+                transactionsByProductProvider(sampleProduct.id)
+                    .overrideWith((ref) => Stream.value([])),
+              ],
+            ),
+          );
+          await tester.pumpAndSettle();
 
-      expect(find.text('Nhập hàng'), findsWidgets);
-      expect(find.text('Chuyển kho'), findsWidgets);
-      expect(find.text('Chỉnh sửa'), findsOneWidget);
-      expect(find.text('In mã vạch'), findsOneWidget);
-    });
+          expect(find.text('Nhập hàng'), findsWidgets);
+          expect(find.text('Chuyển kho'), findsWidgets);
+          expect(find.text('Chỉnh sửa'), findsOneWidget);
+          expect(find.text('In mã vạch'), findsOneWidget);
+        });
 
     testWidgets('Tapping [Nhập hàng] navigates to ImportInventoryPage',
-        (tester) async {
-      tester.view.physicalSize = const Size(1000, 2400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
+            (tester) async {
+          tester.view.physicalSize = const Size(1000, 2400);
+          tester.view.devicePixelRatio = 1.0;
+          addTearDown(tester.view.resetPhysicalSize);
 
-      await tester.pumpWidget(
-        _buildTestApp(
-          child: ProductDetailPage(product: sampleProduct),
-          overrides: [
-            authProvider
-                .overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
-            productListProvider
-                .overrideWith((ref) => Stream.value([sampleProduct])),
-            transactionsByProductProvider(sampleProduct.id)
-                .overrideWith((ref) => Stream.value([])),
-          ],
-        ),
-      );
-      await tester.pumpAndSettle();
+          await tester.pumpWidget(
+            _buildTestApp(
+              child: ProductDetailPage(product: sampleProduct),
+              overrides: [
+                authProvider
+                    .overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
+                productListProvider
+                    .overrideWith((ref) => Stream.value([sampleProduct])),
+                transactionsByProductProvider(sampleProduct.id)
+                    .overrideWith((ref) => Stream.value([])),
+              ],
+            ),
+          );
+          await tester.pumpAndSettle();
 
-      // Tap [Nhập hàng] quick button (using icon or first text)
-      await tester.tap(find.byIcon(Icons.input_rounded));
-      await tester.pumpAndSettle();
+          // Tap [Nhập hàng] quick button (using icon or first text)
+          await tester.tap(find.byIcon(Icons.input_rounded));
+          await tester.pumpAndSettle();
 
-      expect(find.byType(ImportInventoryPage), findsOneWidget);
-    });
+          expect(find.byType(ImportInventoryPage), findsOneWidget);
+        });
 
     testWidgets('Tapping [Chuyển kho] navigates to InterStoreTransferPage',
-        (tester) async {
-      tester.view.physicalSize = const Size(1000, 2400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
+            (tester) async {
+          tester.view.physicalSize = const Size(1000, 2400);
+          tester.view.devicePixelRatio = 1.0;
+          addTearDown(tester.view.resetPhysicalSize);
 
-      await tester.pumpWidget(
-        _buildTestApp(
-          child: ProductDetailPage(product: sampleProduct),
-          overrides: [
-            authProvider
-                .overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
-            productListProvider
-                .overrideWith((ref) => Stream.value([sampleProduct])),
-            transactionsByProductProvider(sampleProduct.id)
-                .overrideWith((ref) => Stream.value([])),
-          ],
-        ),
-      );
-      await tester.pumpAndSettle();
+          await tester.pumpWidget(
+            _buildTestApp(
+              child: ProductDetailPage(product: sampleProduct),
+              overrides: [
+                authProvider
+                    .overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
+                productListProvider
+                    .overrideWith((ref) => Stream.value([sampleProduct])),
+                transactionsByProductProvider(sampleProduct.id)
+                    .overrideWith((ref) => Stream.value([])),
+              ],
+            ),
+          );
+          await tester.pumpAndSettle();
 
-      // Tap [Chuyển kho] quick button
-      await tester.tap(find.byIcon(Icons.swap_horiz_rounded));
-      await tester.pumpAndSettle();
+          // Tap [Chuyển kho] quick button
+          await tester.tap(find.byIcon(Icons.swap_horiz_rounded));
+          await tester.pumpAndSettle();
 
-      expect(find.byType(InterStoreTransferPage), findsOneWidget);
-    });
+          expect(find.byType(InterStoreTransferPage), findsOneWidget);
+        });
 
     testWidgets('Tapping [In mã vạch] opens barcode print modal dialog',
-        (tester) async {
-      tester.view.physicalSize = const Size(1000, 2400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
+            (tester) async {
+          tester.view.physicalSize = const Size(1000, 2400);
+          tester.view.devicePixelRatio = 1.0;
+          addTearDown(tester.view.resetPhysicalSize);
 
-      await tester.pumpWidget(
-        _buildTestApp(
-          child: ProductDetailPage(product: sampleProduct),
-          overrides: [
-            authProvider
-                .overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
-            productListProvider
-                .overrideWith((ref) => Stream.value([sampleProduct])),
-            transactionsByProductProvider(sampleProduct.id)
-                .overrideWith((ref) => Stream.value([])),
-          ],
-        ),
-      );
-      await tester.pumpAndSettle();
+          await tester.pumpWidget(
+            _buildTestApp(
+              child: ProductDetailPage(product: sampleProduct),
+              overrides: [
+                authProvider
+                    .overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
+                productListProvider
+                    .overrideWith((ref) => Stream.value([sampleProduct])),
+                transactionsByProductProvider(sampleProduct.id)
+                    .overrideWith((ref) => Stream.value([])),
+              ],
+            ),
+          );
+          await tester.pumpAndSettle();
 
-      // Tap [In mã vạch] button
-      await tester.tap(find.byIcon(Icons.qr_code_2_rounded));
-      await tester.pumpAndSettle();
+          // Tap [In mã vạch] button
+          await tester.tap(find.byIcon(Icons.qr_code_2_rounded));
+          await tester.pumpAndSettle();
 
-      // Dialog is displayed
-      expect(find.text('Mã vạch sản phẩm'), findsOneWidget);
-      expect(find.text('Bia Saigon Special 330ml'), findsWidgets);
-      expect(find.text('Mã SKU: BSG01'), findsOneWidget);
-      expect(find.text('893111111001'), findsWidgets);
-      expect(find.text('Sao chép mã'), findsOneWidget);
-      expect(find.text('In mã vạch'), findsWidgets);
-      expect(find.text('Đóng'), findsOneWidget);
+          // Dialog is displayed
+          expect(find.text('Mã vạch sản phẩm'), findsOneWidget);
+          expect(find.text('Bia Saigon Special 330ml'), findsWidgets);
+          expect(find.text('Mã SKU: BSG01'), findsOneWidget);
+          expect(find.text('893111111001'), findsWidgets);
+          expect(find.text('Sao chép mã'), findsOneWidget);
+          expect(find.text('In mã vạch'), findsWidgets);
+          expect(find.text('Đóng'), findsOneWidget);
 
-      // Tap 'Sao chép mã'
-      await tester.tap(find.text('Sao chép mã'));
-      await tester.pumpAndSettle();
-      expect(find.text('Đã sao chép mã vạch: 893111111001'), findsOneWidget);
+          // Tap 'Sao chép mã'
+          await tester.tap(find.text('Sao chép mã'));
+          await tester.pumpAndSettle();
+          expect(
+              find.text('Đã sao chép mã vạch: 893111111001'), findsOneWidget);
 
-      // Tap 'In mã vạch' in dialog to trigger action and dismiss
-      await tester.tap(find.byIcon(Icons.print_rounded));
-      await tester.pumpAndSettle();
+          // Tap 'In mã vạch' in dialog to trigger action and dismiss
+          await tester.tap(find.byIcon(Icons.print_rounded));
+          await tester.pumpAndSettle();
 
-      expect(
-          find.text(
-              'Đang gửi lệnh in mã vạch cho sản phẩm Bia Saigon Special 330ml...'),
-          findsOneWidget);
-    });
+          expect(
+              find.text(
+                  'Đang gửi lệnh in mã vạch cho sản phẩm Bia Saigon Special 330ml...'),
+              findsOneWidget);
+        });
 
     testWidgets('Staff: Tapping [Chỉnh sửa] shows permission denied SnackBar',
-        (tester) async {
-      tester.view.physicalSize = const Size(1000, 2400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
+            (tester) async {
+          tester.view.physicalSize = const Size(1000, 2400);
+          tester.view.devicePixelRatio = 1.0;
+          addTearDown(tester.view.resetPhysicalSize);
 
-      await tester.pumpWidget(
-        _buildTestApp(
-          child: ProductDetailPage(product: sampleProduct),
-          overrides: [
-            authProvider.overrideWith((ref) => _FakeAuthNotifier(staffUser)),
-            productListProvider
-                .overrideWith((ref) => Stream.value([sampleProduct])),
-            transactionsByProductProvider(sampleProduct.id)
-                .overrideWith((ref) => Stream.value([])),
-          ],
-        ),
-      );
-      await tester.pumpAndSettle();
+          await tester.pumpWidget(
+            _buildTestApp(
+              child: ProductDetailPage(product: sampleProduct),
+              overrides: [
+                authProvider.overrideWith((ref) =>
+                    _FakeAuthNotifier(staffUser)),
+                productListProvider
+                    .overrideWith((ref) => Stream.value([sampleProduct])),
+                transactionsByProductProvider(sampleProduct.id)
+                    .overrideWith((ref) => Stream.value([])),
+              ],
+            ),
+          );
+          await tester.pumpAndSettle();
 
-      // Staff taps [Chỉnh sửa]
-      await tester.tap(find.byIcon(Icons.edit_outlined));
-      await tester.pumpAndSettle();
+          // Staff taps [Chỉnh sửa]
+          await tester.tap(find.byIcon(Icons.edit_outlined));
+          await tester.pumpAndSettle();
 
-      expect(find.text('Bạn không có quyền chỉnh sửa sản phẩm'), findsOneWidget);
-    });
+          expect(find.text('Bạn không có quyền chỉnh sửa sản phẩm'),
+              findsOneWidget);
+        });
 
     testWidgets('Admin/Supervisor: Tapping [Chỉnh sửa] enters Edit Form mode',
-        (tester) async {
-      tester.view.physicalSize = const Size(1000, 2400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
+            (tester) async {
+          tester.view.physicalSize = const Size(1000, 2400);
+          tester.view.devicePixelRatio = 1.0;
+          addTearDown(tester.view.resetPhysicalSize);
 
-      await tester.pumpWidget(
-        _buildTestApp(
-          child: ProductDetailPage(product: sampleProduct),
-          overrides: [
-            authProvider
-                .overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
-            productListProvider
-                .overrideWith((ref) => Stream.value([sampleProduct])),
-            transactionsByProductProvider(sampleProduct.id)
-                .overrideWith((ref) => Stream.value([])),
-          ],
-        ),
-      );
-      await tester.pumpAndSettle();
+          await tester.pumpWidget(
+            _buildTestApp(
+              child: ProductDetailPage(product: sampleProduct),
+              overrides: [
+                authProvider
+                    .overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
+                productListProvider
+                    .overrideWith((ref) => Stream.value([sampleProduct])),
+                transactionsByProductProvider(sampleProduct.id)
+                    .overrideWith((ref) => Stream.value([])),
+              ],
+            ),
+          );
+          await tester.pumpAndSettle();
 
-      // Supervisor taps [Chỉnh sửa]
-      await tester.tap(find.byIcon(Icons.edit_outlined));
-      await tester.pumpAndSettle();
+          // Supervisor taps [Chỉnh sửa]
+          await tester.tap(find.byIcon(Icons.edit_outlined));
+          await tester.pumpAndSettle();
 
-      // AppBar title changes to 'Thông tin cơ bản' (Edit mode)
-      expect(find.text('Thông tin cơ bản'), findsOneWidget);
-      expect(find.text('Lưu'), findsOneWidget);
-      expect(find.byIcon(Icons.close), findsOneWidget);
-    });
+          // AppBar title changes to 'Thông tin cơ bản' (Edit mode)
+          expect(find.text('Thông tin cơ bản'), findsOneWidget);
+          expect(find.text('Lưu'), findsOneWidget);
+          expect(find.byIcon(Icons.close), findsOneWidget);
+        });
 
-    testWidgets('Direct Stock Edit: Modifying stock directly auto-generates InventoryTransaction (inventoryAudit)',
-        (tester) async {
-      tester.view.physicalSize = const Size(1000, 2400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
+    testWidgets(
+        'Direct Stock Edit: Modifying stock directly auto-generates InventoryTransaction (inventoryAudit)',
+            (tester) async {
+          tester.view.physicalSize = const Size(1000, 2400);
+          tester.view.devicePixelRatio = 1.0;
+          addTearDown(tester.view.resetPhysicalSize);
 
-      final fakeProductRepo = _FakeProductRepository();
-      final fakeInventoryRepo = _FakeInventoryRepository();
+          final fakeProductRepo = _FakeProductRepository();
+          final fakeInventoryRepo = _FakeInventoryRepository();
 
-      await tester.pumpWidget(
-        _buildTestApp(
-          child: ProductDetailPage(product: sampleProduct),
-          overrides: [
-            authProvider
-                .overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
-            productListProvider
-                .overrideWith((ref) => Stream.value([sampleProduct])),
-            productRepositoryProvider
-                .overrideWithValue(fakeProductRepo),
-            inventoryRepositoryProvider
-                .overrideWithValue(fakeInventoryRepo),
-            transactionsByProductProvider(sampleProduct.id)
-                .overrideWith((ref) => Stream.value([])),
-          ],
-        ),
-      );
-      await tester.pumpAndSettle();
+          await tester.pumpWidget(
+            _buildTestApp(
+              child: ProductDetailPage(product: sampleProduct),
+              overrides: [
+                authProvider
+                    .overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
+                productListProvider
+                    .overrideWith((ref) => Stream.value([sampleProduct])),
+                productRepositoryProvider
+                    .overrideWithValue(fakeProductRepo),
+                inventoryRepositoryProvider
+                    .overrideWithValue(fakeInventoryRepo),
+                transactionsByProductProvider(sampleProduct.id)
+                    .overrideWith((ref) => Stream.value([])),
+              ],
+            ),
+          );
+          await tester.pumpAndSettle();
 
-      // Supervisor taps [Sửa] text button
-      await tester.tap(find.text('Sửa'));
-      await tester.pumpAndSettle();
+          // Supervisor taps [Sửa] text button
+          await tester.tap(find.text('Sửa'));
+          await tester.pumpAndSettle();
 
-      // Find stock TextField in edit form (contains '50' initially)
-      final stockField = find.widgetWithText(TextField, '50');
-      expect(stockField, findsOneWidget);
+          // Find stock TextField in edit form (contains '50' initially)
+          final stockField = find.widgetWithText(TextField, '50');
+          expect(stockField, findsOneWidget);
 
-      // Enter new stock '58' (+8)
-      await tester.enterText(stockField, '58');
-      await tester.pumpAndSettle();
+          // Enter new stock '58' (+8)
+          await tester.enterText(stockField, '58');
+          await tester.pumpAndSettle();
 
-      // Tap 'Lưu'
-      await tester.tap(find.text('Lưu'));
-      await tester.pumpAndSettle();
+          // Tap 'Lưu'
+          await tester.tap(find.text('Lưu'));
+          await tester.pumpAndSettle();
 
-      // Verify product was updated with branch_1: 58
-      expect(fakeProductRepo.lastUpsertedProduct, isNotNull);
-      expect(fakeProductRepo.lastUpsertedProduct!.stockInBranch('branch_1'),
-          equals(58));
+          // Verify product was updated with branch_1: 58
+          expect(fakeProductRepo.lastUpsertedProduct, isNotNull);
+          expect(fakeProductRepo.lastUpsertedProduct!.stockInBranch('branch_1'),
+              equals(58));
 
-      // Verify InventoryTransaction was recorded
-      expect(fakeInventoryRepo.recordedTransactions.length, equals(1));
-      final tx = fakeInventoryRepo.recordedTransactions.first;
-      expect(tx.productId, equals(sampleProduct.id));
-      expect(tx.type, equals(TransactionType.inventoryAudit));
-      expect(tx.quantity, equals(8));
-      expect(tx.note, contains('Tồn cũ: 50 -> Tồn mới: 58, chênh lệch: +8'));
-      expect(tx.importPrice, equals(sampleProduct.costPrice));
-      expect(tx.createdBy, equals(supervisorUser.username));
-      expect(tx.createdByName, equals(supervisorUser.name));
-      expect(tx.storeId, equals('store_001'));
-      expect(tx.isAuditNegative, equals(false));
-      expect(tx.auditDifference, equals(8));
-    });
+          // Verify InventoryTransaction was recorded
+          expect(fakeInventoryRepo.recordedTransactions.length, equals(1));
+          final tx = fakeInventoryRepo.recordedTransactions.first;
+          expect(tx.productId, equals(sampleProduct.id));
+          expect(tx.type, equals(TransactionType.inventoryAudit));
+          expect(tx.quantity, equals(8));
+          expect(
+              tx.note, contains('Tồn cũ: 50 -> Tồn mới: 58, chênh lệch: +8'));
+          expect(tx.importPrice, equals(sampleProduct.costPrice));
+          expect(tx.createdBy, equals(supervisorUser.username));
+          expect(tx.createdByName, equals(supervisorUser.name));
+          expect(tx.storeId, equals('store_001'));
+          expect(tx.isAuditNegative, equals(false));
+          expect(tx.auditDifference, equals(8));
+        });
 
-    testWidgets('Direct Stock Edit: Decreasing stock directly auto-generates negative InventoryTransaction',
-        (tester) async {
-      tester.view.physicalSize = const Size(1000, 2400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
+    testWidgets(
+        'Direct Stock Edit: Decreasing stock directly auto-generates negative InventoryTransaction',
+            (tester) async {
+          tester.view.physicalSize = const Size(1000, 2400);
+          tester.view.devicePixelRatio = 1.0;
+          addTearDown(tester.view.resetPhysicalSize);
 
-      final fakeProductRepo = _FakeProductRepository();
-      final fakeInventoryRepo = _FakeInventoryRepository();
+          final fakeProductRepo = _FakeProductRepository();
+          final fakeInventoryRepo = _FakeInventoryRepository();
 
-      await tester.pumpWidget(
-        _buildTestApp(
-          child: ProductDetailPage(product: sampleProduct),
-          overrides: [
-            authProvider
-                .overrideWith((ref) => _FakeAuthNotifier(adminUser)),
-            productListProvider
-                .overrideWith((ref) => Stream.value([sampleProduct])),
-            productRepositoryProvider
-                .overrideWithValue(fakeProductRepo),
-            inventoryRepositoryProvider
-                .overrideWithValue(fakeInventoryRepo),
-            transactionsByProductProvider(sampleProduct.id)
-                .overrideWith((ref) => Stream.value([])),
-          ],
-        ),
-      );
-      await tester.pumpAndSettle();
+          await tester.pumpWidget(
+            _buildTestApp(
+              child: ProductDetailPage(product: sampleProduct),
+              overrides: [
+                authProvider
+                    .overrideWith((ref) => _FakeAuthNotifier(adminUser)),
+                productListProvider
+                    .overrideWith((ref) => Stream.value([sampleProduct])),
+                productRepositoryProvider
+                    .overrideWithValue(fakeProductRepo),
+                inventoryRepositoryProvider
+                    .overrideWithValue(fakeInventoryRepo),
+                transactionsByProductProvider(sampleProduct.id)
+                    .overrideWith((ref) => Stream.value([])),
+              ],
+            ),
+          );
+          await tester.pumpAndSettle();
 
-      // Admin taps [Sửa] text button
-      await tester.tap(find.text('Sửa'));
-      await tester.pumpAndSettle();
+          // Admin taps [Sửa] text button
+          await tester.tap(find.text('Sửa'));
+          await tester.pumpAndSettle();
 
-      final stockField = find.widgetWithText(TextField, '50');
-      expect(stockField, findsOneWidget);
+          final stockField = find.widgetWithText(TextField, '50');
+          expect(stockField, findsOneWidget);
 
-      // Decrease stock to '45' (-5)
-      await tester.enterText(stockField, '45');
-      await tester.pumpAndSettle();
+          // Decrease stock to '45' (-5)
+          await tester.enterText(stockField, '45');
+          await tester.pumpAndSettle();
 
-      // Tap 'Lưu'
-      await tester.tap(find.text('Lưu'));
-      await tester.pumpAndSettle();
+          // Tap 'Lưu'
+          await tester.tap(find.text('Lưu'));
+          await tester.pumpAndSettle();
 
-      // Verify product updated with branch_1: 45
-      expect(fakeProductRepo.lastUpsertedProduct, isNotNull);
-      expect(fakeProductRepo.lastUpsertedProduct!.stockInBranch('branch_1'),
-          equals(45));
+          // Verify product updated with branch_1: 45
+          expect(fakeProductRepo.lastUpsertedProduct, isNotNull);
+          expect(fakeProductRepo.lastUpsertedProduct!.stockInBranch('branch_1'),
+              equals(45));
 
-      // Verify negative InventoryTransaction
-      expect(fakeInventoryRepo.recordedTransactions.length, equals(1));
-      final tx = fakeInventoryRepo.recordedTransactions.first;
-      expect(tx.productId, equals(sampleProduct.id));
-      expect(tx.type, equals(TransactionType.inventoryAudit));
-      expect(tx.quantity, equals(5));
-      expect(tx.note, contains('Tồn cũ: 50 -> Tồn mới: 45, chênh lệch: -5'));
-      expect(tx.createdBy, equals(adminUser.username));
-      expect(tx.createdByName, equals(adminUser.name));
-      expect(tx.storeId, equals('store_001'));
-      expect(tx.isAuditNegative, equals(true));
-      expect(tx.auditDifference, equals(-5));
-    });
+          // Verify negative InventoryTransaction
+          expect(fakeInventoryRepo.recordedTransactions.length, equals(1));
+          final tx = fakeInventoryRepo.recordedTransactions.first;
+          expect(tx.productId, equals(sampleProduct.id));
+          expect(tx.type, equals(TransactionType.inventoryAudit));
+          expect(tx.quantity, equals(5));
+          expect(
+              tx.note, contains('Tồn cũ: 50 -> Tồn mới: 45, chênh lệch: -5'));
+          expect(tx.createdBy, equals(adminUser.username));
+          expect(tx.createdByName, equals(adminUser.name));
+          expect(tx.storeId, equals('store_001'));
+          expect(tx.isAuditNegative, equals(true));
+          expect(tx.auditDifference, equals(-5));
+        });
   });
 
   group('Milestone 2 (F4, F5, F6): Store-Scoped Stock Mutation & Pre-fill', () {
@@ -934,210 +970,218 @@ void main() {
       barcode: '893111111001',
       price: 15000,
       costPrice: 11000,
-      branchStocks: {'store_001': 50, 'store_002': 30}, // Total: 80
+      branchStocks: {'store_001': 50, 'store_002': 30},
+      // Total: 80
       category: 'Đồ uống',
     );
 
     // ---------------------------------------------------------------------------
     // F4: Active Store Form Pre-fill Tests
     // ---------------------------------------------------------------------------
-    testWidgets('F4: Pre-fills Store 1 stock (50) when currentStoreId is store_001',
-        (tester) async {
-      tester.view.physicalSize = const Size(1000, 2400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
+    testWidgets(
+        'F4: Pre-fills Store 1 stock (50) when currentStoreId is store_001',
+            (tester) async {
+          tester.view.physicalSize = const Size(1000, 2400);
+          tester.view.devicePixelRatio = 1.0;
+          addTearDown(tester.view.resetPhysicalSize);
 
-      await tester.pumpWidget(
-        _buildTestApp(
-          child: const ProductDetailPage(product: canonicalProduct),
-          overrides: [
-            currentStoreIdProvider.overrideWith((ref) => 'store_001'),
-            productListProvider
-                .overrideWith((ref) => Stream.value([canonicalProduct])),
-            transactionsByProductProvider(canonicalProduct.id)
-                .overrideWith((ref) => Stream.value([])),
-          ],
-        ),
-      );
-      await tester.pumpAndSettle();
+          await tester.pumpWidget(
+            _buildTestApp(
+              child: const ProductDetailPage(product: canonicalProduct),
+              overrides: [
+                currentStoreIdProvider.overrideWith((ref) => 'store_001'),
+                productListProvider
+                    .overrideWith((ref) => Stream.value([canonicalProduct])),
+                transactionsByProductProvider(canonicalProduct.id)
+                    .overrideWith((ref) => Stream.value([])),
+              ],
+            ),
+          );
+          await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Sửa'));
-      await tester.pumpAndSettle();
+          await tester.tap(find.text('Sửa'));
+          await tester.pumpAndSettle();
 
-      final stockField = find.widgetWithText(TextField, '50');
-      expect(stockField, findsOneWidget);
-    });
+          final stockField = find.widgetWithText(TextField, '50');
+          expect(stockField, findsOneWidget);
+        });
 
-    testWidgets('F4: Pre-fills Store 2 stock (30) when currentStoreId is store_002',
-        (tester) async {
-      tester.view.physicalSize = const Size(1000, 2400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
+    testWidgets(
+        'F4: Pre-fills Store 2 stock (30) when currentStoreId is store_002',
+            (tester) async {
+          tester.view.physicalSize = const Size(1000, 2400);
+          tester.view.devicePixelRatio = 1.0;
+          addTearDown(tester.view.resetPhysicalSize);
 
-      await tester.pumpWidget(
-        _buildTestApp(
-          child: const ProductDetailPage(product: canonicalProduct),
-          overrides: [
-            currentStoreIdProvider.overrideWith((ref) => 'store_002'),
-            productListProvider
-                .overrideWith((ref) => Stream.value([canonicalProduct])),
-            transactionsByProductProvider(canonicalProduct.id)
-                .overrideWith((ref) => Stream.value([])),
-          ],
-        ),
-      );
-      await tester.pumpAndSettle();
+          await tester.pumpWidget(
+            _buildTestApp(
+              child: const ProductDetailPage(product: canonicalProduct),
+              overrides: [
+                currentStoreIdProvider.overrideWith((ref) => 'store_002'),
+                productListProvider
+                    .overrideWith((ref) => Stream.value([canonicalProduct])),
+                transactionsByProductProvider(canonicalProduct.id)
+                    .overrideWith((ref) => Stream.value([])),
+              ],
+            ),
+          );
+          await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Sửa'));
-      await tester.pumpAndSettle();
+          await tester.tap(find.text('Sửa'));
+          await tester.pumpAndSettle();
 
-      final stockField = find.widgetWithText(TextField, '30');
-      expect(stockField, findsOneWidget);
-    });
+          final stockField = find.widgetWithText(TextField, '30');
+          expect(stockField, findsOneWidget);
+        });
 
     testWidgets('F4: Cancel edit reverts pre-filled controller value',
-        (tester) async {
-      tester.view.physicalSize = const Size(1000, 2400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
+            (tester) async {
+          tester.view.physicalSize = const Size(1000, 2400);
+          tester.view.devicePixelRatio = 1.0;
+          addTearDown(tester.view.resetPhysicalSize);
 
-      await tester.pumpWidget(
-        _buildTestApp(
-          child: const ProductDetailPage(product: canonicalProduct),
-          overrides: [
-            currentStoreIdProvider.overrideWith((ref) => 'store_001'),
-            productListProvider
-                .overrideWith((ref) => Stream.value([canonicalProduct])),
-            transactionsByProductProvider(canonicalProduct.id)
-                .overrideWith((ref) => Stream.value([])),
-          ],
-        ),
-      );
-      await tester.pumpAndSettle();
+          await tester.pumpWidget(
+            _buildTestApp(
+              child: const ProductDetailPage(product: canonicalProduct),
+              overrides: [
+                currentStoreIdProvider.overrideWith((ref) => 'store_001'),
+                productListProvider
+                    .overrideWith((ref) => Stream.value([canonicalProduct])),
+                transactionsByProductProvider(canonicalProduct.id)
+                    .overrideWith((ref) => Stream.value([])),
+              ],
+            ),
+          );
+          await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Sửa'));
-      await tester.pumpAndSettle();
+          await tester.tap(find.text('Sửa'));
+          await tester.pumpAndSettle();
 
-      final stockField = find.widgetWithText(TextField, '50');
-      await tester.enterText(stockField, '999');
-      await tester.pumpAndSettle();
+          final stockField = find.widgetWithText(TextField, '50');
+          await tester.enterText(stockField, '999');
+          await tester.pumpAndSettle();
 
-      // Tap close/cancel button
-      await tester.tap(find.byIcon(Icons.close));
-      await tester.pumpAndSettle();
+          // Tap close/cancel button
+          await tester.tap(find.byIcon(Icons.close));
+          await tester.pumpAndSettle();
 
-      // Re-enter edit mode
-      await tester.tap(find.text('Sửa'));
-      await tester.pumpAndSettle();
+          // Re-enter edit mode
+          await tester.tap(find.text('Sửa'));
+          await tester.pumpAndSettle();
 
-      expect(find.widgetWithText(TextField, '50'), findsOneWidget);
-      expect(find.widgetWithText(TextField, '999'), findsNothing);
-    });
+          expect(find.widgetWithText(TextField, '50'), findsOneWidget);
+          expect(find.widgetWithText(TextField, '999'), findsNothing);
+        });
 
     // ---------------------------------------------------------------------------
     // F5: Dynamic Field Label with Active Store Name
     // ---------------------------------------------------------------------------
     testWidgets(
         'F5: Displays dynamic field label with Chi nhánh Đông Thắng for store_001',
-        (tester) async {
-      tester.view.physicalSize = const Size(1000, 2400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
+            (tester) async {
+          tester.view.physicalSize = const Size(1000, 2400);
+          tester.view.devicePixelRatio = 1.0;
+          addTearDown(tester.view.resetPhysicalSize);
 
-      await tester.pumpWidget(
-        _buildTestApp(
-          child: const ProductDetailPage(product: canonicalProduct),
-          overrides: [
-            currentStoreIdProvider.overrideWith((ref) => 'store_001'),
-            availableStoresProvider.overrideWith((ref) async => {
+          await tester.pumpWidget(
+            _buildTestApp(
+              child: const ProductDetailPage(product: canonicalProduct),
+              overrides: [
+                currentStoreIdProvider.overrideWith((ref) => 'store_001'),
+                availableStoresProvider.overrideWith((ref) async =>
+                {
                   'store_001': 'Chi nhánh Đông Thắng',
                   'store_002': 'Chi nhánh Thới Bình',
                 }),
-            productListProvider
-                .overrideWith((ref) => Stream.value([canonicalProduct])),
-            transactionsByProductProvider(canonicalProduct.id)
-                .overrideWith((ref) => Stream.value([])),
-          ],
-        ),
-      );
-      await tester.pumpAndSettle();
+                productListProvider
+                    .overrideWith((ref) => Stream.value([canonicalProduct])),
+                transactionsByProductProvider(canonicalProduct.id)
+                    .overrideWith((ref) => Stream.value([])),
+              ],
+            ),
+          );
+          await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Sửa'));
-      await tester.pumpAndSettle();
+          await tester.tap(find.text('Sửa'));
+          await tester.pumpAndSettle();
 
-      expect(
-          find.text('Số lượng tồn kho (Chi nhánh Đông Thắng)'), findsOneWidget);
-    });
+          expect(
+              find.text('Số lượng tồn kho (Chi nhánh Đông Thắng)'),
+              findsOneWidget);
+        });
 
     testWidgets(
         'F5: Displays dynamic field label with Chi nhánh Thới Bình for store_002',
-        (tester) async {
-      tester.view.physicalSize = const Size(1000, 2400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
+            (tester) async {
+          tester.view.physicalSize = const Size(1000, 2400);
+          tester.view.devicePixelRatio = 1.0;
+          addTearDown(tester.view.resetPhysicalSize);
 
-      await tester.pumpWidget(
-        _buildTestApp(
-          child: const ProductDetailPage(product: canonicalProduct),
-          overrides: [
-            currentStoreIdProvider.overrideWith((ref) => 'store_002'),
-            availableStoresProvider.overrideWith((ref) async => {
+          await tester.pumpWidget(
+            _buildTestApp(
+              child: const ProductDetailPage(product: canonicalProduct),
+              overrides: [
+                currentStoreIdProvider.overrideWith((ref) => 'store_002'),
+                availableStoresProvider.overrideWith((ref) async =>
+                {
                   'store_001': 'Chi nhánh Đông Thắng',
                   'store_002': 'Chi nhánh Thới Bình',
                 }),
-            productListProvider
-                .overrideWith((ref) => Stream.value([canonicalProduct])),
-            transactionsByProductProvider(canonicalProduct.id)
-                .overrideWith((ref) => Stream.value([])),
-          ],
-        ),
-      );
-      await tester.pumpAndSettle();
+                productListProvider
+                    .overrideWith((ref) => Stream.value([canonicalProduct])),
+                transactionsByProductProvider(canonicalProduct.id)
+                    .overrideWith((ref) => Stream.value([])),
+              ],
+            ),
+          );
+          await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Sửa'));
-      await tester.pumpAndSettle();
+          await tester.tap(find.text('Sửa'));
+          await tester.pumpAndSettle();
 
-      expect(
-          find.text('Số lượng tồn kho (Chi nhánh Thới Bình)'), findsOneWidget);
-    });
+          expect(
+              find.text('Số lượng tồn kho (Chi nhánh Thới Bình)'),
+              findsOneWidget);
+        });
 
     // ---------------------------------------------------------------------------
     // F6: Scoped Mutation, Cross-Store Isolation & Recalculation
     // ---------------------------------------------------------------------------
     testWidgets(
         'F6: Positive stock mutation (+8) in store_001 updates store_001, preserves store_002, recalculates aggregate stock, and records audit',
-        (tester) async {
-      tester.view.physicalSize = const Size(1000, 2400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
+            (tester) async {
+          tester.view.physicalSize = const Size(1000, 2400);
+          tester.view.devicePixelRatio = 1.0;
+          addTearDown(tester.view.resetPhysicalSize);
 
-      final fakeProductRepo = _FakeProductRepository();
-      final fakeInventoryRepo = _FakeInventoryRepository();
+          final fakeProductRepo = _FakeProductRepository();
+          final fakeInventoryRepo = _FakeInventoryRepository();
 
-      await tester.pumpWidget(
-        _buildTestApp(
-          child: const ProductDetailPage(product: canonicalProduct),
-          overrides: [
-            currentStoreIdProvider.overrideWith((ref) => 'store_001'),
-            productRepositoryProvider.overrideWithValue(fakeProductRepo),
-            inventoryRepositoryProvider.overrideWithValue(fakeInventoryRepo),
-            productListProvider
-                .overrideWith((ref) => Stream.value([canonicalProduct])),
-            transactionsByProductProvider(canonicalProduct.id)
-                .overrideWith((ref) => Stream.value([])),
-          ],
-        ),
-      );
-      await tester.pumpAndSettle();
+          await tester.pumpWidget(
+            _buildTestApp(
+              child: const ProductDetailPage(product: canonicalProduct),
+              overrides: [
+                currentStoreIdProvider.overrideWith((ref) => 'store_001'),
+                productRepositoryProvider.overrideWithValue(fakeProductRepo),
+                inventoryRepositoryProvider.overrideWithValue(
+                    fakeInventoryRepo),
+                productListProvider
+                    .overrideWith((ref) => Stream.value([canonicalProduct])),
+                transactionsByProductProvider(canonicalProduct.id)
+                    .overrideWith((ref) => Stream.value([])),
+              ],
+            ),
+          );
+          await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Sửa'));
-      await tester.pumpAndSettle();
+          await tester.tap(find.text('Sửa'));
+          await tester.pumpAndSettle();
 
-      final stockField = find.widgetWithText(TextField, '50');
-      await tester.enterText(stockField, '58');
-      await tester.pumpAndSettle();
+          final stockField = find.widgetWithText(TextField, '50');
+          await tester.enterText(stockField, '58');
+          await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Lưu'));
+          await tester.tap(find.text('Lưu'));
       await tester.pumpAndSettle();
 
       // 1. Verify Product Isolation and Recalculation

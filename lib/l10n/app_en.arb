@@ -120,7 +120,7 @@
   "filePickerError": "No file selected",
   "importError": "An error occurred during import",
   "createdAt": "Created At",
-  "createdBy": "Created By",
+  "createdBy": "Created by",
   "totalProducts": "Total ({count} items)",
   "totalStockCount": "Total stock: {count}",
   "totalCustomers": "Total ({count} customers)",
@@ -164,7 +164,7 @@
   "changeDue": "Change Due",
   "paymentMethod": "Payment Method",
   "cash": "Cash",
-  "transfer": "Transfer",
+  "paymentMethodTransfer": "Transfer",
   "saveDraft": "Save Draft",
   "selectCustomer": "Select Customer",
   "fullNameRequired": "Full Name *",
@@ -203,7 +203,6 @@
   "timeRange": "Time Range",
   "allBranchesCombined": "All branches (Combined)",
   "store": "Store",
-  "profit": "Profit",
   "invoiceCountLabel": "{count} invoices",
   "@invoiceCountLabel": {
     "placeholders": {
@@ -217,7 +216,6 @@
   "shipping": "Shipping",
   "staff": "Staff",
   "taxAndAccounting": "Tax & Accounting",
-  "revenue": "Revenue",
   "noData": "No data to display",
   "noTransactions": "No transactions in this period",
   "ordersCount": "({count} orders)",
@@ -396,7 +394,7 @@
     }
   },
   "performedBy": "Performed by",
-  "createdBy": "Created by",
+  "orderCreatedBy": "Order Creator",
   "roleSupervisor": "Supervisor / Chain Owner",
   "roleAdmin": "Store Manager",
   "roleStaff": "Sales Staff",
@@ -439,5 +437,63 @@
   "noBrandFound": "No brands found",
   "noCategoryFound": "No categories found",
   "logoutAccount": "Log out account",
-  "confirmLogoutApp": "Are you sure you want to log out of app?"
+  "confirmLogoutApp": "Are you sure you want to log out of app?",
+
+  "commonContinue": "Continue",
+  "commonDone": "Done",
+  "commonResetFilter": "Reset Filter",
+  "commonSaveDraft": "Save Draft",
+  "commonDraftReceipt": "Draft Receipt",
+  "commonCompleted": "Completed",
+  "commonCancelled": "Cancelled",
+  "commonOutOfStock": "Out of Stock",
+  "commonInStock": "In Stock",
+  "commonHasDebt": "Has Debt",
+  "commonNoDebt": "Debt Settled",
+  "commonSupplier": "Supplier",
+  "commonCostPrice": "Cost Price",
+  "commonTotalSalesAmount": "Total Goods Amount:",
+  "commonTotalPaidAmount": "Total Paid:",
+
+  "inventoryCreateReceipt": "Create Stock In Receipt",
+  "inventoryReceiptDetail": "Stock In Receipt Detail",
+  "inventoryReceiptCode": "Receipt Code",
+  "inventoryReceiptHistory": "Stock In History",
+  "inventoryImportPrice": "Import Price",
+  "inventoryLastImportPrice": "Last Import Price",
+  "inventoryDiscount": "Discount",
+  "inventoryAmount": "Line Total",
+  "inventoryConfirmExitTitle": "Leave Stock In Screen?",
+  "inventoryConfirmExitMsg": "Unsaved changes will be lost if you do not save draft.",
+  "inventoryStay": "Stay",
+  "inventoryLeave": "Leave",
+  "inventoryConfirmCancelTitle": "Confirm Cancel Stock In Receipt",
+  "inventoryCancelReasonHint": "Enter cancel reason (required)...",
+  "inventoryCancelSuccess": "Stock in receipt cancelled and inventory rolled back successfully",
+  "inventoryDeleteDraftSuccess": "Draft receipt deleted",
+
+  "attendanceDashboard": "GPS Attendance & Shift Management",
+  "attendancePersonalTimesheet": "Personal Timesheet",
+  "attendanceWorking": "Working",
+  "attendanceLateToday": "Late Today",
+  "attendanceNotArrived": "Not Arrived",
+  "attendanceEarlyLeave": "Early Leave",
+  "attendanceTotalWorkHours": "Total Working Hours",
+  "attendanceDeleteShiftConfirm": "Are you sure you want to delete shift \"{shiftName}\"?",
+  "@attendanceDeleteShiftConfirm": {
+    "placeholders": {
+      "shiftName": { "type": "String" }
+    }
+  },
+  "attendanceUpdateGpsSuccess": "GPS updated successfully!",
+  "attendanceNoRecordsFilter": "No attendance records matched the filter.",
+  "attendanceNoDataMonth": "No attendance data for this month.",
+
+  "accountDeleteConfirm": "Are you sure you want to delete account \"{username}\"? This action cannot be undone.",
+  "@accountDeleteConfirm": {
+    "placeholders": {
+      "username": { "type": "String" }
+    }
+  },
+  "accountConfirmNewPassword": "Confirm New Password"
 }

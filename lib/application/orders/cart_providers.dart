@@ -1,11 +1,41 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/services/filter_storage_service.dart';
+import '../../../core/utils/store_resolver_helper.dart';
 import '../../../domain/entities/customer.dart';
 import '../../../domain/entities/order_item.dart';
 import '../../../domain/entities/product.dart';
+import '../auth/auth_providers.dart';
 
 // Provider quản lý chi nhánh đang được chọn để bán hàng tại POS
-final selectedPOSBranchProvider = StateProvider<String>((ref) => 'store_001');
+final selectedPOSBranchProvider = StateProvider<String>((ref) {
+  final user = ref.watch(authProvider);
+  if (user != null &&
+      (user.isAdmin || user.isSupervisor || user.canSwitchStore)) {
+    final selectedStore = ref.watch(selectedStoreIdProvider);
+    if (selectedStore != null &&
+        selectedStore.isNotEmpty &&
+        selectedStore != 'all') {
+      return selectedStore;
+    }
+    try {
+      final storage = ref.watch(filterStorageServiceProvider);
+      final saved = storage.loadSelectedStoreSync(user.username);
+      if (saved != null && saved.isNotEmpty && saved != 'all') {
+        return saved;
+      }
+    } catch (_) {}
+  }
+  return ref.watch(currentStoreIdProvider);
+});
+
+// Provider phân giải tên hiển thị của chi nhánh đang chọn tại POS
+final posBranchNameProvider = Provider<String>((ref) {
+  final branchId = ref.watch(selectedPOSBranchProvider);
+  final availableStoresAsync = ref.watch(availableStoresProvider);
+  final storeNames = availableStoresAsync.valueOrNull;
+  return StoreResolverHelper.resolveStoreName(branchId, storeNames: storeNames);
+});
 
 // Model đại diện cho một sản phẩm trong giỏ hàng
 class CartItem {
@@ -180,20 +210,65 @@ class MultiCartState {
 
 /// Notifier quản lý nghiệp vụ Đa giỏ hàng (Multi-Cart POS)
 class MultiCartNotifier extends StateNotifier<MultiCartState> {
-  MultiCartNotifier([MultiCartState? initialState])
-      : super(
-          initialState ??
-              MultiCartState(
-                tabs: [
-                  CartTab(
-                    id: 'cart_1',
-                    title: 'Hóa đơn 1',
-                    createdAt: DateTime.now(),
-                  ),
-                ],
-                activeTabId: 'cart_1',
-              ),
-        );
+  static final Map<String, MultiCartState> _staticFallbackCache = {};
+
+  final String currentBranchId;
+  final void Function(MultiCartState state)? onStateChanged;
+
+  MultiCartNotifier({
+    this.currentBranchId = 'store_001',
+    MultiCartState? initialState,
+    this.onStateChanged,
+  }) : super(
+          initialState ?? _loadBranchState(currentBranchId),
+        ) {
+    if (initialState != null) {
+      if (onStateChanged != null) {
+        onStateChanged!(initialState);
+      } else {
+        _staticFallbackCache[currentBranchId] = initialState;
+      }
+    }
+  }
+
+  static void resetBranchCartsCache() {
+    _staticFallbackCache.clear();
+  }
+
+  static MultiCartState createInitialState(String branchId) {
+    final defaultTab = CartTab(
+      id: 'cart_${branchId}_1',
+      title: 'Hóa đơn 1',
+      createdAt: DateTime.now(),
+    );
+    return MultiCartState(
+      tabs: [defaultTab],
+      activeTabId: defaultTab.id,
+    );
+  }
+
+  static MultiCartState _loadBranchState(String branchId) {
+    if (_staticFallbackCache.containsKey(branchId)) {
+      return _staticFallbackCache[branchId]!;
+    }
+    final initial = createInitialState(branchId);
+    _staticFallbackCache[branchId] = initial;
+    return initial;
+  }
+
+  void _syncCache() {
+    if (onStateChanged != null) {
+      onStateChanged!(state);
+    } else {
+      _staticFallbackCache[currentBranchId] = state;
+    }
+  }
+
+  @override
+  set state(MultiCartState value) {
+    super.state = value;
+    _syncCache();
+  }
 
   /// Thêm tab hóa đơn tạm mới và tự động active tab đó
   String addNewTab({String? title}) {
@@ -340,8 +415,7 @@ class MultiCartNotifier extends StateNotifier<MultiCartState> {
       final currentItems = Map<String, CartItem>.from(tab.items);
       if (currentItems.containsKey(productId)) {
         final item = currentItems[productId]!;
-        currentItems[productId] =
-            item.copyWith(quantity: item.quantity + 1);
+        currentItems[productId] = item.copyWith(quantity: item.quantity + 1);
       }
       return tab.copyWith(items: currentItems);
     });
@@ -356,8 +430,7 @@ class MultiCartNotifier extends StateNotifier<MultiCartState> {
         if (item.quantity <= 1) {
           currentItems.remove(productId);
         } else {
-          currentItems[productId] =
-              item.copyWith(quantity: item.quantity - 1);
+          currentItems[productId] = item.copyWith(quantity: item.quantity - 1);
         }
       }
       return tab.copyWith(items: currentItems);
@@ -485,7 +558,9 @@ class CartNotifier extends StateNotifier<Map<String, CartItem>> {
         _multiCartNotifier = multiCartNotifier,
         super(multiCartNotifier != null
             ? multiCartNotifier.state.activeTab.items
-            : (ref != null ? ref.read(multiCartProvider).activeTab.items : {})) {
+            : (ref != null
+                ? ref.read(multiCartProvider).activeTab.items
+                : {})) {
     if (_ref != null) {
       state = _ref.read(multiCartProvider).activeTab.items;
       _ref.listen<MultiCartState>(multiCartProvider, (previous, next) {
@@ -684,15 +759,33 @@ class CartNotifier extends StateNotifier<Map<String, CartItem>> {
   }
 }
 
+/// Cache lưu trữ trạng thái giỏ hàng theo từng chi nhánh, gắn liền với ProviderContainer
+final branchCartsCacheProvider =
+    StateProvider<Map<String, MultiCartState>>((ref) => {});
+
 /// Provider quản lý toàn bộ hệ thống đa giỏ hàng POS
 final multiCartProvider =
     StateNotifierProvider<MultiCartNotifier, MultiCartState>((ref) {
-  return MultiCartNotifier();
+  final branchId = ref.watch(selectedPOSBranchProvider);
+  final cache = ref.read(branchCartsCacheProvider);
+
+  final initial =
+      cache[branchId] ?? MultiCartNotifier.createInitialState(branchId);
+  cache[branchId] = initial;
+
+  return MultiCartNotifier(
+    currentBranchId: branchId,
+    initialState: initial,
+    onStateChanged: (newState) {
+      cache[branchId] = newState;
+    },
+  );
 });
 
 /// Provider giỏ hàng chính (tương thích ngược 100% với toàn bộ codebase cũ)
 final cartProvider =
     StateNotifierProvider<CartNotifier, Map<String, CartItem>>((ref) {
+  ref.watch(selectedPOSBranchProvider);
   return CartNotifier(ref: ref);
 });
 

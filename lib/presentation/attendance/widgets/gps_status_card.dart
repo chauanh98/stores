@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
-import '../../../data/datasources/firebase/attendance_remote_data_source.dart';
+import '../../../domain/attendance/geo_point.dart';
 import '../../../domain/attendance/store_gps_config.dart';
 
 class GpsStatusCard extends StatelessWidget {
@@ -38,7 +38,7 @@ class GpsStatusCard extends StatelessWidget {
           width: 1.5,
         ),
       ),
-      color: isWithinRadius ? const Color(0xFFF0FDF4) : const Color(0xFFFFFBEB),
+      color: isWithinRadius ? AppColors.successSubtle : AppColors.warningSubtle,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -52,8 +52,11 @@ class GpsStatusCard extends StatelessWidget {
                       ? AppColors.successLight
                       : AppColors.warningLight,
                   child: Icon(
-                    isWithinRadius ? Icons.my_location : Icons.location_searching,
-                    color: isWithinRadius ? AppColors.success : AppColors.warning,
+                    isWithinRadius
+                        ? Icons.my_location
+                        : Icons.location_searching,
+                    color:
+                        isWithinRadius ? AppColors.success : AppColors.warning,
                     size: 20,
                   ),
                 ),
@@ -101,7 +104,8 @@ class GpsStatusCard extends StatelessWidget {
                     children: [
                       const Text(
                         'Khoảng cách đến cửa hàng:',
-                        style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                        style: TextStyle(
+                            fontSize: 12, color: AppColors.textSecondary),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -111,7 +115,9 @@ class GpsStatusCard extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: isWithinRadius ? AppColors.success : const Color(0xFFB45309),
+                          color: isWithinRadius
+                              ? AppColors.success
+                              : AppColors.warningDark,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -121,26 +127,37 @@ class GpsStatusCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: isWithinRadius ? AppColors.successLight : AppColors.warningLight,
+                    color: isWithinRadius
+                        ? AppColors.successLight
+                        : AppColors.warningLight,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        isWithinRadius ? Icons.check_circle : Icons.warning_amber_rounded,
+                        isWithinRadius
+                            ? Icons.check_circle
+                            : Icons.warning_amber_rounded,
                         size: 16,
-                        color: isWithinRadius ? AppColors.success : const Color(0xFFB45309),
+                        color: isWithinRadius
+                            ? AppColors.success
+                            : AppColors.warningDark,
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        isWithinRadius ? 'Hợp lệ (<= ${maxRadius.toInt()}m)' : 'Cảnh báo (> ${maxRadius.toInt()}m)',
+                        isWithinRadius
+                            ? 'Hợp lệ (<= ${maxRadius.toInt()}m)'
+                            : 'Cảnh báo (> ${maxRadius.toInt()}m)',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
-                          color: isWithinRadius ? AppColors.success : const Color(0xFFB45309),
+                          color: isWithinRadius
+                              ? AppColors.success
+                              : AppColors.warningDark,
                         ),
                       ),
                     ],
@@ -155,7 +172,7 @@ class GpsStatusCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppColors.white,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: AppColors.warning.withOpacity(0.5)),
                 ),
@@ -164,14 +181,15 @@ class GpsStatusCard extends StatelessWidget {
                   children: [
                     const Row(
                       children: [
-                        Icon(Icons.edit_note, size: 18, color: AppColors.warning),
+                        Icon(Icons.edit_note,
+                            size: 18, color: AppColors.warning),
                         SizedBox(width: 6),
                         Text(
                           'Lý do giải trình (Bắt buộc khi ngoài bán kính):',
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFFB45309),
+                            color: AppColors.warningDark,
                           ),
                         ),
                       ],
@@ -181,8 +199,10 @@ class GpsStatusCard extends StatelessWidget {
                       controller: explanationController,
                       maxLines: 2,
                       decoration: const InputDecoration(
-                        hintText: 'Nhập lý do (ví dụ: Đi giao hàng, lỗi GPS, hỗ trợ chi nhánh khác...)',
-                        hintStyle: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                        hintText:
+                            'Nhập lý do (ví dụ: Đi giao hàng, lỗi GPS, hỗ trợ chi nhánh khác...)',
+                        hintStyle: TextStyle(
+                            fontSize: 13, color: AppColors.textSecondary),
                         border: OutlineInputBorder(),
                         isDense: true,
                         contentPadding: EdgeInsets.all(10),
@@ -210,15 +230,18 @@ class GpsStatusCard extends StatelessWidget {
                         child: const Text('Tại cửa hàng (0m - Hợp lệ)'),
                       ),
                       PopupMenuItem(
-                        value: GeoPoint(baseLat + 0.0006, baseLng, 'Gần cửa hàng (~65m)'),
+                        value: GeoPoint(
+                            baseLat + 0.0006, baseLng, 'Gần cửa hàng (~65m)'),
                         child: const Text('Gần cửa hàng (~65m - Hợp lệ)'),
                       ),
                       PopupMenuItem(
-                        value: GeoPoint(baseLat + 0.003, baseLng, 'Ngoài cửa hàng (~330m)'),
+                        value: GeoPoint(
+                            baseLat + 0.003, baseLng, 'Ngoài cửa hàng (~330m)'),
                         child: const Text('Ngoài cửa hàng (~330m - Cảnh báo)'),
                       ),
                       PopupMenuItem(
-                        value: GeoPoint(baseLat + 0.010, baseLng, 'Xa cửa hàng (~1.1km)'),
+                        value: GeoPoint(
+                            baseLat + 0.010, baseLng, 'Xa cửa hàng (~1.1km)'),
                         child: const Text('Xa cửa hàng (~1.1km - Cảnh báo)'),
                       ),
                     ];
@@ -226,11 +249,15 @@ class GpsStatusCard extends StatelessWidget {
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.tune, size: 14, color: AppColors.textSecondary),
+                      Icon(Icons.tune,
+                          size: 14, color: AppColors.textSecondary),
                       SizedBox(width: 4),
                       Text(
                         'Chế độ test tọa độ',
-                        style: TextStyle(fontSize: 11, color: AppColors.textSecondary, decoration: TextDecoration.underline),
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textSecondary,
+                            decoration: TextDecoration.underline),
                       ),
                     ],
                   ),

@@ -54,4 +54,3 @@ class CodeGeneratorHelper {
     return generateNextCode('NCC', existingSupplierCodes, padLength: 6);
   }
 }
-

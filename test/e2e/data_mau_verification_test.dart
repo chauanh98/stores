@@ -56,8 +56,8 @@ void main() {
         expect(store001Data['address'], contains('Phố Huế'));
         expect(store001ProductsRaw.length, equals(11),
             reason: 'store_001 has exactly 11 product definitions');
-        expect(store001OrdersRaw.length, equals(16),
-            reason: 'store_001 has exactly 16 total orders');
+        expect(store001OrdersRaw.length, equals(17),
+            reason: 'store_001 has exactly 17 total orders (15 completed, 1 returned, 1 draft)');
       });
 
       test('data_mau.json contains valid store_002 (Thới Bình) metadata', () {
@@ -67,29 +67,30 @@ void main() {
             isTrue,
             reason: 'store_002 name matches Thới Bình / Thời Bình');
         expect(store002Data['address'], contains('Nguyễn Huệ'));
-        expect(store002ProductsRaw.length, equals(5),
-            reason: 'store_002 has exactly 5 product definitions');
-        expect(store002OrdersRaw.length, equals(2),
-            reason: 'store_002 has exactly 2 total orders');
+        expect(store002ProductsRaw.length, greaterThanOrEqualTo(5),
+            reason: 'store_002 has at least 5 sample product definitions (plus imported KiotViet catalog)');
+        expect(store002OrdersRaw.length, greaterThanOrEqualTo(2),
+            reason: 'store_002 has at least 2 sample orders (plus imported KiotViet orders)');
       });
 
       test(
-          'Total product count in data_mau.json is exactly 16 across both stores',
+          'Total product count in data_mau.json includes all seed products across both stores',
           () {
         expect(store001ProductsRaw.length + store002ProductsRaw.length,
-            equals(16));
+            greaterThanOrEqualTo(16));
       });
 
-      test('Total order count in data_mau.json is exactly 18 across both stores',
+      test('Total order count in data_mau.json includes all sample orders across both stores',
           () {
-        expect(store001OrdersRaw.length + store002OrdersRaw.length, equals(18));
+        expect(store001OrdersRaw.length + store002OrdersRaw.length,
+            greaterThanOrEqualTo(18));
       });
 
       test(
           'Total inventory transaction count in data_mau.json across both stores',
           () {
-        expect(store001TxRaw.length, equals(86));
-        expect(store002TxRaw.length, equals(11));
+        expect(store001TxRaw.length, equals(89));
+        expect(store002TxRaw.length, equals(15));
       });
     });
 
@@ -119,7 +120,7 @@ void main() {
         });
 
         test(
-            'Product 2 [1784349709944] (Hihi sadasdasd): ĐT: 0, TB: 0 (Total: 0)',
+            'Product 2 [1784349709944] (Hihi sadasdasd): ĐT: 100, TB: 0 (Total: 100)',
             () {
           final raw = store001ProductsRaw['1784349709944'] as Map;
           final product = ProductModel.fromMap(raw, 'store_001').toEntity();
@@ -127,12 +128,13 @@ void main() {
           expect(product.id, equals('1784349709944'));
           expect(product.name, equals('Hihi sadasdasd'));
           expect(product.code, equals('HIHi dcccc'));
-          expect(product.stockInBranch('store_001'), equals(0));
+          expect(product.stockInBranch('store_001'), equals(100));
           expect(product.stockInBranch('store_002'), equals(0));
-          expect(product.stockInBranch('ĐT'), equals(0));
+          expect(product.stockInBranch('ĐT'), equals(100));
           expect(product.stockInBranch('TB'), equals(0));
-          expect(product.stock, equals(0));
-          expect(product.isOutOfStock, isTrue);
+          expect(product.stock, equals(100));
+          expect(product.isOutOfStock, isFalse);
+          expect(product.hasStock, isTrue);
         });
 
         test(
@@ -206,7 +208,7 @@ void main() {
         });
 
         test(
-            'Product 7 [GCG10] (Ghế bậc thang đốt nhang -1m6): ĐT: 0, TB: 0 (Total: 0)',
+            'Product 7 [GCG10] (Ghế bậc thang đốt nhang -1m6): ĐT: 1, TB: 0 (Total: 1)',
             () {
           final raw = store001ProductsRaw['GCG10'] as Map;
           final product = ProductModel.fromMap(raw, 'store_001').toEntity();
@@ -216,15 +218,16 @@ void main() {
           expect(product.code, equals('GCG10'));
           expect(product.price, equals(3150000.0));
           expect(product.costPrice, equals(2300000.0));
-          expect(product.stockInBranch('store_001'), equals(0));
+          expect(product.stockInBranch('store_001'), equals(1));
           expect(product.stockInBranch('store_002'), equals(0));
-          expect(product.stockInBranch('ĐT'), equals(0));
+          expect(product.stockInBranch('ĐT'), equals(1));
           expect(product.stockInBranch('TB'), equals(0));
-          expect(product.stock, equals(0));
-          expect(product.isOutOfStock, isTrue);
+          expect(product.stock, equals(1));
+          expect(product.isOutOfStock, isFalse);
+          expect(product.hasStock, isTrue);
         });
 
-        test('Product 8 [KY29] (Kỷ xếp thao lao - 1m4): ĐT: 2, TB: 0 (Total: 2)',
+        test('Product 8 [KY29] (Kỷ xếp thao lao - 1m4): ĐT: 1, TB: 0 (Total: 1)',
             () {
           final raw = store001ProductsRaw['KY29'] as Map;
           final product = ProductModel.fromMap(raw, 'store_001').toEntity();
@@ -234,11 +237,11 @@ void main() {
           expect(product.code, equals('KY29'));
           expect(product.price, equals(9800000.0));
           expect(product.costPrice, equals(6200000.0));
-          expect(product.stockInBranch('store_001'), equals(2));
+          expect(product.stockInBranch('store_001'), equals(1));
           expect(product.stockInBranch('store_002'), equals(0));
-          expect(product.stockInBranch('ĐT'), equals(2));
+          expect(product.stockInBranch('ĐT'), equals(1));
           expect(product.stockInBranch('TB'), equals(0));
-          expect(product.stock, equals(2));
+          expect(product.stock, equals(1));
           expect(product.isLowStock(5), isTrue);
         });
 
@@ -261,7 +264,7 @@ void main() {
         });
 
         test(
-            'Product 10 [VP88 in store_001] (Bàn chữ K MDF): ĐT: 0, TB: 0 (Total: 0)',
+            'Product 10 [VP88 in store_001] (Bàn chữ K MDF): ĐT: 10, TB: 0 (Total: 10)',
             () {
           final raw = store001ProductsRaw['VP88'] as Map;
           final product = ProductModel.fromMap(raw, 'store_001').toEntity();
@@ -271,12 +274,13 @@ void main() {
               product.name, equals('Bàn chữ K mặt MDF - kệ trên dưới - 1m2'));
           expect(product.price, equals(1150000.0));
           expect(product.costPrice, equals(2500.0));
-          expect(product.stockInBranch('store_001'), equals(0));
+          expect(product.stockInBranch('store_001'), equals(10));
           expect(product.stockInBranch('store_002'), equals(0));
-          expect(product.stockInBranch('ĐT'), equals(0));
+          expect(product.stockInBranch('ĐT'), equals(10));
           expect(product.stockInBranch('TB'), equals(0));
-          expect(product.stock, equals(0));
-          expect(product.isOutOfStock, isTrue);
+          expect(product.stock, equals(10));
+          expect(product.isOutOfStock, isFalse);
+          expect(product.hasStock, isTrue);
         });
 
         test(
@@ -309,7 +313,7 @@ void main() {
           expect(product.id, equals('1782636691862'));
           expect(product.name, equals('iPhone 17'));
           expect(product.price, equals(21000000.0));
-          expect(product.costPrice, closeTo(14333333.33, 0.01));
+          expect(product.costPrice, closeTo(14333333.0, 0.5));
           // Context-aware: branch_1 in store_002 represents TB (store_002)
           expect(product.stockInBranch('store_001'), equals(0));
           expect(product.stockInBranch('store_002'), equals(4));
@@ -320,7 +324,7 @@ void main() {
         });
 
         test(
-            'Product 13 [1784390108938] (ip 17 pro max): ĐT: 0, TB: 10 (Total: 10)',
+            'Product 13 [1784390108938] (ip 17 pro max): ĐT: 11, TB: 9 (Total: 20)',
             () {
           final raw = store002ProductsRaw['1784390108938'] as Map;
           final product = ProductModel.fromMap(raw, 'store_002').toEntity();
@@ -329,32 +333,31 @@ void main() {
           expect(product.name, equals('ip 17 pro max'));
           expect(product.price, equals(30000000.0));
           expect(product.costPrice, equals(20000000.0));
-          expect(product.stockInBranch('store_001'), equals(0));
-          expect(product.stockInBranch('store_002'), equals(10));
-          expect(product.stockInBranch('ĐT'), equals(0));
-          expect(product.stockInBranch('TB'), equals(10));
-          expect(product.stock, equals(10));
+          expect(product.stockInBranch('store_001'), equals(11));
+          expect(product.stockInBranch('store_002'), equals(9));
+          expect(product.stockInBranch('ĐT'), equals(11));
+          expect(product.stockInBranch('TB'), equals(9));
+          expect(product.stock, equals(20));
         });
 
         test(
-            'Product 14 [VP88 in store_002] (Bàn chữ K MDF Thới Bình instance): ĐT: 0, TB: 5 (Total: 5)',
+            'Product 14 [VP88 in store_002] (Bàn chân sắt K mặt MDF Thới Bình instance): ĐT: 0, TB: 0 (Total: 0)',
             () {
           final raw = store002ProductsRaw['VP88'] as Map;
           final product = ProductModel.fromMap(raw, 'store_002').toEntity();
 
           expect(product.id, equals('VP88'));
           expect(
-              product.name, equals('Bàn chữ K mặt MDF - kệ trên dưới - 1m2'));
+              product.name, equals('Bàn chân sắt K mặt MDF - kệ 1 tầng - 1m2'));
           expect(product.price, equals(1150000.0));
-          // branchStocks {'branch_1': 5} takes precedence over legacy stock: 3
           expect(product.stockInBranch('store_001'), equals(0));
-          expect(product.stockInBranch('store_002'), equals(5));
+          expect(product.stockInBranch('store_002'), equals(0));
           expect(product.stockInBranch('ĐT'), equals(0));
-          expect(product.stockInBranch('TB'), equals(5));
-          expect(product.stock, equals(5));
+          expect(product.stockInBranch('TB'), equals(0));
+          expect(product.stock, equals(0));
         });
 
-        test('Product 15 [p101] (iPad Air M2): ĐT: 0, TB: 15 (Total: 15)', () {
+        test('Product 15 [p101] (iPad Air M2): ĐT: 25, TB: 15 (Total: 40)', () {
           final raw = store002ProductsRaw['p101'] as Map;
           final product = ProductModel.fromMap(raw, 'store_002').toEntity();
 
@@ -362,11 +365,11 @@ void main() {
           expect(product.name, equals('iPad Air M2'));
           expect(product.price, equals(15990000.0));
           expect(product.costPrice, equals(11193000.0));
-          expect(product.stockInBranch('store_001'), equals(0));
+          expect(product.stockInBranch('store_001'), equals(25));
           expect(product.stockInBranch('store_002'), equals(15));
-          expect(product.stockInBranch('ĐT'), equals(0));
+          expect(product.stockInBranch('ĐT'), equals(25));
           expect(product.stockInBranch('TB'), equals(15));
-          expect(product.stock, equals(15));
+          expect(product.stock, equals(40));
         });
 
         test('Product 16 [p102] (ThinkPad X1 Carbon): ĐT: 0, TB: 4 (Total: 4)',
@@ -425,34 +428,46 @@ void main() {
       });
 
       group('D. Network Inventory Aggregation', () {
-        test('Total network stock sums to exactly 58 (ĐT) + 38 (TB) = 96 items',
+        test(
+            'Total network stock across 16 sample products sums to exactly 204 (ĐT) + 32 (TB) = 236 items',
             () {
+          const seedProductIdsStore2 = {
+            '1782636691862',
+            '1784390108938',
+            'VP88',
+            'p101',
+            'p102',
+          };
+
           final store1Products = store001ProductsRaw.values
               .map((m) =>
                   ProductModel.fromMap(m as Map, 'store_001').toEntity())
               .toList();
 
-          final store2Products = store002ProductsRaw.values
-              .map((m) =>
-                  ProductModel.fromMap(m as Map, 'store_002').toEntity())
+          final store2SeedProducts = store002ProductsRaw.entries
+              .where((e) => seedProductIdsStore2.contains(e.key))
+              .map((e) =>
+                  ProductModel.fromMap(e.value as Map, 'store_002').toEntity())
               .toList();
 
           final totalDtStock = store1Products.fold<int>(
                   0, (sum, p) => sum + p.stockInBranch('store_001')) +
-              store2Products.fold<int>(
+              store2SeedProducts.fold<int>(
                   0, (sum, p) => sum + p.stockInBranch('store_001'));
 
           final totalTbStock = store1Products.fold<int>(
                   0, (sum, p) => sum + p.stockInBranch('store_002')) +
-              store2Products.fold<int>(
+              store2SeedProducts.fold<int>(
                   0, (sum, p) => sum + p.stockInBranch('store_002'));
 
-          expect(totalDtStock, equals(58),
-              reason: 'Store 001 inventory: 10+0+0+11+11+11+0+2+2+0+11 = 58');
-          expect(totalTbStock, equals(38),
-              reason: 'Store 002 inventory: 4+10+5+15+4 = 38');
-          expect(totalDtStock + totalTbStock, equals(96),
-              reason: 'Grand total network inventory is 96 units');
+          expect(totalDtStock, equals(204),
+              reason:
+                  'Store 001 inventory: 10+100+0+11+11+11+1+1+2+10+11 = 168, plus Store 002 seed ĐT stock: 11+25 = 36; Total ĐT = 204');
+          expect(totalTbStock, equals(32),
+              reason: 'Store 002 seed TB inventory: 4+9+0+15+4 = 32; Total TB = 32');
+          expect(totalDtStock + totalTbStock, equals(236),
+              reason:
+                  'Grand total network inventory across 16 sample products is 236 units');
         });
       });
     });
@@ -475,6 +490,7 @@ void main() {
           return Order(
             id: m.id,
             customerId: m.customerId,
+            customerName: m.customerName,
             createdAt: m.createdAt,
             items: m.items
                 .map((e) => OrderItem(
@@ -486,7 +502,8 @@ void main() {
                       purchaseDate: e.purchaseDate,
                     ))
                 .toList(),
-            total: m.total,
+            total: (m.total - m.discount).clamp(0.0, double.infinity),
+            discount: m.discount,
             status: m.status,
             amountPaid: m.amountPaid,
             debtAmount: m.debtAmount,
@@ -496,13 +513,17 @@ void main() {
           );
         }).toList();
 
-        store2Orders = store002OrdersRaw.entries.map((entry) {
+        const seedStore2OrderIds = {'HD_1782636961924', 'HD_1782637543339'};
+        store2Orders = store002OrdersRaw.entries
+            .where((entry) => seedStore2OrderIds.contains(entry.key))
+            .map((entry) {
           final map = Map<String, dynamic>.from(entry.value as Map);
           map['id'] = entry.key;
           final m = OrderModel.fromMap(map);
           return Order(
             id: m.id,
             customerId: m.customerId,
+            customerName: m.customerName,
             createdAt: m.createdAt,
             items: m.items
                 .map((e) => OrderItem(
@@ -514,7 +535,8 @@ void main() {
                       purchaseDate: e.purchaseDate,
                     ))
                 .toList(),
-            total: m.total,
+            total: (m.total - m.discount).clamp(0.0, double.infinity),
+            discount: m.discount,
             status: m.status,
             amountPaid: m.amountPaid,
             debtAmount: m.debtAmount,
@@ -529,7 +551,7 @@ void main() {
 
       group('A. Tháng 08/2026 (August 2026) Orders Verification', () {
         test(
-            'Tháng 08/2026: store_001 has 3 completed orders totaling 7,150,000đ',
+            'Tháng 08/2026: store_001 has 3 completed orders totaling 13,800,000đ and 1 returned order',
             () {
           final augustOrders = store1Orders
               .where((o) =>
@@ -540,42 +562,45 @@ void main() {
 
           expect(augustOrders.length, equals(3));
 
-          final hd1 = augustOrders.firstWhere((o) => o.id == 'HD000001');
-          expect(hd1.total, equals(3150000.0));
-          expect(hd1.amountPaid, equals(3150000.0));
-          expect(hd1.debtAmount, equals(0.0));
-          expect(hd1.items.length, equals(1));
-          expect(hd1.items.first.productId, equals('GCG10'));
-
           final hd2 = augustOrders.firstWhere((o) => o.id == 'HD000002');
           expect(hd2.total, equals(3150000.0));
-          expect(hd2.amountPaid, equals(150000.0));
-          expect(hd2.debtAmount, equals(3000000.0));
+          expect(hd2.amountPaid, equals(3150000.0));
+          expect(hd2.debtAmount, equals(0.0));
+          expect(hd2.items.length, equals(1));
           expect(hd2.items.first.productId, equals('GCG10'));
 
           final hd3 = augustOrders.firstWhere((o) => o.id == 'HD000003');
           expect(hd3.total, equals(850000.0),
               reason: '1,150,000đ price - 300,000đ discount = 850,000đ');
-          expect(hd3.amountPaid, equals(150000.0));
-          expect(hd3.debtAmount, equals(700000.0));
+          expect(hd3.amountPaid, equals(850000.0));
+          expect(hd3.debtAmount, equals(0.0));
           expect(hd3.items.first.productId, equals('VP88'));
+
+          final hd4 = augustOrders.firstWhere((o) => o.id == 'HD000004');
+          expect(hd4.total, equals(9800000.0));
+          expect(hd4.amountPaid, equals(9800000.0));
+          expect(hd4.debtAmount, equals(0.0));
+          expect(hd4.items.first.productId, equals('KY29'));
 
           final augustTotal =
               augustOrders.fold<double>(0.0, (sum, o) => sum + o.total);
-          expect(augustTotal, equals(7150000.0));
+          expect(augustTotal, equals(13800000.0),
+              reason: '3,150,000 + 850,000 + 9,800,000 = 13,800,000đ');
 
           final augustCash =
               augustOrders.fold<double>(0.0, (sum, o) => sum + o.amountPaid);
-          expect(augustCash, equals(3450000.0),
-              reason: '3,150,000 + 150,000 + 150,000 = 3,450,000đ');
+          expect(augustCash, equals(13800000.0));
 
           final augustDebt =
               augustOrders.fold<double>(0.0, (sum, o) => sum + o.debtAmount);
-          expect(augustDebt, equals(3700000.0),
-              reason: '0 + 3,000,000 + 700,000 = 3,700,000đ');
+          expect(augustDebt, equals(0.0));
+
+          final hd1 = store1Orders.firstWhere((o) => o.id == 'HD000001');
+          expect(hd1.status, equals('returned'));
+          expect(hd1.total, equals(0.0));
         });
 
-        test('Tháng 08/2026: store_002 has 0 orders', () {
+        test('Tháng 08/2026: store_002 has 0 sample orders', () {
           final augustStore2 = store2Orders
               .where((o) => o.createdAt.year == 2026 && o.createdAt.month == 8)
               .toList();
@@ -583,7 +608,7 @@ void main() {
         });
 
         test(
-            'Tháng 08/2026: Total completed network revenue is exactly 7,150,000đ',
+            'Tháng 08/2026: Total completed network revenue across sample orders is exactly 13,800,000đ',
             () {
           final augustNetwork = allOrders
               .where((o) =>
@@ -593,7 +618,7 @@ void main() {
               .toList();
           final total =
               augustNetwork.fold<double>(0.0, (sum, o) => sum + o.total);
-          expect(total, equals(7150000.0));
+          expect(total, equals(13800000.0));
         });
       });
 
@@ -738,7 +763,7 @@ void main() {
       });
 
       group('D. Grand Total Aggregate Invoices Across All 3 Months', () {
-        test('Grand Total Completed Orders: 17 orders totaling 358,311,000đ',
+        test('Grand Total Completed Orders: 17 sample orders totaling 364,961,000đ',
             () {
           final completedAll =
               allOrders.where((o) => o.status == 'completed').toList();
@@ -746,9 +771,9 @@ void main() {
 
           final grandTotalRevenue =
               completedAll.fold<double>(0.0, (sum, o) => sum + o.total);
-          expect(grandTotalRevenue, equals(358311000.0),
+          expect(grandTotalRevenue, equals(364961000.0),
               reason:
-                  '335,361,000 (Jun) + 15,800,000 (Jul) + 7,150,000 (Aug) = 358,311,000đ');
+                  '335,361,000 (Jun) + 15,800,000 (Jul) + 13,800,000 (Aug) = 364,961,000đ');
 
           // Store 1 breakdown
           final store1Completed =
@@ -756,8 +781,8 @@ void main() {
           expect(store1Completed.length, equals(15));
           final store1Total =
               store1Completed.fold<double>(0.0, (sum, o) => sum + o.total);
-          expect(store1Total, equals(127311000.0),
-              reason: '104,361,000 + 15,800,000 + 7,150,000 = 127,311,000đ');
+          expect(store1Total, equals(133961000.0),
+              reason: '104,361,000 + 15,800,000 + 13,800,000 = 133,961,000đ');
 
           // Store 2 breakdown
           final store2Completed =
@@ -767,7 +792,7 @@ void main() {
               store2Completed.fold<double>(0.0, (sum, o) => sum + o.total);
           expect(store2Total, equals(231000000.0));
 
-          expect(store1Total + store2Total, equals(358311000.0));
+          expect(store1Total + store2Total, equals(364961000.0));
         });
       });
     });

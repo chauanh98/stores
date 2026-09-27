@@ -8,9 +8,12 @@ import '../../core/utils/store_resolver_helper.dart';
 import '../../data/datasources/firebase/inventory_remote_data_source.dart';
 import '../../data/datasources/firebase/order_remote_data_source.dart';
 import '../../data/datasources/firebase/product_remote_data_source.dart';
+import '../../data/models/order_model.dart';
 import '../../data/repositories/revenue_repository_impl.dart';
+import '../../domain/entities/product.dart';
 import '../../domain/entities/revenue_report.dart';
 import '../auth/auth_providers.dart';
+import '../products/products_providers.dart';
 import 'overview_providers.dart';
 
 final orderRemoteDataSourceProvider = Provider<OrderRemoteDataSource>((ref) {
@@ -38,8 +41,8 @@ final revenueRepositoryProvider = Provider<RevenueRepositoryImpl>((ref) {
 });
 
 // Dùng StreamProvider để tự động cập nhật khi có đơn hàng mới
-final revenueByDateProvider =
-    StreamProvider.family<RevenueReport, DateTime>((ref, date) async* {
+final revenueByDateProvider = StreamProvider.autoDispose
+    .family<RevenueReport, DateTime>((ref, date) async* {
   final startOfDay = DateTime(date.year, date.month, date.day);
   final endOfDay = DateTime(date.year, date.month, date.day, 23, 59, 59, 999);
   final summary = await ref.watch(revenueByDateRangeProvider(
@@ -61,13 +64,13 @@ final revenueByDateProvider =
   }
 });
 
-final revenueByDateRangeProvider =
-    StreamProvider.family<RevenueSummary, DateTimeRange>((ref, range) async* {
+final revenueByDateRangeProvider = StreamProvider.autoDispose
+    .family<RevenueSummary, DateTimeRange>((ref, range) async* {
   final selectedBranches = ref.watch(selectedBranchesProvider);
   final currentStoreId = ref.watch(currentStoreIdProvider);
   final storeFilter = ref.watch(selectedStoreFilterProvider);
   final user = ref.watch(authProvider);
-  final availableStores = ref.watch(availableStoresProvider).value ?? {};
+  final availableStores = ref.watch(availableStoresProvider).valueOrNull ?? {};
 
   final targetStoreIds = StoreResolverHelper.resolveTargetStoreIds(
     selectedBranches,
@@ -76,6 +79,20 @@ final revenueByDateRangeProvider =
     storeFilter: storeFilter,
     availableStores: availableStores,
   );
+
+  if (targetStoreIds.isEmpty) {
+    yield RevenueSummary(
+      startDate: range.start,
+      endDate: range.end,
+      totalRevenue: 0.0,
+      totalCost: 0.0,
+      totalProfit: 0.0,
+      totalOrders: 0,
+      totalItemsSold: 0,
+      dailyReports: const [],
+    );
+    return;
+  }
 
   final start = DateTime(range.start.year, range.start.month, range.start.day);
   final end =
@@ -113,10 +130,36 @@ final revenueByDateRangeProvider =
     controller.close();
   });
 
-  // Optimized: cache inventory & products cho mỗi store
-  // Chỉ fetch 1 lần, không re-fetch mỗi lần orders stream emit
+  // R1: Tái sử dụng sản phẩm từ bộ nhớ (productListProvider / allStoresProductsProvider)
+  // Triệt tiêu lệnh productDs.fetchAll() tải lại toàn bộ cây dữ liệu khi đổi khoảng ngày
+  final inMemoryProducts =
+      ref.watch(productListProvider).valueOrNull ?? const <Product>[];
+  final inMemoryProductMaps = inMemoryProducts
+      .map((p) => <String, dynamic>{
+            'id': p.id,
+            'name': p.name,
+            'price': p.price,
+            'costPrice': p.costPrice,
+          })
+      .toList();
+
+  final allStoresProducts =
+      ref.watch(allStoresProductsProvider).valueOrNull ?? const <Product>[];
+  final allStoresProductMaps = allStoresProducts
+      .map((p) => <String, dynamic>{
+            'id': p.id,
+            'name': p.name,
+            'price': p.price,
+            'costPrice': p.costPrice,
+          })
+      .toList();
+
+  final combinedProducts = allStoresProductMaps.isNotEmpty
+      ? allStoresProductMaps
+      : inMemoryProductMaps;
+
+  // Optimized: cache inventory imports cho mỗi store theo khoảng ngày
   final Map<String, List<Map>> inventoryCache = {};
-  final Map<String, List<Map>> productsCache = {};
 
   try {
     await for (final _ in controller.stream) {
@@ -126,32 +169,36 @@ final revenueByDateRangeProvider =
       for (final storeId in targetStoreIds) {
         final storeOrders = storeOrdersMap[storeId] ?? [];
         final filteredStoreOrders = storeOrders.where((order) {
-          final status = order['status']?.toString() ?? 'completed';
-          if (status != 'completed') return false;
+          final orderModel = OrderModel.fromMap(order);
+          if (orderModel.isCancelled || orderModel.isDraft) return false;
 
           // Nếu là Admin/Supervisor (canSwitchStore == true), việc lọc theo chi nhánh đã được thực hiện bằng cách chỉ chọn query store tương ứng ở bước trên!
-          if (user?.canSwitchStore == true || user?.isAdmin == true) return true;
+          if (user?.canSwitchStore == true || user?.isAdmin == true)
+            return true;
 
           // Nhân viên thường: Chỉ được xem chi nhánh được phân quyền của cửa hàng hiện tại
-          final normalizedStoreId = StoreResolverHelper.normalizeStoreId(storeId);
+          final normalizedStoreId =
+              StoreResolverHelper.normalizeStoreId(storeId);
           return selectedBranches.any((b) =>
               StoreResolverHelper.normalizeStoreId(b) == normalizedStoreId);
         }).toList();
 
-        // Optimized: cache inventory & products per store - chỉ fetch 1 lần
+        // Optimized: cache inventory per store - chỉ fetch 1 lần
         if (!inventoryCache.containsKey(storeId)) {
           final inventoryDs =
               InventoryRemoteDataSource(FirebaseDatabase.instance, storeId);
-          inventoryCache[storeId] = await inventoryDs.fetchAll();
-        }
-        if (!productsCache.containsKey(storeId)) {
-          final productDs =
-              ProductRemoteDataSource(FirebaseDatabase.instance, storeId);
-          productsCache[storeId] = await productDs.fetchAll();
+          try {
+            inventoryCache[storeId] =
+                await inventoryDs.fetchImportsByDateRange(start, end);
+          } catch (e) {
+            debugPrint(
+                'Error fetching inventory imports for store $storeId: $e');
+            inventoryCache[storeId] = [];
+          }
         }
 
         final inventory = inventoryCache[storeId]!;
-        final products = productsCache[storeId]!;
+        final products = combinedProducts;
 
         // Tạo repo cho storeId này để tính toán chuẩn xác độc lập
         final storeRepo = RevenueRepositoryImpl(

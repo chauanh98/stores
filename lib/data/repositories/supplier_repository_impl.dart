@@ -68,7 +68,9 @@ class SupplierRepositoryImpl implements SupplierRepository {
     String supplierId, {
     String? storeId,
   }) {
-    return _ds.watchDebtTransactions(supplierId, storeId: storeId).asyncMap((list) async {
+    return _ds
+        .watchDebtTransactions(supplierId, storeId: storeId)
+        .asyncMap((list) async {
       if (kIsWeb) {
         final txs = list.map(_mapToDebtTransaction).toList();
         txs.sort((a, b) => b.date.compareTo(a.date));

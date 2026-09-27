@@ -32,7 +32,8 @@ class StoreGpsConfigModel {
     };
   }
 
-  factory StoreGpsConfigModel.fromMap(Map<dynamic, dynamic> map, {String? storeId}) {
+  factory StoreGpsConfigModel.fromMap(Map<dynamic, dynamic> map,
+      {String? storeId}) {
     return StoreGpsConfigModel(
       storeId: storeId ?? map['storeId']?.toString() ?? '',
       latitude: (map['latitude'] as num?)?.toDouble() ?? 10.035,

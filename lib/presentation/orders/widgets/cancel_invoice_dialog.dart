@@ -161,7 +161,7 @@ class _CancelInvoiceDialogState extends ConsumerState<CancelInvoiceDialog> {
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: Colors.black87,
+                            color: AppColors.textPrimary,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -169,7 +169,7 @@ class _CancelInvoiceDialogState extends ConsumerState<CancelInvoiceDialog> {
                           'Thao tác hoàn tác kho và công nợ',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.black54,
+                            color: AppColors.textSecondary,
                           ),
                         ),
                       ],
@@ -183,16 +183,16 @@ class _CancelInvoiceDialogState extends ConsumerState<CancelInvoiceDialog> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.amber.shade50,
+                  color: AppColors.warningLight,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.amber.shade300),
+                  border: Border.all(color: AppColors.warningBorder),
                 ),
                 child: const Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Icon(
                       Icons.info_outline,
-                      color: Colors.orange,
+                      color: AppColors.warning,
                       size: 18,
                     ),
                     SizedBox(width: 8),
@@ -201,7 +201,7 @@ class _CancelInvoiceDialogState extends ConsumerState<CancelInvoiceDialog> {
                         'Hủy hóa đơn sẽ tự động hoàn trả số lượng tồn kho và hoàn tác công nợ/doanh số của khách hàng.',
                         style: TextStyle(
                           fontSize: 12.5,
-                          color: Colors.brown,
+                          color: AppColors.warningDeep,
                           height: 1.35,
                         ),
                       ),
@@ -247,7 +247,7 @@ class _CancelInvoiceDialogState extends ConsumerState<CancelInvoiceDialog> {
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 13,
-                  color: Colors.black87,
+                  color: AppColors.textPrimary,
                 ),
               ),
               const SizedBox(height: 6),
@@ -259,7 +259,7 @@ class _CancelInvoiceDialogState extends ConsumerState<CancelInvoiceDialog> {
                 decoration: InputDecoration(
                   hintText: 'Ví dụ: Khách đổi ý, lập sai sản phẩm...',
                   filled: true,
-                  fillColor: Colors.grey.shade50,
+                  fillColor: AppColors.grey50,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                     borderSide: const BorderSide(color: AppColors.border),
@@ -299,7 +299,7 @@ class _CancelInvoiceDialogState extends ConsumerState<CancelInvoiceDialog> {
                         side: const BorderSide(color: AppColors.border),
                       ),
                       child: const Text('Đóng',
-                          style: TextStyle(color: Colors.black87)),
+                          style: TextStyle(color: AppColors.textPrimary)),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -310,7 +310,7 @@ class _CancelInvoiceDialogState extends ConsumerState<CancelInvoiceDialog> {
                       onPressed: (!canDelete || _isLoading) ? null : _submit,
                       style: FilledButton.styleFrom(
                         backgroundColor: AppColors.danger,
-                        disabledBackgroundColor: Colors.grey.shade300,
+                        disabledBackgroundColor: AppColors.grey300,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8)),
@@ -321,7 +321,7 @@ class _CancelInvoiceDialogState extends ConsumerState<CancelInvoiceDialog> {
                               width: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: Colors.white,
+                                color: AppColors.white,
                               ),
                             )
                           : const Text(
@@ -329,7 +329,7 @@ class _CancelInvoiceDialogState extends ConsumerState<CancelInvoiceDialog> {
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 14,
-                                color: Colors.white,
+                                color: AppColors.white,
                               ),
                             ),
                     ),

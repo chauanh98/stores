@@ -40,11 +40,11 @@ class SmartStockAlertsCard extends ConsumerWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: AppColors.black.withOpacity(0.04),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -78,7 +78,7 @@ class SmartStockAlertsCard extends ConsumerWidget {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
-                      color: Colors.black87,
+                      color: AppColors.textPrimary,
                     ),
                   ),
                 ],
@@ -150,12 +150,12 @@ class SmartStockAlertsCard extends ConsumerWidget {
                     decoration: BoxDecoration(
                       color: summary.outOfStockCount > 0
                           ? AppColors.dangerLight
-                          : Colors.grey.shade50,
+                          : AppColors.grey50,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
                         color: summary.outOfStockCount > 0
                             ? AppColors.danger.withOpacity(0.4)
-                            : Colors.grey.shade200,
+                            : AppColors.grey200,
                         width: 1,
                       ),
                     ),
@@ -174,7 +174,7 @@ class SmartStockAlertsCard extends ConsumerWidget {
                                   fontWeight: FontWeight.w600,
                                   color: summary.outOfStockCount > 0
                                       ? AppColors.danger
-                                      : Colors.black54,
+                                      : AppColors.textSecondary,
                                 ),
                               ),
                             ),
@@ -184,7 +184,7 @@ class SmartStockAlertsCard extends ConsumerWidget {
                               size: 16,
                               color: summary.outOfStockCount > 0
                                   ? AppColors.danger
-                                  : Colors.black38,
+                                  : AppColors.textMuted,
                             ),
                           ],
                         ),
@@ -200,7 +200,7 @@ class SmartStockAlertsCard extends ConsumerWidget {
                                 fontWeight: FontWeight.w900,
                                 color: summary.outOfStockCount > 0
                                     ? AppColors.danger
-                                    : Colors.black87,
+                                    : AppColors.textPrimary,
                               ),
                             ),
                             const SizedBox(width: 4),
@@ -212,7 +212,7 @@ class SmartStockAlertsCard extends ConsumerWidget {
                                   fontSize: 11,
                                   color: summary.outOfStockCount > 0
                                       ? AppColors.danger.withOpacity(0.8)
-                                      : Colors.black45,
+                                      : AppColors.textTertiary,
                                 ),
                               ),
                             ),
@@ -243,12 +243,12 @@ class SmartStockAlertsCard extends ConsumerWidget {
                     decoration: BoxDecoration(
                       color: summary.lowStockCount > 0
                           ? AppColors.warningLight
-                          : Colors.grey.shade50,
+                          : AppColors.grey50,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
                         color: summary.lowStockCount > 0
                             ? AppColors.warning.withOpacity(0.4)
-                            : Colors.grey.shade200,
+                            : AppColors.grey200,
                         width: 1,
                       ),
                     ),
@@ -266,8 +266,8 @@ class SmartStockAlertsCard extends ConsumerWidget {
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
                                   color: summary.lowStockCount > 0
-                                      ? const Color(0xFFD97706)
-                                      : Colors.black54,
+                                      ? AppColors.warningMedium
+                                      : AppColors.textSecondary,
                                 ),
                               ),
                             ),
@@ -276,8 +276,8 @@ class SmartStockAlertsCard extends ConsumerWidget {
                               Icons.warning_amber_rounded,
                               size: 16,
                               color: summary.lowStockCount > 0
-                                  ? const Color(0xFFD97706)
-                                  : Colors.black38,
+                                  ? AppColors.warningMedium
+                                  : AppColors.textMuted,
                             ),
                           ],
                         ),
@@ -292,8 +292,8 @@ class SmartStockAlertsCard extends ConsumerWidget {
                                 fontSize: 20,
                                 fontWeight: FontWeight.w900,
                                 color: summary.lowStockCount > 0
-                                    ? const Color(0xFFD97706)
-                                    : Colors.black87,
+                                    ? AppColors.warningMedium
+                                    : AppColors.textPrimary,
                               ),
                             ),
                             const SizedBox(width: 4),
@@ -304,8 +304,8 @@ class SmartStockAlertsCard extends ConsumerWidget {
                                 style: TextStyle(
                                   fontSize: 11,
                                   color: summary.lowStockCount > 0
-                                      ? const Color(0xFFD97706)
-                                      : Colors.black45,
+                                      ? AppColors.warningMedium
+                                      : AppColors.textTertiary,
                                 ),
                               ),
                             ),
@@ -335,7 +335,7 @@ class SmartStockAlertsCard extends ConsumerWidget {
                     'Tổng tồn kho',
                     style: TextStyle(
                       fontSize: 12,
-                      color: Colors.black54,
+                      color: AppColors.textSecondary,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -345,7 +345,7 @@ class SmartStockAlertsCard extends ConsumerWidget {
                     style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
-                      color: Colors.black87,
+                      color: AppColors.textPrimary,
                     ),
                   ),
                 ],
@@ -358,7 +358,7 @@ class SmartStockAlertsCard extends ConsumerWidget {
                       'Giá trị kho (Giá vốn)',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.black54,
+                        color: AppColors.textSecondary,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -384,7 +384,7 @@ class SmartStockAlertsCard extends ConsumerWidget {
     return Container(
       height: 120,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(12),
       ),
       child: const Center(
@@ -401,7 +401,7 @@ class SmartStockAlertsCard extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Center(

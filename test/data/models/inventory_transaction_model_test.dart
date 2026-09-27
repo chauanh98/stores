@@ -4,15 +4,18 @@ import 'package:stores/domain/entities/transaction_type.dart';
 
 void main() {
   group('InventoryTransactionModel & TransactionType Unit Tests', () {
-    test('Round-trip serialization and deserialization with INVENTORY_AUDIT', () {
+    test('Round-trip serialization and deserialization with INVENTORY_AUDIT',
+        () {
       final now = DateTime(2026, 8, 17, 10, 30, 0);
       final model = InventoryTransactionModel(
         id: 'audit_001',
         productId: 'prod_123',
-        type: InventoryTransactionModel.typeToString(TransactionType.inventoryAudit),
+        type: InventoryTransactionModel.typeToString(
+            TransactionType.inventoryAudit),
         quantity: 8,
         date: now,
-        note: 'Cân bằng kho trực tiếp (Tồn cũ: 10 -> Tồn mới: 18, chênh lệch: +8)',
+        note:
+            'Cân bằng kho trực tiếp (Tồn cũ: 10 -> Tồn mới: 18, chênh lệch: +8)',
         importPrice: 25000.0,
         createdBy: 'admin',
         createdByName: 'Admin Name',
@@ -33,7 +36,8 @@ void main() {
       expect(restored.id, equals('audit_001'));
       expect(restored.productId, equals('prod_123'));
       expect(restored.type, equals('INVENTORY_AUDIT'));
-      expect(restored.toTransactionType(), equals(TransactionType.inventoryAudit));
+      expect(
+          restored.toTransactionType(), equals(TransactionType.inventoryAudit));
       expect(restored.quantity, equals(8));
       expect(restored.date, equals(now));
       expect(restored.importPrice, equals(25000.0));
@@ -86,7 +90,9 @@ void main() {
         equals('export'),
       );
     });
-    test('Round-trip serialization and deserialization with structured audit fields', () {
+    test(
+        'Round-trip serialization and deserialization with structured audit fields',
+        () {
       final now = DateTime(2026, 8, 17, 10, 30, 0);
       final model = InventoryTransactionModel(
         id: 'audit_002',

@@ -11,17 +11,15 @@ import '../widgets/kpi_metrics_section.dart';
 import '../widgets/overview_filter_bar.dart';
 import '../widgets/overview_header.dart';
 import '../widgets/payment_category_breakdown_section.dart';
-import '../widgets/quick_actions_bar.dart';
 import '../widgets/recent_activity_feed.dart';
 import '../widgets/revenue_chart_section.dart';
 import '../widgets/smart_stock_alerts_card.dart';
 import '../widgets/top_rankings_section.dart';
 
 /// Coordinator Page cho Tab Tổng quan (Overview Page) chuẩn KiotViet Pro
-/// Điều phối và lắp ráp 9 modular sub-widgets với kiến trúc Clean Architecture:
+/// Điều phối và lắp ráp 8 modular sub-widgets với kiến trúc Clean Architecture:
 /// - OverviewHeader: Logo, Store selection, Sync status
 /// - OverviewFilterBar: Bộ lọc thời gian & chi nhánh
-/// - QuickActionsBar (R6): Thanh 5 lối tắt tác vụ nhanh
 /// - KPIMetricsSection (R1): Bộ chỉ số kinh doanh toàn diện, % tăng trưởng cùng kỳ, Công nợ khách
 /// - SmartStockAlertsCard (R3): Cảnh báo tồn kho & Định giá vốn
 /// - RevenueChartSection (R2): Biểu đồ 24h giờ cao điểm & Biểu đồ cột xếp chồng đa chi nhánh
@@ -104,11 +102,7 @@ class OverviewPage extends ConsumerWidget {
     return const Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // 1. Quick Actions Bar (R6)
-        QuickActionsBar(),
-        SizedBox(height: 12),
-
-        // 2. Comprehensive KPIs & Growth & Customer Debt (R1)
+        // 1. Comprehensive KPIs & Growth & Customer Debt (R1)
         KPIMetricsSection(),
         SizedBox(height: 12),
 
@@ -147,8 +141,6 @@ class OverviewPage extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              QuickActionsBar(),
-              SizedBox(height: 14),
               KPIMetricsSection(),
               SizedBox(height: 14),
               RevenueChartSection(),

@@ -93,8 +93,7 @@ class FifoCalculator {
       final storeKey = normalizeStoreKey(tx.storeId ?? defaultStoreId);
       final productMap = _storeTrackers.putIfAbsent(
           storeKey, () => <String, List<InventoryLot>>{});
-      final lots =
-          productMap.putIfAbsent(tx.productId, () => <InventoryLot>[]);
+      final lots = productMap.putIfAbsent(tx.productId, () => <InventoryLot>[]);
 
       if (tx.type == TransactionType.import) {
         // Case 1: Nhập kho (Inbound purchase / Transfer import)
@@ -254,8 +253,8 @@ class FifoCalculator {
 
     final lots = _getOrCreateLotQueue(storeId, productId);
     final returnLot = InventoryLot(
-      transactionId: transactionId ??
-          'return_${DateTime.now().millisecondsSinceEpoch}',
+      transactionId:
+          transactionId ?? 'return_${DateTime.now().millisecondsSinceEpoch}',
       importDate: returnDate ?? DateTime.now(),
       importPrice: unitCost,
       remainingQuantity: quantity,
@@ -297,8 +296,7 @@ class FifoCalculator {
     // 2. Thêm lô nhập vào kho đích với giá vốn được bảo toàn nguyên vẹn
     final targetQueue = _getOrCreateLotQueue(targetStoreId, productId);
     targetQueue.add(InventoryLot(
-      transactionId: transactionId ??
-          'transfer_${date.millisecondsSinceEpoch}',
+      transactionId: transactionId ?? 'transfer_${date.millisecondsSinceEpoch}',
       importDate: date,
       importPrice: effectiveUnitCost,
       remainingQuantity: quantity,
@@ -366,4 +364,3 @@ class FifoCalculator {
     return ((revenue - cost) / revenue) * 100;
   }
 }
-

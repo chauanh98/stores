@@ -3,6 +3,7 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:stores/application/auth/auth_providers.dart';
+import 'package:stores/application/products/products_providers.dart';
 import 'package:stores/domain/entities/product.dart';
 import 'package:stores/domain/entities/user_account.dart';
 import 'package:stores/presentation/inventories/pages/inter_store_transfer_page.dart';
@@ -107,6 +108,53 @@ void main() {
       expect(find.text('Chi nhánh Thới Bình'), findsOneWidget);
       expect(find.text('Chi nhánh Thới Bình (Cố định)'), findsNothing);
       expect(find.byIcon(Icons.storefront), findsOneWidget);
+    });
+
+    testWidgets(
+        'DropdownButtonFormField<Product> handles long product names on narrow viewport without overflow',
+        (tester) async {
+      tester.view.physicalSize = const Size(360, 640);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      const longNameProduct1 = Product(
+        id: 'p_long_1',
+        code: 'PROD_LONG_1',
+        name: 'Bàn trang điểm Okal melamin cao cấp gương LED cảm ứng 80cm hiện đại',
+        price: 2500000,
+        costPrice: 1500000,
+        branchStocks: {'store_001': 10, 'store_002': 5},
+        category: 'Nội thất',
+      );
+      const longNameProduct2 = Product(
+        id: 'p_long_2',
+        code: 'PROD_LONG_2',
+        name: 'Két sắt vuông siêu cường chống cháy chống trộm khoá chữ số 40cm',
+        price: 3200000,
+        costPrice: 2100000,
+        branchStocks: {'store_001': 8, 'store_002': 3},
+        category: 'Két sắt',
+      );
+
+      await tester.pumpWidget(
+        _buildTestApp(
+          child: const InterStoreTransferPage(product: null),
+          overrides: [
+            authProvider.overrideWith((ref) => _FakeAuthNotifier(adminUser)),
+            availableStoresProvider.overrideWith((ref) async => {
+                  'store_001': 'Chi nhánh Thới Bình',
+                  'store_002': 'Chi nhánh Đông Thắng',
+                }),
+            productListProvider.overrideWith((ref) =>
+                Stream.value([longNameProduct1, longNameProduct2])),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(DropdownButtonFormField<Product>), findsOneWidget);
+      expect(tester.takeException(), isNull);
     });
   });
 }

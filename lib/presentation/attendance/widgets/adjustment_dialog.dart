@@ -22,7 +22,8 @@ class RequestAdjustmentDialog extends StatefulWidget {
   });
 
   @override
-  State<RequestAdjustmentDialog> createState() => _RequestAdjustmentDialogState();
+  State<RequestAdjustmentDialog> createState() =>
+      _RequestAdjustmentDialogState();
 }
 
 class _RequestAdjustmentDialogState extends State<RequestAdjustmentDialog> {
@@ -57,7 +58,8 @@ class _RequestAdjustmentDialogState extends State<RequestAdjustmentDialog> {
         children: [
           Icon(Icons.edit_calendar, color: AppColors.primary),
           SizedBox(width: 8),
-          Text('Yêu cầu điều chỉnh công', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          Text('Yêu cầu điều chỉnh công',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         ],
       ),
       content: SingleChildScrollView(
@@ -73,7 +75,8 @@ class _RequestAdjustmentDialogState extends State<RequestAdjustmentDialog> {
             ListTile(
               dense: true,
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.calendar_today, color: AppColors.primary, size: 20),
+              leading: const Icon(Icons.calendar_today,
+                  color: AppColors.primary, size: 20),
               title: const Text('Ngày chấm công:'),
               subtitle: Text(
                 '${_selectedDate.day.toString().padLeft(2, '0')}/${_selectedDate.month.toString().padLeft(2, '0')}/${_selectedDate.year}',
@@ -98,7 +101,8 @@ class _RequestAdjustmentDialogState extends State<RequestAdjustmentDialog> {
             ListTile(
               dense: true,
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.login, color: AppColors.success, size: 20),
+              leading:
+                  const Icon(Icons.login, color: AppColors.success, size: 20),
               title: const Text('Giờ vào mong muốn:'),
               subtitle: Text(
                 '${_inTime.hour.toString().padLeft(2, '0')}:${_inTime.minute.toString().padLeft(2, '0')}',
@@ -107,7 +111,8 @@ class _RequestAdjustmentDialogState extends State<RequestAdjustmentDialog> {
               trailing: TextButton(
                 child: const Text('Đổi'),
                 onPressed: () async {
-                  final picked = await showTimePicker(context: context, initialTime: _inTime);
+                  final picked = await showTimePicker(
+                      context: context, initialTime: _inTime);
                   if (picked != null) setState(() => _inTime = picked);
                 },
               ),
@@ -115,7 +120,8 @@ class _RequestAdjustmentDialogState extends State<RequestAdjustmentDialog> {
             ListTile(
               dense: true,
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.logout, color: AppColors.danger, size: 20),
+              leading:
+                  const Icon(Icons.logout, color: AppColors.danger, size: 20),
               title: const Text('Giờ ra mong muốn:'),
               subtitle: Text(
                 '${_outTime.hour.toString().padLeft(2, '0')}:${_outTime.minute.toString().padLeft(2, '0')}',
@@ -124,7 +130,8 @@ class _RequestAdjustmentDialogState extends State<RequestAdjustmentDialog> {
               trailing: TextButton(
                 child: const Text('Đổi'),
                 onPressed: () async {
-                  final picked = await showTimePicker(context: context, initialTime: _outTime);
+                  final picked = await showTimePicker(
+                      context: context, initialTime: _outTime);
                   if (picked != null) setState(() => _outTime = picked);
                 },
               ),
@@ -135,7 +142,8 @@ class _RequestAdjustmentDialogState extends State<RequestAdjustmentDialog> {
               maxLines: 3,
               decoration: const InputDecoration(
                 labelText: 'Lý do giải trình (*)',
-                hintText: 'Nhập lý do chi tiết (quên chấm công, lỗi mạng, đi giao hàng...)',
+                hintText:
+                    'Nhập lý do chi tiết (quên chấm công, lỗi mạng, đi giao hàng...)',
                 border: OutlineInputBorder(),
                 isDense: true,
               ),
@@ -151,13 +159,14 @@ class _RequestAdjustmentDialogState extends State<RequestAdjustmentDialog> {
         ElevatedButton(
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
+            foregroundColor: AppColors.white,
           ),
           onPressed: () {
             final reason = _reasonController.text.trim();
             if (reason.isEmpty) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Vui lòng nhập lý do giải trình.')),
+                const SnackBar(
+                    content: Text('Vui lòng nhập lý do giải trình.')),
               );
               return;
             }
@@ -229,15 +238,18 @@ class _ReviewAdjustmentDialogState extends State<ReviewAdjustmentDialog> {
   @override
   Widget build(BuildContext context) {
     final adj = widget.adjustment;
-    final inStr = '${adj.requestedCheckIn.hour.toString().padLeft(2, '0')}:${adj.requestedCheckIn.minute.toString().padLeft(2, '0')}';
-    final outStr = '${adj.requestedCheckOut.hour.toString().padLeft(2, '0')}:${adj.requestedCheckOut.minute.toString().padLeft(2, '0')}';
+    final inStr =
+        '${adj.requestedCheckIn.hour.toString().padLeft(2, '0')}:${adj.requestedCheckIn.minute.toString().padLeft(2, '0')}';
+    final outStr =
+        '${adj.requestedCheckOut.hour.toString().padLeft(2, '0')}:${adj.requestedCheckOut.minute.toString().padLeft(2, '0')}';
 
     return AlertDialog(
       title: const Row(
         children: [
           Icon(Icons.approval, color: AppColors.primary),
           SizedBox(width: 8),
-          Text('Xét duyệt giải trình công', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          Text('Xét duyệt giải trình công',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         ],
       ),
       content: SingleChildScrollView(
@@ -245,11 +257,15 @@ class _ReviewAdjustmentDialogState extends State<ReviewAdjustmentDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Nhân viên: ${adj.userName} (${adj.userId})', style: const TextStyle(fontWeight: FontWeight.bold)),
+            Text('Nhân viên: ${adj.userName} (${adj.userId})',
+                style: const TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 6),
             Text('Thời gian xin điều chỉnh: $inStr - $outStr'),
             const SizedBox(height: 6),
-            Text('Lý do nhân viên: "${adj.reason}"', style: const TextStyle(fontStyle: FontStyle.italic, color: AppColors.textSecondary)),
+            Text('Lý do nhân viên: "${adj.reason}"',
+                style: const TextStyle(
+                    fontStyle: FontStyle.italic,
+                    color: AppColors.textSecondary)),
             const SizedBox(height: 16),
             TextField(
               controller: _noteController,
@@ -281,7 +297,7 @@ class _ReviewAdjustmentDialogState extends State<ReviewAdjustmentDialog> {
         ElevatedButton(
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.success,
-            foregroundColor: Colors.white,
+            foregroundColor: AppColors.white,
           ),
           onPressed: () {
             widget.onApprove(_noteController.text.trim());

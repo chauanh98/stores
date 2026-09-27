@@ -35,7 +35,8 @@ class _SupplierDebtPaymentDialogState
     _amountController = TextEditingController(text: defaultAmount);
     _noteController = TextEditingController(text: 'Thanh toán nợ nhà cung cấp');
     _refCodeController = TextEditingController(
-      text: 'PC${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
+      text:
+          'PC${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
     );
   }
 
@@ -265,7 +266,7 @@ class _SupplierDebtPaymentDialogState
                   height: 16,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: Colors.white,
+                    color: AppColors.white,
                   ),
                 )
               : const Icon(Icons.check, size: 18),

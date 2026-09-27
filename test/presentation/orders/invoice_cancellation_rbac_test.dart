@@ -291,6 +291,10 @@ void main() {
           ],
         ),
       );
+      // Filter by 'Đã hủy' status chip (since default is now 'completed')
+      final cancelChipFinder = find.widgetWithText(ChoiceChip, 'Đã hủy');
+      await tester.ensureVisible(cancelChipFinder);
+      await tester.tap(cancelChipFinder);
       await tester.pumpAndSettle();
 
       // Open cancelled order details

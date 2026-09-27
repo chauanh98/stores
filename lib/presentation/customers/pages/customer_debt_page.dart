@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+
+import '../../../core/extensions/context_extensions.dart';
 
 import '../../../application/customers/customers_providers.dart';
 import '../../../application/orders/orders_providers.dart';
@@ -10,7 +11,9 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/currency_input_formatter.dart';
 import '../../../domain/entities/customer.dart';
 import '../../../domain/entities/customer_debt_transaction.dart';
+import '../../../domain/entities/order.dart';
 import 'customer_debt_adjustment_page.dart';
+import '../../common/widgets/date_grouped_list_view.dart';
 
 class _DebtLedgerItem {
   final String id;
@@ -48,7 +51,7 @@ class CustomerDebtPage extends ConsumerStatefulWidget {
 class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = context.l10n;
     final currencyFormat = NumberFormat('#,###', 'vi_VN');
     final customersAsync = ref.watch(customerListNotifierProvider);
 
@@ -63,6 +66,11 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
     final ordersAsync = ref.watch(customerOrdersProvider(currentCustomer.id));
     final debtTxsAsync =
         ref.watch(customerDebtTransactionsProvider(currentCustomer.id));
+
+    final orders = ordersAsync.valueOrNull ?? <Order>[];
+    final debtTxs = debtTxsAsync.valueOrNull ?? <CustomerDebtTransaction>[];
+    final displayCurrentDebt =
+        currentCustomer.effectiveCurrentDebt(orders, debtTxs);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -80,18 +88,18 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
                 style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.normal,
-                  color: Colors.black54,
+                  color: AppColors.textSecondary,
                 ),
               ),
           ],
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.white,
       ),
       body: Column(
         children: [
           // Header summary: Nợ cần thu
           Container(
-            color: Colors.white,
+            color: AppColors.white,
             padding: const EdgeInsets.all(16),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -101,11 +109,11 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                    color: AppColors.textPrimary,
                   ),
                 ),
                 Text(
-                  '${currencyFormat.format(currentCustomer.displayCurrentDebt)} đ',
+                  '${currencyFormat.format(displayCurrentDebt)} đ',
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -124,15 +132,16 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
                   data: (debtTxs) {
                     final ledgerItems = <_DebtLedgerItem>[];
 
-                    // Add Order Invoices
+                    // Add Order Invoices (skip cancelled orders)
                     for (final order in orders) {
+                      if (order.isCancelled) continue;
                       ledgerItems.add(
                         _DebtLedgerItem(
                           id: order.id,
                           code: order.id,
                           date: order.createdAt,
-                          amount: order.total,
-                          remainingDebt: order.total,
+                          amount: order.netPayable,
+                          remainingDebt: order.remainingDebt,
                           typeLabel: l10n.invoice,
                           isPayment: false,
                         ),
@@ -172,7 +181,7 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
                           child: Text(
                             '${ledgerItems.length} giao dịch',
                             style: const TextStyle(
-                                fontSize: 13, color: Colors.black54),
+                                fontSize: 13, color: AppColors.textSecondary),
                           ),
                         ),
 
@@ -186,22 +195,25 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
                                       const Icon(
                                           Icons.account_balance_wallet_outlined,
                                           size: 56,
-                                          color: Colors.grey),
+                                          color: AppColors.grey500),
                                       const SizedBox(height: 12),
                                       Text(
                                         l10n.noDebtData,
                                         style: const TextStyle(
-                                            fontSize: 16, color: Colors.grey),
+                                            fontSize: 16,
+                                            color: AppColors.grey500),
                                       ),
                                     ],
                                   ),
                                 )
-                              : ListView.builder(
+                              : DateGroupedListView<_DebtLedgerItem>(
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 12, vertical: 8),
-                                  itemCount: ledgerItems.length,
-                                  itemBuilder: (context, index) {
-                                    final item = ledgerItems[index];
+                                  items: ledgerItems,
+                                  dateSelector: (it) => it.date,
+                                  itemUnit: 'giao dịch',
+                                  currencyFormat: currencyFormat,
+                                  itemBuilder: (context, item) {
                                     final dateStr =
                                         DateFormat('dd/MM/yyyy HH:mm')
                                             .format(item.date);
@@ -214,7 +226,7 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
                                     return Container(
                                       margin: const EdgeInsets.only(bottom: 8),
                                       decoration: BoxDecoration(
-                                        color: Colors.white,
+                                        color: AppColors.white,
                                         borderRadius: BorderRadius.circular(10),
                                         border:
                                             Border.all(color: AppColors.border),
@@ -236,7 +248,8 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
                                                       fontWeight:
                                                           FontWeight.bold,
                                                       fontSize: 15,
-                                                      color: Colors.black87,
+                                                      color:
+                                                          AppColors.textPrimary,
                                                     ),
                                                   ),
                                                   const SizedBox(width: 4),
@@ -260,8 +273,8 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
                                                       child: Icon(
                                                           Icons.copy_rounded,
                                                           size: 15,
-                                                          color:
-                                                              Colors.black45),
+                                                          color: AppColors
+                                                              .textTertiary),
                                                     ),
                                                   ),
                                                 ],
@@ -272,8 +285,8 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
                                                   fontWeight: FontWeight.bold,
                                                   fontSize: 15,
                                                   color: item.isPayment
-                                                      ? Colors.green
-                                                      : Colors.black87,
+                                                      ? AppColors.success
+                                                      : AppColors.textPrimary,
                                                 ),
                                               ),
                                             ],
@@ -287,7 +300,8 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
                                                 dateStr,
                                                 style: const TextStyle(
                                                   fontSize: 12,
-                                                  color: Colors.black54,
+                                                  color:
+                                                      AppColors.textSecondary,
                                                 ),
                                               ),
                                               Row(
@@ -298,7 +312,8 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
                                                             item.remainingDebt)),
                                                     style: const TextStyle(
                                                       fontSize: 12,
-                                                      color: Colors.black54,
+                                                      color: AppColors
+                                                          .textSecondary,
                                                     ),
                                                   ),
                                                   if (item.isPayment) ...[
@@ -309,7 +324,7 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
                                                           horizontal: 6,
                                                           vertical: 2),
                                                       decoration: BoxDecoration(
-                                                        color: Colors.green
+                                                        color: AppColors.success
                                                             .withOpacity(0.08),
                                                         borderRadius:
                                                             BorderRadius
@@ -318,7 +333,8 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
                                                       child: Text(
                                                         item.typeLabel,
                                                         style: const TextStyle(
-                                                          color: Colors.green,
+                                                          color:
+                                                              AppColors.success,
                                                           fontSize: 11,
                                                           fontWeight:
                                                               FontWeight.bold,
@@ -337,7 +353,7 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
                                               item.note!,
                                               style: const TextStyle(
                                                   fontSize: 12,
-                                                  color: Colors.grey),
+                                                  color: AppColors.grey500),
                                             ),
                                           ],
                                         ],
@@ -363,7 +379,7 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
         ],
       ),
       bottomNavigationBar: Container(
-        color: Colors.white,
+        color: AppColors.white,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: SafeArea(
           child: Row(
@@ -431,7 +447,7 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
     final l10n = AppLocalizations.of(context)!;
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.only(
           topLeft: Radius.circular(16),
@@ -468,10 +484,10 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
                 leading: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
+                    color: AppColors.success.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(Icons.receipt, color: Colors.green),
+                  child: const Icon(Icons.receipt, color: AppColors.success),
                 ),
                 title: Text(
                   l10n.createReceipt,
@@ -504,7 +520,7 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
               width: 200,
               height: 200,
               decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade300),
+                border: Border.all(color: AppColors.borderLight),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Center(
@@ -553,7 +569,7 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
             Text(
               '${l10n.currentDebt}: ${currencyFormat.format(customer.displayCurrentDebt)} đ',
               style: const TextStyle(
-                  fontWeight: FontWeight.bold, color: Colors.black87),
+                  fontWeight: FontWeight.bold, color: AppColors.textPrimary),
             ),
             const SizedBox(height: 12),
             TextField(
@@ -632,7 +648,7 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
                   SnackBar(
                     content: Text(l10n.receiptCreatedSuccess(
                         currencyFormat.format(payAmount))),
-                    backgroundColor: Colors.green,
+                    backgroundColor: AppColors.success,
                   ),
                 );
               }

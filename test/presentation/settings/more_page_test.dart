@@ -14,8 +14,11 @@ import 'package:stores/domain/entities/product.dart';
 import 'package:stores/domain/entities/supplier.dart';
 import 'package:stores/domain/entities/user_account.dart';
 import 'package:stores/presentation/customers/pages/customers_page.dart';
-import 'package:stores/presentation/inventories/pages/import_inventory_page.dart';
 import 'package:stores/presentation/inventories/pages/inter_store_transfer_page.dart';
+import 'package:stores/presentation/inventories/pages/stock_in_receipts_page.dart';
+import 'package:stores/application/inventories/stock_in_receipts_providers.dart';
+import 'package:stores/domain/entities/inventory_transaction.dart';
+import 'package:stores/domain/entities/supplier_debt_transaction.dart';
 import 'package:stores/presentation/orders/pages/invoices_page.dart';
 import 'package:stores/presentation/settings/pages/account_management_page.dart';
 import 'package:stores/presentation/settings/pages/more_page.dart';
@@ -91,8 +94,13 @@ void main() {
     supplierListNotifierProvider
         .overrideWith(() => _FakeSupplierListNotifier()),
     productListProvider.overrideWith((ref) => Stream.value(<Product>[])),
+    allStoresProductsProvider.overrideWith((ref) => Stream.value(<Product>[])),
     accountsListProvider
         .overrideWith((ref) => Stream.value(<UserAccount>[mockAdminUser])),
+    rawImportTransactionsStreamProvider
+        .overrideWith((ref) => Stream.value(<InventoryTransaction>[])),
+    allSupplierDebtTransactionsProvider
+        .overrideWith((ref) => Stream.value(<SupplierDebtTransaction>[])),
   ];
 
   group('MorePage Modern Dashboard 5 Blocks Tests', () {
@@ -117,8 +125,11 @@ void main() {
       // Block 1: Profile & Store
       expect(find.text('Chi nhánh Đông Thắng'), findsWidgets);
       expect(find.text('Tài khoản: admin_test'), findsOneWidget);
-      expect(find.text('Quản trị viên'), findsOneWidget);
+      expect(find.text('👑 Quản trị viên (Toàn hệ thống)'), findsOneWidget);
+      expect(find.text('Toàn bộ chi nhánh'), findsOneWidget);
+      expect(find.byIcon(Icons.hub_outlined), findsOneWidget);
       expect(find.text('CHUYỂN ĐỔI CỬA HÀNG'), findsOneWidget);
+      expect(find.textContaining('Chi nhánh đang làm việc:'), findsNothing);
 
       // Block 2: Partner Management
       expect(find.text('QUẢN LÝ ĐỐI TÁC'), findsOneWidget);
@@ -127,7 +138,7 @@ void main() {
 
       // Block 3: Warehouse & Operations
       expect(find.text('NGHIỆP VỤ KHO & BÁN HÀNG'), findsOneWidget);
-      expect(find.text('Nhập hàng'), findsOneWidget);
+      expect(find.text('Phiếu nhập kho'), findsOneWidget);
       expect(find.text('Chuyển kho'), findsOneWidget);
       expect(find.text('Hóa đơn & Sổ quỹ'), findsOneWidget);
 
@@ -163,6 +174,7 @@ void main() {
       // Block 1: Profile
       expect(find.text('Tài khoản: staff_test'), findsOneWidget);
       expect(find.text('Nhân viên'), findsOneWidget);
+      expect(find.text('Chi nhánh: Chi nhánh Đông Thắng'), findsOneWidget);
       expect(find.text('CHUYỂN ĐỔI CỬA HÀNG'), findsNothing);
 
       // Block 2 & 3 visible
@@ -223,7 +235,7 @@ void main() {
       expect(find.byType(SuppliersPage), findsOneWidget);
     });
 
-    testWidgets('Navigation to ImportInventoryPage', (tester) async {
+    testWidgets('Navigation to StockInReceiptsPage', (tester) async {
       tester.view.physicalSize = const Size(800, 1600);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -240,10 +252,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('Nhập hàng'));
-      await tester.tap(find.text('Nhập hàng'));
+      await tester.ensureVisible(find.text('Phiếu nhập kho'));
+      await tester.tap(find.text('Phiếu nhập kho'));
       await tester.pumpAndSettle();
-      expect(find.byType(ImportInventoryPage), findsOneWidget);
+      expect(find.byType(StockInReceiptsPage), findsOneWidget);
     });
 
     testWidgets('Navigation to InterStoreTransferPage', (tester) async {

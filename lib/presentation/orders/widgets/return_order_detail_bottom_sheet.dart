@@ -31,7 +31,7 @@ class ReturnOrderDetailBottomSheet extends ConsumerWidget {
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -124,7 +124,7 @@ class ReturnOrderDetailBottomSheet extends ConsumerWidget {
               height: 4,
               margin: const EdgeInsets.only(bottom: 12),
               decoration: BoxDecoration(
-                color: Colors.grey.shade300,
+                color: AppColors.grey300,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -143,15 +143,15 @@ class ReturnOrderDetailBottomSheet extends ConsumerWidget {
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        color: AppColors.textPrimary,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 2),
                     Text(
                       DateFormat('dd/MM/yyyy HH:mm').format(createdAt),
-                      style:
-                          const TextStyle(fontSize: 12, color: Colors.black54),
+                      style: const TextStyle(
+                          fontSize: 12, color: AppColors.textSecondary),
                     ),
                   ],
                 ),
@@ -161,14 +161,15 @@ class ReturnOrderDetailBottomSheet extends ConsumerWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.purple.withOpacity(0.12),
+                  color: AppColors.supervisor.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.purple.withOpacity(0.3)),
+                  border:
+                      Border.all(color: AppColors.supervisor.withOpacity(0.3)),
                 ),
                 child: const Text(
                   'Đã hoàn tiền',
                   style: TextStyle(
-                    color: Colors.purple,
+                    color: AppColors.supervisor,
                     fontWeight: FontWeight.bold,
                     fontSize: 12,
                   ),
@@ -211,18 +212,24 @@ class ReturnOrderDetailBottomSheet extends ConsumerWidget {
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 13.5,
-                                  color: Colors.black87,
+                                  color: AppColors.textPrimary,
                                 ),
                               ),
                               if (customer != null ||
-                                  order.customerId.isNotEmpty) ...[
+                                  order.customerId.isNotEmpty ||
+                                  (order.customerName != null &&
+                                      order.customerName!
+                                          .trim()
+                                          .isNotEmpty)) ...[
                                 const SizedBox(height: 2),
                                 Text(
-                                  'Khách hàng: ${customer?.name ?? (order.customerId == 'khach_le' ? 'Khách lẻ' : order.customerId)}',
+                                  'Khách hàng: ${customer?.name ?? (order.customerName != null && order.customerName!.trim().isNotEmpty ? order.customerName! : (order.customerId == 'khach_le' || order.customerId == 'walk_in' || order.customerId.isEmpty ? 'Khách lẻ' : order.customerId))}',
                                   style: const TextStyle(
                                     fontSize: 12,
-                                    color: Colors.black54,
+                                    color: AppColors.textSecondary,
                                   ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ],
                             ],
@@ -268,7 +275,7 @@ class ReturnOrderDetailBottomSheet extends ConsumerWidget {
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
-                      color: Colors.black87,
+                      color: AppColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -293,13 +300,13 @@ class ReturnOrderDetailBottomSheet extends ConsumerWidget {
                               height: 24,
                               alignment: Alignment.center,
                               decoration: BoxDecoration(
-                                color: Colors.purple.withOpacity(0.1),
+                                color: AppColors.supervisor.withOpacity(0.1),
                                 shape: BoxShape.circle,
                               ),
                               child: Text(
                                 '${index + 1}',
                                 style: const TextStyle(
-                                  color: Colors.purple,
+                                  color: AppColors.supervisor,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 11,
                                 ),
@@ -315,7 +322,7 @@ class ReturnOrderDetailBottomSheet extends ConsumerWidget {
                                     style: const TextStyle(
                                       fontWeight: FontWeight.w600,
                                       fontSize: 13,
-                                      color: Colors.black87,
+                                      color: AppColors.textPrimary,
                                     ),
                                   ),
                                   const SizedBox(height: 2),
@@ -323,7 +330,7 @@ class ReturnOrderDetailBottomSheet extends ConsumerWidget {
                                     '${item.quantity} ${item.unit ?? 'cái'} x ${currencyFormat.format(item.price)} đ',
                                     style: const TextStyle(
                                       fontSize: 12,
-                                      color: Colors.black54,
+                                      color: AppColors.textSecondary,
                                     ),
                                   ),
                                 ],
@@ -334,7 +341,7 @@ class ReturnOrderDetailBottomSheet extends ConsumerWidget {
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 13,
-                                color: Colors.purple,
+                                color: AppColors.supervisor,
                               ),
                             ),
                           ],
@@ -348,7 +355,7 @@ class ReturnOrderDetailBottomSheet extends ConsumerWidget {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
+                      color: AppColors.grey50,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: AppColors.border),
                     ),
@@ -358,14 +365,14 @@ class ReturnOrderDetailBottomSheet extends ConsumerWidget {
                           'Tổng tiền hàng trả',
                           '${currencyFormat.format(totalReturnAmount)} đ',
                           isBold: true,
-                          valueColor: Colors.purple,
+                          valueColor: AppColors.supervisor,
                         ),
                         if (debtDeducted > 0) ...[
                           const SizedBox(height: 6),
                           _buildSummaryRow(
                             'Cấn trừ công nợ',
                             '- ${currencyFormat.format(debtDeducted)} đ',
-                            valueColor: Colors.indigo,
+                            valueColor: AppColors.chartIndigo,
                           ),
                         ],
                         const SizedBox(height: 6),
@@ -373,13 +380,13 @@ class ReturnOrderDetailBottomSheet extends ConsumerWidget {
                           'Tiền hoàn lại cho khách',
                           '${currencyFormat.format(cashRefunded)} đ',
                           isBold: true,
-                          valueColor: Colors.green.shade700,
+                          valueColor: AppColors.successDark,
                         ),
                         const Divider(height: 16, color: AppColors.divider),
                         _buildSummaryRow(
                           'Hình thức hoàn tiền',
                           paymentMethodLabel,
-                          valueColor: Colors.black87,
+                          valueColor: AppColors.textPrimary,
                         ),
                       ],
                     ),
@@ -392,14 +399,14 @@ class ReturnOrderDetailBottomSheet extends ConsumerWidget {
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
-                      color: Colors.black87,
+                      color: AppColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: AppColors.white,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: AppColors.border),
                     ),
@@ -477,7 +484,7 @@ class ReturnOrderDetailBottomSheet extends ConsumerWidget {
             style: TextStyle(
               fontSize: 13,
               fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-              color: Colors.black87,
+              color: AppColors.textPrimary,
             ),
           ),
         ),
@@ -487,7 +494,7 @@ class ReturnOrderDetailBottomSheet extends ConsumerWidget {
           style: TextStyle(
             fontSize: 13,
             fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
-            color: valueColor ?? Colors.black87,
+            color: valueColor ?? AppColors.textPrimary,
           ),
         ),
       ],
@@ -501,7 +508,8 @@ class ReturnOrderDetailBottomSheet extends ConsumerWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(fontSize: 12.5, color: Colors.black54),
+          style:
+              const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
         ),
         const SizedBox(width: 8),
         Expanded(
@@ -511,7 +519,7 @@ class ReturnOrderDetailBottomSheet extends ConsumerWidget {
             style: const TextStyle(
               fontSize: 12.5,
               fontWeight: FontWeight.w500,
-              color: Colors.black87,
+              color: AppColors.textPrimary,
             ),
           ),
         ),

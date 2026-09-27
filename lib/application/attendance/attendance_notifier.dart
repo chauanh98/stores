@@ -34,8 +34,7 @@ class AttendanceCheckInState {
     this.successMessage,
   });
 
-  bool get canCheckIn =>
-      todayAttendance == null && !isCheckingInOut;
+  bool get canCheckIn => todayAttendance == null && !isCheckingInOut;
 
   bool get canCheckOut =>
       todayAttendance != null &&
@@ -61,7 +60,8 @@ class AttendanceCheckInState {
     return AttendanceCheckInState(
       selectedShift: selectedShift ?? this.selectedShift,
       currentPosition: currentPosition ?? this.currentPosition,
-      distanceToStoreMeters: distanceToStoreMeters ?? this.distanceToStoreMeters,
+      distanceToStoreMeters:
+          distanceToStoreMeters ?? this.distanceToStoreMeters,
       isWithinRadius: isWithinRadius ?? this.isWithinRadius,
       storeGpsConfig: storeGpsConfig ?? this.storeGpsConfig,
       todayAttendance: clearTodayAttendance
@@ -243,11 +243,13 @@ class AttendanceNotifier extends StateNotifier<AttendanceCheckInState> {
     }
 
     if (state.todayAttendance != null) {
-      state = state.copyWith(errorMessage: 'Bạn đã chấm công vào ca này hôm nay.');
+      state =
+          state.copyWith(errorMessage: 'Bạn đã chấm công vào ca này hôm nay.');
       return false;
     }
 
-    state = state.copyWith(isCheckingInOut: true, errorMessage: null, successMessage: null);
+    state = state.copyWith(
+        isCheckingInOut: true, errorMessage: null, successMessage: null);
 
     try {
       final now = checkInTimestamp ?? DateTime.now();
@@ -262,7 +264,8 @@ class AttendanceNotifier extends StateNotifier<AttendanceCheckInState> {
             longitude: 105.788000,
           );
 
-      final pos = state.currentPosition ?? await _locationService.getCurrentPosition();
+      final pos =
+          state.currentPosition ?? await _locationService.getCurrentPosition();
       final lat = pos?.latitude ?? config.latitude;
       final lng = pos?.longitude ?? config.longitude;
 
@@ -275,7 +278,8 @@ class AttendanceNotifier extends StateNotifier<AttendanceCheckInState> {
 
       final isGpsValid = distance <= config.allowedRadiusMeters;
 
-      if (!isGpsValid && (explanationReason == null || explanationReason.trim().isEmpty)) {
+      if (!isGpsValid &&
+          (explanationReason == null || explanationReason.trim().isEmpty)) {
         state = state.copyWith(
           isCheckingInOut: false,
           errorMessage:
@@ -284,11 +288,35 @@ class AttendanceNotifier extends StateNotifier<AttendanceCheckInState> {
         return false;
       }
 
+      // Validate shift time-window
+      final windowStatus = shift.getWindowStatus(now, today);
+      if (windowStatus == ShiftWindowStatus.closed) {
+        state = state.copyWith(
+          isCheckingInOut: false,
+          errorMessage:
+              'Ca ${shift.name} đã kết thúc lúc ${shift.endTime}. Bạn không thể chấm công vào ca đã qua. Vui lòng chọn ca kế tiếp.',
+        );
+        return false;
+      }
+      if (windowStatus == ShiftWindowStatus.upcoming) {
+        final openTime = shift.getCheckInWindowStart(today);
+        final openTimeStr =
+            '${openTime.hour.toString().padLeft(2, '0')}:${openTime.minute.toString().padLeft(2, '0')}';
+        state = state.copyWith(
+          isCheckingInOut: false,
+          errorMessage:
+              'Ca ${shift.name} chưa mở chấm công. Cổng chấm công mở lúc $openTimeStr (trước giờ bắt đầu 60 phút).',
+        );
+        return false;
+      }
+
       // Compute late minutes
       final lateMinutes = shift.calculateLateMinutes(now, today);
-      final status = lateMinutes > 0 ? AttendanceStatus.late : AttendanceStatus.onTime;
+      final status =
+          lateMinutes > 0 ? AttendanceStatus.late : AttendanceStatus.onTime;
 
-      final dateKey = '${today.year}${today.month.toString().padLeft(2, '0')}${today.day.toString().padLeft(2, '0')}';
+      final dateKey =
+          '${today.year}${today.month.toString().padLeft(2, '0')}${today.day.toString().padLeft(2, '0')}';
       final recordId = 'att_${storeId}_${user.username}_${shift.id}_$dateKey';
 
       final record = AttendanceRecord(
@@ -305,7 +333,9 @@ class AttendanceNotifier extends StateNotifier<AttendanceCheckInState> {
         checkInGpsLat: lat,
         checkInGpsLng: lng,
         isGpsValid: isGpsValid,
-        explanationReason: explanationReason?.trim().isNotEmpty == true ? explanationReason?.trim() : null,
+        explanationReason: explanationReason?.trim().isNotEmpty == true
+            ? explanationReason?.trim()
+            : null,
         createdAt: now,
         updatedAt: now,
       );
@@ -346,22 +376,26 @@ class AttendanceNotifier extends StateNotifier<AttendanceCheckInState> {
 
     final record = state.todayAttendance;
     if (record == null) {
-      state = state.copyWith(errorMessage: 'Không tìm thấy bản ghi vào ca để chấm công ra.');
+      state = state.copyWith(
+          errorMessage: 'Không tìm thấy bản ghi vào ca để chấm công ra.');
       return false;
     }
 
     if (record.checkOutTime != null) {
-      state = state.copyWith(errorMessage: 'Bạn đã hoàn tất chấm công ra ca này rồi.');
+      state = state.copyWith(
+          errorMessage: 'Bạn đã hoàn tất chấm công ra ca này rồi.');
       return false;
     }
 
     final shift = state.selectedShift;
     if (shift == null) {
-      state = state.copyWith(errorMessage: 'Không tìm thấy thông tin ca làm việc.');
+      state =
+          state.copyWith(errorMessage: 'Không tìm thấy thông tin ca làm việc.');
       return false;
     }
 
-    state = state.copyWith(isCheckingInOut: true, errorMessage: null, successMessage: null);
+    state = state.copyWith(
+        isCheckingInOut: true, errorMessage: null, successMessage: null);
 
     try {
       final now = checkOutTimestamp ?? DateTime.now();
@@ -375,7 +409,8 @@ class AttendanceNotifier extends StateNotifier<AttendanceCheckInState> {
             longitude: 105.788000,
           );
 
-      final pos = state.currentPosition ?? await _locationService.getCurrentPosition();
+      final pos =
+          state.currentPosition ?? await _locationService.getCurrentPosition();
       final lat = pos?.latitude ?? config.latitude;
       final lng = pos?.longitude ?? config.longitude;
 
@@ -390,8 +425,13 @@ class AttendanceNotifier extends StateNotifier<AttendanceCheckInState> {
 
       // Status calculations
       final earlyLeaveMinutes = shift.calculateEarlyLeaveMinutes(now, today);
-      final overtimeMinutes = shift.calculateOvertimeMinutes(now, today);
-      final totalWorkHours = AttendanceRecord.calculateWorkHours(record.checkInTime, now);
+      final overtimeMinutes = shift.calculateOvertimeMinutes(
+        now,
+        today,
+        checkInTime: record.checkInTime,
+      );
+      final totalWorkHours =
+          AttendanceRecord.calculateWorkHours(record.checkInTime, now);
 
       AttendanceStatus finalStatus = record.status;
       if (earlyLeaveMinutes > 0) {
@@ -417,7 +457,8 @@ class AttendanceNotifier extends StateNotifier<AttendanceCheckInState> {
       state = state.copyWith(
         todayAttendance: updatedRecord,
         isCheckingInOut: false,
-        successMessage: 'Chấm công Ra thành công! Tổng giờ làm: ${totalWorkHours}h',
+        successMessage:
+            'Chấm công Ra thành công! Tổng giờ làm: ${totalWorkHours}h',
       );
       return true;
     } catch (e) {

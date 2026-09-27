@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../application/auth/auth_providers.dart';
+import '../../../core/extensions/context_extensions.dart';
+import '../../../core/theme/app_colors.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -18,7 +19,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   String? _error;
 
   Future<void> _login() async {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = context.l10n;
     final username = _username.text.trim();
     final password = _password.text;
 
@@ -45,7 +46,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = context.l10n;
 
     return Scaffold(
       body: Center(
@@ -68,7 +69,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     if (_error != null) ...[
                       Text(
                         _error!,
-                        style: const TextStyle(color: Colors.red),
+                        style: const TextStyle(color: AppColors.danger),
                       ),
                       const SizedBox(height: 16),
                     ],
@@ -100,7 +101,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         onPressed: _isLoading ? null : _login,
                         child: _isLoading
                             ? const CircularProgressIndicator(
-                                color: Colors.white)
+                                color: AppColors.white)
                             : Text(l10n.loginTitle),
                       ),
                     ),

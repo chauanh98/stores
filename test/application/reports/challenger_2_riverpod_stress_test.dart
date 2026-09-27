@@ -33,7 +33,7 @@ void main() {
   const adminUser = UserAccount(
     username: 'admin_boss',
     displayName: 'Tổng Quản Lý',
-    role: 'supervisor',
+    role: 'admin',
     storeId: 'store_001',
   );
 

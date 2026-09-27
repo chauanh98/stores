@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../application/attendance/live_attendance_dashboard_provider.dart';
 import '../../../application/auth/auth_providers.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/store_resolver_helper.dart';
 import '../../../domain/attendance/attendance_record.dart';
 import '../widgets/attendance_status_badge.dart';
 import 'monthly_timesheet_page.dart';
@@ -19,7 +20,8 @@ class LiveAttendanceDashboardPage extends ConsumerStatefulWidget {
 
 class _LiveAttendanceDashboardPageState
     extends ConsumerState<LiveAttendanceDashboardPage> {
-  int _selectedFilterIndex = 0; // 0: Tất cả, 1: Đang làm, 2: Đi muộn, 3: Chưa đến, 4: Đã về
+  int _selectedFilterIndex =
+      0; // 0: Tất cả, 1: Đang làm, 2: Đi muộn, 3: Chưa đến, 4: Đã về
 
   @override
   Widget build(BuildContext context) {
@@ -29,8 +31,10 @@ class _LiveAttendanceDashboardPageState
     final storeNames = storeNamesAsync.valueOrNull ?? {};
 
     final currentStoreId = dashboardState.storeId;
-    final currentStoreName =
-        storeNames[currentStoreId] ?? currentStoreId;
+    final currentStoreName = StoreResolverHelper.resolveStoreName(
+      currentStoreId,
+      storeNames: storeNames,
+    );
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -43,7 +47,7 @@ class _LiveAttendanceDashboardPageState
             fontSize: 18,
           ),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.white,
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
         iconTheme: const IconThemeData(color: AppColors.textPrimary),
@@ -77,17 +81,12 @@ class _LiveAttendanceDashboardPageState
         children: [
           // Store Selector Bar (Admin can toggle / Supervisor locked)
           Container(
-            color: Colors.white,
+            color: AppColors.white,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             child: Row(
               children: [
                 const Icon(Icons.store, color: AppColors.primary, size: 20),
                 const SizedBox(width: 8),
-                const Text(
-                  'Chi nhánh:',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                ),
-                const SizedBox(width: 10),
                 Expanded(
                   child: user?.role.toLowerCase().trim() == 'admin'
                       ? DropdownButtonHideUnderline(
@@ -95,19 +94,33 @@ class _LiveAttendanceDashboardPageState
                             value: storeNames.containsKey(currentStoreId)
                                 ? currentStoreId
                                 : null,
-                            hint: Text(currentStoreName),
+                            hint: Text(
+                              currentStoreName,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
                             isExpanded: true,
                             items: storeNames.entries.map((e) {
                               return DropdownMenuItem(
                                 value: e.key,
-                                child: Text(e.value,
-                                    style: const TextStyle(fontSize: 14)),
+                                child: Text(
+                                  e.value,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
                               );
                             }).toList(),
                             onChanged: (newStore) {
                               if (newStore != null) {
                                 ref
-                                    .read(liveAttendanceDashboardProvider.notifier)
+                                    .read(liveAttendanceDashboardProvider
+                                        .notifier)
                                     .changeStore(newStore);
                               }
                             },
@@ -115,7 +128,7 @@ class _LiveAttendanceDashboardPageState
                         )
                       : Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 4),
+                              horizontal: 10, vertical: 6),
                           decoration: BoxDecoration(
                             color: AppColors.surfaceHighlight,
                             borderRadius: BorderRadius.circular(8),
@@ -202,13 +215,16 @@ class _LiveAttendanceDashboardPageState
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               children: [
-                _buildFilterChip('Tất cả (${dashboardState.allRecords.length})', 0),
+                _buildFilterChip(
+                    'Tất cả (${dashboardState.allRecords.length})', 0),
                 const SizedBox(width: 8),
-                _buildFilterChip('Đang làm (${dashboardState.workingCount})', 1),
+                _buildFilterChip(
+                    'Đang làm (${dashboardState.workingCount})', 1),
                 const SizedBox(width: 8),
                 _buildFilterChip('Đi muộn (${dashboardState.lateCount})', 2),
                 const SizedBox(width: 8),
-                _buildFilterChip('Chưa đến (${dashboardState.notArrivedCount})', 3),
+                _buildFilterChip(
+                    'Chưa đến (${dashboardState.notArrivedCount})', 3),
               ],
             ),
           ),
@@ -218,7 +234,7 @@ class _LiveAttendanceDashboardPageState
           Expanded(
             child: dashboardState.isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : _buildContentList(dashboardState),
+                : _buildContentList(dashboardState, storeNames),
           ),
         ],
       ),
@@ -234,7 +250,7 @@ class _LiveAttendanceDashboardPageState
         style: TextStyle(
           fontSize: 12,
           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-          color: isSelected ? Colors.white : AppColors.textPrimary,
+          color: isSelected ? AppColors.white : AppColors.textPrimary,
         ),
       ),
       selected: isSelected,
@@ -265,7 +281,7 @@ class _LiveAttendanceDashboardPageState
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.white,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: isSelected ? color : AppColors.border,
@@ -289,7 +305,8 @@ class _LiveAttendanceDashboardPageState
               title,
               textAlign: TextAlign.center,
               maxLines: 2,
-              style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
+              style:
+                  const TextStyle(fontSize: 10, color: AppColors.textSecondary),
             ),
           ],
         ),
@@ -297,7 +314,8 @@ class _LiveAttendanceDashboardPageState
     );
   }
 
-  Widget _buildContentList(LiveAttendanceState state) {
+  Widget _buildContentList(
+      LiveAttendanceState state, Map<String, String> storeNames) {
     // If filter is "Chưa đến" (absent / not arrived)
     if (_selectedFilterIndex == 3) {
       if (state.notArrivedStaff.isEmpty) {
@@ -311,6 +329,10 @@ class _LiveAttendanceDashboardPageState
         separatorBuilder: (_, __) => const SizedBox(height: 8),
         itemBuilder: (context, index) {
           final staff = state.notArrivedStaff[index];
+          final staffStoreName = StoreResolverHelper.resolveStoreName(
+            staff.storeId,
+            storeNames: storeNames,
+          );
           return Card(
             elevation: 0,
             shape: RoundedRectangleBorder(
@@ -322,8 +344,12 @@ class _LiveAttendanceDashboardPageState
                 backgroundColor: AppColors.dangerLight,
                 child: Icon(Icons.person, color: AppColors.danger),
               ),
-              title: Text(staff.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Text('Tài khoản: ${staff.username} • Chi nhánh: ${staff.storeId}'),
+              title: Text(staff.name,
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: Text(
+                'Tài khoản: ${staff.username}'
+                '${staffStoreName.isNotEmpty ? ' • $staffStoreName' : ''}',
+              ),
               trailing: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
@@ -332,7 +358,10 @@ class _LiveAttendanceDashboardPageState
                 ),
                 child: const Text(
                   'Chưa đến',
-                  style: TextStyle(color: AppColors.danger, fontSize: 12, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                      color: AppColors.danger,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold),
                 ),
               ),
             ),
@@ -390,8 +419,12 @@ class _LiveAttendanceDashboardPageState
                             radius: 16,
                             backgroundColor: AppColors.primary.withOpacity(0.1),
                             child: Text(
-                              r.userName.isNotEmpty ? r.userName[0].toUpperCase() : 'NV',
-                              style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
+                              r.userName.isNotEmpty
+                                  ? r.userName[0].toUpperCase()
+                                  : 'NV',
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary),
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -401,12 +434,16 @@ class _LiveAttendanceDashboardPageState
                               children: [
                                 Text(
                                   r.userName,
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 Text(
                                   r.shiftName,
-                                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                                  style: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.textSecondary),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ],
@@ -437,30 +474,40 @@ class _LiveAttendanceDashboardPageState
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.login, size: 16, color: AppColors.success),
+                        const Icon(Icons.login,
+                            size: 16, color: AppColors.success),
                         const SizedBox(width: 4),
-                        Text('Vào: $inTimeStr', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                        Text('Vào: $inTimeStr',
+                            style: const TextStyle(
+                                fontSize: 13, fontWeight: FontWeight.w600)),
                       ],
                     ),
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.logout, size: 16, color: AppColors.danger),
+                        const Icon(Icons.logout,
+                            size: 16, color: AppColors.danger),
                         const SizedBox(width: 4),
-                        Text('Ra: $outTimeStr', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                        Text('Ra: $outTimeStr',
+                            style: const TextStyle(
+                                fontSize: 13, fontWeight: FontWeight.w600)),
                       ],
                     ),
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.timer_outlined, size: 16, color: AppColors.primary),
+                        const Icon(Icons.timer_outlined,
+                            size: 16, color: AppColors.primary),
                         const SizedBox(width: 4),
-                        Text('Tổng: ${r.totalWorkHours}h', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                        Text('Tổng: ${r.totalWorkHours}h',
+                            style: const TextStyle(
+                                fontSize: 13, fontWeight: FontWeight.bold)),
                       ],
                     ),
                   ],
                 ),
-                if (r.explanationReason != null && r.explanationReason!.isNotEmpty) ...[
+                if (r.explanationReason != null &&
+                    r.explanationReason!.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   Container(
                     width: double.infinity,
@@ -471,7 +518,10 @@ class _LiveAttendanceDashboardPageState
                     ),
                     child: Text(
                       'Lý do giải trình: "${r.explanationReason}"',
-                      style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: Color(0xFF92400E)),
+                      style: const TextStyle(
+                          fontSize: 12,
+                          fontStyle: FontStyle.italic,
+                          color: AppColors.warningDeep),
                     ),
                   ),
                 ],

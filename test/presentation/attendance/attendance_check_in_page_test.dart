@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:stores/application/attendance/attendance_providers.dart';
 import 'package:stores/application/auth/auth_providers.dart';
 import 'package:stores/core/theme/app_colors.dart';
+import 'package:stores/domain/attendance/shift.dart';
 import 'package:stores/domain/entities/user_account.dart';
 import 'package:stores/presentation/attendance/pages/attendance_check_in_page.dart';
 
@@ -37,6 +38,16 @@ void main() {
 
     setUp(() {
       fakeRepo = FakeAttendanceRepository();
+      fakeRepo.shifts = [
+        ...Shift.defaultShifts(),
+        const Shift(
+          id: 'shift_allday',
+          name: 'Ca Suốt',
+          startTime: '00:00',
+          endTime: '23:59',
+          type: 'flexible',
+        ),
+      ];
       fakeLocation = FakeLocationService();
     });
 
@@ -115,6 +126,50 @@ void main() {
       expect(appBar.backgroundColor, Colors.white);
       expect(appBar.foregroundColor, AppColors.textPrimary);
       expect(appBar.elevation, 0);
+    });
+
+    testWidgets('ShiftSelectorCard renders status tags: Đang mở ca or Đã kết thúc', (tester) async {
+      await tester.pumpWidget(createWidgetUnderTest());
+      await tester.pumpAndSettle();
+
+      // Ensure at least one status tag is rendered on the shifts list
+      final hasOpenTag = find.text('Đang mở ca').evaluate().isNotEmpty;
+      final hasEndedTag = find.text('Đã kết thúc').evaluate().isNotEmpty;
+      final hasUpcomingTag = find.textContaining('Chưa mở').evaluate().isNotEmpty;
+
+      expect(hasOpenTag || hasEndedTag || hasUpcomingTag, isTrue);
+    });
+
+    testWidgets('Attempting check-in to a closed shift shows error banner and blocks check-in', (tester) async {
+      const closedShift = Shift(
+        id: 'shift_closed_test',
+        name: 'Ca Hôm Qua',
+        startTime: '01:00',
+        endTime: '02:00',
+        type: 'morning',
+      );
+      fakeRepo.shifts = [closedShift];
+
+      await tester.pumpWidget(createWidgetUnderTest());
+      await tester.pumpAndSettle();
+
+      expect(find.text('Ca Hôm Qua'), findsOneWidget);
+      expect(find.text('Đã kết thúc'), findsOneWidget);
+
+      await tester.tap(find.text('Ca Hôm Qua'));
+      await tester.pumpAndSettle();
+
+      final checkInButton = find.text('CHẤM CÔNG VÀO');
+      await tester.ensureVisible(checkInButton);
+      await tester.tap(checkInButton);
+      await tester.pumpAndSettle();
+
+      // Error banner must appear with the exact rejection message
+      expect(
+        find.text('Ca Ca Hôm Qua đã kết thúc lúc 02:00. Bạn không thể chấm công vào ca đã qua. Vui lòng chọn ca kế tiếp.'),
+        findsOneWidget,
+      );
+      expect(fakeRepo.attendances, isEmpty);
     });
   });
 }

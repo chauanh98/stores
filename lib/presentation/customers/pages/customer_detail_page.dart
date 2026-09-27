@@ -70,8 +70,8 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
     final ordersAsync = ref.watch(customerOrdersProvider(c.id));
     final debtTxsAsync = ref.watch(customerDebtTransactionsProvider(c.id));
 
-    final orders = ordersAsync.value ?? <Order>[];
-    final debtTxs = debtTxsAsync.value ?? <CustomerDebtTransaction>[];
+    final orders = ordersAsync.valueOrNull ?? <Order>[];
+    final debtTxs = debtTxsAsync.valueOrNull ?? <CustomerDebtTransaction>[];
 
     final displayTotalSales = c.effectiveTotalSales(orders);
     final displayCurrentDebt = c.effectiveCurrentDebt(orders, debtTxs);
@@ -83,7 +83,7 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text(_isEditing ? l10n.edit : l10n.customerDetail),
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.white,
         actions: [
           if (_isEditing)
             IconButton(
@@ -124,7 +124,7 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
                   child: Row(
                     children: [
                       const Icon(Icons.receipt_long,
-                          color: Colors.blue, size: 20),
+                          color: AppColors.primary, size: 20),
                       const SizedBox(width: 8),
                       Text(l10n.createOrder),
                     ],
@@ -135,7 +135,8 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
                     value: 'delete',
                     child: Row(
                       children: [
-                        const Icon(Icons.delete, color: Colors.red, size: 20),
+                        const Icon(Icons.delete,
+                            color: AppColors.danger, size: 20),
                         const SizedBox(width: 8),
                         Text(l10n.delete),
                       ],
@@ -202,7 +203,7 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
                                 style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.black87,
+                                  color: AppColors.textPrimary,
                                 ),
                               ),
                             ),
@@ -214,53 +215,62 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  l10n.phone,
-                                  style: const TextStyle(
-                                      fontSize: 12, color: Colors.black54),
-                                ),
-                                const SizedBox(height: 2),
-                                Row(
-                                  children: [
-                                    Text(
-                                      c.phone.isNotEmpty
-                                          ? c.phone
-                                          : l10n.noPhoneAvailable,
-                                      style: const TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.black87,
-                                      ),
-                                    ),
-                                    if (c.phone.isNotEmpty) ...[
-                                      const SizedBox(width: 4),
-                                      InkWell(
-                                        onTap: () {
-                                          Clipboard.setData(
-                                              ClipboardData(text: c.phone));
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(
-                                            SnackBar(
-                                                content: Text(
-                                                    l10n.copyPhoneSuccess(
-                                                        c.phone))),
-                                          );
-                                        },
-                                        child: const Padding(
-                                          padding: EdgeInsets.all(4.0),
-                                          child: Icon(Icons.copy_rounded,
-                                              size: 15, color: Colors.black45),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    l10n.phone,
+                                    style: const TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.textSecondary),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Row(
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          c.phone.isNotEmpty
+                                              ? c.phone
+                                              : l10n.noPhoneAvailable,
+                                          style: const TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.bold,
+                                            color: AppColors.textPrimary,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
+                                      if (c.phone.isNotEmpty) ...[
+                                        const SizedBox(width: 4),
+                                        InkWell(
+                                          onTap: () {
+                                            Clipboard.setData(
+                                                ClipboardData(text: c.phone));
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              SnackBar(
+                                                  content: Text(
+                                                      l10n.copyPhoneSuccess(
+                                                          c.phone))),
+                                            );
+                                          },
+                                          child: const Padding(
+                                            padding: EdgeInsets.all(4.0),
+                                            child: Icon(Icons.copy_rounded,
+                                                size: 15,
+                                                color: AppColors.textTertiary),
+                                          ),
+                                        ),
+                                      ],
                                     ],
-                                  ],
-                                ),
-                              ],
+                                  ),
+                                ],
+                              ),
                             ),
+                            const SizedBox(width: 8),
                             Row(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
                                 IconButton(
                                   icon: const Icon(Icons.chat_bubble_outline,
@@ -322,16 +332,20 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
                                   Text(
                                     l10n.customerCode,
                                     style: const TextStyle(
-                                        fontSize: 12, color: Colors.black54),
+                                        fontSize: 12,
+                                        color: AppColors.textSecondary),
                                   ),
                                   const SizedBox(height: 2),
                                   Row(
                                     children: [
-                                      Text(
-                                        c.id,
-                                        style: const TextStyle(
-                                            fontSize: 14,
-                                            color: Colors.black87),
+                                      Flexible(
+                                        child: Text(
+                                          c.id,
+                                          style: const TextStyle(
+                                              fontSize: 14,
+                                              color: AppColors.textPrimary),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
                                       ),
                                       const SizedBox(width: 4),
                                       InkWell(
@@ -349,7 +363,8 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
                                         child: const Padding(
                                           padding: EdgeInsets.all(4.0),
                                           child: Icon(Icons.copy_rounded,
-                                              size: 15, color: Colors.black45),
+                                              size: 15,
+                                              color: AppColors.textTertiary),
                                         ),
                                       ),
                                     ],
@@ -364,13 +379,15 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
                                   Text(
                                     l10n.branch,
                                     style: const TextStyle(
-                                        fontSize: 12, color: Colors.black54),
+                                        fontSize: 12,
+                                        color: AppColors.textSecondary),
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
                                     c.branch ?? 'Chi nhánh Thới Bình',
                                     style: const TextStyle(
-                                        fontSize: 14, color: Colors.black87),
+                                        fontSize: 14,
+                                        color: AppColors.textPrimary),
                                   ),
                                 ],
                               ),
@@ -396,28 +413,41 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(
-                                  l10n.transactionHistory,
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.black87,
+                                Flexible(
+                                  child: Text(
+                                    l10n.transactionHistory,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                      color: AppColors.textPrimary,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
-                                Row(
-                                  children: [
-                                    Text(
-                                      currencyFormat.format(displayTotalSales),
-                                      style: const TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.black87,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    const Icon(Icons.chevron_right,
-                                        color: Colors.black38, size: 20),
-                                  ],
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (user?.canViewTotalSales == true) ...[
+                                        Flexible(
+                                          child: Text(
+                                            currencyFormat
+                                                .format(displayTotalSales),
+                                            style: const TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.bold,
+                                              color: AppColors.textPrimary,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                      ],
+                                      const Icon(Icons.chevron_right,
+                                          color: AppColors.textMuted, size: 20),
+                                    ],
+                                  ),
                                 ),
                               ],
                             ),
@@ -440,30 +470,41 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(
-                                  l10n.customerDebt,
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.black87,
+                                Flexible(
+                                  child: Text(
+                                    l10n.customerDebt,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                      color: AppColors.textPrimary,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
-                                Row(
-                                  children: [
-                                    Text(
-                                      currencyFormat.format(displayCurrentDebt),
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.bold,
-                                        color: displayCurrentDebt > 0
-                                            ? Colors.red
-                                            : Colors.black87,
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          currencyFormat
+                                              .format(displayCurrentDebt),
+                                          style: TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.bold,
+                                            color: displayCurrentDebt > 0
+                                                ? AppColors.danger
+                                                : AppColors.textPrimary,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    const Icon(Icons.chevron_right,
-                                        color: Colors.black38, size: 20),
-                                  ],
+                                      const SizedBox(width: 4),
+                                      const Icon(Icons.chevron_right,
+                                          color: AppColors.textMuted, size: 20),
+                                    ],
+                                  ),
                                 ),
                               ],
                             ),
@@ -482,8 +523,8 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
                       style: TextStyle(
                         fontSize: 14,
                         color: c.address.isNotEmpty
-                            ? Colors.black87
-                            : Colors.black45,
+                            ? AppColors.textPrimary
+                            : AppColors.textTertiary,
                       ),
                     ),
                   ),
@@ -507,8 +548,8 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
                       c.group?.isNotEmpty == true
                           ? c.group!
                           : l10n.notCategorized,
-                      style:
-                          const TextStyle(fontSize: 14, color: Colors.black87),
+                      style: const TextStyle(
+                          fontSize: 14, color: AppColors.textPrimary),
                     ),
                   ),
 
@@ -543,23 +584,27 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
       width: double.infinity,
       margin: const EdgeInsets.only(top: 12),
       padding: const EdgeInsets.all(16),
-      color: Colors.white,
+      color: AppColors.white,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                headerTitle,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black54,
-                  letterSpacing: 0.5,
+              Flexible(
+                child: Text(
+                  headerTitle,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textSecondary,
+                    letterSpacing: 0.5,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              if (onEditTap != null)
+              if (onEditTap != null) ...[
+                const SizedBox(width: 8),
                 InkWell(
                   onTap: onEditTap,
                   child: Text(
@@ -571,6 +616,7 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
                     ),
                   ),
                 ),
+              ],
             ],
           ),
           const SizedBox(height: 12),
@@ -591,7 +637,8 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
             width: 120,
             child: Text(
               label,
-              style: const TextStyle(fontSize: 13, color: Colors.black54),
+              style:
+                  const TextStyle(fontSize: 13, color: AppColors.textSecondary),
             ),
           ),
           Expanded(
@@ -600,7 +647,7 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
               style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
-                color: Colors.black87,
+                color: AppColors.textPrimary,
               ),
             ),
           ),
@@ -694,7 +741,7 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
             child: Text(l10n.cancel),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
             onPressed: () async {
               Navigator.pop(context);
               await ref.read(customerRepositoryProvider).delete(c.id);

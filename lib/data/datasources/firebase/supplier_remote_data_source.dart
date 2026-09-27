@@ -7,18 +7,16 @@ class SupplierRemoteDataSource {
 
   final FirebaseDatabase _db;
 
-  DatabaseReference _getSuppliersRef(String? storeId) {
-    if (storeId != null && storeId.trim().isNotEmpty) {
-      return _db.ref('stores/$storeId/suppliers');
-    }
+  DatabaseReference _getSuppliersRef([String? storeId]) {
+    // Suppliers are shared master data across all stores/branches (like shared_customers)
     return _db.ref('shared_suppliers');
   }
 
-  DatabaseReference _getDebtRef(String? storeId, String supplierId) {
-    if (storeId != null && storeId.trim().isNotEmpty) {
-      return _db.ref('stores/$storeId/supplier_debts/$supplierId');
-    }
-    return _db.ref('shared_suppliers/$supplierId/debt_transactions');
+  DatabaseReference _getDebtRef([String? storeId, String supplierId = '']) {
+    // If supplierId is in the 2nd argument (standard call: _getDebtRef(storeId, supplierId))
+    final actualSupplierId =
+        supplierId.isNotEmpty ? supplierId : (storeId ?? '');
+    return _db.ref('shared_suppliers/$actualSupplierId/debt_transactions');
   }
 
   /// Real-time stream of all suppliers with debounce
@@ -27,11 +25,13 @@ class SupplierRemoteDataSource {
     final controller = StreamController<List<Map>>();
     final Map<String, Map> cache = {};
     Timer? debounceTimer;
+    bool hasEmitted = false;
 
     void debouncedEmit() {
       debounceTimer?.cancel();
-      debounceTimer = Timer(const Duration(milliseconds: 100), () {
+      debounceTimer = Timer(const Duration(milliseconds: 50), () {
         if (!controller.isClosed) {
+          hasEmitted = true;
           controller.add(cache.values.toList());
         }
       });
@@ -67,8 +67,18 @@ class SupplierRemoteDataSource {
       final key = event.snapshot.key;
       if (key != null) {
         cache.remove(key);
+        cache.removeWhere((k, v) => v['id']?.toString() == key);
         if (!controller.isClosed) {
           controller.add(cache.values.toList());
+        }
+      }
+    });
+
+    final emptyCheckSub = ref.limitToFirst(1).onValue.take(1).listen((event) {
+      if (event.snapshot.value == null) {
+        if (cache.isEmpty && !hasEmitted && !controller.isClosed) {
+          hasEmitted = true;
+          controller.add([]);
         }
       }
     });
@@ -78,6 +88,7 @@ class SupplierRemoteDataSource {
       addSub.cancel();
       changeSub.cancel();
       removeSub.cancel();
+      emptyCheckSub.cancel();
     };
 
     return controller.stream;
@@ -118,7 +129,8 @@ class SupplierRemoteDataSource {
     }
   }
 
-  Stream<List<Map>> watchDebtTransactions(String supplierId, {String? storeId}) {
+  Stream<List<Map>> watchDebtTransactions(String supplierId,
+      {String? storeId}) {
     return _getDebtRef(storeId, supplierId).onValue.map((event) {
       final val = event.snapshot.value;
       if (val is Map) {
@@ -137,7 +149,8 @@ class SupplierRemoteDataSource {
     });
   }
 
-  Future<List<Map>> fetchDebtTransactions(String supplierId, {String? storeId}) async {
+  Future<List<Map>> fetchDebtTransactions(String supplierId,
+      {String? storeId}) async {
     final snap = await _getDebtRef(storeId, supplierId).get();
     final val = snap.value;
     if (val is Map) {

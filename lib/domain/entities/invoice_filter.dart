@@ -68,7 +68,9 @@ class InvoiceFilter {
       final orderStaff = (order.createdBy ?? '').trim().toLowerCase();
       if (orderStaff != target) return false;
     }
-    if (staffName != null && staffName != 'all' && staffName!.trim().isNotEmpty) {
+    if (staffName != null &&
+        staffName != 'all' &&
+        staffName!.trim().isNotEmpty) {
       final target = staffName!.trim().toLowerCase();
       final orderStaffName = (order.createdByName ?? '').trim().toLowerCase();
       if (!orderStaffName.contains(target)) return false;
@@ -95,10 +97,12 @@ class InvoiceFilter {
           customerCode?.toLowerCase().contains(q) ?? false;
       final cNameMatch = customerName?.toLowerCase().contains(q) ?? false;
       final cPhoneMatch = customerPhone?.toLowerCase().contains(q) ?? false;
-      final staffMatch =
-          (order.createdByName ?? order.createdBy ?? '').toLowerCase().contains(q);
-      final itemMatch =
-          order.items.any((i) => i.productName.toLowerCase().contains(q) || i.productId.toLowerCase().contains(q));
+      final staffMatch = (order.createdByName ?? order.createdBy ?? '')
+          .toLowerCase()
+          .contains(q);
+      final itemMatch = order.items.any((i) =>
+          i.productName.toLowerCase().contains(q) ||
+          i.productId.toLowerCase().contains(q));
 
       if (!idMatch &&
           !customerIdMatch &&

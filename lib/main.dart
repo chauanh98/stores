@@ -1,4 +1,5 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
@@ -11,6 +12,9 @@ import 'package:stores/presentation/orders/pages/pos_page.dart';
 import 'package:stores/presentation/products/pages/products_page.dart';
 import 'package:stores/presentation/reports/pages/overview_page.dart';
 import 'package:stores/presentation/settings/pages/more_page.dart';
+
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:stores/core/services/filter_storage_service.dart';
 
 import 'firebase_options.dart';
 
@@ -29,7 +33,32 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  runApp(const ProviderScope(child: MyApp()));
+  try {
+    FirebaseDatabase.instance.setPersistenceEnabled(false);
+  } catch (e) {
+    debugPrint('Firebase Database persistence initialization: $e');
+  }
+  final prefs = await SharedPreferences.getInstance();
+  FilterStorageService.setSharedPrefs(prefs);
+  setupFilterStorageResolver();
+  runApp(ProviderScope(
+    overrides: [
+      filterStorageServiceProvider.overrideWith((ref) {
+        return FilterStorageService(
+          prefs,
+          null,
+          () {
+            try {
+              return ref.read(authProvider)?.username;
+            } catch (_) {
+              return null;
+            }
+          },
+        );
+      }),
+    ],
+    child: const MyApp(),
+  ));
 }
 
 class MyApp extends ConsumerWidget {
@@ -77,7 +106,6 @@ class _AdaptiveScaffoldState extends ConsumerState<AdaptiveScaffold> {
   @override
   Widget build(BuildContext context) {
     final isWideScreen = MediaQuery.of(context).size.width > 600;
-
 
     final screens = [
       const OverviewPage(key: PageStorageKey('overview')),

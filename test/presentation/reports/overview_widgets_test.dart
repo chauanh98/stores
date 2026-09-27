@@ -264,13 +264,13 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Tháng này'), findsOneWidget);
+      expect(find.text('Hôm nay'), findsOneWidget);
       expect(find.byIcon(Icons.calendar_today_rounded), findsOneWidget);
       expect(find.byIcon(Icons.store_rounded), findsOneWidget);
       expect(find.text('Tất cả chi nhánh'), findsOneWidget);
 
       // Redundant quick chip row is removed from main bar
-      expect(find.text('Hôm nay'), findsNothing);
+      expect(find.text('Tháng này'), findsNothing);
       expect(find.text('Hôm qua'), findsNothing);
       expect(find.text('7 ngày qua'), findsNothing);
       expect(find.text('Tháng trước'), findsNothing);
@@ -290,23 +290,23 @@ void main() {
       await tester.pumpAndSettle();
 
       // Tap date range dropdown
-      await tester.tap(find.text('Tháng này'));
+      await tester.tap(find.text('Hôm nay'));
       await tester.pumpAndSettle();
 
       // BottomSheet opens showing all options
       expect(find.text('Chọn khoảng thời gian'), findsOneWidget);
-      expect(find.text('Hôm nay'), findsOneWidget);
       expect(find.text('Hôm qua'), findsOneWidget);
       expect(find.text('7 ngày qua'), findsOneWidget);
+      expect(find.text('Tháng này'), findsOneWidget);
       expect(find.text('Tháng trước'), findsOneWidget);
       expect(find.text('Tùy chỉnh'), findsOneWidget);
 
-      // Tap 'Hôm nay'
-      await tester.tap(find.text('Hôm nay'));
+      // Tap '7 ngày qua'
+      await tester.tap(find.text('7 ngày qua'));
       await tester.pumpAndSettle();
 
-      // Modal closed and filter bar updated to 'Hôm nay'
-      expect(find.text('Hôm nay'), findsOneWidget);
+      // Modal closed and filter bar updated to '7 ngày qua'
+      expect(find.text('7 ngày qua'), findsOneWidget);
     });
 
     testWidgets('Tapping branch dropdown opens branch selector modal',
@@ -351,7 +351,7 @@ void main() {
 
   group('KPIMetricsSection Widget Tests (R1)', () {
     testWidgets(
-        'Renders revenue and customer debt card for Admin, but hides Gross Profit (canViewCostPrice == false)',
+        'Renders revenue, customer debt card and profit for Admin (canViewCostPrice == true)',
         (tester) async {
       await tester.pumpWidget(
         _createTestableWidget(
@@ -369,9 +369,9 @@ void main() {
       expect(find.text('Doanh thu thuần'), findsOneWidget);
       expect(find.text('${format.format(25000000.0)} đ'), findsOneWidget);
       expect(find.text('+15.5%'), findsOneWidget);
-      // Profit is hidden for Admin
-      expect(find.text('Lợi nhuận gộp'), findsNothing);
-      expect(find.text('${format.format(8500000.0)} đ'), findsNothing);
+      // Profit is visible for Admin (Store Owner)
+      expect(find.text('Lợi nhuận gộp'), findsOneWidget);
+      expect(find.text('${format.format(8500000.0)} đ'), findsOneWidget);
       // Customer debt summary is visible for Admin
       expect(find.text('Công nợ khách hàng cần thu'), findsOneWidget);
       expect(find.text('${format.format(3200000.0)} đ'), findsOneWidget);
@@ -478,7 +478,8 @@ void main() {
       expect(find.text('Nhập hàng'), findsOneWidget);
     });
 
-    testWidgets('Renders stock counts but hides cost valuation for Admin (canViewCostPrice == false)',
+    testWidgets(
+        'Renders stock counts and cost valuation for Admin (canViewCostPrice == true)',
         (tester) async {
       await tester.pumpWidget(
         _createTestableWidget(
@@ -498,8 +499,8 @@ void main() {
       expect(find.text('Sắp hết hàng'), findsOneWidget);
       expect(find.text('7'), findsOneWidget);
       expect(find.text('150 sản phẩm'), findsOneWidget);
-      expect(find.text('Giá trị kho (Giá vốn)'), findsNothing);
-      expect(find.text('${format.format(45000000.0)} đ'), findsNothing);
+      expect(find.text('Giá trị kho (Giá vốn)'), findsOneWidget);
+      expect(find.text('${format.format(45000000.0)} đ'), findsOneWidget);
     });
   });
 
@@ -898,7 +899,7 @@ void main() {
 
       expect(find.byType(OverviewHeader), findsOneWidget);
       expect(find.byType(OverviewFilterBar), findsOneWidget);
-      expect(find.byType(QuickActionsBar), findsOneWidget);
+      expect(find.byType(QuickActionsBar), findsNothing);
       expect(find.byType(KPIMetricsSection), findsOneWidget);
       expect(find.byType(SmartStockAlertsCard), findsOneWidget);
       expect(find.byType(RevenueChartSection), findsOneWidget);
@@ -943,7 +944,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(Row), findsWidgets);
-      expect(find.byType(QuickActionsBar), findsOneWidget);
+      expect(find.byType(QuickActionsBar), findsNothing);
       expect(find.byType(KPIMetricsSection), findsOneWidget);
       expect(find.byType(RevenueChartSection), findsOneWidget);
       expect(find.byType(PaymentCategoryBreakdownSection), findsOneWidget);
@@ -951,5 +952,51 @@ void main() {
       expect(find.byType(TopRankingsSection), findsOneWidget);
       expect(find.byType(RecentActivityFeed), findsOneWidget);
     });
+  });
+
+  group('OverviewFilterBar Narrow Screen & RenderFlex Overflow Tests (R2)', () {
+    for (final size in [
+      const Size(320, 480), // Narrowest phone
+      const Size(360, 640), // Typical narrow Android
+      const Size(375, 667), // iPhone SE / 8
+      const Size(390, 844), // iPhone 12/13/14
+    ]) {
+      testWidgets(
+          'No RenderFlex overflow on ${size.width}x${size.height} screen when active filter & reset button are visible',
+          (tester) async {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        await tester.pumpWidget(
+          _createTestableWidget(
+            screenSize: size,
+            child: const OverviewFilterBar(),
+            overrides: [
+              authProvider.overrideWith((ref) => FakeAuthNotifier(mockAdminUser)),
+              overviewTimeRangeTypeProvider
+                  .overrideWith((ref) => OverviewTimeRange.thisMonth), // Active filter!
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Verify no RenderFlex overflow exception
+        expect(tester.takeException(), isNull);
+
+        // Verify date button, reset button, and branch selector all exist
+        expect(find.text('Tháng này'), findsOneWidget);
+        expect(find.byKey(const Key('reset_overview_filters_button')),
+            findsOneWidget);
+        expect(find.text('Tất cả chi nhánh'), findsOneWidget);
+
+        // Tap reset filter button and ensure it functions smoothly
+        await tester.tap(find.byKey(const Key('reset_overview_filters_button')));
+        await tester.pumpAndSettle();
+
+        expect(tester.takeException(), isNull);
+      });
+    }
   });
 }

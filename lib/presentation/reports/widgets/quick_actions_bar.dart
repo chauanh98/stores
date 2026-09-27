@@ -15,11 +15,11 @@ class QuickActionsBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: AppColors.black.withOpacity(0.04),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -47,7 +47,7 @@ class QuickActionsBar extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: Colors.black87,
+                    color: AppColors.textPrimary,
                   ),
                 ),
               ],
@@ -61,7 +61,7 @@ class QuickActionsBar extends StatelessWidget {
                   icon: Icons.point_of_sale_rounded,
                   label: 'Bán hàng',
                   color: AppColors.primary,
-                  bgColor: const Color(0xFFE0F2FE),
+                  bgColor: AppColors.primaryLight,
                   onTap: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
@@ -77,7 +77,7 @@ class QuickActionsBar extends StatelessWidget {
                   icon: Icons.add_business_rounded,
                   label: 'Nhập hàng',
                   color: AppColors.secondary,
-                  bgColor: const Color(0xFFDCFCE7),
+                  bgColor: AppColors.secondaryLight,
                   onTap: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
@@ -93,7 +93,7 @@ class QuickActionsBar extends StatelessWidget {
                   icon: Icons.swap_horiz_rounded,
                   label: 'Chuyển kho',
                   color: AppColors.supervisor,
-                  bgColor: const Color(0xFFF3E8FF),
+                  bgColor: AppColors.supervisorLight,
                   onTap: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
@@ -109,7 +109,7 @@ class QuickActionsBar extends StatelessWidget {
                   icon: Icons.menu_book_rounded,
                   label: 'Sổ nợ khách',
                   color: AppColors.chartOrange,
-                  bgColor: const Color(0xFFFEF3C7),
+                  bgColor: AppColors.warningLight,
                   onTap: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
@@ -127,7 +127,7 @@ class QuickActionsBar extends StatelessWidget {
                   icon: Icons.inventory_2_rounded,
                   label: 'Hàng hóa',
                   color: AppColors.chartTeal,
-                  bgColor: const Color(0xFFCCFBF1),
+                  bgColor: AppColors.tealLight,
                   onTap: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
@@ -182,7 +182,7 @@ class QuickActionsBar extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
-                color: Colors.black87,
+                color: AppColors.textPrimary,
               ),
             ),
           ],

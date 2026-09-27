@@ -36,6 +36,66 @@ class StoreResolverHelper {
     return trimmed;
   }
 
+  /// Resolves any store ID or alias to its human-readable store name.
+  /// E.g. 'store_001' -> 'Chi nhánh Đông Thắng', 'store_002' -> 'Chi nhánh Thới Bình'.
+  /// Optionally uses [storeNames] map if provided.
+  static String resolveStoreName(
+    String? storeId, {
+    Map<String, String>? storeNames,
+  }) {
+    if (storeId == null || storeId.trim().isEmpty) return '';
+    final trimmed = storeId.trim();
+    if (trimmed == 'all') return 'Toàn bộ chi nhánh';
+
+    // Check storeNames map first
+    if (storeNames != null && storeNames.isNotEmpty) {
+      if (storeNames.containsKey(trimmed)) {
+        return storeNames[trimmed]!;
+      }
+      final norm = normalizeStoreId(trimmed);
+      if (storeNames.containsKey(norm)) {
+        return storeNames[norm]!;
+      }
+    }
+
+    final norm = normalizeStoreId(trimmed);
+    if (norm == 'store_001') return 'Chi nhánh Đông Thắng';
+    if (norm == 'store_002') return 'Chi nhánh Thới Bình';
+
+    return trimmed;
+  }
+
+  /// Returns a clean store label that avoids redundant 'Chi nhánh: Chi nhánh...' repetitions.
+  /// If [storeNameOrId] already starts with 'Chi nhánh' or 'Toàn bộ', returns the resolved name as-is.
+  /// Otherwise prefixes with 'Chi nhánh $name'.
+  static String formatStoreLabel(
+    String? storeNameOrId, {
+    Map<String, String>? storeNames,
+  }) {
+    final name = resolveStoreName(storeNameOrId, storeNames: storeNames);
+    if (name.isEmpty) return '';
+    final lower = name.toLowerCase();
+    if (lower.startsWith('chi nhánh') || lower.startsWith('toàn bộ')) {
+      return name;
+    }
+    return 'Chi nhánh $name';
+  }
+
+  /// Extracts the short store name without the 'Chi nhánh ' prefix.
+  /// E.g. 'Chi nhánh Thới Bình' -> 'Thới Bình', 'store_001' -> 'Đông Thắng'.
+  static String getShortStoreName(
+    String? storeNameOrId, {
+    Map<String, String>? storeNames,
+  }) {
+    final name = resolveStoreName(storeNameOrId, storeNames: storeNames);
+    if (name.isEmpty) return '';
+    final lower = name.toLowerCase();
+    if (lower.startsWith('chi nhánh ')) {
+      return name.substring(10).trim();
+    }
+    return name;
+  }
+
   /// Resolves selected branches into a list of canonical store IDs.
   ///
   /// Supports:

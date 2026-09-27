@@ -11,7 +11,9 @@ class InventoryRepositoryImpl implements InventoryRepository {
   @override
   Stream<List<InventoryTransaction>> watchByProduct(String productId) =>
       _ds.watchByProduct(productId).map((list) {
-        return list.map((m) => InventoryTransactionModel.fromMap(m).toEntity()).toList();
+        return list
+            .map((m) => InventoryTransactionModel.fromMap(m).toEntity())
+            .toList();
       });
 
   @override
@@ -24,7 +26,12 @@ class InventoryRepositoryImpl implements InventoryRepository {
   Stream<List<InventoryTransaction>> watchImportsByDateRange(
       DateTime startDate, DateTime endDate) {
     return _ds.watchImportsByDateRange(startDate, endDate).map((list) {
-      return list.map((m) => InventoryTransactionModel.fromMap(m).toEntity()).toList();
+      return list
+          .map((m) => InventoryTransactionModel.fromMap(m).toEntity())
+          .toList();
     });
   }
+
+  Future<double?> getLatestImportPrice(String productId) =>
+      _ds.getLatestImportPrice(productId);
 }

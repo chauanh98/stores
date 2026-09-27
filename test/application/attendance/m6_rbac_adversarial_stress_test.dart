@@ -136,7 +136,7 @@ void main() {
         );
 
         expect(account.isSupervisor, isTrue, reason: 'Failed for role: "$role"');
-        expect(account.isAdmin, isTrue, reason: 'Supervisor inherits admin flags in domain');
+        expect(account.isAdmin, isFalse, reason: 'Supervisor is branch manager, not system admin');
         expect(account.isStaff, isFalse, reason: 'Failed for role: "$role"');
         expect(account.requiresAttendance, isFalse, reason: 'Failed for role: "$role"');
         expect(account.canManageShifts, isTrue, reason: 'Failed for role: "$role"');

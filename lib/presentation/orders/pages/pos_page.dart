@@ -9,6 +9,7 @@ import 'package:stores/presentation/common/widgets/loading_indicator.dart';
 import '../../../application/auth/auth_providers.dart';
 import '../../../application/orders/cart_providers.dart';
 import '../../../application/products/products_providers.dart';
+import '../../../core/services/filter_storage_service.dart';
 import '../../../core/utils/combo_helper.dart';
 import '../../../domain/entities/product.dart';
 import '../../common/widgets/product_image_thumbnail.dart';
@@ -41,8 +42,11 @@ class _POSPageState extends ConsumerState<POSPage> {
     final cart = ref.watch(cartProvider);
     final totalItems = ref.watch(cartTotalItemsProvider);
     final totalAmount = ref.watch(cartTotalAmountProvider);
-    final storeNameAsync = ref.watch(currentStoreNameProvider);
     final selectedBranch = ref.watch(selectedPOSBranchProvider);
+    final posBranchName = ref.watch(posBranchNameProvider);
+    final user = ref.watch(authProvider);
+    final canSwitchBranch = user != null &&
+        (user.isAdmin || user.isSupervisor || user.canSwitchStore);
     final l10n = AppLocalizations.of(context)!;
 
     final currencyFormat = NumberFormat('#,###', 'vi_VN');
@@ -57,24 +61,52 @@ class _POSPageState extends ConsumerState<POSPage> {
             Text(l10n.salesTitle,
                 style:
                     const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            storeNameAsync.when(
-              data: (name) {
-                return Text(
-                  name,
-                  style: const TextStyle(
-                      fontSize: 11,
-                      color: Colors.black54,
-                      fontWeight: FontWeight.normal),
-                );
-              },
-              loading: () => Text(l10n.loadingText,
-                  style: const TextStyle(fontSize: 11, color: Colors.black38)),
-              error: (_, __) => Text(l10n.unknownStore,
-                  style: const TextStyle(fontSize: 11, color: Colors.red)),
+            InkWell(
+              key: const Key('pos_branch_switcher_button'),
+              onTap:
+                  canSwitchBranch ? () => _showBranchSelector(context) : null,
+              borderRadius: BorderRadius.circular(4),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      posBranchName,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: canSwitchBranch
+                            ? AppColors.primary
+                            : AppColors.textSecondary,
+                        fontWeight: canSwitchBranch
+                            ? FontWeight.w600
+                            : FontWeight.normal,
+                      ),
+                    ),
+                    if (canSwitchBranch) ...[
+                      const SizedBox(width: 2),
+                      const Icon(
+                        Icons.arrow_drop_down,
+                        size: 16,
+                        color: AppColors.primary,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
             ),
           ],
         ),
-        backgroundColor: Colors.white,
+        actions: [
+          if (canSwitchBranch)
+            IconButton(
+              key: const Key('pos_branch_switcher_action'),
+              icon: const Icon(Icons.storefront, color: AppColors.primary),
+              tooltip: 'Đổi chi nhánh',
+              onPressed: () => _showBranchSelector(context),
+            ),
+        ],
+        backgroundColor: AppColors.white,
       ),
       body: Column(
         children: [
@@ -97,7 +129,7 @@ class _POSPageState extends ConsumerState<POSPage> {
                         },
                       )
                     : null,
-                fillColor: Colors.white,
+                fillColor: AppColors.white,
                 filled: true,
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -141,8 +173,7 @@ class _POSPageState extends ConsumerState<POSPage> {
                       _selectedCategoryId.isNotEmpty) {
                     final catNameLower =
                         _selectedCategoryName.trim().toLowerCase();
-                    final catIdLower =
-                        _selectedCategoryId.trim().toLowerCase();
+                    final catIdLower = _selectedCategoryId.trim().toLowerCase();
                     final pCatLower = p.category.trim().toLowerCase();
                     final matchesCategory = pCatLower == catNameLower ||
                         pCatLower == catIdLower ||
@@ -154,10 +185,11 @@ class _POSPageState extends ConsumerState<POSPage> {
                   // 2) Lọc theo từ khóa tìm kiếm
                   final query = _searchQuery.toLowerCase().trim();
                   if (query.isNotEmpty) {
-                    final matchesSearch = p.name.toLowerCase().contains(query) ||
-                        p.code.toLowerCase().contains(query) ||
-                        (p.brand ?? '').toLowerCase().contains(query) ||
-                        p.category.toLowerCase().contains(query);
+                    final matchesSearch =
+                        p.name.toLowerCase().contains(query) ||
+                            p.code.toLowerCase().contains(query) ||
+                            (p.brand ?? '').toLowerCase().contains(query) ||
+                            p.category.toLowerCase().contains(query);
                     if (!matchesSearch) return false;
                   }
 
@@ -188,7 +220,7 @@ class _POSPageState extends ConsumerState<POSPage> {
 
                     return Container(
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: AppColors.white,
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(color: AppColors.border),
                       ),
@@ -198,7 +230,8 @@ class _POSPageState extends ConsumerState<POSPage> {
                         children: [
                           // Icon/Ảnh sản phẩm
                           ProductImageThumbnail(
-                            imageUrl: product.imageUrl,
+                            imageUrl:
+                                product.primaryImageUrl ?? product.imageUrl,
                             productName: product.name,
                             categoryName: product.category,
                             size: 52,
@@ -218,7 +251,7 @@ class _POSPageState extends ConsumerState<POSPage> {
                                         style: const TextStyle(
                                             fontWeight: FontWeight.bold,
                                             fontSize: 14,
-                                            color: Colors.black87),
+                                            color: AppColors.textPrimary),
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
                                       ),
@@ -250,7 +283,8 @@ class _POSPageState extends ConsumerState<POSPage> {
                                 Text(
                                   '${l10n.productCode}: ${product.code}',
                                   style: const TextStyle(
-                                      color: Colors.black54, fontSize: 11),
+                                      color: AppColors.textSecondary,
+                                      fontSize: 11),
                                 ),
                                 if (product.isCombo &&
                                     product.comboComponents.isNotEmpty) ...[
@@ -268,23 +302,14 @@ class _POSPageState extends ConsumerState<POSPage> {
                                 ],
                                 if (branchStocksText.isNotEmpty) ...[
                                   const SizedBox(height: 2),
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.storefront_outlined,
-                                          size: 12, color: Colors.black45),
-                                      const SizedBox(width: 4),
-                                      Expanded(
-                                        child: Text(
-                                          branchStocksText,
-                                          style: const TextStyle(
-                                            color: Colors.black54,
-                                            fontSize: 11,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ],
+                                  Text(
+                                    branchStocksText,
+                                    style: const TextStyle(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 11,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ],
                                 const SizedBox(height: 4),
@@ -331,11 +356,17 @@ class _POSPageState extends ConsumerState<POSPage> {
   Widget _buildCartControl(Product product, int quantityInCart,
       int effectiveStock, AppLocalizations l10n) {
     if (quantityInCart == 0) {
+      final isOutOfStock = effectiveStock <= 0;
       return InkWell(
+        key: Key('pos_add_to_cart_${product.id}'),
         onTap: () {
-          if (effectiveStock <= 0) {
+          if (isOutOfStock) {
+            ScaffoldMessenger.of(context).clearSnackBars();
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(l10n.outOfStockAlert)),
+              SnackBar(
+                content: Text(l10n.outOfStockAlert),
+                duration: const Duration(milliseconds: 1500),
+              ),
             );
             return;
           }
@@ -344,14 +375,21 @@ class _POSPageState extends ConsumerState<POSPage> {
         child: Container(
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-            color: AppColors.primary.withOpacity(0.08),
+            color: isOutOfStock
+                ? AppColors.grey400.withOpacity(0.12)
+                : AppColors.primary.withOpacity(0.08),
             shape: BoxShape.circle,
           ),
-          child: const Icon(Icons.add, color: AppColors.primary, size: 20),
+          child: Icon(
+            Icons.add,
+            color: isOutOfStock ? AppColors.grey400 : AppColors.primary,
+            size: 20,
+          ),
         ),
       );
     }
 
+    final isLimitReached = quantityInCart >= effectiveStock;
     return Row(
       children: [
         // Nút trừ
@@ -361,10 +399,11 @@ class _POSPageState extends ConsumerState<POSPage> {
           child: Container(
             padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.black26),
+              border: Border.all(color: AppColors.textDisabled),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.remove, size: 14, color: Colors.black54),
+            child: const Icon(Icons.remove,
+                size: 14, color: AppColors.textSecondary),
           ),
         ),
         const SizedBox(width: 10),
@@ -372,15 +411,21 @@ class _POSPageState extends ConsumerState<POSPage> {
         Text(
           '$quantityInCart',
           style: const TextStyle(
-              fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87),
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              color: AppColors.textPrimary),
         ),
         const SizedBox(width: 10),
         // Nút cộng
         GestureDetector(
           onTap: () {
-            if (quantityInCart >= effectiveStock) {
+            if (isLimitReached) {
+              ScaffoldMessenger.of(context).clearSnackBars();
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(l10n.stockLimitAlert(effectiveStock))),
+                SnackBar(
+                  content: Text(l10n.stockLimitAlert(effectiveStock)),
+                  duration: const Duration(milliseconds: 1500),
+                ),
               );
               return;
             }
@@ -389,10 +434,16 @@ class _POSPageState extends ConsumerState<POSPage> {
           child: Container(
             padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
-              border: Border.all(color: AppColors.primary),
+              border: Border.all(
+                color: isLimitReached ? AppColors.grey400 : AppColors.primary,
+              ),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.add, size: 14, color: AppColors.primary),
+            child: Icon(
+              Icons.add,
+              size: 14,
+              color: isLimitReached ? AppColors.grey400 : AppColors.primary,
+            ),
           ),
         ),
       ],
@@ -404,10 +455,10 @@ class _POSPageState extends ConsumerState<POSPage> {
       double totalAmount, NumberFormat format, AppLocalizations l10n) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: AppColors.black.withOpacity(0.08),
             blurRadius: 10,
             offset: const Offset(0, -2),
           )
@@ -423,7 +474,8 @@ class _POSPageState extends ConsumerState<POSPage> {
             children: [
               Text(
                 l10n.cartSummaryTitle(totalItems),
-                style: const TextStyle(fontSize: 12, color: Colors.black54),
+                style: const TextStyle(
+                    fontSize: 12, color: AppColors.textSecondary),
               ),
               const SizedBox(height: 2),
               Text(
@@ -437,15 +489,21 @@ class _POSPageState extends ConsumerState<POSPage> {
           ),
           ElevatedButton(
             onPressed: () {
+              final activeTab = ref.read(multiCartProvider).activeTab;
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (context) => const POSCheckoutPage(),
+                  builder: (context) => POSCheckoutPage(
+                    initialCustomer: activeTab.customer,
+                    initialDiscount: activeTab.discount,
+                    isDiscountPercent: activeTab.isDiscountPercent,
+                    initialNote: activeTab.note,
+                  ),
                 ),
               );
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
+              foregroundColor: AppColors.white,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8)),
@@ -461,79 +519,35 @@ class _POSPageState extends ConsumerState<POSPage> {
   }
 
   Widget _buildStockBadge(int effectiveStock, Product product) {
+    final String label;
+    final Color color;
     if (effectiveStock <= 0) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        decoration: BoxDecoration(
-          color: Colors.red.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: Colors.red.withOpacity(0.3)),
-        ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.warning, size: 11, color: Colors.red),
-            SizedBox(width: 3),
-            Text(
-              'Hết hàng',
-              style: TextStyle(
-                color: Colors.red,
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-      );
-    } else if (effectiveStock <= (product.minStock ?? 5) || product.isLowStock()) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        decoration: BoxDecoration(
-          color: Colors.orange.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: Colors.orange.withOpacity(0.3)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.warning_amber, size: 11, color: Colors.orange[800]),
-            const SizedBox(width: 3),
-            Text(
-              'Sắp hết',
-              style: TextStyle(
-                color: Colors.orange[800],
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-      );
+      label = 'Hết hàng';
+      color = AppColors.danger;
+    } else if (effectiveStock <= (product.minStock ?? 5)) {
+      label = 'Sắp hết';
+      color = AppColors.warningDark;
     } else {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        decoration: BoxDecoration(
-          color: Colors.green.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: Colors.green.withOpacity(0.3)),
-        ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.check_circle, size: 11, color: Colors.green),
-            SizedBox(width: 3),
-            Text(
-              'Còn hàng',
-              style: TextStyle(
-                color: Colors.green,
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-      );
+      label = 'Còn hàng';
+      color = AppColors.success;
     }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
   }
 
   String _formatBranchStocks(Map<String, int> branchStocks) {
@@ -573,5 +587,102 @@ class _POSPageState extends ConsumerState<POSPage> {
     }
 
     return key;
+  }
+
+  void _showBranchSelector(BuildContext context) {
+    final availableStoresAsync = ref.read(availableStoresProvider);
+    final storesMap = availableStoresAsync.valueOrNull ??
+        const {
+          'store_001': 'Chi nhánh Đông Thắng',
+          'store_002': 'Chi nhánh Thới Bình',
+        };
+    final currentBranch = ref.read(selectedPOSBranchProvider);
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.grey300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Text(
+                  'Chọn chi nhánh làm việc',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              const Divider(height: 1),
+              ...storesMap.entries.map((entry) {
+                final isSelected = entry.key == currentBranch;
+                return ListTile(
+                  leading: Icon(
+                    Icons.store,
+                    color: isSelected ? AppColors.primary : AppColors.grey400,
+                  ),
+                  title: Text(
+                    entry.value,
+                    style: TextStyle(
+                      fontWeight:
+                          isSelected ? FontWeight.bold : FontWeight.normal,
+                      color: isSelected
+                          ? AppColors.primary
+                          : AppColors.textPrimary,
+                    ),
+                  ),
+                  trailing: isSelected
+                      ? const Icon(Icons.check, color: AppColors.primary)
+                      : null,
+                  onTap: () {
+                    final newBranch = entry.key;
+                    Navigator.pop(ctx);
+                    if (newBranch == currentBranch) return;
+
+                    final user = ref.read(authProvider);
+                    if (user != null &&
+                        (user.isAdmin ||
+                            user.isSupervisor ||
+                            user.canSwitchStore)) {
+                      ref
+                          .read(filterStorageServiceProvider)
+                          .saveSelectedStore(newBranch, user.username);
+                      ref.read(selectedStoreIdProvider.notifier).state =
+                          newBranch;
+                    }
+                    ref.read(selectedPOSBranchProvider.notifier).state =
+                        newBranch;
+                    ScaffoldMessenger.of(context).clearSnackBars();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Đã chuyển sang ${entry.value}'),
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                );
+              }),
+              const SizedBox(height: 12),
+            ],
+          ),
+        );
+      },
+    );
   }
 }

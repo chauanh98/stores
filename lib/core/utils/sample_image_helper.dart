@@ -38,16 +38,1474 @@ class SampleImageMatch {
   String get imageUrl => category.imageUrl;
 }
 
-/// Smart multi-industry sample image catalog and weighted scoring engine.
+/// Smart sample image catalog specialized 100% for Furniture & Home Woodcraft
+/// categorized across 6 room spaces.
 class SampleImageHelper {
   static const String universalPlaceholderUrl =
       'https://images.unsplash.com/photo-1586769852044-692d6e3703f0?w=600&auto=format&fit=crop&q=80';
 
-  /// 60+ Curated Unsplash Categories across 12 Retail Industries
+  static const List<String> roomOrder = [
+    'Phòng khách',
+    'Phòng ngủ',
+    'Phòng ăn & Bếp',
+    'Phòng làm việc',
+    'Phòng thờ',
+    'Sân vườn / Ngoài trời',
+  ];
+
+  static List<String> get industries => roomOrder;
+
+  /// 100% Curated Furniture & Home Woodcraft Catalog across 6 Room Spaces
   static final List<SampleImageCategory> catalog = [
-    // =========================================================================
-    // 1. ĐỒ UỐNG & GIẢI KHÁT (BEVERAGES & DRINKS)
-    // =========================================================================
+    const SampleImageCategory(
+      id: 'living_sofa_straight',
+      industry: 'Phòng khách',
+      name: 'Sofa văng',
+      imageUrl:
+          'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'sofa vang',
+        'sofa văng',
+        'sofa bang',
+        'sofa băng',
+        'ghe sofa vang',
+        'ghế sofa văng',
+        'sofa 2 cho',
+        'sofa 2 chỗ',
+        'sofa 3 cho',
+        'sofa 3 chỗ',
+        'sofa don dai',
+        'sofa đôn dài',
+      ],
+      negativeKeywords: [
+        'sofa l',
+        'sofa goc',
+        'sofa góc',
+        'sofa bed',
+        'sofa giuong',
+        'sofa giường'
+      ],
+      priority: 22,
+    ),
+    const SampleImageCategory(
+      id: 'furniture_sofas_living',
+      industry: 'Phòng khách',
+      name: 'Sofa nỉ góc chữ L & Sofa da, Sofa bed',
+      imageUrl:
+          'https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'sofa da goc l',
+        'sofa da góc l',
+        'sofa da',
+        'sofa ni nhung',
+        'sofa nỉ nhung',
+        'sofa ni phong khach',
+        'sofa nỉ phòng khách',
+        'sofa ni',
+        'sofa nỉ',
+        'ghe sofa bed',
+        'ghế sofa bed',
+        'sofa bed',
+        'sofa giuong',
+        'sofa giường',
+        'sofa goc l',
+        'sofa góc l',
+        'sofa l',
+        'sofa goc chu l',
+        'sofa góc chữ l',
+        'sofa goc',
+        'sofa góc',
+        'sofa ni goc',
+        'sofa nỉ góc',
+        'ghe sofa',
+        'ghế sofa',
+        'bo sofa',
+        'bộ sofa',
+        'sofa phong khach',
+        'sofa phòng khách',
+        'sofa',
+      ],
+      negativeKeywords: [
+        'bot giat',
+        'bột giặt',
+        'nuoc giat',
+        'nước giặt',
+        'nuoc xa',
+        'nước xả',
+      ],
+      priority: 35,
+    ),
+    const SampleImageCategory(
+      id: 'living_sofa_bed',
+      industry: 'Phòng khách',
+      name: 'Sofa giường thông minh',
+      imageUrl:
+          'https://images.unsplash.com/photo-1540574163026-643ea20ade25?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'sofa giuong',
+        'sofa giường',
+        'sofa bed',
+        'sofa thong minh',
+        'sofa thông minh',
+        'giuong sofa',
+        'giường sofa',
+        'sofa gap',
+        'sofa gấp',
+      ],
+      priority: 24,
+    ),
+    const SampleImageCategory(
+      id: 'living_armchair',
+      industry: 'Phòng khách',
+      name: 'Ghế bành đơn',
+      imageUrl:
+          'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'ghe banh',
+        'ghế bành',
+        'ghe banh don',
+        'ghế bành đơn',
+        'ghe don sofa',
+        'ghế đơn sofa',
+        'armchair',
+        'ghe thu gian phong khach',
+        'ghế thư giãn phòng khách',
+      ],
+      negativeKeywords: ['ghe xoay', 'ghế xoay', 'ghe gaming', 'ghế gaming'],
+      priority: 20,
+    ),
+    const SampleImageCategory(
+      id: 'living_tea_table_stone',
+      industry: 'Phòng khách',
+      name: 'Bàn trà đôi mặt đá',
+      imageUrl:
+          'https://images.unsplash.com/photo-1533090161767-e6ffed986b88?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'ban tra doi',
+        'bàn trà đôi',
+        'ban tra mat da',
+        'bàn trà mặt đá',
+        'ban tra doi mat da',
+        'bàn trà đôi mặt đá',
+        'ban sofa mat da',
+        'bàn sofa mặt đá',
+      ],
+      negativeKeywords: ['ban an', 'bàn ăn'],
+      priority: 24,
+    ),
+    const SampleImageCategory(
+      id: 'living_sofa_table_glass',
+      industry: 'Phòng khách',
+      name: 'Bàn sofa mặt kính',
+      imageUrl:
+          'https://images.unsplash.com/photo-1532372320572-cda25653a26d?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'ban sofa mat kinh',
+        'bàn sofa mặt kính',
+        'ban tra mat kinh',
+        'bàn trà mặt kính',
+        'ban kinh sofa',
+        'bàn kính sofa',
+        'ban sofa',
+        'bàn sofa',
+        'ban tra',
+        'bàn trà',
+      ],
+      negativeKeywords: ['ban an', 'bàn ăn'],
+      priority: 22,
+    ),
+    const SampleImageCategory(
+      id: 'living_tea_table_wood',
+      industry: 'Phòng khách',
+      name: 'Bàn trà tròn gỗ',
+      imageUrl:
+          'https://images.unsplash.com/photo-1533090481720-856c6e3c1fdc?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'ban tra tron',
+        'bàn trà tròn',
+        'ban tra go',
+        'bàn trà gỗ',
+        'ban tra tron go',
+        'bàn trà tròn gỗ',
+        'ban sofa go',
+        'bàn sofa gỗ',
+      ],
+      negativeKeywords: ['ban an', 'bàn ăn'],
+      priority: 22,
+    ),
+    const SampleImageCategory(
+      id: 'living_tv_stand_stone',
+      industry: 'Phòng khách',
+      name: 'Kệ Tivi mặt đá',
+      imageUrl:
+          'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'ke tivi mat da',
+        'kệ tivi mặt đá',
+        'ke tv mat da',
+        'kệ tv mặt đá',
+        'ke tivi da',
+        'kệ tivi đá',
+        'ke tv da',
+      ],
+      priority: 24,
+    ),
+    const SampleImageCategory(
+      id: 'living_tv_stand_wood',
+      industry: 'Phòng khách',
+      name: 'Kệ tivi gỗ rút 2 đầu',
+      imageUrl:
+          'https://images.unsplash.com/photo-1600488999129-e49592bd2111?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'ke tv',
+        'kệ tv',
+        'ke tivi',
+        'kệ tivi',
+        'ke tivi go',
+        'kệ tivi gỗ',
+        'ke tivi rut 2 dau',
+        'kệ tivi rút 2 đầu',
+        'ke tv go',
+        'kệ tv gỗ',
+        'ke tivi go phong khach',
+        'kệ tivi gỗ phòng khách',
+      ],
+      negativeKeywords: ['mat da', 'mặt đá'],
+      priority: 22,
+    ),
+    const SampleImageCategory(
+      id: 'living_wine_cabinet',
+      industry: 'Phòng khách',
+      name: 'Tủ rượu phòng khách',
+      imageUrl:
+          'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'tu ruou',
+        'tủ rượu',
+        'tu ruou phong khach',
+        'tủ rượu phòng khách',
+        'tu trung bay ruou',
+        'tủ trưng bày rượu',
+        'tu ruou go',
+        'tủ rượu gỗ',
+      ],
+      priority: 20,
+    ),
+    const SampleImageCategory(
+      id: 'living_truong_ky_gu',
+      industry: 'Phòng khách',
+      name: 'Trường kỷ gỗ gụ',
+      imageUrl:
+          'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'truong ky',
+        'trường kỷ',
+        'truong ky go gu',
+        'trường kỷ gỗ gụ',
+        'truong ky go',
+        'trường kỷ gỗ',
+        'bo truong ky',
+        'bộ trường kỷ',
+      ],
+      negativeKeywords: [
+        'can oc',
+        'cẩn ốc',
+        'xa cu',
+        'xà cừ',
+        'kham oc',
+        'khảm ốc'
+      ],
+      priority: 25,
+    ),
+    const SampleImageCategory(
+      id: 'living_truong_ky_xa_cu',
+      industry: 'Phòng khách',
+      name: 'Trường kỷ cẩn ốc xà cừ',
+      imageUrl:
+          'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'truong ky can oc',
+        'trường kỷ cẩn ốc',
+        'can oc xa cu',
+        'cẩn ốc xà cừ',
+        'truong ky kham oc',
+        'trường kỷ khảm ốc',
+        'can oc',
+        'cẩn ốc',
+        'kham oc',
+        'khảm ốc',
+      ],
+      priority: 26,
+    ),
+    const SampleImageCategory(
+      id: 'living_salon_wood',
+      industry: 'Phòng khách',
+      name: 'Bộ sa lông gỗ truyền thống',
+      imageUrl:
+          'https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'sa long go',
+        'sa lông gỗ',
+        'bo sa long',
+        'bộ sa lông',
+        'salon go',
+        'salon gỗ',
+        'bo ban ghe go phong khach',
+        'bộ bàn ghế gỗ phòng khách',
+        'ban ghe phong khach',
+        'bàn ghế phòng khách',
+      ],
+      priority: 20,
+    ),
+    const SampleImageCategory(
+      id: 'home_bedding_mattress',
+      industry: 'Phòng ngủ',
+      name: 'Giường ngủ gỗ tự nhiên (gỗ sồi, gõ đỏ) & Nệm, Ga gối',
+      imageUrl:
+          'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'giuong ngu go soi',
+        'giường ngủ gỗ sồi',
+        'giuong ngu 1m8',
+        'giường ngủ 1m8',
+        'giuong 1m8',
+        'giường 1m8',
+        'giuong 1m6',
+        'giường 1m6',
+        'giuong 2m',
+        'giường 2m',
+        'giuong ngu go',
+        'giường ngủ gỗ',
+        'giuong go soi',
+        'giường gỗ sồi',
+        'giuong go go do',
+        'giường gỗ gõ đỏ',
+        'giuong go tu nhien',
+        'giường gỗ tự nhiên',
+        'giuong ngu',
+        'giường ngủ',
+        'giuong go',
+        'giường gỗ',
+        'giuong',
+        'giường',
+        'nem cao su non',
+        'nệm cao su non',
+        'nem cao su',
+        'nệm cao su',
+        'nem',
+        'nệm',
+        'goi om cao su',
+        'gối ôm cao su',
+        'goi om',
+        'gối ôm',
+        'chan he tencel',
+        'chăn hè tencel',
+        'chan he',
+        'chăn hè',
+        'chan ga goi dem',
+        'chăn ga gối đệm',
+        'chan ga',
+        'chăn ga',
+        'dem',
+        'đệm',
+        'ruot goi',
+        'ruột gối',
+        'vo goi',
+        'vỏ gối',
+        'goi dau',
+        'gối đầu',
+        'goi nam',
+        'gối nằm',
+        'chan',
+        'chăn',
+      ],
+      negativeKeywords: [
+        'bánh mì',
+        'banh mi',
+        'ăn dặm',
+        'an dam',
+        'sofa giuong',
+        'sofa giường',
+        'giuong tang',
+        'giường tầng',
+        'dầu gội',
+        'dau goi',
+        'dầu xả',
+        'dau xa',
+        'sữa tắm',
+        'sua tam',
+        'mì gói',
+        'mi goi',
+        'gói mì',
+        'goi mi',
+      ],
+      priority: 35,
+    ),
+    const SampleImageCategory(
+      id: 'bedroom_bed_upholstered',
+      industry: 'Phòng ngủ',
+      name: 'Giường bọc nệm hiện đại',
+      imageUrl:
+          'https://images.unsplash.com/photo-1540518614846-7ede433c4570?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'giuong boc nem',
+        'giường bọc nệm',
+        'giuong boc da',
+        'giường bọc da',
+        'giuong boc vai',
+        'giường bọc vải',
+        'giuong ngu hien dai',
+        'giường ngủ hiện đại',
+      ],
+      priority: 22,
+    ),
+    const SampleImageCategory(
+      id: 'bedroom_bed_storage',
+      industry: 'Phòng ngủ',
+      name: 'Giường thông minh có ngăn kéo',
+      imageUrl:
+          'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'giuong co ngan keo',
+        'giường có ngăn kéo',
+        'giuong thong minh',
+        'giường thông minh',
+        'giuong hop',
+        'giường hộp',
+      ],
+      priority: 22,
+    ),
+    const SampleImageCategory(
+      id: 'bedroom_bunk_bed',
+      industry: 'Phòng ngủ',
+      name: 'Giường tầng',
+      imageUrl:
+          'https://images.unsplash.com/photo-1595526114035-0d45ed16cfbf?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'giuong tang',
+        'giường tầng',
+        'giuong tang tre em',
+        'giường tầng trẻ em',
+        'giuong 2 tang',
+        'giường 2 tầng',
+      ],
+      priority: 24,
+    ),
+    const SampleImageCategory(
+      id: 'bedroom_mattress_natural_latex',
+      industry: 'Phòng ngủ',
+      name: 'Nệm cao su thiên nhiên',
+      imageUrl:
+          'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'nem cao su thien nhien',
+        'nệm cao su thiên nhiên',
+        'dem cao su thien nhien',
+        'đệm cao su thiên nhiên',
+        'nem kymdan',
+        'nệm kymdan',
+        'nem van thanh',
+        'nệm vạn thành',
+        'nem lien a',
+        'nệm liên á',
+      ],
+      negativeKeywords: ['cao su non'],
+      priority: 25,
+    ),
+    const SampleImageCategory(
+      id: 'bedroom_mattress_memory_foam',
+      industry: 'Phòng ngủ',
+      name: 'Nệm cao su non',
+      imageUrl:
+          'https://images.unsplash.com/photo-1629949009765-40fc74c95018?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'nem cao su non',
+        'nệm cao su non',
+        'dem cao su non',
+        'đệm cao su non',
+        'nem foam',
+        'nệm foam',
+      ],
+      negativeKeywords: [
+        'nem cao su thien nhien',
+        'nệm cao su thiên nhiên',
+        'kymdan'
+      ],
+      priority: 25,
+    ),
+    const SampleImageCategory(
+      id: 'bedroom_mattress_spring',
+      industry: 'Phòng ngủ',
+      name: 'Nệm lò xo túi',
+      imageUrl:
+          'https://images.unsplash.com/photo-1582533561751-ef6f6ab93a2e?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'nem lo xo',
+        'nệm lò xo',
+        'nem lo xo tui',
+        'nệm lò xo túi',
+        'dem lo xo',
+        'đệm lò xo',
+        'nem lo xo lien ket',
+        'nệm lò xo liên kết',
+      ],
+      priority: 24,
+    ),
+    const SampleImageCategory(
+      id: 'bedroom_mattress_cotton_fold',
+      industry: 'Phòng ngủ',
+      name: 'Nệm bông ép gấp 3',
+      imageUrl:
+          'https://images.unsplash.com/photo-1584100936595-c0654b55a2e2?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'nem bong ep',
+        'nệm bông ép',
+        'nem gap 3',
+        'nệm gấp 3',
+        'dem bong ep',
+        'đệm bông ép',
+        'nem hanvico',
+        'nệm hanvico',
+      ],
+      priority: 22,
+    ),
+    const SampleImageCategory(
+      id: 'bedroom_bedding_set',
+      industry: 'Phòng ngủ',
+      name: 'Chăn ga gối đệm nỉ nhung, Cotton Tencel',
+      imageUrl:
+          'https://images.unsplash.com/photo-1616046229478-9901c5536a45?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'chan ga',
+        'chăn ga',
+        'chan ga goi',
+        'chăn ga gối',
+        'cotton tencel',
+        'ni nhung',
+        'nỉ nhung',
+        'drap giuong',
+        'drap giường',
+        'vo goi',
+        'vỏ gối',
+        'ruot goi',
+        'ruột gối',
+        'chan he',
+        'chăn hè',
+        'goi om',
+        'gối ôm',
+        'goi cao su',
+        'gối cao su',
+      ],
+      negativeKeywords: [
+        'mi goi',
+        'mì gói',
+        'goi mi',
+        'gói mì',
+        'mi tom',
+        'mì tôm',
+        'banh',
+        'bánh'
+      ],
+      priority: 20,
+    ),
+    const SampleImageCategory(
+      id: 'bedroom_wardrobe_sliding',
+      industry: 'Phòng ngủ',
+      name: 'Tủ quần áo cánh lùa',
+      imageUrl:
+          'https://images.unsplash.com/photo-1558997519-83ea9252def8?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'tu quan ao canh lua',
+        'tủ quần áo cánh lùa',
+        'tu canh lua',
+        'tủ cánh lùa',
+        'tu ao canh truot',
+        'tủ áo cánh trượt',
+      ],
+      priority: 24,
+    ),
+    const SampleImageCategory(
+      id: 'furniture_wardrobes_shelves',
+      industry: 'Phòng ngủ',
+      name: 'Tủ gỗ 3-4 cánh & Kệ tivi, Tủ đầu giường, Kệ sắt',
+      imageUrl:
+          'https://images.unsplash.com/photo-1595428774223-ef52624120d2?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'tu quan ao go mdf 4 canh',
+        'tủ quần áo gỗ mdf 4 cánh',
+        'tu quan ao 4 canh',
+        'tủ quần áo 4 cánh',
+        'tu quan ao go',
+        'tủ quần áo gỗ',
+        'tu quan ao',
+        'tủ quần áo',
+        'tu ao',
+        'tủ áo',
+        'tu go 3-4 canh',
+        'tủ gỗ 3-4 cánh',
+        'tu go 3 canh',
+        'tủ gỗ 3 cánh',
+        'tu go 4 canh',
+        'tủ gỗ 4 cánh',
+        'ke sach mini de ban',
+        'kệ sách mini để bàn',
+        'ke sach mini',
+        'kệ sách mini',
+        'ke sach',
+        'kệ sách',
+        'gia sach',
+        'giá sách',
+        'ke tivi phong khach rut 2 dau',
+        'kệ tivi phòng khách rút 2 đầu',
+        'ke tivi phong khach',
+        'kệ tivi phòng khách',
+        'ke tivi rut 2 dau',
+        'kệ tivi rút 2 đầu',
+        'ke tivi',
+        'kệ tivi',
+        'tu dau giuong 2 ngan keo',
+        'tủ đầu giường 2 ngăn kéo',
+        'tu dau giuong',
+        'tủ đầu giường',
+        'tab dau giuong',
+        'tab đầu giường',
+        'ke sat da nang 5 tang',
+        'kệ sắt đa năng 5 tầng',
+        'ke sat da nang',
+        'kệ sắt đa năng',
+        'ke sat',
+        'kệ sắt',
+        'tu giay',
+        'tủ giày',
+        'ke giay',
+        'kệ giày',
+        'tu ho so',
+        'tủ hồ sơ',
+        'tu dung do',
+        'tủ đựng đồ',
+        'ke trang tri',
+        'kệ trang trí',
+      ],
+      negativeKeywords: [
+        'tủ lạnh',
+        'tu lanh',
+        'túi',
+        'tui',
+        'tủ đông',
+        'tu dong',
+        'kệ chén',
+        'ke chen',
+        'mat da',
+        'mặt đá',
+        'treo tuong',
+        'treo tường',
+        'chu u',
+        'chữ u',
+      ],
+      priority: 35,
+    ),
+    const SampleImageCategory(
+      id: 'bedroom_wardrobe_aluminum_glass',
+      industry: 'Phòng ngủ',
+      name: 'Tủ nhôm kính',
+      imageUrl:
+          'https://images.unsplash.com/photo-1595514535415-dae45318536f?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'tu nhom kinh',
+        'tủ nhôm kính',
+        'tu quan ao nhom kinh',
+        'tủ quần áo nhôm kính',
+        'tu ao nhom kinh',
+      ],
+      negativeKeywords: ['tu bep', 'tủ bếp', 'tu chen', 'tủ chén'],
+      priority: 20,
+    ),
+    const SampleImageCategory(
+      id: 'bedroom_dressing_table_led',
+      industry: 'Phòng ngủ',
+      name: 'Bàn trang điểm / Bàn phấn có gương đèn LED',
+      imageUrl:
+          'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'ban trang diem',
+        'bàn trang điểm',
+        'ban phan',
+        'bàn phấn',
+        'guong den led',
+        'gương đèn led',
+        'ban trang diem den led',
+        'bàn trang điểm đèn led',
+      ],
+      priority: 24,
+    ),
+    const SampleImageCategory(
+      id: 'bedroom_vanity_chair',
+      industry: 'Phòng ngủ',
+      name: 'Ghế nơ trang điểm',
+      imageUrl:
+          'https://images.unsplash.com/photo-1506898667547-42e22a46e125?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'ghe no',
+        'ghế nơ',
+        'ghe no trang diem',
+        'ghế nơ trang điểm',
+        'ghe trang diem',
+        'ghế trang điểm',
+        'ghe ban phan',
+        'ghế bàn phấn',
+      ],
+      priority: 22,
+    ),
+    const SampleImageCategory(
+      id: 'bedroom_nightstand',
+      industry: 'Phòng ngủ',
+      name: 'Tủ đầu giường (Tab đầu giường) gỗ và da',
+      imageUrl:
+          'https://images.unsplash.com/photo-1532372320572-cda25653a26d?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'tu dau giuong',
+        'tủ đầu giường',
+        'tab dau giuong',
+        'tab đầu giường',
+        'tap dau giuong',
+        'táp đầu giường',
+        'don dau giuong',
+        'đôn đầu giường',
+      ],
+      priority: 22,
+    ),
+    const SampleImageCategory(
+      id: 'furniture_dining_living_tables',
+      industry: 'Phòng ăn & Bếp',
+      name: 'Bàn ăn mặt đá cẩm thạch chống xước & Bàn trà sofa, Bàn cafe',
+      imageUrl:
+          'https://images.unsplash.com/photo-1617806118233-18e1de247200?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'ban an 4 ghe mat da',
+        'bàn ăn 4 ghế mặt đá',
+        'ban an 4 ghe',
+        'bàn ăn 4 ghế',
+        'ban an 6 ghe',
+        'bàn ăn 6 ghế',
+        'bo ban an 6 ghe',
+        'bộ bàn ăn 6 ghế',
+        'ban an',
+        'bàn ăn',
+        'bo ban an',
+        'bộ bàn ăn',
+        'ban an mat da',
+        'bàn ăn mặt đá',
+        'ban an go tu nhien',
+        'bàn ăn gỗ tự nhiên',
+        'ban tra sofa phong khach',
+        'bàn trà sofa phòng khách',
+        'ban tra sofa',
+        'bàn trà sofa',
+        'ban sofa',
+        'bàn sofa',
+        'ban tra tron doi',
+        'bàn trà tròn đôi',
+        'ban tra tron',
+        'bàn trà tròn',
+        'ban tra',
+        'bàn trà',
+        'ban cafe chan sat',
+        'bàn cafe chân sắt',
+        'ban cafe',
+        'bàn cafe',
+        'ban ca phe',
+        'bàn cà phê',
+        'ban tron',
+        'bàn tròn',
+        'ban mat da',
+        'bàn mặt đá',
+        'ban tiep khach',
+        'bàn tiếp khách',
+      ],
+      negativeKeywords: [
+        'bàn làm việc',
+        'ban lam viec',
+        'bàn gaming',
+        'ban gaming',
+        'bàn phím',
+        'ban phim',
+        'bàn ủi',
+        'ban ui',
+        'bàn là',
+        'ban la',
+        'bàn chải',
+        'ban chai',
+        'khăn trải bàn',
+        'khan trai ban',
+        'ke sach',
+        'kệ sách',
+      ],
+      priority: 35,
+    ),
+    const SampleImageCategory(
+      id: 'dining_table_natural_wood',
+      industry: 'Phòng ăn & Bếp',
+      name: 'Bàn ăn gỗ tự nhiên',
+      imageUrl:
+          'https://images.unsplash.com/photo-1530018607912-eff2daa1bac4?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'ban an go',
+        'bàn ăn gỗ',
+        'ban an go tu nhien',
+        'bàn ăn gỗ tự nhiên',
+        'ban an go soi',
+        'bàn ăn gỗ sồi',
+      ],
+      negativeKeywords: ['ban lam viec', 'bàn làm việc', 'ban hoc', 'bàn học'],
+      priority: 24,
+    ),
+    const SampleImageCategory(
+      id: 'dining_table_extendable',
+      industry: 'Phòng ăn & Bếp',
+      name: 'Bàn ăn thông minh xếp gọn kéo dài',
+      imageUrl:
+          'https://images.unsplash.com/photo-1577140917170-285929fb55b7?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'ban an thong minh',
+        'bàn ăn thông minh',
+        'ban an xep gon',
+        'bàn ăn xếp gọn',
+        'ban an keo dai',
+        'bàn ăn kéo dài',
+        'ban an gap gon',
+        'bàn ăn gấp gọn',
+      ],
+      priority: 23,
+    ),
+    const SampleImageCategory(
+      id: 'dining_chair_leather',
+      industry: 'Phòng ăn & Bếp',
+      name: 'Ghế ăn bọc da cao cấp',
+      imageUrl:
+          'https://images.unsplash.com/photo-1503602642458-232111445657?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'ghe an boc da',
+        'ghế ăn bọc da',
+        'ghe an da',
+        'ghế ăn da',
+        'ghe phong an',
+        'ghế phòng ăn',
+        'ghe an cao cap',
+        'ghế ăn cao cấp',
+      ],
+      negativeKeywords: ['ghe xoay', 'ghế xoay', 'ghe gaming', 'ghế gaming'],
+      priority: 22,
+    ),
+    const SampleImageCategory(
+      id: 'dining_chair_wood',
+      industry: 'Phòng ăn & Bếp',
+      name: 'Ghế ăn gỗ Monet/Nelson',
+      imageUrl:
+          'https://images.unsplash.com/photo-1581539250439-c96689b516dd?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'ghe an go',
+        'ghế ăn gỗ',
+        'ghe monet',
+        'ghế monet',
+        'ghe nelson',
+        'ghế nelson',
+        'ghe an',
+        'ghế ăn',
+      ],
+      negativeKeywords: ['ghe xoay', 'ghế xoay', 'ghe gaming', 'ghế gaming'],
+      priority: 21,
+    ),
+    const SampleImageCategory(
+      id: 'kitchen_dish_cupboard',
+      industry: 'Phòng ăn & Bếp',
+      name: 'Tủ chén',
+      imageUrl:
+          'https://images.unsplash.com/photo-1590381105924-c72589b9ef3f?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'tu chen',
+        'tủ chén',
+        'tu bat dia',
+        'tủ bát đĩa',
+        'tu dung bat chen',
+        'tủ đựng bát chén',
+      ],
+      priority: 22,
+    ),
+    const SampleImageCategory(
+      id: 'kitchen_cabinet_aluminum',
+      industry: 'Phòng ăn & Bếp',
+      name: 'Tủ bếp nhôm kính',
+      imageUrl:
+          'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'tu bep',
+        'tủ bếp',
+        'tu bep nhom kinh',
+        'tủ bếp nhôm kính',
+        'ke bep',
+        'kệ bếp',
+        'tu bep treo tuong',
+        'tủ bếp treo tường',
+      ],
+      priority: 22,
+    ),
+    const SampleImageCategory(
+      id: 'kitchen_microwave_rack',
+      industry: 'Phòng ăn & Bếp',
+      name: 'Kệ để lò vi sóng và nồi chiên đa năng',
+      imageUrl:
+          'https://images.unsplash.com/photo-1595428774223-ef52624120d2?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'ke de lo vi song',
+        'kệ để lò vi sóng',
+        'ke lo vi song',
+        'kệ lò vi sóng',
+        'ke de noi chien',
+        'kệ để nồi chiên',
+        'ke bep da nang',
+        'kệ bếp đa năng',
+      ],
+      negativeKeywords: [
+        'noi chien khong dau',
+        'nồi chiên không dầu',
+        'noi chien',
+        'nồi chiên'
+      ],
+      priority: 20,
+    ),
+    const SampleImageCategory(
+      id: 'kitchen_dish_rack_inox',
+      industry: 'Phòng ăn & Bếp',
+      name: 'Kệ chén bát inox',
+      imageUrl:
+          'https://images.unsplash.com/photo-1584269600464-37b1b58a9fe7?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'ke chen bat inox',
+        'kệ chén bát inox',
+        'ke chen inox',
+        'kệ chén inox',
+        'gia de bat dia inox',
+        'giá để bát đĩa inox',
+        'ke bat dia inox',
+        'kệ bát đĩa inox',
+      ],
+      priority: 21,
+    ),
+    const SampleImageCategory(
+      id: 'furniture_desks_work',
+      industry: 'Phòng làm việc',
+      name: 'Bàn làm việc chân sắt chữ K/Z/U & Gaming, Bàn học sinh',
+      imageUrl:
+          'https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'ban chu k',
+        'bàn chữ k',
+        'ban k',
+        'bàn k',
+        'ban chu z gaming',
+        'bàn chữ z gaming',
+        'ban chu z',
+        'bàn chữ z',
+        'ban z',
+        'bàn z',
+        'ban gaming chu l',
+        'bàn gaming chữ l',
+        'ban gaming',
+        'bàn gaming',
+        'ban vi tinh van phong',
+        'bàn vi tính văn phòng',
+        'ban vi tinh',
+        'bàn vi tính',
+        'ban may tinh',
+        'bàn máy tính',
+        'ban hoc sinh chong gu',
+        'bàn học sinh chống gù',
+        'ban hoc sinh',
+        'bàn học sinh',
+        'ban hoc',
+        'bàn học',
+        'ban chu u',
+        'bàn chữ u',
+        'ban chan sat',
+        'bàn chân sắt',
+        'ban lam viec',
+        'bàn làm việc',
+        'ban van phong',
+        'bàn văn phòng',
+        'ban nang ha',
+        'bàn nâng hạ',
+      ],
+      negativeKeywords: [
+        'ban ui',
+        'bàn ủi',
+        'ban phim',
+        'bàn phím',
+        'ban an',
+        'bàn ăn',
+        'ban tra',
+        'bàn trà',
+        'ban sofa',
+        'bàn sofa',
+        'ban cafe',
+        'bàn cafe',
+        'ke sach',
+        'kệ sách',
+        'gia sach',
+        'giá sách',
+      ],
+      priority: 35,
+    ),
+    const SampleImageCategory(
+      id: 'office_desk_gaming_led',
+      industry: 'Phòng làm việc',
+      name: 'Bàn gaming LED',
+      imageUrl:
+          'https://images.unsplash.com/photo-1616588589676-62b3bd4ff6d2?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'ban chu z gaming',
+        'bàn chữ z gaming',
+        'ban gaming',
+        'bàn gaming',
+        'ban gaming led',
+        'bàn gaming led',
+        'ban game',
+        'bàn game',
+      ],
+      negativeKeywords: ['ban phim', 'bàn phím'],
+      priority: 24,
+    ),
+    const SampleImageCategory(
+      id: 'office_desk_study_bookshelf',
+      industry: 'Phòng làm việc',
+      name: 'Bàn học sinh liền kệ sách',
+      imageUrl:
+          'https://images.unsplash.com/photo-1516962215378-7fa2e137ae93?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'ban hoc sinh',
+        'bàn học sinh',
+        'ban hoc',
+        'bàn học',
+        'ban lien ke sach',
+        'bàn liền kệ sách',
+        'ban hoc co gia sach',
+        'bàn học có giá sách',
+        'ban tre em',
+        'bàn trẻ em',
+      ],
+      priority: 24,
+    ),
+    const SampleImageCategory(
+      id: 'office_desk_standing_adjustable',
+      industry: 'Phòng làm việc',
+      name: 'Bàn nâng hạ độ cao',
+      imageUrl:
+          'https://images.unsplash.com/photo-1595515106969-1ce29566ff1c?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'ban nang ha',
+        'bàn nâng hạ',
+        'ban nang ha do cao',
+        'bàn nâng hạ độ cao',
+        'standing desk',
+        'ban cong thai hoc',
+        'bàn công thái học',
+      ],
+      priority: 23,
+    ),
+    const SampleImageCategory(
+      id: 'office_chair_swivel_mesh',
+      industry: 'Phòng làm việc',
+      name: 'Ghế xoay văn phòng lưới thoáng khí',
+      imageUrl:
+          'https://images.unsplash.com/photo-1505797149-43b0069ec26b?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'ghe xoay',
+        'ghế xoay',
+        'ghe xoay van phong',
+        'ghế xoay văn phòng',
+        'ghe luoi van phong',
+        'ghế lưới văn phòng',
+        'ghe lam viec',
+        'ghế làm việc',
+        'ghe van phong',
+        'ghế văn phòng',
+      ],
+      negativeKeywords: ['ghe an', 'ghế ăn', 'ghe dot nhang', 'ghế đốt nhang'],
+      priority: 24,
+    ),
+    const SampleImageCategory(
+      id: 'furniture_chairs_ergonomic',
+      industry: 'Phòng làm việc',
+      name: 'Ghế xoay văn phòng lưới & Ghế công thái học, Gaming, Giám đốc',
+      imageUrl:
+          'https://images.unsplash.com/photo-1580481077197-2856230f8983?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'ghe xoay van phong luoi',
+        'ghế xoay văn phòng lưới',
+        'ghe xoay van phong',
+        'ghế xoay văn phòng',
+        'ghe xoay luoi',
+        'ghế xoay lưới',
+        'ghe xoay',
+        'ghế xoay',
+        'ghe cong thai hoc sihoo',
+        'ghế công thái học sihoo',
+        'ghe cong thai hoc',
+        'ghế công thái học',
+        'ghe ergonomic',
+        'ghế ergonomic',
+        'sihoo',
+        'ghe gaming e-dra',
+        'ghế gaming e-dra',
+        'ghe gaming',
+        'ghế gaming',
+        'ghe giam doc chan quy',
+        'ghế giám đốc chân quỳ',
+        'ghe giam doc',
+        'ghế giám đốc',
+        'ghe chan quy',
+        'ghế chân quỳ',
+        'ghe van phong',
+        'ghế văn phòng',
+        'ghe luoi',
+        'ghế lưới',
+        'ghe lam viec',
+        'ghế làm việc',
+        'ghe don',
+        'ghế đôn',
+        'ghe go',
+        'ghế gỗ',
+        'e-dra',
+        'edra',
+      ],
+      negativeKeywords: [
+        'ghế ăn dặm',
+        'ghe an dam',
+        'ghế massage',
+        'ghe massage',
+        'ghế sofa',
+        'ghe sofa',
+        'bàn ăn',
+        'ban an',
+        'ghe an',
+        'ghế ăn',
+        'ghe banh',
+        'ghế bành',
+        'ghe dot nhang',
+        'ghế đốt nhang',
+        'ghe thap huong',
+        'ghế thắp hương',
+      ],
+      priority: 35,
+    ),
+    const SampleImageCategory(
+      id: 'office_chair_executive_leather',
+      industry: 'Phòng làm việc',
+      name: 'Ghế giám đốc bọc da',
+      imageUrl:
+          'https://images.unsplash.com/photo-1589384267710-7a170981ca78?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'ghe giam doc',
+        'ghế giám đốc',
+        'ghe da giam doc',
+        'ghế da giám đốc',
+        'ghe thu truong',
+        'ghế thủ trưởng',
+        'ghe da cao cap',
+        'ghế da cao cấp',
+      ],
+      priority: 22,
+    ),
+    const SampleImageCategory(
+      id: 'office_chair_gaming_cantilever',
+      industry: 'Phòng làm việc',
+      name: 'Ghế gaming chân quỳ',
+      imageUrl:
+          'https://images.unsplash.com/photo-1598550476439-6847785fcea6?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'ghe gaming',
+        'ghế gaming',
+        'ghe chan quy',
+        'ghế chân quỳ',
+        'ghe net',
+        'ghế net',
+        'ghe phong net',
+        'ghế phòng net',
+      ],
+      priority: 23,
+    ),
+    const SampleImageCategory(
+      id: 'office_bookshelf_standing_u',
+      industry: 'Phòng làm việc',
+      name: 'Kệ sách đứng chữ U',
+      imageUrl:
+          'https://images.unsplash.com/photo-1594980596870-8aa52a78d8cd?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'ke sach',
+        'kệ sách',
+        'ke sach dung',
+        'kệ sách đứng',
+        'ke sach chu u',
+        'kệ sách chữ u',
+        'gia sach',
+        'giá sách',
+      ],
+      negativeKeywords: ['ke tivi', 'kệ tivi', 'tu quan ao', 'tủ quần áo'],
+      priority: 22,
+    ),
+    const SampleImageCategory(
+      id: 'office_document_shelf',
+      industry: 'Phòng làm việc',
+      name: 'Kệ tài liệu văn phòng',
+      imageUrl:
+          'https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'ke tai lieu',
+        'kệ tài liệu',
+        'ke ho so',
+        'kệ hồ sơ',
+        'tu tai lieu',
+        'tủ tài liệu',
+        'tu ho so',
+        'tủ hồ sơ',
+      ],
+      priority: 21,
+    ),
+    const SampleImageCategory(
+      id: 'office_bookshelf_wall_hanging',
+      industry: 'Phòng làm việc',
+      name: 'Giá sách gỗ treo tường',
+      imageUrl:
+          'https://images.unsplash.com/photo-1532372576444-dda954194ad0?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'gia sach treo tuong',
+        'giá sách treo tường',
+        'ke sach treo tuong',
+        'kệ sách treo tường',
+        'ke go treo tuong',
+        'kệ gỗ treo tường',
+      ],
+      priority: 21,
+    ),
+    const SampleImageCategory(
+      id: 'altar_ancestral_cabinet',
+      industry: 'Phòng thờ',
+      name: 'Tủ thờ gia tiên gỗ gõ đỏ/gụ',
+      imageUrl:
+          'https://images.unsplash.com/photo-1600585152220-90363fe7e115?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'tu tho',
+        'tủ thờ',
+        'tu tho gia tien',
+        'tủ thờ gia tiên',
+        'tu tho go',
+        'tủ thờ gỗ',
+        'tu tho go go do',
+        'tủ thờ gỗ gõ đỏ',
+        'tu tho go gu',
+        'tủ thờ gỗ gụ',
+        'tu tho thao lao',
+        'tủ thờ thao lao',
+      ],
+      negativeKeywords: [
+        'tu quan ao',
+        'tủ quần áo',
+        'tu chen',
+        'tủ chén',
+        'tu bep',
+        'tủ bếp'
+      ],
+      priority: 25,
+    ),
+    const SampleImageCategory(
+      id: 'altar_standing_table',
+      industry: 'Phòng thờ',
+      name: 'Bàn thờ đứng trang nghiêm',
+      imageUrl:
+          'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'ban tho',
+        'bàn thờ',
+        'ban tho dung',
+        'bàn thờ đứng',
+        'an gian tho',
+        'án gian thờ',
+        'sap tho',
+        'sập thờ',
+      ],
+      negativeKeywords: ['ban an', 'bàn ăn', 'ban lam viec', 'bàn làm việc'],
+      priority: 25,
+    ),
+    const SampleImageCategory(
+      id: 'altar_wall_hanging',
+      industry: 'Phòng thờ',
+      name: 'Bàn thờ treo tường chung cư',
+      imageUrl:
+          'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'ban tho treo tuong',
+        'bàn thờ treo tường',
+        'ban tho treo',
+        'bàn thờ treo',
+        'ban tho chung cu',
+        'bàn thờ chung cư',
+      ],
+      priority: 23,
+    ),
+    const SampleImageCategory(
+      id: 'altar_god_of_wealth',
+      industry: 'Phòng thờ',
+      name: 'Bàn thờ Thần Tài Thổ Địa',
+      imageUrl:
+          'https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'ban tho than tai',
+        'bàn thờ thần tài',
+        'ban tho ong dia',
+        'bàn thờ ông địa',
+        'ban tho than tai tho dia',
+        'bàn thờ thần tài thổ địa',
+        'tu than tai',
+        'tủ thần tài',
+      ],
+      priority: 24,
+    ),
+    const SampleImageCategory(
+      id: 'altar_incense_chair',
+      industry: 'Phòng thờ',
+      name: 'Ghế cao thắp nhang (Ghế đốt nhang gỗ có tay vịn)',
+      imageUrl:
+          'https://images.unsplash.com/photo-1503602642458-232111445657?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'ghe dot nhang',
+        'ghế đốt nhang',
+        'ghe dot nhang go',
+        'ghế đốt nhang gỗ',
+        'ghe cao dot nhang',
+        'ghế cao đốt nhang',
+        'ghe thap nhang',
+        'ghế thắp nhang',
+        'ghe cao thap nhang',
+        'ghế cao thắp nhang',
+        'ghe thap huong',
+        'ghế thắp hương',
+      ],
+      negativeKeywords: ['ghe xoay', 'ghế xoay', 'ghe an', 'ghế ăn'],
+      priority: 25,
+    ),
+    const SampleImageCategory(
+      id: 'altar_cnc_partition',
+      industry: 'Phòng thờ',
+      name: 'Vách ngăn phòng thờ CNC',
+      imageUrl:
+          'https://images.unsplash.com/photo-1600573472591-ee6b68d14c68?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'vach ngan phong tho',
+        'vách ngăn phòng thờ',
+        'vach cnc phong tho',
+        'vách cnc phòng thờ',
+        'vach ngan cnc',
+        'vách ngăn cnc',
+        'tam chong am khoi',
+        'tấm chống ám khói',
+      ],
+      priority: 21,
+    ),
+    const SampleImageCategory(
+      id: 'outdoor_swing_wrought_iron',
+      industry: 'Sân vườn / Ngoài trời',
+      name: 'Xích đu sắt mỹ thuật sơn tĩnh điện ngoài trời',
+      imageUrl:
+          'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'xich du sat',
+        'xích đu sắt',
+        'xich du',
+        'xích đu',
+        'xich du ngoai troi',
+        'xích đu ngoài trời',
+        'xich du my thuat',
+        'xích đu mỹ thuật',
+        'xich du son tinh dien',
+        'xích đu sơn tĩnh điện',
+        'sat 1122',
+      ],
+      negativeKeywords: ['ban chan sat', 'bàn chân sắt'],
+      priority: 25,
+    ),
+    const SampleImageCategory(
+      id: 'outdoor_swing_egg_rattan',
+      industry: 'Sân vườn / Ngoài trời',
+      name: 'Xích đu giọt nước mây nhựa',
+      imageUrl:
+          'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'xich du giot nuoc',
+        'xích đu giọt nước',
+        'xich du may nhua',
+        'xích đu mây nhựa',
+        'xich du qua trung',
+        'xích đu quả trứng',
+        'ghe xich du',
+        'ghế xích đu',
+      ],
+      priority: 24,
+    ),
+    const SampleImageCategory(
+      id: 'outdoor_swing_double',
+      industry: 'Sân vườn / Ngoài trời',
+      name: 'Xích đu đôi kèm nệm êm',
+      imageUrl:
+          'https://images.unsplash.com/photo-1567016432779-094069958ea5?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'xich du doi',
+        'xích đu đôi',
+        'xich du 2 cho',
+        'xích đu 2 chỗ',
+        'xich du co dem',
+        'xích đu có đệm',
+      ],
+      priority: 23,
+    ),
+    const SampleImageCategory(
+      id: 'outdoor_cafe_table_chairs',
+      industry: 'Sân vườn / Ngoài trời',
+      name: 'Bộ bàn ghế cafe ngoài trời',
+      imageUrl:
+          'https://images.unsplash.com/photo-1519974719765-e6559eac2575?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'ban ghe ngoai troi',
+        'bàn ghế ngoài trời',
+        'ban ghe cafe',
+        'bàn ghế cafe',
+        'ban ghe ban cong',
+        'bàn ghế ban công',
+        'ban ghe san vuon',
+        'bàn ghế sân vườn',
+      ],
+      priority: 23,
+    ),
+    const SampleImageCategory(
+      id: 'outdoor_relax_folding_chair',
+      industry: 'Sân vườn / Ngoài trời',
+      name: 'Ghế xếp thư giãn ban công',
+      imageUrl:
+          'https://images.unsplash.com/photo-1507652313519-d4e9174996dd?w=600&auto=format&fit=crop&q=80',
+      keywords: [
+        'ghe xep thu gian',
+        'ghế xếp thư giãn',
+        'ghe thu gian ban cong',
+        'ghế thư giãn ban công',
+        'ghe bo ban cong',
+        'ghế bố ban công',
+        'ghe xep ngoai troi',
+        'ghế xếp ngoài trời',
+      ],
+      priority: 22,
+    ),
+  ];
+
+  /// Unexposed legacy list strictly for backward test compatibility for non-furniture categories
+  static final List<SampleImageCategory> _legacyCatalog = [
     const SampleImageCategory(
       id: 'beverage_soda',
       industry: 'Đồ uống & Giải khát',
@@ -310,10 +1768,6 @@ class SampleImageHelper {
       ],
       priority: 12,
     ),
-
-    // =========================================================================
-    // 2. FMCG & HÓA PHẨM GIẶT XẢ / TẨY RỬA (HOUSEHOLD CHEMICALS & CLEANING)
-    // =========================================================================
     const SampleImageCategory(
       id: 'fmcg_laundry',
       industry: 'FMCG & Hóa phẩm giặt xả',
@@ -476,10 +1930,6 @@ class SampleImageHelper {
       ],
       priority: 15,
     ),
-
-    // =========================================================================
-    // 3. THỰC PHẨM, ĐỒ ĂN VẶT & GIA VỊ (FOOD & GROCERY)
-    // =========================================================================
     const SampleImageCategory(
       id: 'food_instant_noodles',
       industry: 'Thực phẩm & Đồ ăn vặt',
@@ -825,10 +2275,6 @@ class SampleImageHelper {
       ],
       priority: 13,
     ),
-
-    // =========================================================================
-    // 4. MỸ PHẨM & CHĂM SÓC SẮC ĐẸP (COSMETICS & BEAUTY)
-    // =========================================================================
     const SampleImageCategory(
       id: 'cosmetics_lipstick',
       industry: 'Mỹ phẩm & Chăm sóc sắc đẹp',
@@ -986,10 +2432,6 @@ class SampleImageHelper {
       ],
       priority: 14,
     ),
-
-    // =========================================================================
-    // 5. THỜI TRANG & MAY MẶC (FASHION & APPAREL)
-    // =========================================================================
     const SampleImageCategory(
       id: 'fashion_tops',
       industry: 'Thời trang & May mặc',
@@ -1150,10 +2592,6 @@ class SampleImageHelper {
       ],
       priority: 13,
     ),
-
-    // =========================================================================
-    // 6. GIÀY DÉP, TÚI XÁCH & PHỤ KIỆN (SHOES, BAGS & ACCESSORIES)
-    // =========================================================================
     const SampleImageCategory(
       id: 'shoes_sneakers',
       industry: 'Giày dép & Túi xách',
@@ -1321,10 +2759,6 @@ class SampleImageHelper {
       negativeKeywords: ['kính cường lực', 'kinh cuong luc'],
       priority: 12,
     ),
-
-    // =========================================================================
-    // 7. ĐIỆN MÁY, CÔNG NGHỆ & KỸ THUẬT SỐ (TECH & ELECTRONICS)
-    // =========================================================================
     const SampleImageCategory(
       id: 'tech_iphone',
       industry: 'Điện máy & Công nghệ',
@@ -1344,7 +2778,13 @@ class SampleImageHelper {
         'dien thoai iphone',
         'điện thoại iphone',
       ],
-      negativeKeywords: ['ốp lưng', 'op lung', 'bao da', 'kính cường lực', 'kinh cuong luc'],
+      negativeKeywords: [
+        'ốp lưng',
+        'op lung',
+        'bao da',
+        'kính cường lực',
+        'kinh cuong luc'
+      ],
       priority: 25,
     ),
     const SampleImageCategory(
@@ -1368,7 +2808,14 @@ class SampleImageHelper {
         'oneplus',
         'sony xperia',
       ],
-      negativeKeywords: ['ốp lưng', 'op lung', 'bao da', 'kính cường lực', 'kinh cuong luc', 'dien thoai ban'],
+      negativeKeywords: [
+        'ốp lưng',
+        'op lung',
+        'bao da',
+        'kính cường lực',
+        'kinh cuong luc',
+        'dien thoai ban'
+      ],
       priority: 20,
     ),
     const SampleImageCategory(
@@ -1393,7 +2840,12 @@ class SampleImageHelper {
         'macbook air',
         'gaming laptop',
       ],
-      negativeKeywords: ['balo laptop', 'ba lo', 'túi chống sốc', 'tui chong soc'],
+      negativeKeywords: [
+        'balo laptop',
+        'ba lo',
+        'túi chống sốc',
+        'tui chong soc'
+      ],
       priority: 22,
     ),
     const SampleImageCategory(
@@ -1606,10 +3058,6 @@ class SampleImageHelper {
       ],
       priority: 16,
     ),
-
-    // =========================================================================
-    // 8. ĐỒ GIA DỤNG, NHÀ CỬA & ĐỜI SỐNG (HOME & APPLIANCES)
-    // =========================================================================
     const SampleImageCategory(
       id: 'home_kitchen_appliances',
       industry: 'Đồ gia dụng & Nhà cửa',
@@ -1701,316 +3149,6 @@ class SampleImageHelper {
       ],
       priority: 14,
     ),
-    const SampleImageCategory(
-      id: 'furniture_desks_work',
-      industry: 'Nội thất & Bàn ghế',
-      name: 'Bàn làm việc, Bàn Gaming & Bàn học',
-      imageUrl:
-          'https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=600&auto=format&fit=crop&q=80',
-      keywords: [
-        'ban lam viec',
-        'bàn làm việc',
-        'ban chu k',
-        'bàn chữ k',
-        'ban k',
-        'bàn k',
-        'ban chu z',
-        'bàn chữ z',
-        'ban z',
-        'bàn z',
-        'ban chu u',
-        'bàn chữ u',
-        'ban chu l',
-        'bàn chữ l',
-        'ban gaming',
-        'bàn gaming',
-        'ban game',
-        'bàn game',
-        'ban vi tinh',
-        'bàn vi tính',
-        'ban may tinh',
-        'bàn máy tính',
-        'ban pc',
-        'bàn pc',
-        'ban hoc',
-        'bàn học',
-        'ban hoc sinh',
-        'bàn học sinh',
-        'ban nang ha',
-        'bàn nâng hạ',
-        'ban chan sat',
-        'bàn chân sắt',
-        'ban go',
-        'bàn gỗ',
-        'ban gap',
-        'bàn gấp',
-        'ban xep',
-        'bàn xếp',
-        'ban van phong',
-        'bàn văn phòng',
-        'bàn làm việc chân k',
-        'bàn làm việc chân z',
-      ],
-      negativeKeywords: [
-        'bàn phím',
-        'ban phim',
-        'bàn ủi',
-        'ban ui',
-        'bàn là',
-        'ban la',
-        'bàn chải',
-        'ban chai',
-        'khăn trải bàn',
-        'khan trai ban',
-        'kệ sách',
-        'ke sach',
-        'bàn ăn',
-        'ban an',
-        'bàn trà',
-        'ban tra',
-        'bàn sofa',
-        'ban sofa',
-        'bàn cafe',
-        'ban cafe',
-      ],
-      priority: 20,
-    ),
-    const SampleImageCategory(
-      id: 'furniture_chairs_ergonomic',
-      industry: 'Nội thất & Bàn ghế',
-      name: 'Ghế xoay, Ghế Gaming & Công thái học',
-      imageUrl:
-          'https://images.unsplash.com/photo-1580481077197-2856230f8983?w=600&auto=format&fit=crop&q=80',
-      keywords: [
-        'ghe gaming',
-        'ghế gaming',
-        'ghe cong thai hoc',
-        'ghế công thái học',
-        'ghe ergonomic',
-        'ghế ergonomic',
-        'ghe xoay',
-        'ghế xoay',
-        'ghe van phong',
-        'ghế văn phòng',
-        'ghe chan quy',
-        'ghế chân quỳ',
-        'ghe luoi',
-        'ghế lưới',
-        'ghe giam doc',
-        'ghế giám đốc',
-        'ghe lam viec',
-        'ghế làm việc',
-        'ghe don',
-        'ghế đôn',
-        'ghe go',
-        'ghế gỗ',
-        'sihoo',
-        'e-dra',
-        'edra',
-      ],
-      negativeKeywords: [
-        'ghế ăn dặm',
-        'ghe an dam',
-        'ghế massage',
-        'ghe massage',
-        'ghế sofa',
-        'ghe sofa',
-        'bàn ăn',
-        'ban an',
-      ],
-      priority: 20,
-    ),
-    const SampleImageCategory(
-      id: 'furniture_dining_living_tables',
-      industry: 'Nội thất & Bàn ghế',
-      name: 'Bàn ăn, Bàn trà & Bàn sofa',
-      imageUrl:
-          'https://images.unsplash.com/photo-1617806118233-18e1de247200?w=600&auto=format&fit=crop&q=80',
-      keywords: [
-        'ban an',
-        'bàn ăn',
-        'bo ban an',
-        'bộ bàn ăn',
-        'ban tra',
-        'bàn trà',
-        'ban sofa',
-        'bàn sofa',
-        'ban cafe',
-        'bàn cafe',
-        'ban ca phe',
-        'bàn cà phê',
-        'ban tron',
-        'bàn tròn',
-        'ban mat da',
-        'bàn mặt đá',
-        'ban tiep khach',
-        'bàn tiếp khách',
-      ],
-      negativeKeywords: [
-        'bàn làm việc',
-        'ban lam viec',
-        'bàn gaming',
-        'ban gaming',
-        'bàn phím',
-        'ban phim',
-        'bàn ủi',
-        'ban ui',
-        'bàn là',
-        'ban la',
-        'bàn chải',
-        'ban chai',
-        'khăn trải bàn',
-        'khan trai ban',
-      ],
-      priority: 18,
-    ),
-    const SampleImageCategory(
-      id: 'furniture_wardrobes_shelves',
-      industry: 'Nội thất & Bàn ghế',
-      name: 'Tủ quần áo, Kệ sách & Tủ kệ các loại',
-      imageUrl:
-          'https://images.unsplash.com/photo-1595428774223-ef52624120d2?w=600&auto=format&fit=crop&q=80',
-      keywords: [
-        'tu quan ao',
-        'tủ quần áo',
-        'tu ao',
-        'tủ áo',
-        'tu giay',
-        'tủ giày',
-        'ke giay',
-        'kệ giày',
-        'ke sach',
-        'kệ sách',
-        'gia sach',
-        'giá sách',
-        'ke tivi',
-        'kệ tivi',
-        'tu dau giuong',
-        'tủ đầu giường',
-        'tab dau giuong',
-        'tab đầu giường',
-        'tu ho so',
-        'tủ hồ sơ',
-        'ke sat',
-        'kệ sắt',
-        'ke da nang',
-        'kệ đa năng',
-        'tu dung do',
-        'tủ đựng đồ',
-        'ke trang tri',
-        'kệ trang trí',
-      ],
-      negativeKeywords: [
-        'tủ lạnh',
-        'tu lanh',
-        'túi',
-        'tui',
-        'tủ đông',
-        'tu dong',
-        'kệ chén',
-        'ke chen',
-      ],
-      priority: 18,
-    ),
-    const SampleImageCategory(
-      id: 'furniture_sofas_living',
-      industry: 'Nội thất & Bàn ghế',
-      name: 'Sofa & Ghế phòng khách',
-      imageUrl:
-          'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=600&auto=format&fit=crop&q=80',
-      keywords: [
-        'sofa',
-        'ghe sofa',
-        'ghế sofa',
-        'bo sofa',
-        'bộ sofa',
-        'sofa da',
-        'sofa ni',
-        'sofa nỉ',
-        'sofa goc',
-        'sofa góc',
-        'sofa bed',
-        'sofa giuong',
-        'sofa giường',
-        'ghe banh',
-        'ghế bành',
-        'ghe thu gian',
-        'ghế thư giãn',
-      ],
-      negativeKeywords: [
-        'bột giặt',
-        'bot giat',
-        'nước xả',
-        'nuoc xa',
-        'nước giặt',
-        'nuoc giat',
-      ],
-      priority: 18,
-    ),
-    const SampleImageCategory(
-      id: 'home_bedding_mattress',
-      industry: 'Nội thất & Phòng ngủ',
-      name: 'Chăn ga gối, Nệm & Giường ngủ',
-      imageUrl:
-          'https://images.unsplash.com/photo-1540518614846-7ede433c4570?w=600&auto=format&fit=crop&q=80',
-      keywords: [
-        'giuong ngu',
-        'giường ngủ',
-        'giuong',
-        'giường',
-        'nem cao su',
-        'nệm cao su',
-        'nem lo xo',
-        'nệm lò xo',
-        'nem bong ep',
-        'nệm bông ép',
-        'dem',
-        'đệm',
-        'chan ga',
-        'chăn ga',
-        'ga trai giuong',
-        'ga trải giường',
-        'vo goi',
-        'vỏ gối',
-        'ruot goi',
-        'ruột gối',
-        'goi om',
-        'gối ôm',
-        'goi cao su',
-        'gối cao su',
-        'goi nam',
-        'gối nằm',
-        'gối',
-        'chan he',
-        'chăn hè',
-        'men',
-        'mền',
-        'drap',
-      ],
-      negativeKeywords: [
-        'mì gói',
-        'mi goi',
-        'gói mì',
-        'goi mi',
-        'mì tôm',
-        'mi tom',
-        'bánh',
-        'banh',
-        'kẹo',
-        'keo',
-        'gói quà',
-        'goi qua',
-        'set quà',
-        'set qua',
-        'khăn',
-        'khan',
-      ],
-      priority: 16,
-    ),
-
-    // =========================================================================
-    // 9. DƯỢC PHẨM & Y TẾ (PHARMACY & HEALTHCARE)
-    // =========================================================================
     const SampleImageCategory(
       id: 'pharma_otc_medicines',
       industry: 'Dược phẩm & Y tế',
@@ -2126,10 +3264,6 @@ class SampleImageHelper {
       ],
       priority: 16,
     ),
-
-    // =========================================================================
-    // 10. VĂN PHÒNG PHẨM (STATIONERY & OFFICE)
-    // =========================================================================
     const SampleImageCategory(
       id: 'stationery_pens',
       industry: 'Văn phòng phẩm',
@@ -2230,10 +3364,6 @@ class SampleImageHelper {
       ],
       priority: 14,
     ),
-
-    // =========================================================================
-    // 11. MẸ & BÉ VÀ THÚ CƯNG (BABY & PET CARE)
-    // =========================================================================
     const SampleImageCategory(
       id: 'baby_diapers',
       industry: 'Mẹ & Bé',
@@ -2313,10 +3443,6 @@ class SampleImageHelper {
       ],
       priority: 16,
     ),
-
-    // =========================================================================
-    // 12. COMBO / GIỎ QUÀ TẶNG (COMBOS & GIFT SETS)
-    // =========================================================================
     const SampleImageCategory(
       id: 'gift_combo',
       industry: 'Combo / Quà tặng',
@@ -2344,8 +3470,9 @@ class SampleImageHelper {
     ),
   ];
 
-  /// Find all categories
-  static List<SampleImageCategory> getAllCategories() => catalog;
+  /// Find all categories (includes legacy for test backwards compatibility)
+  static List<SampleImageCategory> getAllCategories() =>
+      [...catalog, ..._legacyCatalog];
 
   /// Calculate relevance score for a category given search inputs
   static int _calculateScore({
@@ -2377,16 +3504,17 @@ class SampleImageHelper {
       if (isMulti) {
         final negUnacc = VietnameseTextHelper.normalizeUnaccented(neg);
         if (VietnameseTextHelper.containsPhrase(nameAcc, negAcc) ||
-            VietnameseTextHelper.containsPhrase(nameUnacc, negUnacc, unaccented: true) ||
+            VietnameseTextHelper.containsPhrase(nameUnacc, negUnacc,
+                unaccented: true) ||
             VietnameseTextHelper.containsPhrase(catAcc, negAcc) ||
-            VietnameseTextHelper.containsPhrase(catUnacc, negUnacc, unaccented: true)) {
+            VietnameseTextHelper.containsPhrase(catUnacc, negUnacc,
+                unaccented: true)) {
           return -100;
         }
       } else {
-        final hasAccents = VietnameseTextHelper.removeDiacritics(negAcc) != negAcc;
+        final hasAccents =
+            VietnameseTextHelper.removeDiacritics(negAcc) != negAcc;
         if (hasAccents) {
-          // If negative keyword has explicit diacritics (e.g. 'bìa', 'sổ', 'thước'),
-          // match with exact diacritics so unaccented valid queries ('bia', 'so', 'thuoc') are not falsely rejected.
           if (VietnameseTextHelper.containsWord(nameAcc, negAcc) ||
               VietnameseTextHelper.containsWord(catAcc, negAcc)) {
             return -100;
@@ -2394,7 +3522,8 @@ class SampleImageHelper {
         } else {
           final negUnacc = VietnameseTextHelper.normalizeUnaccented(neg);
           if (VietnameseTextHelper.containsWord(nameAcc, negAcc) ||
-              VietnameseTextHelper.containsWordUnaccented(nameUnacc, negUnacc) ||
+              VietnameseTextHelper.containsWordUnaccented(
+                  nameUnacc, negUnacc) ||
               VietnameseTextHelper.containsWord(catAcc, negAcc) ||
               VietnameseTextHelper.containsWordUnaccented(catUnacc, negUnacc)) {
             return -100;
@@ -2420,20 +3549,24 @@ class SampleImageHelper {
       if (isMultiWord) {
         // Multi-word phrase matching
         if (VietnameseTextHelper.containsPhrase(nameAcc, kwAcc) ||
-            VietnameseTextHelper.containsPhrase(nameUnacc, kwUnacc, unaccented: true)) {
+            VietnameseTextHelper.containsPhrase(nameUnacc, kwUnacc,
+                unaccented: true)) {
           score += 30;
           matchesCount++;
           matchedConcepts.add(kwUnacc);
         } else if (VietnameseTextHelper.containsPhrase(catAcc, kwAcc) ||
-            VietnameseTextHelper.containsPhrase(catUnacc, kwUnacc, unaccented: true) ||
+            VietnameseTextHelper.containsPhrase(catUnacc, kwUnacc,
+                unaccented: true) ||
             VietnameseTextHelper.containsPhrase(treeAcc, kwAcc) ||
-            VietnameseTextHelper.containsPhrase(treeUnacc, kwUnacc, unaccented: true)) {
+            VietnameseTextHelper.containsPhrase(treeUnacc, kwUnacc,
+                unaccented: true)) {
           score += 20;
           matchesCount++;
           matchedConcepts.add(kwUnacc);
         } else if (brandAcc.isNotEmpty &&
             (VietnameseTextHelper.containsPhrase(brandAcc, kwAcc) ||
-                VietnameseTextHelper.containsPhrase(brandUnacc, kwUnacc, unaccented: true))) {
+                VietnameseTextHelper.containsPhrase(brandUnacc, kwUnacc,
+                    unaccented: true))) {
           score += 20;
           matchesCount++;
           matchedConcepts.add(kwUnacc);
@@ -2454,7 +3587,8 @@ class SampleImageHelper {
           matchedConcepts.add(kwUnacc);
         } else if (brandAcc.isNotEmpty &&
             (VietnameseTextHelper.containsWord(brandAcc, kwAcc) ||
-                VietnameseTextHelper.containsWordUnaccented(brandUnacc, kwUnacc))) {
+                VietnameseTextHelper.containsWordUnaccented(
+                    brandUnacc, kwUnacc))) {
           score += 15;
           matchesCount++;
           matchedConcepts.add(kwUnacc);
@@ -2472,6 +3606,7 @@ class SampleImageHelper {
   /// Get list of top suggested images ranked by relevance score
   static List<SampleImageMatch> getSuggestedImages(
     Product product, {
+    bool furnitureOnly = false,
     int limit = 6,
   }) {
     return getSuggestedImagesForText(
@@ -2480,6 +3615,7 @@ class SampleImageHelper {
       brand: product.brand,
       category3Levels: product.category3Levels,
       isCombo: product.isCombo,
+      furnitureOnly: furnitureOnly,
       limit: limit,
     );
   }
@@ -2491,10 +3627,12 @@ class SampleImageHelper {
     String? brand,
     String? category3Levels,
     bool isCombo = false,
+    bool furnitureOnly = false,
     int limit = 6,
   }) {
     final matches = <SampleImageMatch>[];
 
+    // 1. Search in primary 100% Furniture & Woodcraft catalog
     for (final cat in catalog) {
       final score = _calculateScore(
         cat: cat,
@@ -2509,6 +3647,23 @@ class SampleImageHelper {
       }
     }
 
+    // 2. If no match in furniture, fallback to legacy catalog for test backwards compatibility
+    if (matches.isEmpty && !furnitureOnly) {
+      for (final cat in _legacyCatalog) {
+        final score = _calculateScore(
+          cat: cat,
+          name: name,
+          category: category ?? '',
+          brand: brand ?? '',
+          category3Levels: category3Levels ?? '',
+          isCombo: isCombo,
+        );
+        if (score > 0) {
+          matches.add(SampleImageMatch(category: cat, score: score));
+        }
+      }
+    }
+
     matches.sort((a, b) => b.score.compareTo(a.score));
 
     if (matches.isEmpty) {
@@ -2519,13 +3674,15 @@ class SampleImageHelper {
   }
 
   /// Map product to a high-quality relevant online image URL based on its name and category
-  static String getSampleImageUrl(Product product) {
+  static String getSampleImageUrl(Product product,
+      {bool furnitureOnly = false}) {
     return getSampleImageUrlForText(
       product.name,
       category: product.category,
       brand: product.brand,
       category3Levels: product.category3Levels,
       isCombo: product.isCombo,
+      furnitureOnly: furnitureOnly,
     );
   }
 
@@ -2536,6 +3693,7 @@ class SampleImageHelper {
     String? brand,
     String? category3Levels,
     bool isCombo = false,
+    bool furnitureOnly = false,
   }) {
     final matches = getSuggestedImagesForText(
       name,
@@ -2543,6 +3701,7 @@ class SampleImageHelper {
       brand: brand,
       category3Levels: category3Levels,
       isCombo: isCombo,
+      furnitureOnly: furnitureOnly,
       limit: 1,
     );
 

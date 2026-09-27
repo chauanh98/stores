@@ -161,5 +161,43 @@ void main() {
         expect(result.length, equals(2));
       });
     });
+
+    // -------------------------------------------------------------------------
+    // 3. resolveStoreName, formatStoreLabel, getShortStoreName
+    // -------------------------------------------------------------------------
+    group('3. Store Name Resolution & Formatting', () {
+      test('resolveStoreName resolves canonical IDs and aliases to friendly names', () {
+        expect(StoreResolverHelper.resolveStoreName('store_001'), equals('Chi nhánh Đông Thắng'));
+        expect(StoreResolverHelper.resolveStoreName('store_002'), equals('Chi nhánh Thới Bình'));
+        expect(StoreResolverHelper.resolveStoreName('branch_1'), equals('Chi nhánh Đông Thắng'));
+        expect(StoreResolverHelper.resolveStoreName('branch_2'), equals('Chi nhánh Thới Bình'));
+        expect(StoreResolverHelper.resolveStoreName('all'), equals('Toàn bộ chi nhánh'));
+        expect(StoreResolverHelper.resolveStoreName(''), equals(''));
+        expect(StoreResolverHelper.resolveStoreName(null), equals(''));
+        expect(StoreResolverHelper.resolveStoreName('kho_tong'), equals('kho_tong'));
+
+        // Custom map lookup takes precedence
+        final customMap = {'store_001': 'Kho Đông Thắng VIP'};
+        expect(StoreResolverHelper.resolveStoreName('store_001', storeNames: customMap), equals('Kho Đông Thắng VIP'));
+      });
+
+      test('formatStoreLabel avoids redundant "Chi nhánh: Chi nhánh..." repetitions', () {
+        expect(StoreResolverHelper.formatStoreLabel('store_001'), equals('Chi nhánh Đông Thắng'));
+        expect(StoreResolverHelper.formatStoreLabel('store_002'), equals('Chi nhánh Thới Bình'));
+        expect(StoreResolverHelper.formatStoreLabel('Chi nhánh Thới Bình'), equals('Chi nhánh Thới Bình'));
+        expect(StoreResolverHelper.formatStoreLabel('Toàn bộ chi nhánh'), equals('Toàn bộ chi nhánh'));
+        expect(StoreResolverHelper.formatStoreLabel('kho_tong'), equals('Chi nhánh kho_tong'));
+        expect(StoreResolverHelper.formatStoreLabel(''), equals(''));
+        expect(StoreResolverHelper.formatStoreLabel(null), equals(''));
+      });
+
+      test('getShortStoreName strips "Chi nhánh " prefix accurately', () {
+        expect(StoreResolverHelper.getShortStoreName('store_001'), equals('Đông Thắng'));
+        expect(StoreResolverHelper.getShortStoreName('store_002'), equals('Thới Bình'));
+        expect(StoreResolverHelper.getShortStoreName('Chi nhánh Thới Bình'), equals('Thới Bình'));
+        expect(StoreResolverHelper.getShortStoreName('kho_tong'), equals('kho_tong'));
+      });
+    });
   });
 }
+

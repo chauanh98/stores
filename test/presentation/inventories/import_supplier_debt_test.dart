@@ -309,7 +309,7 @@ void main() {
 
       // Bottom sheet header and quick-add button
       expect(find.text('Chọn Nhà Cung Cấp'), findsOneWidget);
-      expect(find.text('+ Thêm nhanh NCC'), findsOneWidget);
+      expect(find.text('Thêm mới NCC'), findsOneWidget);
       expect(find.byKey(const Key('quick_add_supplier_btn')), findsOneWidget);
 
       // Verify suppliers listed

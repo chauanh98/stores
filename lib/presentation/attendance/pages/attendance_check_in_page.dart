@@ -7,6 +7,7 @@ import '../../../application/attendance/monthly_timesheet_notifier.dart';
 import '../../../application/auth/auth_providers.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../domain/attendance/attendance_record.dart';
+import '../../../domain/attendance/shift.dart';
 import '../widgets/adjustment_dialog.dart';
 import '../widgets/attendance_status_badge.dart';
 import '../widgets/gps_status_card.dart';
@@ -42,9 +43,8 @@ class _AttendanceCheckInPageState extends ConsumerState<AttendanceCheckInPage> {
     final user = ref.read(authProvider);
     final storeId = ref.read(currentStoreIdProvider);
     final shiftsState = ref.read(shiftListNotifierProvider);
-    final initialShift = shiftsState.shifts.isNotEmpty
-        ? shiftsState.shifts.first
-        : null;
+    final initialShift =
+        Shift.findBestShiftForTime(shiftsState.shifts, DateTime.now());
 
     if (user != null) {
       ref.read(attendanceNotifierProvider.notifier).init(
@@ -65,11 +65,17 @@ class _AttendanceCheckInPageState extends ConsumerState<AttendanceCheckInPage> {
     final timesheetState = ref.watch(monthlyTimesheetNotifierProvider);
 
     ref.listen(shiftListNotifierProvider, (prev, next) {
-      if (next.shifts.isNotEmpty &&
-          ref.read(attendanceNotifierProvider).selectedShift == null) {
-        if (user != null) {
+      if (next.shifts.isNotEmpty) {
+        final currentSelected =
+            ref.read(attendanceNotifierProvider).selectedShift;
+        final isOrphanOrNull = currentSelected == null ||
+            !next.shifts.any((s) => s.id == currentSelected.id);
+        if (isOrphanOrNull && user != null) {
+          final bestShift =
+              Shift.findBestShiftForTime(next.shifts, DateTime.now()) ??
+                  next.shifts.first;
           ref.read(attendanceNotifierProvider.notifier).selectShift(
-                next.shifts.first,
+                bestShift,
                 storeId: storeId,
                 userId: user.username,
               );
@@ -77,8 +83,8 @@ class _AttendanceCheckInPageState extends ConsumerState<AttendanceCheckInPage> {
       }
     });
 
-    final storeDisplayName =
-        storeNameAsync.valueOrNull ?? (storeId.isNotEmpty ? storeId : 'Chi nhánh');
+    final storeDisplayName = storeNameAsync.valueOrNull ??
+        (storeId.isNotEmpty ? storeId : 'Chi nhánh');
 
     return Scaffold(
       appBar: AppBar(
@@ -90,7 +96,7 @@ class _AttendanceCheckInPageState extends ConsumerState<AttendanceCheckInPage> {
             fontSize: 18,
           ),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.white,
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
         iconTheme: const IconThemeData(color: AppColors.textPrimary),
@@ -101,7 +107,8 @@ class _AttendanceCheckInPageState extends ConsumerState<AttendanceCheckInPage> {
             onPressed: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) => const MonthlyTimesheetPage(isPersonalOnly: true),
+                  builder: (_) =>
+                      const MonthlyTimesheetPage(isPersonalOnly: true),
                 ),
               );
             },
@@ -277,6 +284,7 @@ class _AttendanceCheckInPageState extends ConsumerState<AttendanceCheckInPage> {
                       ShiftSelectorCard(
                         shifts: shiftsState.shifts,
                         selectedShift: attendanceState.selectedShift,
+                        currentTime: DateTime.now(),
                         onShiftSelected: (shift) {
                           if (user != null) {
                             ref
@@ -450,7 +458,7 @@ class _AttendanceCheckInPageState extends ConsumerState<AttendanceCheckInPage> {
         child: ElevatedButton.icon(
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
+            foregroundColor: AppColors.white,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
@@ -461,7 +469,7 @@ class _AttendanceCheckInPageState extends ConsumerState<AttendanceCheckInPage> {
                   width: 20,
                   height: 20,
                   child: CircularProgressIndicator(
-                    color: Colors.white,
+                    color: AppColors.white,
                     strokeWidth: 2,
                   ),
                 )
@@ -474,9 +482,7 @@ class _AttendanceCheckInPageState extends ConsumerState<AttendanceCheckInPage> {
               ? null
               : () async {
                   final explanation = _explanationController.text.trim();
-                  await ref
-                      .read(attendanceNotifierProvider.notifier)
-                      .checkIn(
+                  await ref.read(attendanceNotifierProvider.notifier).checkIn(
                         user: user,
                         storeId: storeId,
                         explanationReason:
@@ -492,8 +498,8 @@ class _AttendanceCheckInPageState extends ConsumerState<AttendanceCheckInPage> {
         height: 52,
         child: ElevatedButton.icon(
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFFDC2626),
-            foregroundColor: Colors.white,
+            backgroundColor: AppColors.dangerMedium,
+            foregroundColor: AppColors.white,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
@@ -504,7 +510,7 @@ class _AttendanceCheckInPageState extends ConsumerState<AttendanceCheckInPage> {
                   width: 20,
                   height: 20,
                   child: CircularProgressIndicator(
-                    color: Colors.white,
+                    color: AppColors.white,
                     strokeWidth: 2,
                   ),
                 )
@@ -517,9 +523,7 @@ class _AttendanceCheckInPageState extends ConsumerState<AttendanceCheckInPage> {
               ? null
               : () async {
                   final explanation = _explanationController.text.trim();
-                  await ref
-                      .read(attendanceNotifierProvider.notifier)
-                      .checkOut(
+                  await ref.read(attendanceNotifierProvider.notifier).checkOut(
                         user: user,
                         storeId: storeId,
                         explanationReason:
@@ -579,7 +583,8 @@ class _AttendanceCheckInPageState extends ConsumerState<AttendanceCheckInPage> {
           children: [
             Row(
               children: [
-                const Icon(Icons.date_range, color: AppColors.primary, size: 20),
+                const Icon(Icons.date_range,
+                    color: AppColors.primary, size: 20),
                 const SizedBox(width: 8),
                 const Expanded(
                   child: Text(
@@ -644,13 +649,11 @@ class _AttendanceCheckInPageState extends ConsumerState<AttendanceCheckInPage> {
               ],
             ),
             const SizedBox(height: 12),
-            OutlinedButton.icon(
+            OutlinedButton(
               style: OutlinedButton.styleFrom(
                 minimumSize: const Size.fromHeight(40),
                 foregroundColor: AppColors.primary,
               ),
-              icon: const Icon(Icons.edit_calendar, size: 18),
-              label: const Text('Gửi yêu cầu điều chỉnh / giải trình công'),
               onPressed: () {
                 final user = ref.read(authProvider);
                 final storeId = ref.read(currentStoreIdProvider);
@@ -670,6 +673,21 @@ class _AttendanceCheckInPageState extends ConsumerState<AttendanceCheckInPage> {
                   ),
                 );
               },
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.edit_calendar, size: 18),
+                  SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      'Gửi yêu cầu điều chỉnh / giải trình công',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -701,7 +719,8 @@ class _AttendanceCheckInPageState extends ConsumerState<AttendanceCheckInPage> {
           Text(
             title,
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+            style:
+                const TextStyle(fontSize: 11, color: AppColors.textSecondary),
           ),
         ],
       ),

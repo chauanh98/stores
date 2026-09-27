@@ -15,11 +15,14 @@ abstract class SupplierRepository {
   Future<void> delete(String id, {String? storeId});
 
   /// Ghi nhận giao dịch công nợ NCC
-  Future<void> recordDebtTransaction(SupplierDebtTransaction transaction, {String? storeId});
+  Future<void> recordDebtTransaction(SupplierDebtTransaction transaction,
+      {String? storeId});
 
   /// Stream lịch sử công nợ của 1 nhà cung cấp
-  Stream<List<SupplierDebtTransaction>> watchDebtTransactions(String supplierId, {String? storeId});
+  Stream<List<SupplierDebtTransaction>> watchDebtTransactions(String supplierId,
+      {String? storeId});
 
   /// Lấy danh sách lịch sử công nợ của 1 nhà cung cấp
-  Future<List<SupplierDebtTransaction>> fetchDebtTransactions(String supplierId, {String? storeId});
+  Future<List<SupplierDebtTransaction>> fetchDebtTransactions(String supplierId,
+      {String? storeId});
 }

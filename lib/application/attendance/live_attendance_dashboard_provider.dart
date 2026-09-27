@@ -61,7 +61,8 @@ class LiveAttendanceState {
   }
 }
 
-class LiveAttendanceDashboardNotifier extends StateNotifier<LiveAttendanceState> {
+class LiveAttendanceDashboardNotifier
+    extends StateNotifier<LiveAttendanceState> {
   final AttendanceRepository _repository;
   final FirebaseDatabase? _db;
   final UserAccount? _currentUser;
@@ -72,7 +73,7 @@ class LiveAttendanceDashboardNotifier extends StateNotifier<LiveAttendanceState>
     this._currentUser, {
     FirebaseDatabase? db,
     String? initialStoreId,
-  }) : _db = db,
+  })  : _db = db,
         super(
           LiveAttendanceState(
             storeId: _resolveStoreId(_currentUser, initialStoreId),
@@ -154,7 +155,8 @@ class LiveAttendanceDashboardNotifier extends StateNotifier<LiveAttendanceState>
     List<UserAccount> notArrived = [];
     try {
       final storeStaff = await _fetchStaffForStore(state.storeId);
-      final checkedInUserIds = records.map((r) => r.userId.toLowerCase()).toSet();
+      final checkedInUserIds =
+          records.map((r) => r.userId.toLowerCase()).toSet();
       notArrived = storeStaff
           .where((s) => !checkedInUserIds.contains(s.username.toLowerCase()))
           .toList();

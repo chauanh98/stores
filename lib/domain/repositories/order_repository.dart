@@ -20,7 +20,8 @@ abstract class OrderRepository {
 abstract class OrderRepositoryReturnHandler {
   Future<void> createReturn(ReturnOrder returnOrder);
   Future<ReturnOrder?> fetchReturnById(String returnId);
-  Stream<List<ReturnOrder>> watchReturnsByDateRange(DateTime start, DateTime end);
+  Stream<List<ReturnOrder>> watchReturnsByDateRange(
+      DateTime start, DateTime end);
   Stream<List<ReturnOrder>> watchReturnsByOrderId(String orderId);
 }
 
@@ -59,5 +60,3 @@ extension OrderRepositoryReturnExt on OrderRepository {
     return Stream.value([]);
   }
 }
-
-

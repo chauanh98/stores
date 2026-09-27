@@ -869,9 +869,9 @@ void main() {
       await tester.pumpAndSettle();
 
       // Admin State:
-      // Valuation MUST BE RE-MASKED IMMEDIATELY (canViewCostPrice is false for Admin)
-      expect(find.text('***'), findsOneWidget);
-      expect(find.textContaining('1.500.000 đ'), findsNothing);
+      // Valuation is VISIBLE for Admin (canViewCostPrice is true for Admin / Store Owner)
+      expect(find.textContaining('1.500.000 đ'), findsOneWidget);
+      expect(find.text('***'), findsNothing);
       // FAB REMAINS VISIBLE (canManageProducts is true for Admin)
       expect(find.byType(FloatingActionButton), findsOneWidget);
     });
@@ -928,17 +928,25 @@ void main() {
       await tester.pumpAndSettle();
 
       // Admin State:
-      // Cost price is immediately masked and removed from view (NO LEAKAGE)
-      expect(find.text('Giá vốn'), findsNothing);
-      expect(find.text('11.000 đ'), findsNothing);
-      expect(find.byIcon(Icons.visibility_outlined), findsNothing);
-      expect(find.textContaining('Vốn:'), findsNothing);
+      // Cost price is VISIBLE for Admin (as store owner)
+      expect(find.text('Giá vốn'), findsOneWidget);
+      expect(find.text('11.000 đ'), findsWidgets);
 
       // Admin taps [Chỉnh sửa] -> Allowed (enters edit mode)
       await tester.tap(find.byIcon(Icons.edit_outlined));
       await tester.pumpAndSettle();
       expect(find.text('Thông tin cơ bản'), findsOneWidget);
       expect(find.text('Lưu'), findsOneWidget);
+
+      // Cancel edit mode
+      await tester.tap(find.byIcon(Icons.close));
+      await tester.pumpAndSettle();
+
+      // 4. LIVE SWITCH BACK -> Staff (Cost price must be masked and removed)
+      authNotifier.state = staffUser;
+      await tester.pumpAndSettle();
+      expect(find.text('Giá vốn'), findsNothing);
+      expect(find.text('11.000 đ'), findsNothing);
     });
   });
 }

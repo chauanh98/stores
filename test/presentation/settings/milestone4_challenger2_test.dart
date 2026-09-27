@@ -1,11 +1,14 @@
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:printing/printing.dart';
 import 'package:stores/application/auth/auth_providers.dart';
 import 'package:stores/application/customers/customer_list_notifier.dart';
 import 'package:stores/application/customers/customers_providers.dart';
+import 'package:stores/application/inventories/stock_in_receipts_providers.dart';
 import 'package:stores/application/orders/orders_providers.dart';
 import 'package:stores/application/products/products_providers.dart';
 import 'package:stores/application/settings/store_payment_config_providers.dart';
@@ -21,8 +24,8 @@ import 'package:stores/domain/entities/store_payment_config.dart';
 import 'package:stores/domain/entities/supplier.dart';
 import 'package:stores/domain/entities/user_account.dart';
 import 'package:stores/presentation/customers/pages/customers_page.dart';
-import 'package:stores/presentation/inventories/pages/import_inventory_page.dart';
 import 'package:stores/presentation/inventories/pages/inter_store_transfer_page.dart';
+import 'package:stores/presentation/inventories/pages/stock_in_receipts_page.dart';
 import 'package:stores/presentation/orders/pages/invoices_page.dart';
 import 'package:stores/presentation/settings/pages/account_management_page.dart';
 import 'package:stores/presentation/settings/pages/more_page.dart';
@@ -123,6 +126,58 @@ class _TestSupplierListNotifier extends SupplierListNotifier {
   Future<List<Supplier>> build() async => [];
 }
 
+class _OfflineMockPdfCache extends PdfBaseCache {
+  final Map<String, Uint8List> _cache = {};
+
+  @override
+  Future<void> add(String key, Uint8List bytes) async {
+    _cache[key] = bytes;
+  }
+
+  @override
+  Future<void> clear() async {
+    _cache.clear();
+  }
+
+  @override
+  Future<bool> contains(String key) async => _cache.containsKey(key);
+
+  @override
+  Future<Uint8List?> get(String key) async => _cache[key];
+
+  @override
+  Future<void> remove(String key) async {
+    _cache.remove(key);
+  }
+
+  @override
+  Future<Uint8List> resolve({
+    required String name,
+    required Uri uri,
+    bool cache = true,
+    Map<String, String>? headers,
+  }) async {
+    if (_cache.containsKey(name)) {
+      return _cache[name]!;
+    }
+    // Attempt local font loading from Flutter cache or local assets if available
+    final candidates = [
+      '/Users/chauanh/Desktop/flutter/bin/cache/artifacts/material_fonts/$name.ttf',
+      'assets/fonts/$name.ttf',
+    ];
+    for (final path in candidates) {
+      final file = File(path);
+      if (file.existsSync()) {
+        final bytes = await file.readAsBytes();
+        _cache[name] = bytes;
+        return bytes;
+      }
+    }
+    // Clean offline fallback: throw immediately so no network calls are attempted
+    throw FlutterError('Offline font mock: HTTP requests disabled in test for $name');
+  }
+}
+
 Widget _buildTestApp({
   required Widget child,
   List<Override> overrides = const [],
@@ -151,6 +206,10 @@ void _setTestViewport(WidgetTester tester) {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() {
+    PdfBaseCache.defaultCache = _OfflineMockPdfCache();
+  });
 
   const mockAdminUser = UserAccount(
     username: 'admin_vip',
@@ -210,6 +269,12 @@ void main() {
     accountsListProvider.overrideWith(
       (ref) => Stream.value(<UserAccount>[mockAdminUser]),
     ),
+    stockInReceiptsProvider.overrideWith(
+      (ref) => const AsyncValue.data([]),
+    ),
+    filteredStockInReceiptsAsyncProvider.overrideWith(
+      (ref) => const AsyncValue.data([]),
+    ),
   ];
 
   group('CHALLENGER 2: StorePaymentSettingsPage Adversarial Tests', () {
@@ -240,7 +305,7 @@ void main() {
     );
 
     testWidgets(
-      'Supervisor has full access and can view payment settings form',
+      'Supervisor is blocked from editing store payment config (Admin-only)',
       (tester) async {
         _setTestViewport(tester);
         await tester.pumpWidget(
@@ -256,13 +321,12 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        expect(find.text('Cấu hình Hóa đơn & VietQR'), findsOneWidget);
-        expect(find.text('THÔNG TIN CỬA HÀNG TRÊN HÓA ĐƠN'), findsOneWidget);
-        expect(find.text('CẤU HÌNH MẪU IN & KHỔ GIẤY'), findsOneWidget);
-        expect(find.text('THÔNG TIN TÀI KHOẢN NGÂN HÀNG (VIETQR)'), findsOneWidget);
-        expect(find.text('GHI CHÚ CHÂN HÓA ĐƠN (FOOTER)'), findsOneWidget);
-        expect(find.text('XEM TRƯỚC HÓA ĐƠN IN THỰC TẾ (LIVE PREVIEW)'), findsOneWidget);
-        expect(find.text('Lưu Cấu Hình Hóa Đơn'), findsOneWidget);
+        expect(
+          find.textContaining('Chỉ tài khoản Quản trị / Giám sát'),
+          findsOneWidget,
+        );
+        expect(find.text('THÔNG TIN CỬA HÀNG TRÊN HÓA ĐƠN'), findsNothing);
+        expect(find.text('Lưu Cấu Hình Hóa Đơn'), findsNothing);
       },
     );
 
@@ -635,8 +699,14 @@ void main() {
         // Block 1: Profile & Store
         expect(find.text('Chi nhánh Đông Thắng (ĐT)'), findsWidgets);
         expect(find.text('Tài khoản: admin_vip'), findsOneWidget);
-        expect(find.text('Quản trị viên'), findsOneWidget);
+        expect(find.text('👑 Quản trị viên (Toàn hệ thống)'), findsOneWidget);
+        expect(find.text('Toàn bộ chi nhánh'), findsOneWidget);
+        expect(find.byIcon(Icons.hub_outlined), findsOneWidget);
         expect(find.text('CHUYỂN ĐỔI CỬA HÀNG'), findsOneWidget);
+        expect(
+          find.text('Chi nhánh đang làm việc: Chi nhánh Đông Thắng (ĐT)'),
+          findsNothing,
+        );
 
         // Block 2: Quản lý đối tác
         expect(find.text('QUẢN LÝ ĐỐI TÁC'), findsOneWidget);
@@ -645,7 +715,7 @@ void main() {
 
         // Block 3: Nghiệp vụ Kho & Bán hàng
         expect(find.text('NGHIỆP VỤ KHO & BÁN HÀNG'), findsOneWidget);
-        expect(find.text('Nhập hàng'), findsOneWidget);
+        expect(find.text('Phiếu nhập kho'), findsOneWidget);
         expect(find.text('Chuyển kho'), findsOneWidget);
         expect(find.text('Hóa đơn & Sổ quỹ'), findsOneWidget);
 
@@ -662,7 +732,7 @@ void main() {
     );
 
     testWidgets(
-      'Supervisor renders Store Switcher and VietQR config with supervisor privileges',
+      'Supervisor renders Account Management but Store Switcher and VietQR are hidden',
       (tester) async {
         _setTestViewport(tester);
         await tester.pumpWidget(
@@ -679,9 +749,10 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text('Tài khoản: supervisor_vip'), findsOneWidget);
-        expect(find.text('CHUYỂN ĐỔI CỬA HÀNG'), findsOneWidget);
+        expect(find.text('CHUYỂN ĐỔI CỬA HÀNG'), findsNothing);
         expect(find.text('CẤU HÌNH & QUẢN TRỊ'), findsOneWidget);
-        expect(find.text('Cấu hình VietQR'), findsOneWidget);
+        expect(find.text('Cấu hình VietQR'), findsNothing);
+        expect(find.text('Quản lý tài khoản'), findsOneWidget);
       },
     );
 
@@ -795,7 +866,7 @@ void main() {
       expect(find.byType(SuppliersPage), findsOneWidget);
     });
 
-    testWidgets('Navigation to ImportInventoryPage from MorePage', (tester) async {
+    testWidgets('Navigation to StockInReceiptsPage from MorePage', (tester) async {
       _setTestViewport(tester);
       await tester.pumpWidget(
         _buildTestApp(
@@ -808,10 +879,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('Nhập hàng'));
-      await tester.tap(find.text('Nhập hàng'));
+      await tester.ensureVisible(find.text('Phiếu nhập kho'));
+      await tester.tap(find.text('Phiếu nhập kho'));
       await tester.pumpAndSettle();
-      expect(find.byType(ImportInventoryPage), findsOneWidget);
+      expect(find.byType(StockInReceiptsPage), findsOneWidget);
     });
 
     testWidgets('Navigation to InterStoreTransferPage from MorePage', (tester) async {

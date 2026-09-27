@@ -63,7 +63,9 @@ void main() {
       expect(updated.note, 'Đã xuất VAT');
     });
 
-    test('OrderModel toMap and fromMap serialization preserves split payment and note', () {
+    test(
+        'OrderModel toMap and fromMap serialization preserves split payment and note',
+        () {
       final model = OrderModel(
         id: 'HD000100',
         customerId: 'CUST_VIP',
@@ -96,7 +98,9 @@ void main() {
       expect(deserialized.storeId, 'store_002');
     });
 
-    test('InvoicePrintHelper.buildPdf builds PDF with split payment and note without error', () async {
+    test(
+        'InvoicePrintHelper.buildPdf builds PDF with split payment and note without error',
+        () async {
       TestWidgetsFlutterBinding.ensureInitialized();
 
       final order = Order(

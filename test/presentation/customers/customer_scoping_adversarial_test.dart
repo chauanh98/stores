@@ -517,9 +517,8 @@ void main() {
       expect(find.text('Khách TB ID Chuẩn'), findsNothing);
       expect(find.text('Khách Ô Môn Store 3'), findsNothing);
 
-      // Total summary banner aggregates ONLY Store 1 customers:
-      // Store 1 totals: 1M + 2M + 3M + 4M + 5M + 0.6M + 0.7M = 16,300,000đ; Count = 7
-      expect(find.text('16.300.000'), findsOneWidget);
+      // Total revenue metric is hidden for Staff, customer count is visible
+      expect(find.text('16.300.000'), findsNothing);
       expect(find.text('Tổng cộng (7 khách hàng)'), findsOneWidget);
     });
 

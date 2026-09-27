@@ -594,7 +594,7 @@ void main() {
       expect(find.byType(FloatingActionButton), findsOneWidget);
     });
 
-    testWidgets('Admin has masked valuation (***) in summary card and has FAB',
+    testWidgets('Admin has visible valuation in summary card and has FAB',
         (tester) async {
       tester.view.physicalSize = const Size(800, 1600);
       tester.view.devicePixelRatio = 1.0;
@@ -619,10 +619,10 @@ void main() {
       expect(find.textContaining('4 mặt hàng'), findsOneWidget);
       expect(find.textContaining('119'), findsOneWidget);
 
-      // Valuation amount is strictly MASKED for Admin (canViewCostPrice is false)
+      // Valuation amount is visible for Admin (canViewCostPrice is true)
       expect(find.textContaining('Giá trị kho:'), findsOneWidget);
-      expect(find.text('***'), findsOneWidget);
-      expect(find.textContaining('1.500.000 đ'), findsNothing);
+      expect(find.textContaining('1.500.000 đ'), findsOneWidget);
+      expect(find.text('***'), findsNothing);
 
       // FAB is visible for Admin (canManageProducts is true)
       expect(find.byType(FloatingActionButton), findsOneWidget);

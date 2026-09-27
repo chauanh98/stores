@@ -389,7 +389,7 @@ void main() {
         expect(container.read(currentStoreIdProvider), equals('store_002'));
       });
 
-      test('3.3 Supervisor with canSwitchStore obeys selectedStoreIdProvider switcher', () {
+      test('3.3 Supervisor with canSwitchStore obeys store switcher', () {
         final authNotifier = MutableAuthNotifier(supervisorUser);
         final container = ProviderContainer(
           overrides: [
@@ -401,7 +401,7 @@ void main() {
         // Default to user's primary store
         expect(container.read(currentStoreIdProvider), equals('store_001'));
 
-        // Switch to store_002
+        // Switch to store_002 affects supervisor since canSwitchStore == true
         container.read(selectedStoreIdProvider.notifier).state = 'store_002';
         expect(container.read(currentStoreIdProvider), equals('store_002'));
 
@@ -432,7 +432,7 @@ void main() {
           storeId: 'store_001',
         );
         expect(supervisorMixed.isSupervisor, isTrue);
-        expect(supervisorMixed.isAdmin, isTrue);
+        expect(supervisorMixed.isAdmin, isFalse);
         expect(supervisorMixed.isStaff, isFalse);
         expect(supervisorMixed.canViewDebtSummary, isTrue);
         expect(supervisorMixed.canSwitchStore, isTrue);

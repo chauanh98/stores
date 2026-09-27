@@ -9,6 +9,7 @@ import '../../../domain/entities/inventory_transaction.dart';
 import '../../../domain/entities/product.dart';
 import '../../common/widgets/error_view.dart';
 import '../../common/widgets/loading_indicator.dart';
+import '../../common/widgets/date_grouped_list_view.dart';
 import 'import_detail_page.dart';
 
 class ImportsPage extends ConsumerWidget {
@@ -186,12 +187,12 @@ class ImportsPage extends ConsumerWidget {
 
                 return productsAsync.when(
                   data: (products) {
-                    return ListView.separated(
+                    return DateGroupedListView<InventoryTransaction>(
                       padding: const EdgeInsets.all(16),
-                      itemCount: imports.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 8),
-                      itemBuilder: (context, index) {
-                        final tx = imports[index];
+                      items: imports,
+                      dateSelector: (tx) => tx.date,
+                      itemUnit: 'giao dịch',
+                      itemBuilder: (context, tx) {
                         final product = _findProduct(products, tx.productId);
                         return _ImportListTile(tx: tx, product: product);
                       },

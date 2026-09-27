@@ -530,8 +530,8 @@ void main() {
         expect(staffUser.isAdmin, isFalse);
 
         expect(supervisorUser.isSupervisor, isTrue);
-        expect(supervisorUser.isAdmin, isTrue);
-        expect(supervisorUser.canSwitchStore, isTrue);
+        expect(supervisorUser.isAdmin, isFalse);
+        expect(supervisorUser.canSwitchStore, isFalse);
 
         expect(adminUser.isAdmin, isTrue);
         expect(adminUser.isStaff, isFalse);

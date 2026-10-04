@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -36,6 +37,10 @@ import '../widgets/return_order_bottom_sheet.dart';
 import '../widgets/return_order_detail_bottom_sheet.dart';
 import '../controllers/invoices_filter_controller.dart';
 import 'pos_checkout_page.dart';
+import '../../../application/inventory/inventory_providers.dart';
+import '../../../core/utils/order_code_resolver.dart';
+import '../../../domain/entities/inventory_transaction.dart';
+import '../../../domain/entities/transaction_type.dart';
 
 class InvoicesPage extends ConsumerStatefulWidget {
   const InvoicesPage({super.key});
@@ -103,39 +108,62 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
     super.dispose();
   }
 
-  String _buildFilterDescription() {
+  String _buildFilterDescription([BuildContext? ctx]) {
+    final effectiveContext = ctx ?? (mounted ? context : null);
+    final l10n =
+        effectiveContext != null ? AppLocalizations.of(effectiveContext) : null;
     final parts = <String>[];
     if (_selectedStatusFilter != 'all') {
+      String statusText;
       switch (_selectedStatusFilter) {
         case 'completed':
-          parts.add('Trạng thái: Đã hoàn thành');
+          statusText = l10n?.orderBadgeCompleted ?? 'Đã hoàn thành';
           break;
         case 'returned':
-          parts.add('Trạng thái: Đơn trả hàng');
+          statusText = l10n?.orderReturnOrders ?? 'Đơn trả hàng';
           break;
         case 'draft':
-          parts.add('Trạng thái: Lưu tạm');
+          statusText = l10n?.draft ?? 'Lưu tạm';
           break;
         case 'cancelled':
-          parts.add('Trạng thái: Đã hủy');
+          statusText = l10n?.orderBadgeCancelled ?? 'Đã hủy';
           break;
+        default:
+          statusText = _selectedStatusFilter;
       }
+      parts.add(l10n != null
+          ? l10n.orderStatusFilterChip(statusText)
+          : 'Trạng thái: $statusText');
     }
     if (_selectedPaymentMethodFilter != 'all') {
-      parts.add(
-          'Hình thức: ${_selectedPaymentMethodFilter == 'transfer' ? 'Chuyển khoản' : 'Tiền mặt'}');
+      final methodText = _selectedPaymentMethodFilter == 'transfer'
+          ? (l10n?.transfer ?? 'Chuyển khoản')
+          : (l10n?.cash ?? 'Tiền mặt');
+      parts.add(l10n != null
+          ? l10n.orderPaymentFilterChip(methodText)
+          : 'Hình thức: $methodText');
     }
     if (_selectedDebtStatusFilter != 'all') {
-      parts.add(
-          'Công nợ: ${_selectedDebtStatusFilter == 'paid' ? 'Đã thanh toán đủ' : 'Còn ghi nợ'}');
+      final debtText = _selectedDebtStatusFilter == 'paid'
+          ? (l10n?.orderDebtPaidInFull ?? 'Đã thanh toán đủ')
+          : (l10n?.orderDebtRemaining ?? 'Còn ghi nợ');
+      parts.add(l10n != null
+          ? l10n.orderDebtFilterChip(debtText)
+          : 'Công nợ: $debtText');
     }
     if (_selectedStaffFilter != 'all') {
-      parts.add('Nhân viên: $_selectedStaffFilter');
+      parts.add(l10n != null
+          ? l10n.orderStaffFilterChip(_selectedStaffFilter)
+          : 'Nhân viên: $_selectedStaffFilter');
     }
     if (_searchQuery.trim().isNotEmpty) {
-      parts.add('Tìm kiếm: "$_searchQuery"');
+      parts.add(l10n != null
+          ? l10n.orderSearchFilterChip(_searchQuery)
+          : 'Tìm kiếm: "$_searchQuery"');
     }
-    return parts.isEmpty ? 'Tất cả hóa đơn' : parts.join(', ');
+    return parts.isEmpty
+        ? (l10n?.orderAllInvoicesTitle ?? 'Tất cả hóa đơn')
+        : parts.join(', ');
   }
 
   Future<void> _exportInvoicesToExcel(
@@ -147,11 +175,13 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
     final currentUser = ref.read(authProvider);
     if (!kIsWeb || (currentUser?.isAdmin != true)) return;
 
+    final l10n = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
     if (filteredOrders.isEmpty) {
       messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Không có dữ liệu hóa đơn để xuất Excel.'),
+        SnackBar(
+          content: Text(l10n?.orderNoInvoicesToExport ??
+              'Không có dữ liệu hóa đơn để xuất Excel.'),
           backgroundColor: AppColors.warning,
         ),
       );
@@ -166,7 +196,7 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
     );
 
     try {
-      final filterDesc = _buildFilterDescription();
+      final filterDesc = _buildFilterDescription(context);
 
       final bytes = await ExcelHelper.exportInvoices(
         filteredOrders,
@@ -189,7 +219,9 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
         }
         messenger.showSnackBar(
           SnackBar(
-            content: Text('Lỗi khi xuất file Excel: $e'),
+            content: Text(l10n != null
+                ? l10n.orderExcelExportError(e.toString())
+                : 'Lỗi khi xuất file Excel: $e'),
             backgroundColor: AppColors.danger,
           ),
         );
@@ -201,6 +233,7 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
     final user = ref.read(authProvider);
     if (!kIsWeb || (user?.isAdmin != true)) return;
 
+    final l10n = mounted ? AppLocalizations.of(context) : null;
     final messenger = ScaffoldMessenger.of(context);
     try {
       final result = await FilePicker.platform.pickFiles(
@@ -212,7 +245,9 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
       if (result == null || result.files.isEmpty) {
         if (mounted) {
           messenger.showSnackBar(
-            const SnackBar(content: Text('Không có file nào được chọn')),
+            SnackBar(
+                content: Text(l10n?.orderNoFileSelected ??
+                    'Không có file nào được chọn')),
           );
         }
         return;
@@ -224,7 +259,8 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
               : null);
 
       if (fileBytes == null) {
-        throw Exception('Không thể đọc nội dung file');
+        throw Exception(
+            l10n?.orderCannotReadFile ?? 'Không thể đọc nội dung file');
       }
 
       if (!mounted) return;
@@ -270,7 +306,9 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
         }
         messenger.showSnackBar(
           SnackBar(
-            content: Text('Lỗi khi nhập file Excel: $e'),
+            content: Text(l10n != null
+                ? l10n.orderExcelImportError(e.toString())
+                : 'Lỗi khi nhập file Excel: $e'),
             backgroundColor: AppColors.danger,
           ),
         );
@@ -333,7 +371,7 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
       branchLabel =
           mockBranches.firstWhere((b) => b.id == selectedBranchIds.first).name;
     } else {
-      branchLabel = '${selectedBranchIds.length} chi nhánh';
+      branchLabel = l10n.branchSelectedCount(selectedBranchIds.length);
     }
 
     final staffAccounts = accountsAsync.valueOrNull ?? <UserAccount>[];
@@ -351,7 +389,7 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
             PopupMenuButton<String>(
               key: const Key('invoices_excel_actions_menu'),
               icon: const Icon(Icons.more_vert),
-              tooltip: 'Thao tác Excel',
+              tooltip: l10n.excelActions,
               onSelected: (value) {
                 if (value == 'import_excel') {
                   _importInvoices();
@@ -388,23 +426,23 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                 }
               },
               itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                const PopupMenuItem<String>(
+                PopupMenuItem<String>(
                   value: 'import_excel',
                   child: Row(
                     children: [
-                      Icon(Icons.upload_file, color: AppColors.primary),
-                      SizedBox(width: 8),
-                      Text('Nhập hóa đơn từ Excel'),
+                      const Icon(Icons.upload_file, color: AppColors.primary),
+                      const SizedBox(width: 8),
+                      Text(l10n.importInvoicesFromExcel),
                     ],
                   ),
                 ),
-                const PopupMenuItem<String>(
+                PopupMenuItem<String>(
                   value: 'export_excel',
                   child: Row(
                     children: [
-                      Icon(Icons.download, color: AppColors.success),
-                      SizedBox(width: 8),
-                      Text('Xuất Excel'),
+                      const Icon(Icons.download, color: AppColors.success),
+                      const SizedBox(width: 8),
+                      Text(l10n.exportInvoicesToExcel),
                     ],
                   ),
                 ),
@@ -525,13 +563,13 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                                     date: date,
                                     itemCount: dayItems.length,
                                     itemUnit: dayTotalQty > 0
-                                        ? 'đơn trả • $dayTotalQty sp'
-                                        : 'đơn trả',
+                                        ? l10n.orderReturnSummaryLabel(dayTotalQty)
+                                        : l10n.orderReturnUnit,
                                     totalAmount: dayAmount,
                                     currencyFormat: currencyFormat,
                                   );
                                 },
-                                itemUnit: 'đơn trả',
+                                itemUnit: l10n.orderReturnUnit,
                                 itemAmountSelector: (o) => o.total,
                                 currencyFormat: currencyFormat,
                                 itemBuilder: (context, order) {
@@ -604,13 +642,13 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                             date: date,
                             itemCount: dayItems.length,
                             itemUnit: dayTotalQty > 0
-                                ? 'hóa đơn • $dayTotalQty sp'
-                                : 'hóa đơn',
+                                ? l10n.orderInvoicesSummaryLabel(dayTotalQty)
+                                : l10n.orderInvoiceUnit,
                             totalAmount: dayAmount,
                             currencyFormat: currencyFormat,
                           );
                         },
-                        itemUnit: 'hóa đơn',
+                        itemUnit: l10n.orderInvoiceUnit,
                         itemAmountSelector: (o) =>
                             o.isCancelled ? 0.0 : o.total,
                         currencyFormat: currencyFormat,
@@ -728,6 +766,7 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
   }
 
   Widget _buildMultiDimensionalFilterBar(List<UserAccount> staffAccounts) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       color: AppColors.white,
       padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 6.0),
@@ -736,22 +775,22 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
         child: Row(
           children: [
             // Status Filters
-            _buildStatusChip('all', 'Tất cả trạng thái'),
+            _buildStatusChip('all', l10n?.orderAllStatuses ?? 'Tất cả trạng thái'),
             const SizedBox(width: 6),
-            _buildStatusChip('completed', 'Đã hoàn thành'),
+            _buildStatusChip('completed', l10n?.orderBadgeCompleted ?? 'Đã hoàn thành'),
             const SizedBox(width: 6),
-            _buildStatusChip('returned', 'Đơn trả hàng'),
+            _buildStatusChip('returned', l10n?.orderReturnOrders ?? 'Đơn trả hàng'),
             const SizedBox(width: 6),
-            _buildStatusChip('draft', 'Lưu tạm'),
+            _buildStatusChip('draft', l10n?.draft ?? 'Lưu tạm'),
             const SizedBox(width: 6),
-            _buildStatusChip('cancelled', 'Đã hủy'),
+            _buildStatusChip('cancelled', l10n?.orderBadgeCancelled ?? 'Đã hủy'),
             if (_hasActiveFilters) ...[
               const SizedBox(width: 4),
               IconButton(
                 key: const Key('invoices_reset_filter_button'),
                 icon: const Icon(Icons.refresh,
                     size: 18, color: AppColors.primary),
-                tooltip: 'Đặt lại bộ lọc',
+                tooltip: l10n?.commonResetFilter ?? 'Đặt lại bộ lọc',
                 onPressed: () {
                   ref.read(invoicesFilterProvider.notifier).reset();
                 },
@@ -806,6 +845,7 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
   }
 
   Widget _buildPaymentMethodDropdown() {
+    final l10n = AppLocalizations.of(context);
     final isFiltered = _selectedPaymentMethodFilter != 'all';
     return PopupMenuButton<String>(
       initialValue: _selectedPaymentMethodFilter,
@@ -827,10 +867,10 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
           children: [
             Text(
               _selectedPaymentMethodFilter == 'all'
-                  ? 'PT thanh toán'
+                  ? (l10n?.orderPaymentMethodFilterTitle ?? 'PT thanh toán')
                   : (_selectedPaymentMethodFilter == 'transfer'
-                      ? 'Chuyển khoản'
-                      : 'Tiền mặt'),
+                      ? (l10n?.transfer ?? 'Chuyển khoản')
+                      : (l10n?.cash ?? 'Tiền mặt')),
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: isFiltered ? FontWeight.bold : FontWeight.normal,
@@ -847,14 +887,21 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
         ),
       ),
       itemBuilder: (context) => [
-        const PopupMenuItem(value: 'all', child: Text('Tất cả phương thức')),
-        const PopupMenuItem(value: 'cash', child: Text('Tiền mặt')),
-        const PopupMenuItem(value: 'transfer', child: Text('Chuyển khoản')),
+        PopupMenuItem(
+            value: 'all',
+            child: Text(
+                l10n?.orderAllPaymentMethods ?? 'Tất cả phương thức')),
+        PopupMenuItem(
+            value: 'cash', child: Text(l10n?.cash ?? 'Tiền mặt')),
+        PopupMenuItem(
+            value: 'transfer',
+            child: Text(l10n?.transfer ?? 'Chuyển khoản')),
       ],
     );
   }
 
   Widget _buildDebtStatusDropdown() {
+    final l10n = AppLocalizations.of(context);
     final isFiltered = _selectedDebtStatusFilter != 'all';
     return PopupMenuButton<String>(
       initialValue: _selectedDebtStatusFilter,
@@ -876,10 +923,10 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
           children: [
             Text(
               _selectedDebtStatusFilter == 'all'
-                  ? 'Công nợ'
+                  ? (l10n?.customerDebt ?? 'Công nợ')
                   : (_selectedDebtStatusFilter == 'paid'
-                      ? 'Đã TT đủ'
-                      : 'Còn ghi nợ'),
+                      ? (l10n?.orderDebtPaidShort ?? 'Đã TT đủ')
+                      : (l10n?.orderDebtRemaining ?? 'Còn ghi nợ')),
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: isFiltered ? FontWeight.bold : FontWeight.normal,
@@ -896,16 +943,24 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
         ),
       ),
       itemBuilder: (context) => [
-        const PopupMenuItem(value: 'all', child: Text('Tất cả công nợ')),
-        const PopupMenuItem(value: 'paid', child: Text('Đã thanh toán đủ')),
-        const PopupMenuItem(value: 'debt', child: Text('Còn ghi nợ')),
+        PopupMenuItem(
+            value: 'all',
+            child: Text(l10n?.orderAllDebts ?? 'Tất cả công nợ')),
+        PopupMenuItem(
+            value: 'paid',
+            child: Text(
+                l10n?.orderDebtPaidInFull ?? 'Đã thanh toán đủ')),
+        PopupMenuItem(
+            value: 'debt',
+            child: Text(l10n?.orderDebtRemaining ?? 'Còn ghi nợ')),
       ],
     );
   }
 
   Widget _buildStaffDropdown(List<UserAccount> staffAccounts) {
+    final l10n = AppLocalizations.of(context);
     final isFiltered = _selectedStaffFilter != 'all';
-    String staffLabel = 'Nhân viên';
+    String staffLabel = l10n?.staff ?? 'Nhân viên';
     if (isFiltered) {
       final match = staffAccounts.firstWhere(
         (a) => a.username == _selectedStaffFilter,
@@ -954,7 +1009,7 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
         ),
       ),
       itemBuilder: (context) => [
-        const PopupMenuItem(value: 'all', child: Text('Tất cả nhân viên')),
+        PopupMenuItem(value: 'all', child: Text(l10n?.orderAllStaff ?? 'Tất cả nhân viên')),
         ...staffAccounts.map((account) {
           return PopupMenuItem(
             value: account.username,
@@ -968,6 +1023,7 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
   // Thanh bộ lọc (Thời gian & Chi nhánh)
   Widget _buildFiltersBar(
       BuildContext context, String dateText, String branchText) {
+    final l10n = AppLocalizations.of(context);
     final filterState = ref.watch(invoicesFilterProvider);
     return Container(
       decoration: const BoxDecoration(
@@ -1048,7 +1104,8 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                         size: 14, color: AppColors.primary),
                     const SizedBox(width: 4),
                     Text(
-                      'Lọc (${filterState.activeFilterCount})',
+                      l10n?.orderFilterActiveCount(filterState.activeFilterCount) ??
+                          'Lọc (${filterState.activeFilterCount})',
                       style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
@@ -1075,6 +1132,7 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
     required double totalDebtDeducted,
     required NumberFormat format,
   }) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       key: const Key('return_kpi_summary_card'),
       color: AppColors.supervisor.withOpacity(0.08),
@@ -1086,7 +1144,8 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
             children: [
               Flexible(
                 child: Text(
-                  'Số đơn trả: $totalReturnCount',
+                  l10n?.orderTotalReturnCount(totalReturnCount) ??
+                      'Số đơn trả: $totalReturnCount',
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 13,
@@ -1098,7 +1157,8 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
-                  'Tổng hoàn trả: ${format.format(totalRefundAmount)} đ',
+                  l10n?.orderTotalRefundAmount(format.format(totalRefundAmount)) ??
+                      'Tổng hoàn trả: ${format.format(totalRefundAmount)} đ',
                   style: const TextStyle(
                     fontWeight: FontWeight.w800,
                     fontSize: 14,
@@ -1116,7 +1176,8 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
             children: [
               Flexible(
                 child: Text(
-                  'Tiền hoàn lại: ${format.format(totalCashRefunded)} đ',
+                  l10n?.orderCashRefundedAmount(format.format(totalCashRefunded)) ??
+                      'Tiền hoàn lại: ${format.format(totalCashRefunded)} đ',
                   style: const TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 12,
@@ -1128,7 +1189,8 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
-                  'Cấn trừ nợ: ${format.format(totalDebtDeducted)} đ',
+                  l10n?.orderDebtDeductedAmount(format.format(totalDebtDeducted)) ??
+                      'Cấn trừ nợ: ${format.format(totalDebtDeducted)} đ',
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 12,
@@ -1172,6 +1234,7 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
+          final l10n = AppLocalizations.of(context);
           final showIcons = constraints.maxWidth >= 330;
 
           return Row(
@@ -1198,9 +1261,9 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Text(
-                            'Hóa đơn',
-                            style: TextStyle(
+                          Text(
+                            l10n?.invoicesTitle ?? 'Hóa đơn',
+                            style: const TextStyle(
                               fontSize: 10.5,
                               color: AppColors.textSecondary,
                             ),
@@ -1211,7 +1274,8 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                             fit: BoxFit.scaleDown,
                             alignment: Alignment.centerLeft,
                             child: Text(
-                              '$totalInvoices đơn',
+                              l10n?.orderCountLabelShort(totalInvoices) ??
+                                  '$totalInvoices đơn',
                               style: const TextStyle(
                                 fontSize: 12.5,
                                 fontWeight: FontWeight.bold,
@@ -1256,9 +1320,9 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Text(
-                            'Tổng hàng',
-                            style: TextStyle(
+                          Text(
+                            l10n?.orderTotalGoodsShort ?? 'Tổng hàng',
+                            style: const TextStyle(
                               fontSize: 10.5,
                               color: AppColors.textSecondary,
                             ),
@@ -1314,9 +1378,9 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Text(
-                            'Tổng tiền hàng',
-                            style: TextStyle(
+                          Text(
+                            l10n?.totalProductAmount ?? 'Tổng tiền hàng',
+                            style: const TextStyle(
                               fontSize: 10.5,
                               color: AppColors.textSecondary,
                             ),
@@ -1374,7 +1438,9 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                       ),
                       const SizedBox(width: 3),
                       Text(
-                        _expandAll ? 'Gọn' : 'Xem món',
+                        _expandAll
+                            ? (l10n?.orderCollapseItems ?? 'Gọn')
+                            : (l10n?.orderExpandItems ?? 'Xem món'),
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
@@ -1410,15 +1476,15 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
     Color statusBadgeColor;
     Color statusBadgeBgColor;
     if (order.isCancelled) {
-      statusBadgeText = 'Đã hủy';
+      statusBadgeText = l10n.orderBadgeCancelled;
       statusBadgeColor = AppColors.dangerDeep;
       statusBadgeBgColor = AppColors.dangerLightest;
     } else if (order.isReturned) {
-      statusBadgeText = 'Đã trả hàng';
+      statusBadgeText = l10n.orderBadgeReturned;
       statusBadgeColor = AppColors.supervisorDark;
       statusBadgeBgColor = AppColors.supervisorLight;
     } else if (order.hasReturns) {
-      statusBadgeText = 'Trả 1 phần';
+      statusBadgeText = l10n.orderBadgePartiallyReturned;
       statusBadgeColor = AppColors.supervisorDark;
       statusBadgeBgColor = AppColors.supervisorLight;
     } else if (order.status == 'draft') {
@@ -1426,7 +1492,7 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
       statusBadgeColor = AppColors.warningDark;
       statusBadgeBgColor = AppColors.warningLight;
     } else {
-      statusBadgeText = 'Đã hoàn thành';
+      statusBadgeText = l10n.orderBadgeCompleted;
       statusBadgeColor = AppColors.secondaryDark;
       statusBadgeBgColor = AppColors.successLight;
     }
@@ -1554,7 +1620,7 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                               const SizedBox(width: 4),
                               Expanded(
                                 child: Text(
-                                  '$itemCount mặt hàng • $totalQuantity sp',
+                                  l10n.orderItemAndQtySummary(itemCount, totalQuantity),
                                   style: const TextStyle(
                                     fontSize: 11.5,
                                     fontWeight: FontWeight.bold,
@@ -1584,8 +1650,8 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                                   Flexible(
                                     child: Text(
                                       isExpanded
-                                          ? 'Thu gọn'
-                                          : 'Xem chi tiết món',
+                                          ? l10n.orderCollapseItemsFull
+                                          : l10n.orderExpandItemsFull,
                                       style: const TextStyle(
                                         fontSize: 11,
                                         color: AppColors.primary,
@@ -1679,7 +1745,7 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                               if (item.returnedQuantity > 0) ...[
                                 const SizedBox(width: 4),
                                 Text(
-                                  '(Trả ${item.returnedQuantity})',
+                                  l10n.orderItemReturnedQty(item.returnedQuantity),
                                   style: const TextStyle(
                                     fontSize: 10,
                                     color: AppColors.supervisorDark,
@@ -1772,7 +1838,7 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                             child: FittedBox(
                               fit: BoxFit.scaleDown,
                               child: Text(
-                                'Giảm: -${currencyFormat.format(order.discount)} đ',
+                                l10n.orderDiscountAmount(currencyFormat.format(order.discount)),
                                 style: const TextStyle(
                                   color: AppColors.warningDeep,
                                   fontSize: 10,
@@ -1798,7 +1864,7 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                             child: FittedBox(
                               fit: BoxFit.scaleDown,
                               child: Text(
-                                'Nợ: ${currencyFormat.format(order.remainingDebt)} đ',
+                                l10n.orderRemainingDebtTag(currencyFormat.format(order.remainingDebt)),
                                 style: const TextStyle(
                                   color: AppColors.dangerDeep,
                                   fontSize: 10,
@@ -1846,8 +1912,9 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
     if (order?.customerName != null && order!.customerName!.trim().isNotEmpty) {
       return order.customerName!;
     }
-    if (id == 'khach_le' || id == 'walk_in' || id.isEmpty)
+    if (id == 'khach_le' || id == 'walk_in' || id.isEmpty) {
       return l10n.retailCustomer;
+    }
     final match = customers.firstWhere(
       (c) => c.id == id,
       orElse: () => Customer(
@@ -2084,12 +2151,29 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
           targetCustomer ??= Customer(
             id: order.customerId,
             name: customerName,
-            phone: '',
+            phone: order.customerPhone ?? '',
             email: '',
             address: '',
             purchases: const [],
           );
+        } else if (customerName.isNotEmpty &&
+            customerName != 'Khách lẻ' &&
+            customerName != 'Walk-in Customer') {
+          for (final c in customers) {
+            if (c.name.trim().toLowerCase() == customerName.trim().toLowerCase()) {
+              targetCustomer = c;
+              break;
+            }
+          }
         }
+
+        final customerPhone = (targetCustomer?.phone != null &&
+                targetCustomer!.phone.trim().isNotEmpty)
+            ? targetCustomer.phone.trim()
+            : ((order.customerPhone != null &&
+                    order.customerPhone!.trim().isNotEmpty)
+                ? order.customerPhone!.trim()
+                : '');
 
         final products =
             ref.read(productListProvider).valueOrNull ?? <Product>[];
@@ -2114,7 +2198,7 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                       order.status == 'draft'
                           ? l10n.draftDetail
                           : (order.isCancelled
-                              ? 'Chi tiết hóa đơn đã hủy'
+                              ? l10n.orderCancelledDetailTitle
                               : l10n.invoiceDetail),
                       style: const TextStyle(
                           fontSize: 16, fontWeight: FontWeight.bold),
@@ -2149,14 +2233,14 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Row(
+                              Row(
                                 children: [
-                                  Icon(Icons.cancel,
+                                  const Icon(Icons.cancel,
                                       color: AppColors.danger, size: 18),
-                                  SizedBox(width: 6),
+                                  const SizedBox(width: 6),
                                   Text(
-                                    'HÓA ĐƠN ĐÃ HỦY',
-                                    style: TextStyle(
+                                    l10n.orderCancelledBanner,
+                                    style: const TextStyle(
                                       color: AppColors.danger,
                                       fontWeight: FontWeight.bold,
                                       fontSize: 13,
@@ -2166,14 +2250,14 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                               ),
                               const SizedBox(height: 6),
                               Text(
-                                'Lý do hủy: ${order.cancelReason ?? '—'}',
+                                l10n.orderCancelReasonLabel(order.cancelReason ?? '—'),
                                 style: const TextStyle(
                                     fontSize: 12.5,
                                     color: AppColors.textPrimary),
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                'Người hủy: ${order.cancelledByName ?? order.cancelledBy ?? '—'}',
+                                l10n.orderCancelledByLabel(order.cancelledByName ?? order.cancelledBy ?? '—'),
                                 style: const TextStyle(
                                     fontSize: 12,
                                     color: AppColors.textSecondary),
@@ -2181,7 +2265,7 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                               if (order.cancelledAt != null) ...[
                                 const SizedBox(height: 2),
                                 Text(
-                                  'Thời gian hủy: ${DateFormat('dd/MM/yyyy HH:mm').format(order.cancelledAt!)}',
+                                  l10n.orderCancelledAtLabel(DateFormat('dd/MM/yyyy HH:mm').format(order.cancelledAt!)),
                                   style: const TextStyle(
                                       fontSize: 12,
                                       color: AppColors.textSecondary),
@@ -2209,6 +2293,8 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                         )
                       else
                         _buildDetailRow(l10n.customers, customerName),
+                      if (customerPhone.isNotEmpty)
+                        _buildCustomerPhoneRow(context, customerPhone),
                       _buildDetailRow(
                         l10n.createdTime,
                         DateFormat('dd/MM/yyyy HH:mm').format(order.createdAt),
@@ -2216,14 +2302,14 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                       _buildDetailRow(
                         l10n.status,
                         order.isCancelled
-                            ? 'Đã hủy'
+                            ? l10n.orderBadgeCancelled
                             : (order.isReturned
-                                ? 'Đã trả hàng'
+                                ? l10n.orderBadgeReturned
                                 : (order.hasReturns
-                                    ? 'Trả 1 phần'
+                                    ? l10n.orderBadgePartiallyReturned
                                     : (order.status == 'draft'
                                         ? l10n.draft
-                                        : 'Đã hoàn thành'))),
+                                        : l10n.orderBadgeCompleted))),
                         textColor: order.isCancelled
                             ? AppColors.danger
                             : (order.status == 'draft'
@@ -2233,14 +2319,14 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                                     : AppColors.success)),
                       ),
                       _buildDetailRow(
-                        'Thanh toán',
+                        l10n.payment,
                         order.isCancelled
-                            ? 'Không áp dụng (Đã hủy)'
+                            ? l10n.orderPaymentNotApplicable
                             : (order.remainingDebt <= 0.001
-                                ? 'Đã thanh toán đủ'
+                                ? l10n.orderPaymentPaidFull
                                 : (order.amountPaid > 0
-                                    ? 'Thanh toán 1 phần'
-                                    : 'Chưa thanh toán (Ghi nợ)')),
+                                    ? l10n.orderPaymentPartial
+                                    : l10n.orderPaymentUnpaidDebt)),
                         textColor: order.isCancelled
                             ? AppColors.textSecondary
                             : (order.remainingDebt <= 0.001
@@ -2252,7 +2338,7 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                       _buildDetailRow(
                         l10n.paymentMethod,
                         order.paymentMethod == 'split'
-                            ? 'Kết hợp (TM + CK)'
+                            ? l10n.orderPaymentSplit
                             : (order.paymentMethod == 'transfer'
                                 ? l10n.paymentMethodTransfer
                                 : l10n.cash),
@@ -2260,7 +2346,7 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                       if (order.note != null &&
                           order.note!.trim().isNotEmpty) ...[
                         _buildDetailRow(
-                          'Ghi chú',
+                          l10n.note,
                           order.note!.trim(),
                         ),
                       ],
@@ -2281,6 +2367,23 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
 
                       ...order.items.map((item) {
                         final matchingProduct = productMap[item.productId];
+                        final hasDiscount =
+                            item.discount > 0 || item.originalPrice > item.price;
+                        final origPrice = item.originalPrice > item.price
+                            ? item.originalPrice
+                            : (item.effectiveOriginalPrice > item.price
+                                ? item.effectiveOriginalPrice
+                                : (item.discount > 0
+                                    ? (item.isDiscountPercent
+                                        ? (item.discount < 100
+                                            ? item.price / (1 - item.discount / 100)
+                                            : (matchingProduct?.price ?? item.price))
+                                        : (item.price + item.discount))
+                                    : (matchingProduct != null && matchingProduct.price > item.price
+                                        ? matchingProduct.price
+                                        : item.price)));
+                        final showStrikethrough = hasDiscount && origPrice > item.price;
+
                         return InkWell(
                           onTap: () {
                             if (matchingProduct != null) {
@@ -2338,18 +2441,58 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                                               color: AppColors.primary),
                                         ],
                                       ),
+                                      if (item.note != null &&
+                                          item.note!.trim().isNotEmpty) ...[
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          item.note!.trim(),
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            fontStyle: FontStyle.italic,
+                                            color: AppColors.textSecondary,
+                                          ),
+                                        ),
+                                      ],
                                       Wrap(
                                         crossAxisAlignment:
                                             WrapCrossAlignment.center,
                                         spacing: 6,
                                         runSpacing: 2,
                                         children: [
-                                          Text(
-                                            '${item.quantity} x ${currencyFormat.format(item.price)} đ',
-                                            style: const TextStyle(
+                                          if (showStrikethrough) ...[
+                                            Text(
+                                              '${item.quantity} x ',
+                                              style: const TextStyle(
+                                                  fontSize: 11,
+                                                  color:
+                                                      AppColors.textSecondary),
+                                            ),
+                                            Text(
+                                              '${currencyFormat.format(origPrice)} đ',
+                                              style: const TextStyle(
                                                 fontSize: 11,
-                                                color: AppColors.textSecondary),
-                                          ),
+                                                color: AppColors.textSecondary,
+                                                decoration:
+                                                    TextDecoration.lineThrough,
+                                              ),
+                                            ),
+                                            Text(
+                                              '${currencyFormat.format(item.price)} đ',
+                                              style: const TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.bold,
+                                                color: AppColors.primary,
+                                              ),
+                                            ),
+                                          ] else ...[
+                                            Text(
+                                              '${item.quantity} x ${currencyFormat.format(item.price)} đ',
+                                              style: const TextStyle(
+                                                  fontSize: 11,
+                                                  color:
+                                                      AppColors.textSecondary),
+                                            ),
+                                          ],
                                           if (item.returnedQuantity > 0)
                                             Container(
                                               padding:
@@ -2363,7 +2506,7 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                                                     BorderRadius.circular(3),
                                               ),
                                               child: Text(
-                                                'Đã trả: ${item.returnedQuantity}',
+                                                l10n.orderItemReturnedCount(item.returnedQuantity),
                                                 style: const TextStyle(
                                                   fontSize: 10,
                                                   color: AppColors.warning,
@@ -2413,13 +2556,13 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                         return Column(
                           children: [
                             if (discount > 0) ...[
-                              _buildDetailRow('Tổng tiền hàng',
+                              _buildDetailRow(l10n.totalProductAmount,
                                   '${currencyFormat.format(baseSubtotal)} đ'),
-                              _buildDetailRow('Giảm giá',
+                              _buildDetailRow(l10n.inventoryDiscount,
                                   '${currencyFormat.format(discount)} đ',
                                   textColor: AppColors.danger),
                               _buildDetailRow(
-                                'Khách cần trả',
+                                l10n.amountToPay,
                                 '${currencyFormat.format(order.netPayable)} đ',
                                 textColor: AppColors.primary,
                               ),
@@ -2453,19 +2596,19 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                               ),
                             ],
                             const SizedBox(height: 8),
-                            _buildDetailRow('Đã thanh toán',
+                            _buildDetailRow(l10n.paid,
                                 '${currencyFormat.format(order.amountPaid)} đ'),
                             if (order.paymentMethod == 'split') ...[
-                              _buildDetailRow('  • Tiền mặt',
+                              _buildDetailRow(l10n.orderCashBreakdown,
                                   '${currencyFormat.format(order.cashAmount ?? 0.0)} đ'),
-                              _buildDetailRow('  • Chuyển khoản',
+                              _buildDetailRow(l10n.orderTransferBreakdown,
                                   '${currencyFormat.format(order.transferAmount ?? 0.0)} đ'),
                             ],
                             const SizedBox(height: 4),
                             _buildDetailRow(
                               (remainingDebt > 0 || order.isCancelled)
-                                  ? 'Còn nợ'
-                                  : 'Còn lại',
+                                  ? l10n.orderRemainingDebtShort
+                                  : l10n.orderRemainingAmountShort,
                               '${currencyFormat.format(order.isCancelled ? 0.0 : remainingDebt)} đ',
                               textColor:
                                   (remainingDebt > 0 && !order.isCancelled)
@@ -2634,9 +2777,9 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                           },
                           icon: const Icon(Icons.assignment_return_outlined,
                               size: 16),
-                          label: const Text(
-                            'Xem phiếu trả hàng',
-                            style: TextStyle(
+                          label: Text(
+                            l10n.orderActionViewReturn,
+                            style: const TextStyle(
                               fontSize: 12.5,
                               fontWeight: FontWeight.bold,
                             ),
@@ -2655,12 +2798,47 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                 const SizedBox(height: 8),
               ],
 
-              // Completed Order Action Buttons (Return, Debt collection, Cancel)
+              // Completed Order Action Buttons (Edit, Return, Debt collection, Cancel)
               if (order.status == 'completed' &&
                   !order.isCancelled &&
                   !order.isReturned) ...[
                 Row(
                   children: [
+                    // Edit Invoice Button ("Sửa hóa đơn") - Chỉ hiển thị cho hóa đơn chưa từng có sản phẩm trả lại
+                    if (!order.hasReturns) ...[
+                      Expanded(
+                        child: SizedBox(
+                          height: 42,
+                          child: OutlinedButton.icon(
+                            key: const Key('edit_invoice_action_button'),
+                            onPressed: () => _handleEditInvoice(
+                              context,
+                              ref,
+                              order,
+                              customerName,
+                              targetCustomer,
+                            ),
+                            icon: const Icon(Icons.edit_note_outlined, size: 16),
+                            label: Text(
+                              l10n.orderActionEditInvoice,
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: AppColors.primary),
+                              foregroundColor: AppColors.primary,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+
                     // Return Goods Button ("Trả hàng")
                     Expanded(
                       child: SizedBox(
@@ -2677,9 +2855,9 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                           },
                           icon: const Icon(Icons.assignment_return_outlined,
                               size: 16),
-                          label: const Text(
-                            'Trả hàng',
-                            style: TextStyle(
+                          label: Text(
+                            l10n.orderActionReturnGoods,
+                            style: const TextStyle(
                               fontSize: 12.5,
                               fontWeight: FontWeight.bold,
                             ),
@@ -2694,73 +2872,152 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                         ),
                       ),
                     ),
+                  ],
+                ),
+                if (order.hasDebt || canDelete) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      // Debt Collection Button ("Thu nợ")
+                      if (order.hasDebt) ...[
+                        Expanded(
+                          child: SizedBox(
+                            height: 42,
+                            child: FilledButton.icon(
+                              key: const Key('collect_debt_action_button'),
+                              onPressed: () async {
+                                Navigator.pop(context); // Close details sheet
+                                await DebtCollectionDialog.show(
+                                  context,
+                                  order: order,
+                                  customer: targetCustomer,
+                                  remainingDebt: order.remainingDebt,
+                                );
+                              },
+                              icon: const Icon(Icons.payments_outlined, size: 16),
+                              label: Text(
+                                l10n.orderActionCollectDebt(currencyFormat.format(order.remainingDebt)),
+                                style: const TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: AppColors.success,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                      if (order.hasDebt && canDelete) const SizedBox(width: 8),
+                      // Cancel Order Button ("Hủy HĐ")
+                      if (canDelete) ...[
+                        Expanded(
+                          child: SizedBox(
+                            height: 42,
+                            child: OutlinedButton.icon(
+                              key: const Key('cancel_invoice_action_button'),
+                              onPressed: () async {
+                                Navigator.pop(context); // Close details sheet
+                                await CancelInvoiceDialog.show(
+                                  context,
+                                  order: order,
+                                  customer: targetCustomer,
+                                );
+                              },
+                              icon: const Icon(Icons.delete_forever,
+                                  color: AppColors.danger, size: 16),
+                              label: Text(
+                                l10n.orderActionCancelInvoice,
+                                style: const TextStyle(
+                                  color: AppColors.danger,
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: AppColors.danger),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+                const SizedBox(height: 8),
+              ],
 
-                    // Debt Collection Button ("Thu nợ")
-                    if (order.hasDebt) ...[
+              // Cancelled Order Action Buttons (Recreate as new order, or Restore order)
+              if (order.isCancelled) ...[
+                Row(
+                  children: [
+                    // Nút Tạo lại đơn từ đây
+                    Expanded(
+                      child: SizedBox(
+                        height: 42,
+                        child: OutlinedButton.icon(
+                          key: const Key('recreate_cancelled_order_action_button'),
+                          onPressed: () => _handleEditInvoice(
+                            context,
+                            ref,
+                            order,
+                            customerName,
+                            targetCustomer,
+                            isFromCancelled: true,
+                          ),
+                          icon: const Icon(Icons.refresh, size: 16),
+                          label: Text(
+                            l10n.orderActionRecreate,
+                            style: const TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: AppColors.primary),
+                            foregroundColor: AppColors.primary,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (canDelete) ...[
                       const SizedBox(width: 8),
+                      // Nút Khôi phục đơn
                       Expanded(
                         child: SizedBox(
                           height: 42,
                           child: FilledButton.icon(
-                            key: const Key('collect_debt_action_button'),
-                            onPressed: () async {
-                              Navigator.pop(context); // Close details sheet
-                              await DebtCollectionDialog.show(
-                                context,
-                                order: order,
-                                customer: targetCustomer,
-                                remainingDebt: order.remainingDebt,
-                              );
-                            },
-                            icon: const Icon(Icons.payments_outlined, size: 16),
+                            key: const Key('restore_cancelled_order_action_button'),
+                            onPressed: () => _showRestoreOrderDialog(
+                              context,
+                              ref,
+                              order,
+                              targetCustomer,
+                            ),
+                            icon: const Icon(Icons.restore, size: 16),
                             label: Text(
-                              'Thu nợ (${currencyFormat.format(order.remainingDebt)})',
+                              l10n.orderActionRestore,
                               style: const TextStyle(
-                                fontSize: 11.5,
+                                fontSize: 12.5,
                                 fontWeight: FontWeight.bold,
                               ),
-                              overflow: TextOverflow.ellipsis,
                             ),
                             style: FilledButton.styleFrom(
                               backgroundColor: AppColors.success,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-
-                    // Cancel Order Button ("Hủy HĐ")
-                    if (canDelete) ...[
-                      const SizedBox(width: 8),
-                      SizedBox(
-                        height: 42,
-                        child: OutlinedButton.icon(
-                          key: const Key('cancel_invoice_action_button'),
-                          onPressed: () async {
-                            Navigator.pop(context); // Close details sheet
-                            await CancelInvoiceDialog.show(
-                              context,
-                              order: order,
-                              customer: targetCustomer,
-                            );
-                          },
-                          icon: const Icon(Icons.delete_forever,
-                              color: AppColors.danger, size: 16),
-                          label: const Text(
-                            'Hủy HĐ',
-                            style: TextStyle(
-                              color: AppColors.danger,
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: AppColors.danger),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
                             ),
                           ),
                         ),
@@ -2787,9 +3044,9 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                   },
                   icon: const Icon(Icons.print,
                       color: AppColors.primary, size: 18),
-                  label: const Text(
-                    'In Hóa Đơn',
-                    style: TextStyle(
+                  label: Text(
+                    l10n.orderActionPrint,
+                    style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
                       color: AppColors.primary,
@@ -2892,6 +3149,355 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
     );
   }
 
+  Widget _buildCustomerPhoneRow(BuildContext context, String phone) {
+    final l10n = AppLocalizations.of(context)!;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            l10n.phone,
+            style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+          ),
+          const SizedBox(width: 8),
+          InkWell(
+            key: const Key('copy_customer_phone_button'),
+            borderRadius: BorderRadius.circular(4),
+            onTap: () async {
+              await Clipboard.setData(ClipboardData(text: phone));
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(l10n.orderCopyPhoneSuccess),
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    phone,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  const Icon(
+                    Icons.copy,
+                    size: 15,
+                    color: AppColors.primary,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleEditInvoice(
+    BuildContext context,
+    WidgetRef ref,
+    Order order,
+    String customerName,
+    Customer? targetCustomer, {
+    bool isFromCancelled = false,
+  }) async {
+    Navigator.pop(context); // Đóng Bottom Sheet chi tiết
+
+    if (!isFromCancelled &&
+        (order.isCancelled ||
+            order.isReturned ||
+            order.hasReturns ||
+            order.status != 'completed')) {
+      final l10n = AppLocalizations.of(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n?.orderCannotEditCancelledOrReturned ??
+              'Không thể sửa hóa đơn đã hủy hoặc đã có sản phẩm trả hàng.'),
+          backgroundColor: AppColors.warning,
+        ),
+      );
+      return;
+    }
+
+    // 1. Sinh mã hóa đơn mới:
+    // - Sửa hóa đơn (!isFromCancelled): Phương án 1 (mã cũ + '_' + số lần sửa + 1: HD000001 -> HD000001_01)
+    // - Tạo lại đơn từ đơn đã hủy (isFromCancelled): lấy mã hóa đơn mới tiếp theo của hệ thống
+    final newOrderId = isFromCancelled
+        ? await OrderCodeResolver.resolveNextOrderCode(
+            ref,
+            storeId: order.storeId,
+            currentOrderId: order.id,
+          )
+        : await OrderCodeResolver.resolveVersionedOrderCode(
+            ref,
+            originalOrderId: order.id,
+            storeId: order.storeId,
+          );
+
+    // 2. Tải danh mục sản phẩm nếu chưa có trong cache
+    var products = ref.read(productListProvider).valueOrNull ?? [];
+    if (products.isEmpty) {
+      try {
+        products = await ref.read(productRepositoryProvider).fetchAll();
+      } catch (_) {}
+    }
+
+    // 3. Đặt mã đơn hàng phiên bản mới và lưu thông tin hóa đơn cũ cần sửa (nếu không phải từ đơn đã hủy)
+    ref.read(activeOrderIdProvider.notifier).state = newOrderId;
+    if (!isFromCancelled) {
+      ref.read(editingOriginalOrderProvider.notifier).state = order;
+    } else {
+      ref.read(editingOriginalOrderProvider.notifier).state = null;
+    }
+
+    // 4. Tìm kiếm thông tin khách hàng đầy đủ
+    final customers =
+        ref.read(customerListNotifierProvider).valueOrNull ?? [];
+    Customer? customer = targetCustomer;
+    if (customer == null &&
+        order.customerId != 'khach_le' &&
+        order.customerId != 'walk_in' &&
+        order.customerId.isNotEmpty) {
+      for (final c in customers) {
+        if (c.id == order.customerId) {
+          customer = c;
+          break;
+        }
+      }
+      customer ??= Customer(
+        id: order.customerId,
+        name: customerName,
+        phone: order.customerPhone ?? '',
+        email: '',
+        address: '',
+        purchases: const [],
+      );
+    } else if (customer == null &&
+        customerName.isNotEmpty &&
+        customerName != 'Khách lẻ' &&
+        customerName != 'Walk-in Customer') {
+      for (final c in customers) {
+        if (c.name.trim().toLowerCase() == customerName.trim().toLowerCase()) {
+          customer = c;
+          break;
+        }
+      }
+    }
+
+    // 5. Đồng bộ chi nhánh POS
+    if (order.storeId != null && order.storeId!.isNotEmpty) {
+      ref.read(selectedPOSBranchProvider.notifier).state = order.storeId!;
+    }
+
+    // 6. Nạp đầy đủ thông tin vào giỏ hàng POS
+    ref.read(cartProvider.notifier).populateCart(
+          order.items,
+          products,
+          orderId: newOrderId,
+          customer: customer,
+          discount: order.discount,
+          isDiscountPercent: false,
+          note: order.note,
+        );
+
+    // 7. Mở màn hình POS Checkout
+    if (!context.mounted) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => POSCheckoutPage(
+          initialCustomer: customer,
+          initialDiscount: order.discount,
+          isDiscountPercent: false,
+          initialNote: order.note,
+        ),
+      ),
+    );
+
+    // Dọn dẹp trạng thái sửa dở dang nếu người dùng nhấn Back / thoát mà không lưu hoặc thanh toán
+    if (ref.read(editingOriginalOrderProvider) != null ||
+        ref.read(activeOrderIdProvider) != null) {
+      ref.read(editingOriginalOrderProvider.notifier).state = null;
+      ref.read(activeOrderIdProvider.notifier).state = null;
+      ref.read(cartProvider.notifier).clearCart();
+    }
+  }
+
+  Future<void> _showRestoreOrderDialog(
+    BuildContext context,
+    WidgetRef ref,
+    Order order,
+    Customer? targetCustomer,
+  ) async {
+    final l10n = AppLocalizations.of(context)!;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: Text(l10n.orderRestoreInvoiceTitle),
+        content: Text(
+          l10n.orderRestoreInvoiceMsg(order.id),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, false),
+            child: Text(l10n.orderRestoreInvoiceSkip),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.success),
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            child: Text(l10n.orderRestoreInvoiceConfirm),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+    if (!context.mounted) return;
+
+    Navigator.pop(context); // Đóng Bottom Sheet chi tiết
+
+    try {
+      final now = DateTime.now();
+      final String storeId = (order.storeId != null && order.storeId!.isNotEmpty)
+          ? order.storeId!
+          : (ref.read(selectedPOSBranchProvider) ?? 'store_001');
+      final currentUser = ref.read(authProvider);
+      final productRepo = ref.read(productRepositoryProvider);
+      final inventoryRepo = ref.read(inventoryRepositoryProvider);
+      final customerRepo = ref.read(customerRepositoryProvider);
+      final orderRepo = ref.read(orderRepositoryProvider);
+
+      // 1. Trừ lại tồn kho cho các sản phẩm
+      for (final item in order.items) {
+        final qtyToDeduct = item.activeQuantity;
+        if (qtyToDeduct <= 0) continue;
+
+        final product = await productRepo.fetchById(item.productId);
+        if (product != null) {
+          if (product.isCombo && product.comboComponents.isNotEmpty) {
+            for (final comp in product.comboComponents) {
+              final childProduct = await productRepo.fetchById(comp.productId);
+              if (childProduct != null) {
+                final compQtyToDeduct = qtyToDeduct * comp.quantity;
+                final updatedBranchStocks = _updateBranchStockHelper(
+                    childProduct.branchStocks, storeId, -compQtyToDeduct);
+                await productRepo.upsert(childProduct.copyWith(branchStocks: updatedBranchStocks));
+
+                final tx = InventoryTransaction(
+                  id: 'restore_export_${now.millisecondsSinceEpoch}_${childProduct.id}',
+                  productId: childProduct.id,
+                  type: TransactionType.export,
+                  quantity: compQtyToDeduct,
+                  date: now,
+                  note: 'Khôi phục HĐ ${order.id} (Combo: ${product.name})',
+                  createdBy: currentUser?.username,
+                  createdByName: currentUser?.displayName ?? currentUser?.name,
+                  storeId: storeId,
+                );
+                await inventoryRepo.record(tx);
+              }
+            }
+          } else {
+            final updatedBranchStocks = _updateBranchStockHelper(
+                product.branchStocks, storeId, -qtyToDeduct);
+            await productRepo.upsert(product.copyWith(branchStocks: updatedBranchStocks));
+
+            final tx = InventoryTransaction(
+              id: 'restore_export_${now.millisecondsSinceEpoch}_${product.id}',
+              productId: product.id,
+              type: TransactionType.export,
+              quantity: qtyToDeduct,
+              date: now,
+              note: 'Khôi phục HĐ ${order.id}',
+              createdBy: currentUser?.username,
+              createdByName: currentUser?.displayName ?? currentUser?.name,
+              storeId: storeId,
+            );
+            await inventoryRepo.record(tx);
+          }
+        }
+      }
+
+      // 2. Ghi nhận lại công nợ và doanh số khách hàng (nếu là khách hàng đăng ký)
+      final customerId = order.customerId;
+      if (customerId.isNotEmpty && customerId != 'khach_le' && customerId != 'walk_in') {
+        final cust = await customerRepo.fetchById(customerId);
+        if (cust != null) {
+          final debtToAdd = (order.total - order.amountPaid).clamp(0.0, double.infinity);
+          final updatedDebt = cust.displayCurrentDebt + debtToAdd;
+          final updatedTotalSales = (cust.totalSales ?? 0.0) + order.total;
+          final updatedNetSales = (cust.netSales ?? cust.totalSales ?? 0.0) + order.netPayable;
+
+          await customerRepo.upsert(cust.copyWith(
+            currentDebt: updatedDebt,
+            totalSales: updatedTotalSales,
+            netSales: updatedNetSales,
+          ));
+        }
+      }
+
+      // 3. Cập nhật lại hóa đơn về trạng thái completed
+      final restoredDebtAmount = (order.total - order.amountPaid).clamp(0.0, double.infinity);
+      final restoredOrder = order.copyWith(
+        status: 'completed',
+        debtAmount: restoredDebtAmount,
+        clearCancelledInfo: true,
+      );
+      await orderRepo.update(restoredOrder);
+
+      if (context.mounted) {
+        final l10n = AppLocalizations.of(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n?.orderRestoreSuccess(order.id) ??
+                'Đã khôi phục thành công hóa đơn ${order.id}'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        final l10n = AppLocalizations.of(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n?.orderRestoreError(e.toString()) ??
+                'Lỗi khi khôi phục hóa đơn: $e'),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      }
+    }
+  }
+
+  Map<String, int> _updateBranchStockHelper(
+      Map<String, int> currentStocks, String storeId, int delta) {
+    final stocks = Map<String, int>.from(currentStocks);
+    String targetKey = storeId;
+    if (!stocks.containsKey(storeId)) {
+      if (storeId == 'store_001' && stocks.containsKey('branch_1')) {
+        targetKey = 'branch_1';
+      } else if (storeId == 'store_002' && stocks.containsKey('branch_2')) {
+        targetKey = 'branch_2';
+      } else if (storeId == 'branch_1' && stocks.containsKey('store_001')) {
+        targetKey = 'store_001';
+      } else if (storeId == 'branch_2' && stocks.containsKey('store_002')) {
+        targetKey = 'store_002';
+      }
+    }
+    final current = stocks[targetKey] ?? 0;
+    stocks[targetKey] = max(0, current + delta);
+    return stocks;
+  }
+
   void _showCancelDraftDialog(
       BuildContext context, WidgetRef ref, String orderId) {
     final l10n = AppLocalizations.of(context)!;
@@ -2923,7 +3529,7 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
               } catch (e) {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Lỗi khi hủy đơn: $e')),
+                    SnackBar(content: Text(l10n.orderCancelError(e.toString()))),
                   );
                 }
               }

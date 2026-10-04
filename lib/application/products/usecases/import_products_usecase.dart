@@ -132,8 +132,9 @@ class ImportProductsUseCase {
           final updatedIdKey = mergedProduct.id.trim().toLowerCase();
           if (updatedIdKey.isNotEmpty) idMap[updatedIdKey] = mergedProduct;
           final updatedCodeKey = mergedProduct.code.trim().toLowerCase();
-          if (updatedCodeKey.isNotEmpty)
+          if (updatedCodeKey.isNotEmpty) {
             codeMap[updatedCodeKey] = mergedProduct;
+          }
 
           updated++;
         } else {

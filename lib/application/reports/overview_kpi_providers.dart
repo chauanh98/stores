@@ -149,10 +149,15 @@ final overviewKPIsProvider =
 
   // Các chỉ số kỳ hiện tại
   final netRevenue = currentSummary.totalRevenue;
-  final orderCount = currentSummary.totalOrders;
   final grossProfit = currentSummary.totalProfit;
+  final orderCount = currentSummary.totalOrders;
   final aov = orderCount > 0 ? (netRevenue / orderCount) : 0.0;
-  const returnGoodsValue = 0.0;
+  final returnsAsync =
+      ref.watch(allBranchesReturnOrdersByDateRangeProvider(currentRange));
+  final returnGoodsValue = (returnsAsync.valueOrNull ?? []).fold<double>(
+    0.0,
+    (sum, r) => sum + r.totalReturnAmount,
+  );
 
   // Các chỉ số kỳ trước
   final priorRevenue = priorSummary?.totalRevenue ?? 0.0;

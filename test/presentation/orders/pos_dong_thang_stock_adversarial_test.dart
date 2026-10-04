@@ -670,10 +670,24 @@ void main() {
         // 2 units * 80,000 = 160,000 đ
         expect(find.text('160.000 đ'), findsWidgets);
 
-        // Tap checkout
+        // Tap checkout on POSCheckoutPage to open POSPaymentPage
         final checkoutButton =
             find.widgetWithText(ElevatedButton, 'Thanh toán');
         await tester.tap(checkoutButton);
+        await tester.pumpAndSettle();
+
+        // Tap Trả đủ to pay full in cash
+        final traDuBtn = find.text('Trả đủ');
+        if (traDuBtn.evaluate().isNotEmpty) {
+          await tester.tap(traDuBtn);
+          await tester.pumpAndSettle();
+        }
+
+        // Tap pay button on POSPaymentPage
+        final payButton =
+            find.widgetWithText(FilledButton, 'Thanh toán');
+        expect(payButton, findsOneWidget);
+        await tester.tap(payButton);
         await tester.pumpAndSettle();
 
         // 1. Order storeId is store_001

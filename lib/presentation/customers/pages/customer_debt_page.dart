@@ -24,6 +24,7 @@ class _DebtLedgerItem {
   final String typeLabel;
   final bool isPayment;
   final bool isAdjustment;
+  final bool isInvoice;
   final String? note;
 
   _DebtLedgerItem({
@@ -35,6 +36,7 @@ class _DebtLedgerItem {
     required this.typeLabel,
     required this.isPayment,
     this.isAdjustment = false,
+    this.isInvoice = false,
     this.note,
   });
 }
@@ -132,26 +134,18 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
                   data: (debtTxs) {
                     final ledgerItems = <_DebtLedgerItem>[];
 
-                    // Add Order Invoices (skip cancelled orders)
-                    for (final order in orders) {
-                      if (order.isCancelled) continue;
-                      ledgerItems.add(
-                        _DebtLedgerItem(
-                          id: order.id,
-                          code: order.id,
-                          date: order.createdAt,
-                          amount: order.netPayable,
-                          remainingDebt: order.remainingDebt,
-                          typeLabel: l10n.invoice,
-                          isPayment: false,
-                        ),
-                      );
-                    }
+                    // Track all transaction codes already recorded in customer debt transactions
+                    final recordedCodes = debtTxs.map((t) => t.code).toSet();
 
-                    // Add Payment Receipts and Adjustments
+                    // Add transactions from debt ledger
                     for (final tx in debtTxs) {
                       final isPay = tx.type == DebtTransactionType.payment;
                       final isAdj = tx.type == DebtTransactionType.adjustment;
+                      final isInv = tx.type == DebtTransactionType.invoice;
+                      final typeLabel = isPay
+                          ? l10n.payment
+                          : (isInv ? l10n.invoice : l10n.adjustment);
+
                       ledgerItems.add(
                         _DebtLedgerItem(
                           id: tx.id,
@@ -159,10 +153,35 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
                           date: tx.date,
                           amount: tx.amount,
                           remainingDebt: tx.remainingDebt,
-                          typeLabel: isPay ? l10n.payment : l10n.adjustment,
+                          typeLabel: typeLabel,
                           isPayment: isPay,
                           isAdjustment: isAdj,
+                          isInvoice: isInv,
                           note: tx.note,
+                        ),
+                      );
+                    }
+
+                    // Add legacy Order Invoices with remaining debt not already in debtTxs
+                    for (final order in orders) {
+                      if (order.isCancelled) continue;
+                      if (order.remainingDebt <= 0) continue;
+                      if (recordedCodes.contains(order.id)) continue;
+
+                      ledgerItems.add(
+                        _DebtLedgerItem(
+                          id: order.id,
+                          code: order.id,
+                          date: order.createdAt,
+                          amount: order.remainingDebt,
+                          remainingDebt: order.remainingDebt,
+                          typeLabel: l10n.invoice,
+                          isPayment: false,
+                          isAdjustment: false,
+                          isInvoice: true,
+                          note: (order.note != null && order.note!.trim().isNotEmpty)
+                              ? order.note
+                              : null,
                         ),
                       );
                     }
@@ -179,7 +198,7 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
                               horizontal: 16, vertical: 8),
                           color: AppColors.background,
                           child: Text(
-                            '${ledgerItems.length} giao dịch',
+                            l10n.customerTransactionsCountLabel(ledgerItems.length),
                             style: const TextStyle(
                                 fontSize: 13, color: AppColors.textSecondary),
                           ),
@@ -211,7 +230,7 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
                                       horizontal: 12, vertical: 8),
                                   items: ledgerItems,
                                   dateSelector: (it) => it.date,
-                                  itemUnit: 'giao dịch',
+                                  itemUnit: l10n.transactionUnit,
                                   currencyFormat: currencyFormat,
                                   itemBuilder: (context, item) {
                                     final dateStr =
@@ -221,7 +240,28 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
                                     final isNegative = item.amount < 0;
                                     final amountText = isNegative
                                         ? '-${currencyFormat.format(item.amount.abs())}'
-                                        : currencyFormat.format(item.amount);
+                                        : (item.isPayment
+                                            ? '-${currencyFormat.format(item.amount.abs())}'
+                                            : (item.isInvoice || (item.isAdjustment && item.amount > 0)
+                                                ? '+${currencyFormat.format(item.amount)}'
+                                                : currencyFormat.format(item.amount)));
+
+                                    final Color amountColor = item.isPayment || (item.isAdjustment && item.amount < 0)
+                                        ? AppColors.success
+                                        : AppColors.textPrimary;
+
+                                    final Color badgeBgColor;
+                                    final Color badgeTextColor;
+                                    if (item.isPayment) {
+                                      badgeBgColor = AppColors.success.withOpacity(0.08);
+                                      badgeTextColor = AppColors.success;
+                                    } else if (item.isInvoice) {
+                                      badgeBgColor = AppColors.primary.withOpacity(0.08);
+                                      badgeTextColor = AppColors.primary;
+                                    } else {
+                                      badgeBgColor = AppColors.warning.withOpacity(0.12);
+                                      badgeTextColor = AppColors.warning;
+                                    }
 
                                     return Container(
                                       margin: const EdgeInsets.only(bottom: 8),
@@ -284,9 +324,7 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
                                                 style: TextStyle(
                                                   fontWeight: FontWeight.bold,
                                                   fontSize: 15,
-                                                  color: item.isPayment
-                                                      ? AppColors.success
-                                                      : AppColors.textPrimary,
+                                                  color: amountColor,
                                                 ),
                                               ),
                                             ],
@@ -316,32 +354,28 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
                                                           .textSecondary,
                                                     ),
                                                   ),
-                                                  if (item.isPayment) ...[
-                                                    const SizedBox(width: 8),
-                                                    Container(
-                                                      padding: const EdgeInsets
-                                                          .symmetric(
-                                                          horizontal: 6,
-                                                          vertical: 2),
-                                                      decoration: BoxDecoration(
-                                                        color: AppColors.success
-                                                            .withOpacity(0.08),
-                                                        borderRadius:
-                                                            BorderRadius
-                                                                .circular(4),
-                                                      ),
-                                                      child: Text(
-                                                        item.typeLabel,
-                                                        style: const TextStyle(
-                                                          color:
-                                                              AppColors.success,
-                                                          fontSize: 11,
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                        ),
+                                                  const SizedBox(width: 8),
+                                                  Container(
+                                                    padding: const EdgeInsets
+                                                        .symmetric(
+                                                        horizontal: 6,
+                                                        vertical: 2),
+                                                    decoration: BoxDecoration(
+                                                      color: badgeBgColor,
+                                                      borderRadius:
+                                                          BorderRadius
+                                                              .circular(4),
+                                                    ),
+                                                    child: Text(
+                                                      item.typeLabel,
+                                                      style: TextStyle(
+                                                        color: badgeTextColor,
+                                                        fontSize: 11,
+                                                        fontWeight:
+                                                            FontWeight.bold,
                                                       ),
                                                     ),
-                                                  ],
+                                                  ),
                                                 ],
                                               ),
                                             ],
@@ -581,7 +615,7 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
               ],
               decoration: InputDecoration(
                 labelText: l10n.receiptAmount,
-                hintText: 'Ví dụ: 1.000.000',
+                hintText: l10n.customerDebtInputHintExample,
                 border: const OutlineInputBorder(),
               ),
             ),

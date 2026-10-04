@@ -4,6 +4,7 @@ class Order {
   final String id;
   final String customerId;
   final String? customerName;
+  final String? customerPhone;
   final DateTime createdAt;
   final List<OrderItem> items;
   final double total;
@@ -31,6 +32,7 @@ class Order {
     required this.id,
     required this.customerId,
     this.customerName,
+    this.customerPhone,
     required this.createdAt,
     required this.items,
     required this.total,
@@ -77,6 +79,7 @@ class Order {
     String? id,
     String? customerId,
     String? customerName,
+    String? customerPhone,
     DateTime? createdAt,
     List<OrderItem>? items,
     double? total,
@@ -95,6 +98,7 @@ class Order {
     double? cashAmount,
     double? transferAmount,
     String? note,
+    bool clearCancelledInfo = false,
   }) {
     final effectiveStatus = status ?? this.status;
     final s = effectiveStatus.trim().toLowerCase();
@@ -108,6 +112,7 @@ class Order {
       id: id ?? this.id,
       customerId: customerId ?? this.customerId,
       customerName: customerName ?? this.customerName,
+      customerPhone: customerPhone ?? this.customerPhone,
       createdAt: createdAt ?? this.createdAt,
       items: items ?? this.items,
       total: total ?? this.total,
@@ -118,10 +123,10 @@ class Order {
       paymentMethod: paymentMethod ?? this.paymentMethod,
       createdBy: createdBy ?? this.createdBy,
       createdByName: createdByName ?? this.createdByName,
-      cancelReason: cancelReason ?? this.cancelReason,
-      cancelledAt: cancelledAt ?? this.cancelledAt,
-      cancelledBy: cancelledBy ?? this.cancelledBy,
-      cancelledByName: cancelledByName ?? this.cancelledByName,
+      cancelReason: clearCancelledInfo ? null : (cancelReason ?? this.cancelReason),
+      cancelledAt: clearCancelledInfo ? null : (cancelledAt ?? this.cancelledAt),
+      cancelledBy: clearCancelledInfo ? null : (cancelledBy ?? this.cancelledBy),
+      cancelledByName: clearCancelledInfo ? null : (cancelledByName ?? this.cancelledByName),
       storeId: storeId ?? this.storeId,
       cashAmount: cashAmount ?? this.cashAmount,
       transferAmount: transferAmount ?? this.transferAmount,

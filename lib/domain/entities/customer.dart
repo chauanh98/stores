@@ -115,16 +115,45 @@ class Customer {
         status: status ?? this.status,
       );
 
-  double get displayTotalSales => totalSales ?? 0.0;
+  double get displayTotalSales {
+    if (netSales != null && totalSales != null) {
+      return (netSales! < totalSales! ? netSales! : totalSales!)
+          .clamp(0.0, double.infinity);
+    }
+    if (netSales != null) {
+      return netSales!.clamp(0.0, double.infinity);
+    }
+    return (totalSales ?? 0.0).clamp(0.0, double.infinity);
+  }
 
   double get displayCurrentDebt => currentDebt ?? 0.0;
 
+  double get totalDebt => displayCurrentDebt;
+
   double effectiveTotalSales(List<Order> orders) {
     if (orders.isNotEmpty) {
-      final activeOrders = orders.where((o) => !o.isCancelled);
-      return activeOrders.fold<double>(0.0, (sum, o) => sum + o.total);
+      final double totalReturned = orders.fold<double>(0.0, (sum, o) {
+        if (o.isCancelled) return sum;
+        if (o.isReturned) return sum + o.total;
+        final returnedItems = o.items.where((i) => i.returnedQuantity > 0);
+        return sum +
+            returnedItems.fold<double>(
+                0.0, (iSum, i) => iSum + (i.returnedQuantity * i.price));
+      });
+
+      final activeOrders =
+          orders.where((o) => !o.isCancelled && !o.isReturned);
+      final double ordersSum =
+          activeOrders.fold<double>(0.0, (sum, o) => sum + o.total);
+
+      final double baseline = totalSales ?? displayTotalSales;
+      final double storedSales =
+          (baseline - totalReturned).clamp(0.0, double.infinity);
+      final double calculatedSales =
+          displayTotalSales < storedSales ? displayTotalSales : storedSales;
+      return ordersSum > calculatedSales ? ordersSum : calculatedSales;
     }
-    return totalSales ?? 0.0;
+    return displayTotalSales;
   }
 
   double effectiveCurrentDebt(

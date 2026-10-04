@@ -297,9 +297,9 @@ void main() {
       // Cancelled order HD013123 is completely excluded from debt ledger
       expect(find.text('HD013123'), findsNothing);
 
-      // Active replacement HD013123_01 is listed with netPayable (10.300.000) and remaining debt (9.300.000)
+      // Active replacement HD013123_01 is listed with remaining debt (+9.300.000)
       expect(find.text('HD013123_01'), findsOneWidget);
-      expect(find.text('10.300.000'), findsOneWidget);
+      expect(find.text('+9.300.000'), findsOneWidget);
       expect(find.textContaining('9.300.000'), findsWidgets);
     });
 
@@ -317,6 +317,7 @@ void main() {
         purchases: [],
         currentDebt: 17600000.0, // Stale snapshot containing cancelled order debt
         totalSales: 19200000.0, // Stale snapshot containing cancelled order sales
+        netSales: 10700000.0,
       );
 
       final date = DateTime(2026, 9, 1, 14, 29, 8);

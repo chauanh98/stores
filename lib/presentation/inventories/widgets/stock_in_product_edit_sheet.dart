@@ -238,8 +238,9 @@ class _StockInProductEditSheetState
 
         case ActiveEditField.discount:
           if (digit == '.') {
-            if (_discountHasDecimal || _discountController.text.contains('.'))
+            if (_discountHasDecimal || _discountController.text.contains('.')) {
               return;
+            }
             _discountHasDecimal = true;
             String current = _isDiscountFresh
                 ? '0'

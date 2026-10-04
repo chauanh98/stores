@@ -47,6 +47,22 @@ class OrderRemoteDataSource {
     });
   }
 
+  Stream<List<Map<String, dynamic>>> watchDraftOrders() {
+    return _ref
+        .orderByChild('status')
+        .equalTo('draft')
+        .onValue
+        .debounce(const Duration(milliseconds: 250))
+        .map((event) {
+      final data = event.snapshot.value as Map? ?? {};
+      return data.values
+          .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e as Map))
+          .where((m) =>
+              m['status']?.toString().trim().toLowerCase() == 'draft')
+          .toList();
+    });
+  }
+
   /// Optimized: dùng debounced stream cho onChildAdded và onValue.take(1) kiểm tra node rỗng,
   /// giới hạn tối đa [limit] (mặc định: 50) đơn hàng gần nhất để kiểm soát egress.
   Stream<List<Map<String, dynamic>>> watchRecentOrders({int limit = 50}) {
@@ -241,6 +257,19 @@ class OrderRemoteDataSource {
     return _returnsRef
         .orderByChild('orderId')
         .equalTo(orderId)
+        .onValue
+        .debounce(const Duration(milliseconds: 250))
+        .map((event) {
+      final data = event.snapshot.value as Map? ?? {};
+      return data.values
+          .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+    });
+  }
+
+  Stream<List<Map<String, dynamic>>> watchAllReturns() {
+    return _returnsRef
+        .limitToLast(50)
         .onValue
         .debounce(const Duration(milliseconds: 250))
         .map((event) {

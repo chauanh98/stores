@@ -17,6 +17,7 @@ import '../reports/overview_providers.dart';
 import '../customers/customers_providers.dart';
 import '../inventory/inventory_providers.dart';
 import '../products/products_providers.dart';
+import 'cart_providers.dart';
 import 'usecases/cancel_invoice_usecase.dart';
 import 'usecases/collect_invoice_debt_usecase.dart';
 import 'usecases/process_return_order_usecase.dart';
@@ -296,3 +297,149 @@ Stream<List<ReturnOrder>> _createCombinedReturnsStream(
 
   return controller.stream.debounce(const Duration(milliseconds: 250));
 }
+
+final allBranchesReturnOrdersProvider =
+    StreamProvider.autoDispose<List<ReturnOrder>>((ref) {
+  final user = ref.watch(authProvider);
+  final currentStoreId = ref.watch(currentStoreIdProvider);
+  final selectedBranches = ref.watch(selectedBranchesProvider);
+  final availableStores = ref.watch(availableStoresProvider).valueOrNull ?? {};
+
+  final targetStoreIds = StoreResolverHelper.resolveTargetStoreIds(
+    selectedBranches,
+    currentStoreId: currentStoreId,
+    user: user,
+    availableStores: availableStores,
+  );
+
+  if (targetStoreIds.isEmpty) {
+    return Stream.value(<ReturnOrder>[]);
+  }
+
+  // ignore: close_sinks
+  final controller = StreamController<List<ReturnOrder>>();
+  final Map<String, List<ReturnOrder>> storeReturnsMap = {};
+  final List<StreamSubscription> subs = [];
+
+  for (final storeId in targetStoreIds) {
+    final ds = OrderRemoteDataSource(FirebaseDatabase.instance, storeId);
+    final repo = OrderRepositoryImpl(ds);
+
+    final sub = repo.watchAllReturns().listen((returns) {
+      storeReturnsMap[storeId] = returns;
+      final combined = storeReturnsMap.values.expand((e) => e).toList();
+      combined.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      if (!controller.isClosed) {
+        controller.add(combined);
+      }
+    }, onError: (e) {
+      debugPrint('Error watching all returns for store $storeId: $e');
+    });
+    subs.add(sub);
+  }
+
+  controller.onCancel = () {
+    for (final sub in subs) {
+      sub.cancel();
+    }
+    controller.close();
+  };
+
+  return controller.stream.debounce(const Duration(milliseconds: 250));
+});
+
+final customerTotalReturnsMapProvider =
+    Provider.autoDispose<Map<String, double>>((ref) {
+  final returnsAsync = ref.watch(allBranchesReturnOrdersProvider);
+  return returnsAsync.maybeWhen(
+    data: (returns) {
+      final map = <String, double>{};
+      for (final ret in returns) {
+        final custId = ret.customerId.trim();
+        if (custId.isNotEmpty &&
+            custId != 'khach_le' &&
+            custId != 'walk_in' &&
+            ret.totalReturnAmount > 0) {
+          map[custId] = (map[custId] ?? 0.0) + ret.totalReturnAmount;
+        }
+      }
+      return map;
+    },
+    orElse: () => const <String, double>{},
+  );
+});
+
+final posDraftOrdersProvider = StreamProvider.autoDispose<List<Order>>((ref) {
+  final user = ref.watch(authProvider);
+  final currentStoreId = ref.watch(currentStoreIdProvider);
+  final selectedBranch = ref.watch(selectedPOSBranchProvider);
+  final availableStores = ref.watch(availableStoresProvider).valueOrNull ?? {};
+
+  final isAdmin = user?.canSwitchStore == true || user?.isAdmin == true;
+  final List<String> targetStoreIds;
+  if (isAdmin) {
+    final stores = availableStores.keys
+        .map(StoreResolverHelper.normalizeStoreId)
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList();
+    targetStoreIds =
+        stores.isNotEmpty ? stores : const ['store_001', 'store_002'];
+  } else {
+    final staffStore =
+        (user != null && user.storeId.isNotEmpty && user.storeId != 'all')
+            ? user.storeId
+            : (selectedBranch.isNotEmpty
+                ? selectedBranch
+                : (currentStoreId.isNotEmpty ? currentStoreId : 'store_001'));
+    final normalized = StoreResolverHelper.normalizeStoreId(staffStore);
+    targetStoreIds = [normalized.isNotEmpty ? normalized : staffStore];
+  }
+
+  if (targetStoreIds.isEmpty) {
+    return Stream.value(<Order>[]);
+  }
+
+  // ignore: close_sinks
+  final controller = StreamController<List<Order>>();
+  final Map<String, List<Order>> storeDraftsMap = {};
+  final List<StreamSubscription> subs = [];
+  final db = ref.watch(firebaseDatabaseProvider);
+
+  for (final storeId in targetStoreIds) {
+    final ds = OrderRemoteDataSource(db, storeId);
+    final repo = OrderRepositoryImpl(ds);
+
+    final sub = repo.watchDraftOrders().listen((drafts) {
+      final enriched = drafts.map((o) {
+        if (o.storeId == null || o.storeId!.isEmpty) {
+          return o.copyWith(storeId: storeId);
+        }
+        return o;
+      }).toList();
+
+      storeDraftsMap[storeId] = enriched;
+      final combined = storeDraftsMap.values.expand((e) => e).toList();
+      combined.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      if (!controller.isClosed) {
+        controller.add(combined);
+      }
+    }, onError: (e) {
+      debugPrint('Error watching draft orders for store $storeId: $e');
+    });
+    subs.add(sub);
+  }
+
+  controller.onCancel = () {
+    for (final sub in subs) {
+      sub.cancel();
+    }
+    controller.close();
+  };
+
+  return controller.stream.debounce(const Duration(milliseconds: 250));
+});
+
+final posDraftOrdersCountProvider = Provider.autoDispose<int>((ref) {
+  return ref.watch(posDraftOrdersProvider).valueOrNull?.length ?? 0;
+});

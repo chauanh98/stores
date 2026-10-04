@@ -7,7 +7,10 @@ import '../models/order_item_model.dart';
 import '../models/order_model.dart';
 
 class OrderRepositoryImpl
-    implements OrderRepository, OrderRepositoryReturnHandler {
+    implements
+        OrderRepository,
+        OrderRepositoryReturnHandler,
+        OrderRepositoryDraftHandler {
   final OrderRemoteDataSource ds;
 
   OrderRepositoryImpl(this.ds);
@@ -58,6 +61,13 @@ class OrderRepositoryImpl
   }
 
   @override
+  Stream<List<Order>> watchDraftOrders() {
+    return ds.watchDraftOrders().map((list) {
+      return list.map((m) => _mapToOrder(m)).toList();
+    });
+  }
+
+  @override
   Future<void> createReturn(ReturnOrder returnOrder) {
     return ds.createReturn(returnOrder.id, returnOrder.toMap());
   }
@@ -84,11 +94,19 @@ class OrderRepositoryImpl
     });
   }
 
+  @override
+  Stream<List<ReturnOrder>> watchAllReturns() {
+    return ds.watchAllReturns().map((list) {
+      return list.map((m) => ReturnOrder.fromMap(m)).toList();
+    });
+  }
+
   OrderModel _mapToModel(Order order) {
     return OrderModel(
       id: order.id,
       customerId: order.customerId,
       customerName: order.customerName,
+      customerPhone: order.customerPhone,
       createdAt: order.createdAt,
       total: order.total,
       discount: order.discount,
@@ -100,6 +118,10 @@ class OrderRepositoryImpl
                 warrantyMonths: i.warrantyMonths,
                 purchaseDate: i.purchaseDate,
                 price: i.price,
+                originalPrice: i.originalPrice,
+                discount: i.discount,
+                isDiscountPercent: i.isDiscountPercent,
+                note: i.note,
                 returnedQuantity: i.returnedQuantity,
               ))
           .toList(),
@@ -126,6 +148,7 @@ class OrderRepositoryImpl
       id: om.id,
       customerId: om.customerId,
       customerName: om.customerName,
+      customerPhone: om.customerPhone,
       createdAt: om.createdAt,
       total: om.total,
       discount: om.discount,
@@ -137,6 +160,10 @@ class OrderRepositoryImpl
                 warrantyMonths: im.warrantyMonths,
                 purchaseDate: im.purchaseDate,
                 price: im.price,
+                originalPrice: im.originalPrice,
+                discount: im.discount,
+                isDiscountPercent: im.isDiscountPercent,
+                note: im.note,
                 returnedQuantity: im.returnedQuantity,
               ))
           .toList(),

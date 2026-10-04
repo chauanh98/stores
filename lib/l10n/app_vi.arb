@@ -438,7 +438,6 @@
   "noCategoryFound": "Chưa có nhóm hàng nào",
   "logoutAccount": "Đăng xuất tài khoản",
   "confirmLogoutApp": "Bạn có chắc chắn muốn đăng xuất khỏi ứng dụng?",
-
   "commonContinue": "Tiếp tục",
   "commonDone": "Hoàn thành",
   "commonResetFilter": "Đặt lại bộ lọc",
@@ -454,7 +453,6 @@
   "commonCostPrice": "Giá vốn",
   "commonTotalSalesAmount": "Tổng tiền hàng:",
   "commonTotalPaidAmount": "Đã thanh toán:",
-
   "inventoryCreateReceipt": "Tạo phiếu nhập hàng",
   "inventoryReceiptDetail": "Chi tiết phiếu nhập",
   "inventoryReceiptCode": "Mã phiếu nhập",
@@ -471,7 +469,6 @@
   "inventoryCancelReasonHint": "Nhập lý do hủy phiếu (bắt buộc)...",
   "inventoryCancelSuccess": "Hủy phiếu nhập thành công và đã hoàn trả tồn kho",
   "inventoryDeleteDraftSuccess": "Đã xóa phiếu tạm",
-
   "attendanceDashboard": "Chấm công GPS & Quản lý Ca",
   "attendancePersonalTimesheet": "Bảng công cá nhân",
   "attendanceWorking": "Đang làm việc",
@@ -482,18 +479,957 @@
   "attendanceDeleteShiftConfirm": "Bạn có chắc muốn xóa ca \"{shiftName}\"?",
   "@attendanceDeleteShiftConfirm": {
     "placeholders": {
-      "shiftName": { "type": "String" }
+      "shiftName": {
+        "type": "String"
+      }
     }
   },
   "attendanceUpdateGpsSuccess": "Cập nhật GPS thành công!",
   "attendanceNoRecordsFilter": "Không có bản ghi chấm công nào phù hợp bộ lọc.",
   "attendanceNoDataMonth": "Không có dữ liệu chấm công trong tháng này.",
-
   "accountDeleteConfirm": "Bạn có chắc chắn muốn xóa tài khoản \"{username}\" khỏi hệ thống? Hành động này không thể hoàn tác.",
   "@accountDeleteConfirm": {
     "placeholders": {
-      "username": { "type": "String" }
+      "username": {
+        "type": "String"
+      }
     }
   },
-  "accountConfirmNewPassword": "Xác nhận mật khẩu mới"
+  "accountConfirmNewPassword": "Xác nhận mật khẩu mới",
+  "importInvoicesFromExcel": "Nhập hóa đơn từ Excel",
+  "exportInvoicesToExcel": "Xuất Excel",
+  "orderStatusFilterChip": "Trạng thái: {status}",
+  "@orderStatusFilterChip": {
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "orderPaymentFilterChip": "Hình thức: {method}",
+  "@orderPaymentFilterChip": {
+    "placeholders": {
+      "method": {
+        "type": "String"
+      }
+    }
+  },
+  "orderDebtFilterChip": "Công nợ: {debt}",
+  "@orderDebtFilterChip": {
+    "placeholders": {
+      "debt": {
+        "type": "String"
+      }
+    }
+  },
+  "orderStaffFilterChip": "Nhân viên: {staff}",
+  "@orderStaffFilterChip": {
+    "placeholders": {
+      "staff": {
+        "type": "String"
+      }
+    }
+  },
+  "orderSearchFilterChip": "Tìm kiếm: \"{query}\"",
+  "@orderSearchFilterChip": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "orderAllInvoicesTitle": "Tất cả hóa đơn",
+  "orderNoInvoicesToExport": "Không có dữ liệu hóa đơn để xuất Excel.",
+  "orderExcelExportError": "Lỗi khi xuất file Excel: {error}",
+  "@orderExcelExportError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "orderExcelImportError": "Lỗi khi nhập file Excel: {error}",
+  "@orderExcelImportError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "orderNoFileSelected": "Không có file nào được chọn",
+  "orderCannotReadFile": "Không thể đọc nội dung file",
+  "orderReturnSummaryLabel": "đơn trả • {qty} sp",
+  "@orderReturnSummaryLabel": {
+    "placeholders": {
+      "qty": {
+        "type": "int"
+      }
+    }
+  },
+  "orderInvoicesSummaryLabel": "hóa đơn • {qty} sp",
+  "@orderInvoicesSummaryLabel": {
+    "placeholders": {
+      "qty": {
+        "type": "int"
+      }
+    }
+  },
+  "orderReturnUnit": "đơn trả",
+  "orderInvoiceUnit": "hóa đơn",
+  "orderAllStatuses": "Tất cả trạng thái",
+  "orderReturnOrders": "Đơn trả hàng",
+  "orderPaymentMethodFilterTitle": "PT thanh toán",
+  "orderAllPaymentMethods": "Tất cả phương thức",
+  "orderDebtPaidInFull": "Đã thanh toán đủ",
+  "orderDebtPaidShort": "Đã TT đủ",
+  "orderDebtRemaining": "Còn ghi nợ",
+  "orderAllDebts": "Tất cả công nợ",
+  "orderAllStaff": "Tất cả nhân viên",
+  "orderFilterActiveCount": "Lọc ({count})",
+  "@orderFilterActiveCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "orderTotalReturnCount": "Số đơn trả: {count}",
+  "@orderTotalReturnCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "orderTotalRefundAmount": "Tổng hoàn trả: {amount} đ",
+  "@orderTotalRefundAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "orderCashRefundedAmount": "Tiền hoàn lại: {amount} đ",
+  "@orderCashRefundedAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "orderDebtDeductedAmount": "Cấn trừ nợ: {amount} đ",
+  "@orderDebtDeductedAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "orderCountLabelShort": "{count} đơn",
+  "@orderCountLabelShort": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "orderTotalGoodsShort": "Tổng hàng",
+  "orderCollapseItems": "Gọn",
+  "orderExpandItems": "Xem món",
+  "orderCollapseItemsFull": "Thu gọn",
+  "orderExpandItemsFull": "Xem chi tiết món",
+  "orderBadgeCancelled": "Đã hủy",
+  "orderBadgeReturned": "Đã trả hàng",
+  "orderBadgePartiallyReturned": "Trả 1 phần",
+  "orderBadgeCompleted": "Đã hoàn thành",
+  "orderItemAndQtySummary": "{items} mặt hàng • {qty} sp",
+  "@orderItemAndQtySummary": {
+    "placeholders": {
+      "items": {
+        "type": "int"
+      },
+      "qty": {
+        "type": "int"
+      }
+    }
+  },
+  "orderItemReturnedQty": "(Trả {qty})",
+  "@orderItemReturnedQty": {
+    "placeholders": {
+      "qty": {
+        "type": "int"
+      }
+    }
+  },
+  "orderDiscountAmount": "Giảm: -{amount} đ",
+  "@orderDiscountAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "orderRemainingDebtTag": "Nợ: {amount} đ",
+  "@orderRemainingDebtTag": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "orderCancelledDetailTitle": "Chi tiết hóa đơn đã hủy",
+  "orderCancelledBanner": "HÓA ĐƠN ĐÃ HỦY",
+  "orderCancelReasonLabel": "Lý do hủy: {reason}",
+  "@orderCancelReasonLabel": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "orderCancelledByLabel": "Người hủy: {name}",
+  "@orderCancelledByLabel": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "orderCancelledAtLabel": "Thời gian hủy: {time}",
+  "@orderCancelledAtLabel": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "orderPaymentNotApplicable": "Không áp dụng (Đã hủy)",
+  "orderPaymentPaidFull": "Đã thanh toán đủ",
+  "orderPaymentPartial": "Thanh toán 1 phần",
+  "orderPaymentUnpaidDebt": "Chưa thanh toán (Ghi nợ)",
+  "orderPaymentSplit": "Kết hợp (TM + CK)",
+  "orderItemReturnedCount": "Đã trả: {count}",
+  "@orderItemReturnedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "orderCashBreakdown": "  • Tiền mặt",
+  "orderTransferBreakdown": "  • Chuyển khoản",
+  "orderRemainingDebtShort": "Còn nợ",
+  "orderRemainingAmountShort": "Còn lại",
+  "orderActionViewReturn": "Xem phiếu trả hàng",
+  "orderActionEditInvoice": "Sửa hóa đơn",
+  "orderActionReturnGoods": "Trả hàng",
+  "orderActionCollectDebt": "Thu nợ ({amount})",
+  "@orderActionCollectDebt": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "orderActionCancelInvoice": "Hủy HĐ",
+  "orderActionRecreate": "Tạo lại đơn",
+  "orderActionRestore": "Khôi phục đơn",
+  "orderActionPrint": "In Hóa Đơn",
+  "orderCopyPhoneSuccess": "Đã sao chép số điện thoại",
+  "orderCannotEditCancelledOrReturned": "Không thể sửa hóa đơn đã hủy hoặc đã có sản phẩm trả hàng.",
+  "orderRestoreInvoiceTitle": "Khôi phục hóa đơn",
+  "orderRestoreInvoiceMsg": "Bạn có chắc chắn muốn khôi phục hóa đơn {id}?\n\nHệ thống sẽ hoàn tất việc khôi phục đơn hàng về trạng thái Hoàn thành, trừ lại số lượng tồn kho và ghi nhận lại công nợ.",
+  "@orderRestoreInvoiceMsg": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "orderRestoreInvoiceSkip": "Bỏ qua",
+  "orderRestoreInvoiceConfirm": "Khôi phục",
+  "orderRestoreSuccess": "Đã khôi phục thành công hóa đơn {id}",
+  "@orderRestoreSuccess": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "orderRestoreError": "Lỗi khi khôi phục hóa đơn: {error}",
+  "@orderRestoreError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "orderCancelError": "Lỗi khi hủy đơn: {error}",
+  "@orderCancelError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "posScanBarcode": "Quét mã vạch",
+  "posScanBarcodePrompt": "Nhập hoặc quét mã vạch sản phẩm để thêm nhanh vào đơn:",
+  "posBarcodeLabel": "Mã vạch (Barcode)",
+  "posFindAndAdd": "Tìm & Thêm",
+  "posItemAddedSuccess": "Đã thêm: {name}",
+  "@posItemAddedSuccess": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "posBarcodeNotFound": "Không tìm thấy sản phẩm có mã vạch: {barcode}",
+  "@posBarcodeNotFound": {
+    "placeholders": {
+      "barcode": {
+        "type": "String"
+      }
+    }
+  },
+  "posSearchProductsHint": "Tên, mã hàng, mã vạch...",
+  "posAddNewProduct": "Thêm hàng hóa mới",
+  "posSearchResultsCount": "Kết quả tìm kiếm ({count})",
+  "@posSearchResultsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "posNoMatchingProducts": "Không tìm thấy sản phẩm phù hợp",
+  "posInCartQty": "Trong đơn: {count} +",
+  "@posInCartQty": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "posAddButton": "+ Thêm",
+  "posCartEmpty": "Giỏ hàng đang trống",
+  "posItemRemovedFromCart": "Đã xóa \"{name}\" khỏi giỏ hàng",
+  "@posItemRemovedFromCart": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "commonUndo": "Hoàn tác",
+  "posEditItemDiscountNote": "Chạm để sửa giảm giá / ghi chú",
+  "posDiscountAndItemNote": "Giảm giá / Ghi chú món",
+  "posOutOfStockAtBranch": "Hết hàng tại chi nhánh này",
+  "posNotEnoughStockDetails": "Không đủ hàng (Tồn: {available}, Cần: {needed})",
+  "@posNotEnoughStockDetails": {
+    "placeholders": {
+      "available": {
+        "type": "int"
+      },
+      "needed": {
+        "type": "int"
+      }
+    }
+  },
+  "posComboIncludes": "Gồm: {components}",
+  "@posComboIncludes": {
+    "placeholders": {
+      "components": {
+        "type": "String"
+      }
+    }
+  },
+  "posOrderNoteTitle": "Ghi chú đơn hàng",
+  "posOrderNoteHint": "Nhập ghi chú cho đơn hàng (nếu có)...",
+  "posRemoveFromCart": "Xóa khỏi đơn",
+  "posDiscountPercent": "Giảm giá (%)",
+  "posDiscountAmount": "Giảm giá (đ)",
+  "posClearDiscount": "Bỏ giảm",
+  "posItemNoteHint": "Nhập ghi chú (tối đa 300 ký tự)",
+  "posSwitchToVnd": "Đổi sang đ",
+  "posSwitchToPercent": "Đổi sang %",
+  "posOtherSurcharge": "Thu khác",
+  "posCustomerPaidAmount": "Khách thanh toán",
+  "posPayExactAmount": "Trả đủ",
+  "posCardPaymentHint": "Thanh toán qua máy POS quẹt thẻ ngân hàng",
+  "posEWalletPaymentHint": "Thanh toán qua ví điện tử (MoMo, ZaloPay, ShopeePay)",
+  "posRecordAsCustomerDebt": "Tính vào công nợ",
+  "posRemainingChangeDue": "Tiền còn lại: +{amount} đ",
+  "@posRemainingChangeDue": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "posMethodCard": "Thẻ",
+  "posMethodWallet": "Ví",
+  "posMethodTransferShort": "Chuyển\nkhoản",
+  "posSplitPaymentTitle": "Thanh toán kết hợp:",
+  "posSplitPaymentHeader": "Thanh toán kết hợp",
+  "posChangeAction": "Thay đổi",
+  "posSplitCashLabel": "• Tiền mặt:",
+  "posSplitTransferLabel": "• Chuyển khoản:",
+  "posSmartCashSuggestions": "Gợi ý tiền mặt thông minh:",
+  "posExactCashSuggestion": "{amount} đ (Trả đủ)",
+  "@posExactCashSuggestion": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "posVietQrTitle": "Mã VietQR ({amount} đ)",
+  "@posVietQrTitle": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "posVietQrAutoMatch": "Tự động khớp",
+  "posVietQrLoadError": "Không thể nạp ảnh VietQR",
+  "posQrLoadError": "Không thể tải mã QR",
+  "posTapToEnlargeQr": "Chạm để phóng to toàn màn hình",
+  "posCopiedBankAccount": "Đã sao chép số tài khoản!",
+  "posTransferQrDialogTitle": "Mã QR Chuyển Khoản",
+  "posTransferAmountLabel": "Số tiền: {amount} đ",
+  "@posTransferAmountLabel": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "posCartIsEmptyWarning": "Giỏ hàng đang trống!",
+  "posPaymentSuccessDialogTitle": "Thanh toán thành công",
+  "posPaymentSuccessDialogMsg": "Đơn hàng {id} đã được tạo thành công.\nBạn có muốn in hóa đơn ngay bây giờ không?",
+  "@posPaymentSuccessDialogMsg": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "posBackToHome": "Về màn hình chính",
+  "posPrintInvoice": "In Hóa Đơn",
+  "posStockWarningLow": "Sắp hết",
+  "branchDongThang": "Chi nhánh Đông Thắng",
+  "branchThoiBinh": "Chi nhánh Thới Bình",
+  "branchOther": "Chi nhánh khác",
+  "branchWithId": "Chi nhánh {id}",
+  "@branchWithId": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "branchSelectedCount": "{count} chi nhánh",
+  "@branchSelectedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "posSelectWorkingBranch": "Chọn chi nhánh làm việc",
+  "posSwitchedToBranch": "Đã chuyển sang {branch}",
+  "@posSwitchedToBranch": {
+    "placeholders": {
+      "branch": {
+        "type": "String"
+      }
+    }
+  },
+  "posDraftOrders": "Đơn hàng tạm",
+  "posViewCartItems": "Xem hàng trong đơn ({count})",
+  "@posViewCartItems": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "orderCancelLoginRequired": "Vui lòng đăng nhập để thực hiện thao tác.",
+  "orderCancelPermissionDenied": "Chỉ Quản trị viên mới có quyền hủy hóa đơn đã thanh toán.",
+  "orderCancelReasonRequired": "Vui lòng nhập lý do hủy hóa đơn.",
+  "orderCancelSuccess": "Hóa đơn {id} đã được hủy thành công.",
+  "@orderCancelSuccess": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "orderCancelErrorGeneric": "Lỗi khi hủy hóa đơn: {error}",
+  "@orderCancelErrorGeneric": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "orderCancelDialogTitle": "Hủy hóa đơn {id}",
+  "@orderCancelDialogTitle": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "orderCancelDialogSubtitle": "Thao tác hoàn tác kho và công nợ",
+  "orderCancelWarningAuditImpact": "Hủy hóa đơn sẽ tự động hoàn trả số lượng tồn kho và hoàn tác công nợ/doanh số của khách hàng.",
+  "orderCancelPermissionDeniedDetails": "Tài khoản của bạn không có quyền hủy hóa đơn đã thanh toán. Vui lòng liên hệ Quản trị viên.",
+  "orderCancelReasonFieldLabel": "Lý do hủy hóa đơn *",
+  "orderCancelReasonPlaceholder": "Ví dụ: Khách đổi ý, lập sai sản phẩm...",
+  "orderCancelReasonEmptyError": "Lý do hủy đơn không được để trống",
+  "orderCancelConfirmButton": "Xác nhận hủy",
+  "orderCollectDebtSubject": "Thu nợ hóa đơn {id}",
+  "@orderCollectDebtSubject": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "orderCollectDebtMinAmountError": "Số tiền thu nợ phải lớn hơn 0đ",
+  "orderCollectDebtExceedsLimit": "Số tiền thu không được vượt quá số nợ còn lại ({amount} đ)",
+  "@orderCollectDebtExceedsLimit": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "orderCollectDebtLoginRequired": "Vui lòng đăng nhập để thực hiện thu nợ.",
+  "orderCollectDebtSuccess": "Đã thu {amount} đ thành công cho hóa đơn {id}.",
+  "@orderCollectDebtSuccess": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "orderCollectDebtError": "Lỗi thu nợ: {error}",
+  "@orderCollectDebtError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "orderCollectDebtTitle": "Thu nợ - Hóa đơn {id}",
+  "@orderCollectDebtTitle": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "orderCollectTotalInvoice": "Tổng tiền HĐ:",
+  "orderCollectRemainingDebt": "Còn ghi nợ:",
+  "orderCollectAmountFieldLabel": "Số tiền thu (VNĐ) *",
+  "orderCollectAmountRequired": "Vui lòng nhập số tiền thu",
+  "orderCollectAllDebt": "Thu toàn bộ nợ",
+  "orderCollectPaymentMethodLabel": "Phương thức thanh toán *",
+  "orderCollectNoteHint": "Nhập ghi chú thu nợ...",
+  "orderCollectCancelButton": "Hủy bỏ",
+  "orderCollectConfirmButton": "Xác nhận thu nợ",
+  "draftOrdersCountTitle": "Đơn hàng tạm ({count})",
+  "@draftOrdersCountTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "draftOrdersTitle": "Đơn hàng tạm",
+  "draftOrdersLoadError": "Lỗi khi tải đơn tạm: {error}",
+  "@draftOrdersLoadError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "draftOrdersEmpty": "Không có đơn hàng tạm nào",
+  "draftOrdersEmptyHint": "Khi bán hàng, bạn có thể bấm \"Lưu tạm\" để lưu giỏ hàng và mở lại thanh toán bất cứ lúc nào.",
+  "draftOrderOpen": "Mở đơn",
+  "draftOrderCancelTitle": "Hủy đơn hàng tạm",
+  "draftOrderCancelConfirm": "Bạn có chắc chắn muốn hủy đơn tạm {id} không?",
+  "@draftOrderCancelConfirm": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "draftOrderSkip": "Bỏ qua",
+  "draftOrderCancelSuccess": "Đã hủy đơn tạm {id}",
+  "@draftOrderCancelSuccess": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "draftOrderCancelError": "Lỗi khi hủy đơn: {error}",
+  "@draftOrderCancelError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "draftOrderCancelActionButton": "Hủy đơn",
+  "draftOrderLoadedToCart": "Đã nạp đơn tạm {id} vào giỏ hàng",
+  "@draftOrderLoadedToCart": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "posCartTabCloseTitle": "Đóng hóa đơn tạm?",
+  "posCartTabCloseMsg": "Hóa đơn \"{title}\" đang có {count} sản phẩm ({amount} đ).\nBạn có chắc chắn muốn đóng và xóa các món trong đơn này không?",
+  "@posCartTabCloseMsg": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "posCartTabCloseConfirm": "Đóng hóa đơn",
+  "posCartTabAddNew": "Thêm đơn",
+  "orderReturnSelectAtLeastOne": "Vui lòng chọn ít nhất 1 sản phẩm để trả hàng.",
+  "orderReturnLoginRequired": "Vui lòng đăng nhập để thực hiện trả hàng.",
+  "orderReturnSuccessMsg": "Trả hàng thành công: Hoàn {cash} đ{debtDeductedPart}.",
+  "@orderReturnSuccessMsg": {
+    "placeholders": {
+      "cash": {
+        "type": "String"
+      },
+      "debtDeductedPart": {
+        "type": "String"
+      }
+    }
+  },
+  "orderReturnDebtDeductedSuffix": ", trừ nợ {amount} đ",
+  "@orderReturnDebtDeductedSuffix": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "orderReturnError": "Lỗi trả hàng: {error}",
+  "@orderReturnError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "orderReturnTitle": "Trả hàng - Hóa đơn {id}",
+  "@orderReturnTitle": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "orderReturnInstruction": "Chọn sản phẩm và số lượng cần trả lại",
+  "orderReturnProductListCount": "Danh sách sản phẩm ({count})",
+  "@orderReturnProductListCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "orderReturnDeselectAll": "Bỏ chọn tất cả",
+  "orderReturnSelectAll": "Chọn trả tất cả",
+  "orderReturnBoughtQty": "Đã mua: {qty}",
+  "@orderReturnBoughtQty": {
+    "placeholders": {
+      "qty": {
+        "type": "int"
+      }
+    }
+  },
+  "orderReturnReturnedQty": "Đã trả: {qty}",
+  "@orderReturnReturnedQty": {
+    "placeholders": {
+      "qty": {
+        "type": "int"
+      }
+    }
+  },
+  "orderReturnFullyReturned": "Đã trả hết",
+  "orderReturnTotalAmount": "Tổng tiền trả hàng:",
+  "orderReturnDebtDeducted": "Trừ vào công nợ HĐ:",
+  "orderReturnCashRefunded": "Hoàn tiền thực tế cho khách:",
+  "orderReturnRefundMethod": "Hình thức hoàn tiền: ",
+  "orderReturnReasonHint": "Nhập lý do trả hàng (không bắt buộc)...",
+  "orderReturnReasonLabel": "Lý do trả hàng",
+  "orderReturnConfirmWithCount": "Xác nhận trả hàng ({count} sản phẩm)",
+  "@orderReturnConfirmWithCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "orderReturnSelectPrompt": "Chọn sản phẩm để trả hàng",
+  "orderReturnDefaultReason": "Khách trả hàng",
+  "orderReturnDebtDeductedMethod": "Cấn trừ công nợ",
+  "orderReturnDebtAndCashMethod": "Cấn trừ nợ + Tiền mặt",
+  "orderReturnReceiptCodeLabel": "Phiếu trả hàng: {id}",
+  "@orderReturnReceiptCodeLabel": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "orderReturnRefundedStatus": "Đã hoàn tiền",
+  "orderReturnOriginalInvoiceLabel": "Hóa đơn gốc: #{id}",
+  "@orderReturnOriginalInvoiceLabel": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "orderReturnCustomerLabel": "Khách hàng: {name}",
+  "@orderReturnCustomerLabel": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "orderReturnViewDetail": "Xem chi tiết",
+  "orderReturnReturnedItemsList": "Danh sách sản phẩm trả lại",
+  "orderReturnTotalGoodsReturned": "Tổng tiền hàng trả",
+  "orderReturnAdditionalInfo": "Thông tin bổ sung",
+  "orderReturnStaffLabel": "Nhân viên thực hiện",
+  "orderReturnCreatedTime": "Thời gian tạo",
+  "orderReturnViewOriginalInvoice": "Xem lại Hóa đơn gốc",
+  "customerFilterResetWithCount": "Đặt lại ({count})",
+  "@customerFilterResetWithCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "customerCannotReadFile": "Không thể đọc nội dung file",
+  "customerDebtNeedCollect": "Cần thu",
+  "customerDeletePermissionDenied": "Bạn không có quyền xóa khách hàng",
+  "customerCannotDeleteHasDebtWarning": "Không được phép xóa khách hàng đang nợ (công nợ tồn đọng: {debt} đ)",
+  "@customerCannotDeleteHasDebtWarning": {
+    "placeholders": {
+      "debt": {
+        "type": "String"
+      }
+    }
+  },
+  "customerDeleteError": "Lỗi khi xóa khách hàng: {error}",
+  "@customerDeleteError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "customerTransactionsCountLabel": "{count} giao dịch",
+  "@customerTransactionsCountLabel": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "customerDebtInputHintExample": "Ví dụ: 1.000.000",
+  "ordersUnit": "đơn hàng",
+  "transactionUnit": "giao dịch",
+  "weekdayMonday": "Thứ Hai",
+  "weekdayTuesday": "Thứ Ba",
+  "weekdayWednesday": "Thứ Tư",
+  "weekdayThursday": "Thứ Năm",
+  "weekdayFriday": "Thứ Sáu",
+  "weekdaySaturday": "Thứ Bảy",
+  "weekdaySunday": "Chủ Nhật",
+  "dateRelativeToday": "Hôm nay, {date}",
+  "@dateRelativeToday": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "dateRelativeYesterday": "Hôm qua, {date}",
+  "@dateRelativeYesterday": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "commonUnitItems": "mục",
+  "productStockThreshold": "Định mức tồn kho",
+  "productAllowSelling": "Cho phép bán",
+  "productStatusActiveDescription": "Đang kinh doanh (Hiển thị trên POS và cho phép bán hàng)",
+  "productStatusInactiveDescription": "Ngừng kinh doanh (Tự động ẩn khỏi màn hình POS)",
+  "productStockMinMaxLabel": "Tồn tối thiểu: {min} • Tồn tối đa: {max}",
+  "@productStockMinMaxLabel": {
+    "placeholders": {
+      "min": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "productPermissionDeniedNotice": "Bạn không có quyền quản lý hàng hóa (chỉ xem). Vui lòng liên hệ Quản lý để thao tác.",
+  "categoriesManagementTitle": "Quản lý nhóm hàng",
+  "categoryAddRoot": "Thêm nhóm hàng gốc",
+  "categorySearchHint": "Tìm kiếm tên nhóm hàng...",
+  "categoryCreateFirst": "Tạo nhóm đầu tiên",
+  "categorySearchNotFound": "Không tìm thấy nhóm hàng phù hợp",
+  "kpiNetRevenue": "Doanh thu thuần",
+  "kpiGrossProfit": "Lợi nhuận gộp",
+  "kpiAverageOrderValue": "AOV (Trung bình/đơn)",
+  "reportHourlyRevenueTitle": "Doanh thu theo giờ trong ngày",
+  "reportRecentActivityTitle": "Giao dịch gần đây",
+  "stockAlertTitle": "Cảnh báo kho & Vận hành",
+  "stockAlertInventoryCost": "Giá trị kho (Giá vốn)",
+  "settingsSwitchStoreTitle": "CHUYỂN ĐỔI CỬA HÀNG",
+  "settingsReceiptQrConfigTitle": "Cấu hình Hóa đơn & VietQR",
+  "settingsPrintVietQrSwitch": "In mã VietQR trên hóa đơn",
+  "commonClearSearch": "Xóa tìm kiếm",
+  "commonDeselect": "Bỏ chọn",
+  "inventoryDraftSavedSuccess": "Đã lưu phiếu tạm",
+  "inventoryReceiptCompletedSuccess": "Đã hoàn thành phiếu nhập",
+  "inventoryReceiptTitleWithCode": "Phiếu {code}",
+  "@inventoryReceiptTitleWithCode": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "inventoryImportStoreLabel": "Chi nhánh nhập: {store}",
+  "@inventoryImportStoreLabel": {
+    "placeholders": {
+      "store": {
+        "type": "String"
+      }
+    }
+  },
+  "inventorySelectSupplierPrompt": "Chưa chọn Nhà Cung Cấp (Bấm để chọn)",
+  "inventoryBarcodeScannerActivated": "Tính năng quét mã vạch đang được kích hoạt",
+  "inventoryNoItemsInReceipt": "Chưa có hàng trong phiếu",
+  "inventoryReceiptCountLabel": "{count} phiếu nhập",
+  "@inventoryReceiptCountLabel": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "inventoryTotalSumLabel": "Tổng: {amount} đ",
+  "@inventoryTotalSumLabel": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "inventoryDeleteItemTitle": "Xóa hàng hóa này khỏi phiếu nhập?",
+  "inventoryDeleteItemConfirm": "Bạn có chắc muốn xóa hàng hóa này khỏi phiếu nhập?",
+  "inventoryItemCodeAndStock": "Mã: {code} • Tồn kho: {stock}",
+  "@inventoryItemCodeAndStock": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      },
+      "stock": {
+        "type": "int"
+      }
+    }
+  },
+  "inventoryCostConfidentialNotice": "Giá trị tiền hàng được bảo mật cho tài khoản nhân viên",
+  "inventoryCancelReceiptAction": "Hủy phiếu nhập",
+  "inventoryDeleteReceiptAction": "Xóa phiếu",
+  "inventoryCancelReasonLabel": "Lý do hủy: {reason}",
+  "@inventoryCancelReasonLabel": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "inventoryCancelledByLabel": "Người hủy: {name}",
+  "@inventoryCancelledByLabel": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "inventoryCancelledAtLabel": "Thời gian hủy: {time}",
+  "@inventoryCancelledAtLabel": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "inventoryCancelWarningAudit": "Hủy phiếu nhập sẽ tự động hoàn trả số lượng tồn kho và công nợ nhà cung cấp.",
+  "inventoryExitConfirmPrompt": "Phiếu nhập kho chưa được hoàn thành. Bạn có muốn lưu tạm để tiếp tục sau không?",
+  "dateToday": "Hôm nay",
+  "dateYesterday": "Hôm qua",
+  "dateLast7Days": "7 ngày qua",
+  "dateThisMonthDefault": "Tháng này (Mặc định)",
+  "dateCustomRange": "Tùy chọn khoảng ngày...",
+  "supplierDebtTag": "Nợ: {amount} đ",
+  "@supplierDebtTag": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "supplierNoDebt": "Không có nợ",
+  "supplierAddNew": "Thêm mới NCC",
+  "customerLabel": "Khách hàng:",
+  "orderCollectAmountMustBeGreaterThanZero": "Số tiền phải lớn hơn 0",
+  "orderCollectAmountExceedsRemainingDebt": "Vượt quá số nợ còn lại",
+  "posSellingPrice": "Giá bán",
+  "posStockCountLabel": "Tồn: {count}",
+  "@posStockCountLabel": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

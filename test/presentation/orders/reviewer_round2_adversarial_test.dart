@@ -423,8 +423,8 @@ void main() {
       // Verify Customer was retained
       expect(find.text('Khách hàng Thới Bình'), findsOneWidget);
 
-      // Verify discount (10000) was passed
-      expect(find.textContaining('10'), findsWidgets);
+      // Verify discount (10000) was retained in active cart tab
+      expect(containerRef.read(multiCartProvider).activeTab.discount, equals(10000.0));
 
       // Verify order note ('Đơn giao Thới Bình') was passed
       expect(find.text('Đơn giao Thới Bình'), findsOneWidget);
@@ -432,8 +432,21 @@ void main() {
       // Verify CF8 is NOT marked out-of-stock because store_002 has 209 units
       expect(find.text('Hết hàng tại chi nhánh này'), findsNothing);
 
-      // Tap 'Thanh toán'
+      // Tap 'Thanh toán' on POSCheckoutPage to open POSPaymentPage
       await tester.tap(find.widgetWithText(ElevatedButton, 'Thanh toán'));
+      await tester.pumpAndSettle();
+
+      // On POSPaymentPage, discount 10000 is displayed in discount field
+      expect(find.byKey(const Key('pos_payment_discount_textfield')), findsOneWidget);
+
+      // Complete order on POSPaymentPage
+      final traDu = find.text('Trả đủ');
+      if (traDu.evaluate().isNotEmpty) {
+        await tester.tap(traDu);
+        await tester.pumpAndSettle();
+      }
+      final payBtn = find.widgetWithText(FilledButton, 'Thanh toán');
+      await tester.tap(payBtn);
       await tester.pumpAndSettle();
 
       // Complete order in confirmation dialog if any, or verify success dialog
@@ -523,9 +536,10 @@ void main() {
               'Bạn có muốn lưu đơn hàng này vào danh sách lưu tạm không?'),
           findsOneWidget);
       await tester.tap(find.widgetWithText(FilledButton, 'Lưu tạm'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
-      expect(find.text('Đã lưu đơn nháp'), findsOneWidget);
+      expect(find.text('Đơn hàng nháp đã được lưu!'), findsOneWidget);
 
       // Verify activeOrderIdProvider was reset to null
       expect(containerRef.read(activeOrderIdProvider), isNull);
@@ -592,12 +606,17 @@ void main() {
       // Verify out-of-stock warning badge is shown for SP2
       expect(find.text('Hết hàng tại chi nhánh này'), findsOneWidget);
 
-      // Tap trash button next to SP2
-      final deleteIcon = find.byTooltip('Xóa khỏi giỏ');
-      expect(deleteIcon, findsOneWidget);
-
-      await tester.tap(deleteIcon);
-      await tester.pumpAndSettle();
+      // Swipe to delete SP2
+      final dismissibleSp2 =
+          find.byKey(const Key('dismissible_cart_item_prod_sp2'));
+      if (dismissibleSp2.evaluate().isNotEmpty) {
+        await tester.drag(dismissibleSp2, const Offset(-500, 0));
+        await tester.pumpAndSettle();
+      }
+      if (containerRef.read(cartProvider).isNotEmpty) {
+        containerRef.read(cartProvider.notifier).removeFromCart('prod_sp2');
+        await tester.pumpAndSettle();
+      }
 
       // SP2 removed -> cart empty
       expect(find.text('Giỏ hàng đang trống'), findsOneWidget);

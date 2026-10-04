@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 import '../../../application/auth/auth_providers.dart';
 import '../../../application/customers/customers_providers.dart';
 import '../../../application/customers/usecases/import_customers_usecase.dart';
+import '../../../application/orders/orders_providers.dart';
 import '../../../application/reports/overview_providers.dart';
 import '../../../core/services/filter_storage_service.dart';
 import '../../../core/theme/app_colors.dart';
@@ -38,6 +39,7 @@ class CustomersPageState extends ConsumerState<CustomersPage> {
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   int _currentLimit = 50;
+  final Set<String> _locallyDeletedCustomerIds = {};
 
   @override
   void initState() {
@@ -398,7 +400,7 @@ class CustomersPageState extends ConsumerState<CustomersPage> {
                               size: 14, color: AppColors.primary),
                           const SizedBox(width: 4),
                           Text(
-                            'Đặt lại ($activeFilterCount)',
+                            l10n.customerFilterResetWithCount(activeFilterCount),
                             style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
@@ -417,8 +419,43 @@ class CustomersPageState extends ConsumerState<CustomersPage> {
           Expanded(
             child: processedAsync.when(
               data: (listItems) {
-                final customersList = listItems.whereType<Customer>().toList();
-                final displayItems = listItems.take(_currentLimit).toList();
+                final customerListAsync =
+                    ref.watch(customerListNotifierProvider);
+                if (customerListAsync.hasValue) {
+                  final allCustomerIds =
+                      customerListAsync.value!.map((c) => c.id).toSet();
+                  _locallyDeletedCustomerIds
+                      .removeWhere((id) => !allCustomerIds.contains(id));
+                }
+
+                final activeListItems = <dynamic>[];
+                for (int i = 0; i < listItems.length; i++) {
+                  final item = listItems[i];
+                  if (item is Customer) {
+                    if (!_locallyDeletedCustomerIds.contains(item.id)) {
+                      activeListItems.add(item);
+                    }
+                  } else if (item is String) {
+                    bool hasActiveCustomer = false;
+                    for (int j = i + 1; j < listItems.length; j++) {
+                      final next = listItems[j];
+                      if (next is String) break;
+                      if (next is Customer &&
+                          !_locallyDeletedCustomerIds.contains(next.id)) {
+                        hasActiveCustomer = true;
+                        break;
+                      }
+                    }
+                    if (hasActiveCustomer) {
+                      activeListItems.add(item);
+                    }
+                  }
+                }
+
+                final customersList =
+                    activeListItems.whereType<Customer>().toList();
+                final displayItems =
+                    activeListItems.take(_currentLimit).toList();
 
                 return Column(
                   children: [
@@ -429,7 +466,7 @@ class CustomersPageState extends ConsumerState<CustomersPage> {
                       canViewTotalSales: canViewTotalSales,
                     ),
                     Expanded(
-                      child: listItems.isEmpty
+                      child: activeListItems.isEmpty
                           ? Center(
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
@@ -459,6 +496,7 @@ class CustomersPageState extends ConsumerState<CustomersPage> {
                             )
                           : RefreshIndicator(
                               onRefresh: () async {
+                                _locallyDeletedCustomerIds.clear();
                                 await ref
                                     .read(customerListNotifierProvider.notifier)
                                     .refresh();
@@ -496,7 +534,23 @@ class CustomersPageState extends ConsumerState<CustomersPage> {
                                     );
                                   }
                                   final customer = item as Customer;
-                                  return CustomerListTile(customer: customer);
+                                  if (_locallyDeletedCustomerIds.contains(customer.id)) {
+                                    return const SizedBox.shrink();
+                                  }
+                                  return CustomerListTile(
+                                    key: ValueKey('customer_tile_${customer.id}'),
+                                    customer: customer,
+                                    onDeleted: () {
+                                      setState(() {
+                                        _locallyDeletedCustomerIds.add(customer.id);
+                                      });
+                                    },
+                                    onDeleteFailed: () {
+                                      setState(() {
+                                        _locallyDeletedCustomerIds.remove(customer.id);
+                                      });
+                                    },
+                                  );
                                 },
                               ),
                             ),
@@ -554,7 +608,7 @@ class CustomersPageState extends ConsumerState<CustomersPage> {
               : null);
 
       if (fileBytes == null) {
-        throw Exception('Không thể đọc nội dung file');
+        throw Exception(l10n.customerCannotReadFile);
       }
 
       if (!mounted) return;
@@ -809,8 +863,26 @@ class CustomersPageState extends ConsumerState<CustomersPage> {
   }) {
     final currencyFormat = NumberFormat('#,###', 'vi_VN');
     final count = customers.length;
+    final returnsMap = ref.watch(customerTotalReturnsMapProvider);
     final totalSalesSum = canViewTotalSales
-        ? customers.fold(0.0, (sum, c) => sum + c.displayTotalSales)
+        ? customers.fold(0.0, (sum, c) {
+            final returnedForCustomer = returnsMap[c.id] ?? 0.0;
+            final rawSales = c.displayTotalSales;
+            final double effSales;
+            if (c.netSales != null &&
+                c.totalSales != null &&
+                c.netSales! < c.totalSales!) {
+              final alreadyDeducted =
+                  (c.totalSales! - c.netSales!).clamp(0.0, double.infinity);
+              final remainingReturn = (returnedForCustomer - alreadyDeducted)
+                  .clamp(0.0, double.infinity);
+              effSales = (rawSales - remainingReturn).clamp(0.0, double.infinity);
+            } else {
+              effSales =
+                  (rawSales - returnedForCustomer).clamp(0.0, double.infinity);
+            }
+            return sum + effSales;
+          })
         : 0.0;
     final totalDebtSum = canViewDebtSummary
         ? customers.fold(
@@ -943,9 +1015,9 @@ class CustomersPageState extends ConsumerState<CustomersPage> {
                         width: 0.5,
                       ),
                     ),
-                    child: const Text(
-                      'Cần thu',
-                      style: TextStyle(
+                    child: Text(
+                      l10n.customerDebtNeedCollect,
+                      style: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
                         color: AppColors.danger,
@@ -965,6 +1037,7 @@ class CustomersPageState extends ConsumerState<CustomersPage> {
     CustomerDebtFilter currentFilter,
     Map<CustomerDebtFilter, int> counts,
   ) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       color: AppColors.white,
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -978,13 +1051,13 @@ class CustomersPageState extends ConsumerState<CustomersPage> {
           children: [
             _buildDebtFilterTab(
               filter: CustomerDebtFilter.all,
-              label: 'Tất cả',
+              label: l10n.all,
               count: counts[CustomerDebtFilter.all] ?? 0,
               isSelected: currentFilter == CustomerDebtFilter.all,
             ),
             _buildDebtFilterTab(
               filter: CustomerDebtFilter.inDebt,
-              label: 'Còn nợ',
+              label: l10n.commonHasDebt,
               count: counts[CustomerDebtFilter.inDebt] ?? 0,
               isSelected: currentFilter == CustomerDebtFilter.inDebt,
               activeColor: AppColors.danger,
@@ -992,7 +1065,7 @@ class CustomersPageState extends ConsumerState<CustomersPage> {
             ),
             _buildDebtFilterTab(
               filter: CustomerDebtFilter.cleared,
-              label: 'Hết nợ',
+              label: l10n.commonNoDebt,
               count: counts[CustomerDebtFilter.cleared] ?? 0,
               isSelected: currentFilter == CustomerDebtFilter.cleared,
               activeColor: AppColors.success,

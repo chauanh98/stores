@@ -183,8 +183,9 @@ class AttendanceRemoteDataSource {
               id: key.toString());
           if (storeId.isNotEmpty && model.storeId != storeId) return;
           if (dateStr != null && model.date != dateStr) return;
-          if (userId != null && userId.isNotEmpty && model.userId != userId)
+          if (userId != null && userId.isNotEmpty && model.userId != userId) {
             return;
+          }
           list.add(model);
         }
       });
@@ -269,12 +270,15 @@ class AttendanceRemoteDataSource {
           final model = AttendanceAdjustmentModel.fromMap(
               Map<dynamic, dynamic>.from(val),
               id: key.toString());
-          if (storeId != null && storeId.isNotEmpty && model.storeId != storeId)
+          if (storeId != null && storeId.isNotEmpty && model.storeId != storeId) {
             return;
-          if (userId != null && userId.isNotEmpty && model.userId != userId)
+          }
+          if (userId != null && userId.isNotEmpty && model.userId != userId) {
             return;
-          if (status != null && status.isNotEmpty && model.status != status)
+          }
+          if (status != null && status.isNotEmpty && model.status != status) {
             return;
+          }
           list.add(model);
         }
       });
@@ -298,7 +302,7 @@ class AttendanceRemoteDataSource {
     final ref = _adjustmentsRef;
     if (ref == null) return Stream.value([]);
 
-    return ref.onValue.map((event) {
+    return ref.limitToLast(50).onValue.map((event) {
       final snap = event.snapshot;
       if (!snap.exists || snap.value == null) return [];
 

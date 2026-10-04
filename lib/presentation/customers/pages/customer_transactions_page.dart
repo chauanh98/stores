@@ -13,6 +13,7 @@ import '../../../domain/entities/order.dart';
 import '../../common/widgets/error_view.dart';
 import '../../common/widgets/loading_indicator.dart';
 import '../../common/widgets/date_grouped_list_view.dart';
+import '../../orders/widgets/return_order_detail_bottom_sheet.dart';
 
 /// Prominent, neat Store Badge displaying the branch where an order was created.
 class StoreBadge extends StatelessWidget {
@@ -27,6 +28,7 @@ class StoreBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final norm = StoreResolverHelper.normalizeStoreId(storeId);
     Color textColor;
     Color bgColor;
@@ -38,13 +40,13 @@ class StoreBadge extends StatelessWidget {
       textColor = AppColors.branchDongThangText;
       bgColor = AppColors.branchDongThangBg;
       borderColor = AppColors.branchDongThangBorder;
-      label = storeName ?? 'Chi nhánh Đông Thắng';
+      label = storeName ?? (l10n?.branchDongThang ?? 'Chi nhánh Đông Thắng');
       iconData = Icons.storefront_outlined;
     } else if (norm == 'store_002') {
       textColor = AppColors.branchThoiBinhText;
       bgColor = AppColors.branchThoiBinhBg;
       borderColor = AppColors.branchThoiBinhBorder;
-      label = storeName ?? 'Chi nhánh Thới Bình';
+      label = storeName ?? (l10n?.branchThoiBinh ?? 'Chi nhánh Thới Bình');
       iconData = Icons.store_outlined;
     } else {
       textColor = AppColors.primary;
@@ -52,8 +54,8 @@ class StoreBadge extends StatelessWidget {
       borderColor = AppColors.primary.withOpacity(0.25);
       label = storeName ??
           (storeId != null && storeId!.isNotEmpty
-              ? 'Chi nhánh $storeId'
-              : 'Chi nhánh khác');
+              ? (l10n?.branchWithId(storeId!) ?? 'Chi nhánh $storeId')
+              : (l10n?.branchOther ?? 'Chi nhánh khác'));
       iconData = Icons.storefront_outlined;
     }
 
@@ -101,13 +103,13 @@ class _CustomerTransactionsPageState
     extends ConsumerState<CustomerTransactionsPage> {
   String? _selectedStoreId;
 
-  String _getStoreName(String sId, Map<String, String> availableStores) {
+  String _getStoreName(String sId, Map<String, String> availableStores, AppLocalizations l10n) {
     final norm = StoreResolverHelper.normalizeStoreId(sId);
     if (availableStores.containsKey(norm)) return availableStores[norm]!;
     if (availableStores.containsKey(sId)) return availableStores[sId]!;
-    if (norm == 'store_001') return 'Chi nhánh Đông Thắng';
-    if (norm == 'store_002') return 'Chi nhánh Thới Bình';
-    return 'Chi nhánh $sId';
+    if (norm == 'store_001') return l10n.branchDongThang;
+    if (norm == 'store_002') return l10n.branchThoiBinh;
+    return l10n.branchWithId(sId);
   }
 
   @override
@@ -148,9 +150,9 @@ class _CustomerTransactionsPageState
 
           // Prepare filter options
           final Map<String, String> branchOptions = {
-            'all': 'Tất cả chi nhánh',
-            'store_001': 'Chi nhánh Đông Thắng',
-            'store_002': 'Chi nhánh Thới Bình',
+            'all': l10n.allBranches,
+            'store_001': l10n.branchDongThang,
+            'store_002': l10n.branchThoiBinh,
           };
           for (final entry in availableStores.entries) {
             final norm = StoreResolverHelper.normalizeStoreId(entry.key);
@@ -161,7 +163,7 @@ class _CustomerTransactionsPageState
           for (final o in sortedOrders) {
             final norm = StoreResolverHelper.normalizeStoreId(o.storeId);
             if (norm.isNotEmpty && !branchOptions.containsKey(norm)) {
-              branchOptions[norm] = 'Chi nhánh $norm';
+              branchOptions[norm] = l10n.branchWithId(norm);
             }
           }
 
@@ -170,7 +172,7 @@ class _CustomerTransactionsPageState
             filterOptions = branchOptions.entries.toList();
           } else {
             final staffStoreName = branchOptions[staffStoreId] ??
-                _getStoreName(staffStoreId, availableStores);
+                _getStoreName(staffStoreId, availableStores, l10n);
             filterOptions = [MapEntry(staffStoreId, staffStoreName)];
           }
 
@@ -198,7 +200,7 @@ class _CustomerTransactionsPageState
           }
 
           final activeDisplayedOrders =
-              displayedOrders.where((o) => !o.isCancelled);
+              displayedOrders.where((o) => !o.isCancelled && !o.isReturned);
           final totalSum = activeDisplayedOrders.fold<double>(
             0.0,
             (sum, item) => sum + item.total,
@@ -352,9 +354,9 @@ class _CustomerTransactionsPageState
                             horizontal: 12, vertical: 8),
                         items: displayedOrders,
                         dateSelector: (o) => o.createdAt,
-                        itemUnit: 'đơn hàng',
+                        itemUnit: l10n.ordersUnit,
                         itemAmountSelector: (o) =>
-                            o.isCancelled ? 0.0 : o.total,
+                            (o.isCancelled || o.isReturned) ? 0.0 : o.total,
                         currencyFormat: currencyFormat,
                         itemBuilder: (context, order) {
                           final dateStr = DateFormat('dd/MM/yyyy HH:mm')
@@ -362,7 +364,7 @@ class _CustomerTransactionsPageState
                           final staffName = order.createdByName ??
                               order.createdBy ??
                               widget.customer.createdBy ??
-                              'Nhân viên';
+                              l10n.staff;
                           final itemsSummary =
                               order.items.map((e) => e.productName).join(', ');
 
@@ -387,179 +389,233 @@ class _CustomerTransactionsPageState
                                 : l10n.cash;
                           }
 
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 6),
-                            decoration: BoxDecoration(
-                              color: AppColors.white,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: AppColors.border),
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 10),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Row 1: Order ID + StoreBadge
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Flexible(
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Flexible(
-                                            child: Text(
-                                              order.id,
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 15,
-                                                color: AppColors.textPrimary,
-                                              ),
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 4),
-                                          InkWell(
-                                            onTap: () {
-                                              Clipboard.setData(ClipboardData(
-                                                  text: order.id));
-                                              ScaffoldMessenger.of(context)
-                                                  .showSnackBar(
-                                                SnackBar(
-                                                    content: Text(l10n
-                                                        .copyInvoiceCodeSuccess(
-                                                            order.id))),
-                                              );
-                                            },
-                                            child: const Padding(
-                                              padding: EdgeInsets.all(2.0),
-                                              child: Icon(Icons.copy_rounded,
-                                                  size: 14,
-                                                  color:
-                                                      AppColors.textTertiary),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Flexible(
-                                      child: Wrap(
-                                        alignment: WrapAlignment.end,
-                                        crossAxisAlignment:
-                                            WrapCrossAlignment.center,
-                                        spacing: 6,
-                                        runSpacing: 4,
-                                        children: [
-                                          if (order.isCancelled)
-                                            Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                      horizontal: 6,
-                                                      vertical: 2),
-                                              decoration: BoxDecoration(
-                                                color: AppColors.dangerLightest,
-                                                borderRadius:
-                                                    BorderRadius.circular(4),
-                                              ),
-                                              child: const Text(
-                                                'Đã hủy',
-                                                style: TextStyle(
-                                                  color: AppColors.dangerDeep,
-                                                  fontSize: 10,
+                          return InkWell(
+                            borderRadius: BorderRadius.circular(10),
+                            onTap: () {
+                              if (order.isReturned || order.hasReturns) {
+                                ReturnOrderDetailBottomSheet.show(
+                                  context,
+                                  order: order,
+                                  customer: widget.customer,
+                                );
+                              }
+                            },
+                            child: Container(
+                              margin: const EdgeInsets.only(bottom: 6),
+                              decoration: BoxDecoration(
+                                color: AppColors.white,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: AppColors.border),
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 10),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Row 1: Order ID + StoreBadge
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Flexible(
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Flexible(
+                                              child: Text(
+                                                order.id,
+                                                style: const TextStyle(
                                                   fontWeight: FontWeight.bold,
+                                                  fontSize: 15,
+                                                  color: AppColors.textPrimary,
+                                                ),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 4),
+                                            InkWell(
+                                              onTap: () {
+                                                Clipboard.setData(ClipboardData(
+                                                    text: order.id));
+                                                ScaffoldMessenger.of(context)
+                                                    .showSnackBar(
+                                                  SnackBar(
+                                                      content: Text(l10n
+                                                          .copyInvoiceCodeSuccess(
+                                                              order.id))),
+                                                );
+                                              },
+                                              child: const Padding(
+                                                padding: EdgeInsets.all(2.0),
+                                                child: Icon(Icons.copy_rounded,
+                                                    size: 14,
+                                                    color:
+                                                        AppColors.textTertiary),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Flexible(
+                                        child: Wrap(
+                                          alignment: WrapAlignment.end,
+                                          crossAxisAlignment:
+                                              WrapCrossAlignment.center,
+                                          spacing: 6,
+                                          runSpacing: 4,
+                                          children: [
+                                            if (order.isCancelled) ...[
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 6,
+                                                        vertical: 2),
+                                                decoration: BoxDecoration(
+                                                  color: AppColors.dangerLightest,
+                                                  borderRadius:
+                                                      BorderRadius.circular(4),
+                                                ),
+                                                child: Text(
+                                                  l10n.orderBadgeCancelled,
+                                                  style: const TextStyle(
+                                                    color: AppColors.dangerDeep,
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
                                                 ),
                                               ),
-                                            ),
-                                          if (order.discount > 0)
-                                            Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                      horizontal: 6,
-                                                      vertical: 2),
-                                              decoration: BoxDecoration(
-                                                color: AppColors.warningLight,
-                                                borderRadius:
-                                                    BorderRadius.circular(4),
+                                            ] else if (order.isReturned) ...[
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 6,
+                                                        vertical: 2),
+                                                decoration: BoxDecoration(
+                                                  color: AppColors.supervisorLight,
+                                                  borderRadius:
+                                                      BorderRadius.circular(4),
+                                                ),
+                                                child: Text(
+                                                  l10n.orderBadgeReturned,
+                                                  style: const TextStyle(
+                                                    color: AppColors.supervisorDark,
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
                                               ),
-                                              child: ConstrainedBox(
-                                                constraints:
-                                                    const BoxConstraints(
-                                                        maxWidth: 140),
-                                                child: FittedBox(
-                                                  fit: BoxFit.scaleDown,
-                                                  child: Text(
-                                                    'Giảm: -${currencyFormat.format(order.discount)} đ',
-                                                    style: const TextStyle(
-                                                      color:
-                                                          AppColors.warningDeep,
-                                                      fontSize: 10,
-                                                      fontWeight:
-                                                          FontWeight.bold,
+                                            ] else if (order.hasReturns) ...[
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 6,
+                                                        vertical: 2),
+                                                decoration: BoxDecoration(
+                                                  color: AppColors.supervisorLight,
+                                                  borderRadius:
+                                                      BorderRadius.circular(4),
+                                                ),
+                                                child: Text(
+                                                  l10n.orderBadgePartiallyReturned,
+                                                  style: const TextStyle(
+                                                    color: AppColors.supervisorDark,
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                            if (order.discount > 0)
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 6,
+                                                        vertical: 2),
+                                                decoration: BoxDecoration(
+                                                  color: AppColors.warningLight,
+                                                  borderRadius:
+                                                      BorderRadius.circular(4),
+                                                ),
+                                                child: ConstrainedBox(
+                                                  constraints:
+                                                      const BoxConstraints(
+                                                          maxWidth: 140),
+                                                  child: FittedBox(
+                                                    fit: BoxFit.scaleDown,
+                                                    child: Text(
+                                                      l10n.orderDiscountAmount(currencyFormat.format(order.discount)),
+                                                      style: const TextStyle(
+                                                        color:
+                                                            AppColors.warningDeep,
+                                                        fontSize: 10,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                      ),
                                                     ),
                                                   ),
                                                 ),
                                               ),
+                                            ConstrainedBox(
+                                              constraints: const BoxConstraints(
+                                                  maxWidth: 140),
+                                              child: StoreBadge(
+                                                storeId: order.storeId,
+                                                storeName: availableStores[
+                                                    StoreResolverHelper
+                                                        .normalizeStoreId(
+                                                            order.storeId)],
+                                              ),
                                             ),
-                                          ConstrainedBox(
-                                            constraints: const BoxConstraints(
-                                                maxWidth: 140),
-                                            child: StoreBadge(
-                                              storeId: order.storeId,
-                                              storeName: availableStores[
-                                                  StoreResolverHelper
-                                                      .normalizeStoreId(
-                                                          order.storeId)],
-                                            ),
-                                          ),
-                                        ],
+                                          ],
+                                        ),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
 
-                                // Row 2: Date + Staff + Amount
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        '$dateStr · $staffName',
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          color: AppColors.textSecondary,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    ConstrainedBox(
-                                      constraints:
-                                          const BoxConstraints(maxWidth: 130),
-                                      child: FittedBox(
-                                        fit: BoxFit.scaleDown,
-                                        alignment: Alignment.centerRight,
+                                  // Row 2: Date + Staff + Amount
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Expanded(
                                         child: Text(
-                                          currencyFormat.format(order.total),
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 15,
-                                            color: order.isCancelled
-                                                ? AppColors.textTertiary
-                                                : AppColors.primary,
-                                            decoration: order.isCancelled
-                                                ? TextDecoration.lineThrough
-                                                : TextDecoration.none,
+                                          '$dateStr · $staffName',
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            color: AppColors.textSecondary,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      ConstrainedBox(
+                                        constraints:
+                                            const BoxConstraints(maxWidth: 130),
+                                        child: FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          alignment: Alignment.centerRight,
+                                          child: Text(
+                                            currencyFormat.format(order.total),
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 15,
+                                              color: (order.isCancelled ||
+                                                      order.isReturned)
+                                                  ? AppColors.textTertiary
+                                                  : AppColors.primary,
+                                              decoration: (order.isCancelled ||
+                                                      order.isReturned)
+                                                  ? TextDecoration.lineThrough
+                                                  : TextDecoration.none,
+                                            ),
                                           ),
                                         ),
                                       ),
-                                    ),
-                                  ],
-                                ),
+                                    ],
+                                  ),
 
                                 // Row 3: Items summary + Payment Method
                                 const SizedBox(height: 6),
@@ -592,8 +648,9 @@ class _CustomerTransactionsPageState
                                 ),
                               ],
                             ),
-                          );
-                        },
+                          ),
+                        );
+                      },
                       ),
               ),
             ],

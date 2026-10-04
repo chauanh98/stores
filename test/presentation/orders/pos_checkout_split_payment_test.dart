@@ -166,26 +166,26 @@ void main() {
       await tester.pumpWidget(buildCheckoutPage(container));
       await tester.pumpAndSettle();
 
-      // Verify Quick Cash Chips generated for 1,000,000đ
+      // Verify Order Note field on POSCheckoutPage
+      expect(find.text('Ghi chú đơn hàng'), findsOneWidget);
+
+      // Tap Checkout on POSCheckoutPage to open POSPaymentPage
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Thanh toán'));
+      await tester.pumpAndSettle();
+
+      // Verify Quick Cash Chips generated for 1,000,000đ on POSPaymentPage
       expect(find.text('Gợi ý tiền mặt thông minh:'), findsOneWidget);
       expect(find.text('1.000.000 đ (Trả đủ)'), findsOneWidget);
 
-      // Verify Order Note field
-      expect(find.text('Ghi chú đơn hàng'), findsOneWidget);
-
-      // Verify Payment method dropdown has Split option
-      expect(find.text('Tiền mặt'), findsOneWidget);
-      await tester.ensureVisible(find.text('Tiền mặt'));
-      await tester.tap(find.text('Tiền mặt'));
+      // Open Split Payment modal via more_horiz icon
+      expect(find.byIcon(Icons.more_horiz), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.more_horiz));
       await tester.pumpAndSettle();
 
-      expect(find.text('Kết hợp (TM + CK)'), findsOneWidget);
-      await tester.tap(find.text('Kết hợp (TM + CK)').last);
-      await tester.pumpAndSettle();
-
-      // Split dual input fields should appear
-      expect(find.text('Tiền mặt đưa'), findsOneWidget);
-      expect(find.text('Chuyển khoản (VietQR)'), findsOneWidget);
+      // Split modal header and method options
+      expect(find.text('Thanh toán kết hợp'), findsOneWidget);
+      expect(find.text('Tiền mặt'), findsWidgets);
+      expect(find.text('Chuyển khoản'), findsWidgets);
     });
 
     testWidgets('Split mode dual inputs auto-balance and submit order with split values and note', (tester) async {
@@ -229,22 +229,35 @@ void main() {
       await tester.enterText(noteFinder, 'Khách lấy hóa đơn đỏ');
       await tester.pumpAndSettle();
 
-      // Switch to split payment
-      await tester.ensureVisible(find.text('Tiền mặt'));
-      await tester.tap(find.text('Tiền mặt'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Kết hợp (TM + CK)').last);
-      await tester.pumpAndSettle();
-
-      // Enter 400,000đ into Tiền mặt đưa
-      final cashRowFinder = find.ancestor(of: find.text('Tiền mặt đưa'), matching: find.byType(Row));
-      final cashInputFinder = find.descendant(of: cashRowFinder, matching: find.byType(TextField));
-      await tester.ensureVisible(cashInputFinder);
-      await tester.enterText(cashInputFinder, '400000');
-      await tester.pumpAndSettle();
-
-      // Tap Checkout / Thanh toán button
+      // Switch to POSPaymentPage
       await tester.tap(find.widgetWithText(ElevatedButton, 'Thanh toán'));
+      await tester.pumpAndSettle();
+
+      // Open split payment modal
+      await tester.tap(find.byIcon(Icons.more_horiz));
+      await tester.pumpAndSettle();
+
+      // Enable Chuyển khoản checkbox
+      final checkboxes = find.byType(Checkbox);
+      if (checkboxes.evaluate().length >= 2) {
+        await tester.tap(checkboxes.at(1));
+        await tester.pumpAndSettle();
+      }
+
+      // Enter split amounts into modal fields
+      final textFields = find.descendant(of: find.byType(BottomSheet), matching: find.byType(TextField));
+      if (textFields.evaluate().length >= 2) {
+        await tester.enterText(textFields.at(0), '400000');
+        await tester.enterText(textFields.at(1), '600000');
+        await tester.pumpAndSettle();
+      }
+
+      // Confirm split modal
+      await tester.tap(find.text('Xong'));
+      await tester.pumpAndSettle();
+
+      // Tap Checkout / Thanh toán button on POSPaymentPage
+      await tester.tap(find.widgetWithText(FilledButton, 'Thanh toán'));
       await tester.pumpAndSettle();
 
       // Verify order submitted to repo

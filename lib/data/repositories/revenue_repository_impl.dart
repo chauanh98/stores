@@ -250,13 +250,19 @@ class RevenueRepositoryImpl {
     for (final orderMap in sortedOrders) {
       try {
         final orderModel = OrderModel.fromMap(orderMap);
-        if (orderModel.isCancelled || orderModel.isDraft) {
+        if (orderModel.isCancelled ||
+            orderModel.isDraft ||
+            orderModel.isReturned ||
+            orderModel.allItemsReturned) {
           continue;
         }
         totalValidOrders++;
         totalRevenue += orderModel.netPayable;
 
         for (final itemModel in orderModel.items) {
+          final activeQty = itemModel.activeQuantity;
+          if (activeQty <= 0) continue;
+
           final product = productMap[itemModel.productId];
 
           // Giá bán thực tế từ item hoặc giá niêm yết sản phẩm
@@ -275,25 +281,25 @@ class RevenueRepositoryImpl {
           // Tính cost theo FIFO instance
           final cost = fifo.calculateCostForSale(
             productId: itemModel.productId,
-            quantity: itemModel.quantity,
+            quantity: activeQty,
             saleDate: orderModel.createdAt,
             storeId: _orderDs.storeId,
             fallbackCostPrice: fallbackCostPrice,
           );
 
           totalCost += cost;
-          totalItemsSold += itemModel.quantity;
+          totalItemsSold += activeQty;
 
           // Cập nhật product revenue
           final existingIndex = productRevenues
               .indexWhere((pr) => pr.productId == itemModel.productId);
           if (existingIndex >= 0) {
             final existing = productRevenues[existingIndex];
-            final newRevenue = itemModel.quantity * actualPrice;
+            final newRevenue = activeQty * actualPrice;
             productRevenues[existingIndex] = ProductRevenue(
               productId: existing.productId,
               productName: existing.productName,
-              quantitySold: existing.quantitySold + itemModel.quantity,
+              quantitySold: existing.quantitySold + activeQty,
               revenue: existing.revenue + newRevenue,
               cost: existing.cost + cost,
               profit: (existing.revenue + newRevenue) - (existing.cost + cost),
@@ -303,13 +309,13 @@ class RevenueRepositoryImpl {
               ),
             );
           } else {
-            final revenue = itemModel.quantity * actualPrice;
+            final revenue = activeQty * actualPrice;
             productRevenues.add(ProductRevenue(
               productId: itemModel.productId,
               productName: product != null
                   ? (product['name'] ?? 'Unknown Product')
                   : itemModel.productName,
-              quantitySold: itemModel.quantity,
+              quantitySold: activeQty,
               revenue: revenue,
               cost: cost,
               profit: revenue - cost,

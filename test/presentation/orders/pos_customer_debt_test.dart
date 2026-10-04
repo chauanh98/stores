@@ -106,7 +106,7 @@ void main() {
       expect(find.text('Nguyễn Văn Nam'), findsOneWidget);
 
       // Customer debt badge should be displayed
-      expect(find.text('Nợ hiện tại: 2.500.000đ'), findsOneWidget);
+      expect(find.text('Nợ: 2.500.000đ'), findsOneWidget);
     });
 
     testWidgets(
@@ -126,7 +126,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Trần Thị Mai'), findsOneWidget);
-      expect(find.textContaining('Nợ hiện tại:'), findsNothing);
+      expect(find.textContaining('Nợ:'), findsNothing);
     });
 
     testWidgets(
@@ -151,8 +151,8 @@ void main() {
       // Initially retail customer
       expect(find.text('Khách lẻ'), findsOneWidget);
 
-      // Tap "Thay đổi" to open customer selection bottom sheet
-      await tester.tap(find.text('Thay đổi'));
+      // Tap customer selector card to open customer selection bottom sheet
+      await tester.tap(find.text('Khách lẻ'));
       await tester.pumpAndSettle();
 
       // Bottom sheet title and search input
@@ -185,7 +185,7 @@ void main() {
 
       // Back on checkout page, selected customer and debt badge are displayed
       expect(find.text('Nguyễn Văn Nam'), findsOneWidget);
-      expect(find.text('Nợ hiện tại: 2.500.000đ'), findsOneWidget);
+      expect(find.text('Nợ: 2.500.000đ'), findsOneWidget);
     });
   });
 }

@@ -4,6 +4,7 @@ class OrderModel {
   final String id;
   final String customerId;
   final String? customerName;
+  final String? customerPhone;
   final DateTime createdAt;
   final List<OrderItemModel> items;
   final double total;
@@ -27,6 +28,7 @@ class OrderModel {
     required this.id,
     required this.customerId,
     this.customerName,
+    this.customerPhone,
     required this.createdAt,
     required this.items,
     required this.total,
@@ -59,13 +61,20 @@ class OrderModel {
 
   bool get isCompleted => status == 'completed';
   bool get isDraft => status == 'draft';
-  bool get isReturned => status == 'returned';
+  bool get isReturned {
+    final s = status.trim().toLowerCase();
+    return s == 'returned' || s.contains('trả') || s.contains('tra');
+  }
+  bool get hasReturns => items.any((i) => i.returnedQuantity > 0);
+  bool get allItemsReturned =>
+      items.isNotEmpty && items.every((i) => i.activeQuantity <= 0);
   double get netPayable => (total - discount).clamp(0.0, double.infinity);
 
   Map<String, dynamic> toMap() => {
         'id': id,
         'customerId': customerId,
         if (customerName != null) 'customerName': customerName,
+        if (customerPhone != null) 'customerPhone': customerPhone,
         'createdAt': createdAt.toIso8601String(),
         'orderDate': createdAt.toIso8601String(),
         'total': total,
@@ -215,6 +224,7 @@ class OrderModel {
       id: map['id']?.toString() ?? '',
       customerId: map['customerId']?.toString() ?? '',
       customerName: map['customerName']?.toString(),
+      customerPhone: map['customerPhone']?.toString() ?? map['phone']?.toString(),
       createdAt: DateTime.tryParse(map['orderDate']?.toString() ?? '') ??
           DateTime.tryParse(map['createdAt']?.toString() ?? '') ??
           DateTime.now(),

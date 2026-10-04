@@ -34,6 +34,7 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
   late final TextEditingController _phone;
   late final TextEditingController _email;
   late final TextEditingController _address;
+  late final TextEditingController _notes;
 
   @override
   void initState() {
@@ -42,6 +43,7 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
     _phone = TextEditingController(text: widget.customer.phone);
     _email = TextEditingController(text: widget.customer.email);
     _address = TextEditingController(text: widget.customer.address);
+    _notes = TextEditingController(text: widget.customer.notes ?? '');
   }
 
   @override
@@ -50,7 +52,17 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
     _phone.dispose();
     _email.dispose();
     _address.dispose();
+    _notes.dispose();
     super.dispose();
+  }
+
+  void _startEditing(Customer c) {
+    _name.text = c.name;
+    _phone.text = c.phone;
+    _email.text = c.email;
+    _address.text = c.address;
+    _notes.text = c.notes ?? '';
+    setState(() => _isEditing = true);
   }
 
   @override
@@ -76,6 +88,34 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
     final displayTotalSales = c.effectiveTotalSales(orders);
     final displayCurrentDebt = c.effectiveCurrentDebt(orders, debtTxs);
 
+    // Auto-heal customer sales and debt in Firebase if discrepancy exists
+    ref.listen<AsyncValue<List<Order>>>(customerOrdersProvider(c.id),
+        (prev, next) {
+      final orderList = next.valueOrNull;
+      if (orderList != null && orderList.isNotEmpty) {
+        final healedSales = c.effectiveTotalSales(orderList);
+        final currentStoredSales = c.netSales ?? c.totalSales ?? 0.0;
+        final healedDebt = c.effectiveCurrentDebt(
+            orderList, debtTxsAsync.valueOrNull ?? <CustomerDebtTransaction>[]);
+        final currentStoredDebt = c.currentDebt ?? 0.0;
+
+        if ((currentStoredSales - healedSales).abs() > 0.01 ||
+            (currentStoredDebt - healedDebt).abs() > 0.01 ||
+            (c.totalSales != null &&
+                (c.totalSales! - healedSales).abs() > 0.01)) {
+          try {
+            ref.read(customerRepositoryProvider).upsert(
+                  c.copyWith(
+                    totalSales: healedSales,
+                    netSales: healedSales,
+                    currentDebt: healedDebt,
+                  ),
+                );
+          } catch (_) {}
+        }
+      }
+    });
+
     final user = ref.watch(authProvider);
     final canDeleteCustomer = user?.canDeleteCustomer ?? false;
 
@@ -89,14 +129,14 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
             IconButton(
               icon: const Icon(Icons.save),
               tooltip: l10n.save,
-              onPressed: _isLoading ? null : _saveCustomer,
+              onPressed: _isLoading ? null : () => _saveCustomer(c),
             )
           else
             PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert),
               onSelected: (value) {
                 if (value == 'edit') {
-                  setState(() => _isEditing = true);
+                  _startEditing(c);
                 } else if (value == 'create_order') {
                   Navigator.of(context).push(
                     MaterialPageRoute(
@@ -163,6 +203,9 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
                     const SizedBox(height: 12),
                     _field(_address, l10n.address, Icons.location_on,
                         maxLines: 2, required: false),
+                    const SizedBox(height: 12),
+                    _field(_notes, l10n.note, Icons.note_alt_outlined,
+                        maxLines: 3, required: false),
                   ],
                 ),
               ),
@@ -174,7 +217,7 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
                   // 1. THÔNG TIN CƠ BẢN
                   _buildSectionContainer(
                     headerTitle: l10n.basicInfo,
-                    onEditTap: () => setState(() => _isEditing = true),
+                    onEditTap: () => _startEditing(c),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -384,7 +427,7 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    c.branch ?? 'Chi nhánh Thới Bình',
+                                    c.branch ?? l10n.branchThoiBinh,
                                     style: const TextStyle(
                                         fontSize: 14,
                                         color: AppColors.textPrimary),
@@ -517,7 +560,7 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
                   // 2. ĐỊA CHỈ
                   _buildSectionContainer(
                     headerTitle: l10n.addressSection,
-                    onEditTap: () => setState(() => _isEditing = true),
+                    onEditTap: () => _startEditing(c),
                     child: Text(
                       c.address.isNotEmpty ? c.address : l10n.notUpdated,
                       style: TextStyle(
@@ -685,7 +728,7 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
     );
   }
 
-  Future<void> _saveCustomer() async {
+  Future<void> _saveCustomer([Customer? currentCustomer]) async {
     final l10n = AppLocalizations.of(context)!;
     if (!_formKey.currentState!.validate()) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -696,11 +739,13 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
 
     setState(() => _isLoading = true);
     try {
-      final updated = widget.customer.copyWith(
+      final base = currentCustomer ?? widget.customer;
+      final updated = base.copyWith(
         name: _name.text.trim(),
         phone: _phone.text.trim(),
         email: _email.text.trim(),
         address: _address.text.trim(),
+        notes: _notes.text.trim().isEmpty ? '' : _notes.text.trim(),
       );
       await ref.read(customerRepositoryProvider).upsert(updated);
       await ref.read(customerListNotifierProvider.notifier).refresh();
@@ -725,7 +770,7 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
     final user = ref.read(authProvider);
     if (!(user?.canDeleteCustomer ?? false)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Bạn không có quyền xóa khách hàng')),
+        SnackBar(content: Text(l10n.customerDeletePermissionDenied)),
       );
       return;
     }

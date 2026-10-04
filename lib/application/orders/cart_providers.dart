@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/filter_storage_service.dart';
 import '../../../core/utils/store_resolver_helper.dart';
 import '../../../domain/entities/customer.dart';
+import '../../../domain/entities/order.dart';
 import '../../../domain/entities/order_item.dart';
 import '../../../domain/entities/product.dart';
 import '../auth/auth_providers.dart';
@@ -42,24 +43,60 @@ class CartItem {
   final Product product;
   final int quantity;
   final double? customPrice; // Giá bán tùy chỉnh cho Admin
+  final double discount;
+  final bool isDiscountPercent;
+  final String? note;
 
   const CartItem({
     required this.product,
     required this.quantity,
     this.customPrice,
+    this.discount = 0.0,
+    this.isDiscountPercent = false,
+    this.note,
   });
 
-  CartItem copyWith({int? quantity, double? customPrice}) {
+  CartItem copyWith({
+    int? quantity,
+    double? customPrice,
+    bool clearCustomPrice = false,
+    double? discount,
+    bool? isDiscountPercent,
+    String? note,
+    bool clearNote = false,
+  }) {
     return CartItem(
       product: product,
       quantity: quantity ?? this.quantity,
-      customPrice: customPrice ?? this.customPrice,
+      customPrice: clearCustomPrice ? null : (customPrice ?? this.customPrice),
+      discount: discount ?? this.discount,
+      isDiscountPercent: isDiscountPercent ?? this.isDiscountPercent,
+      note: clearNote ? null : (note ?? this.note),
     );
   }
 
   double get price => customPrice ?? product.price;
 
-  double get total => price * quantity;
+  /// Số tiền giảm giá trên 1 đơn vị sản phẩm
+  double get unitDiscountAmount {
+    if (discount <= 0) return 0.0;
+    if (isDiscountPercent) {
+      return (price * discount / 100).clamp(0.0, price);
+    }
+    return discount.clamp(0.0, price);
+  }
+
+  /// Đơn giá thực tế sau khi trừ chiết khấu trên từng món
+  double get effectivePrice {
+    final net = price - unitDiscountAmount;
+    return net > 0 ? net : 0.0;
+  }
+
+  /// Tổng tiền của dòng sản phẩm này
+  double get total => effectivePrice * quantity;
+
+  /// Tổng số tiền được giảm cho toàn bộ số lượng sản phẩm này
+  double get totalDiscount => unitDiscountAmount * quantity;
 
   @override
   bool operator ==(Object other) =>
@@ -68,10 +105,20 @@ class CartItem {
           runtimeType == other.runtimeType &&
           product == other.product &&
           quantity == other.quantity &&
-          customPrice == other.customPrice;
+          customPrice == other.customPrice &&
+          discount == other.discount &&
+          isDiscountPercent == other.isDiscountPercent &&
+          note == other.note;
 
   @override
-  int get hashCode => Object.hash(product, quantity, customPrice);
+  int get hashCode => Object.hash(
+        product,
+        quantity,
+        customPrice,
+        discount,
+        isDiscountPercent,
+        note,
+      );
 }
 
 /// Model đại diện cho 1 tab đơn hàng / hóa đơn tạm trong phiên bán hàng
@@ -409,6 +456,33 @@ class MultiCartNotifier extends StateNotifier<MultiCartState> {
     });
   }
 
+  /// Cập nhật chi tiết món hàng (chiết khấu món, ghi chú, đơn giá tùy chỉnh)
+  void updateItemDetails(
+    String productId, {
+    double? customPrice,
+    bool clearCustomPrice = false,
+    double? discount,
+    bool? isDiscountPercent,
+    String? note,
+    bool clearNote = false,
+  }) {
+    _updateActiveTab((tab) {
+      final currentItems = Map<String, CartItem>.from(tab.items);
+      if (currentItems.containsKey(productId)) {
+        final item = currentItems[productId]!;
+        currentItems[productId] = item.copyWith(
+          customPrice: customPrice,
+          clearCustomPrice: clearCustomPrice,
+          discount: discount,
+          isDiscountPercent: isDiscountPercent,
+          note: note,
+          clearNote: clearNote,
+        );
+      }
+      return tab.copyWith(items: currentItems);
+    });
+  }
+
   /// Tăng 1 đơn vị số lượng
   void increaseQuantity(String productId) {
     _updateActiveTab((tab) {
@@ -444,6 +518,22 @@ class MultiCartNotifier extends StateNotifier<MultiCartState> {
       currentItems.remove(productId);
       return tab.copyWith(items: currentItems);
     });
+  }
+
+  /// Khôi phục một sản phẩm đã xóa về lại giỏ active hoặc giỏ theo tabId (dùng cho Undo)
+  void restoreCartItem(CartItem item, {String? tabId}) {
+    final targetId = (tabId != null && state.tabs.any((t) => t.id == tabId))
+        ? tabId
+        : state.activeTabId;
+    final updatedTabs = state.tabs.map((tab) {
+      if (tab.id == targetId) {
+        final currentItems = Map<String, CartItem>.from(tab.items);
+        currentItems[item.product.id] = item;
+        return tab.copyWith(items: currentItems);
+      }
+      return tab;
+    }).toList();
+    state = state.copyWith(tabs: updatedTabs);
   }
 
   /// Xóa toàn bộ sản phẩm và thông tin của giỏ hàng active
@@ -514,24 +604,58 @@ class MultiCartNotifier extends StateNotifier<MultiCartState> {
   }) {
     final newCart = <String, CartItem>{};
     for (final item in items) {
-      final product = allProducts.firstWhere(
-        (p) => p.id == item.productId,
-        orElse: () => Product(
-          id: item.productId,
-          name: item.productName,
-          code: '',
-          brand: '',
-          model: '',
-          price: item.price,
-          costPrice: 0.0,
-          branchStocks: const {},
-          category: '',
-        ),
+      final catalogProduct = allProducts.cast<Product?>().firstWhere(
+        (p) => p?.id == item.productId,
+        orElse: () => null,
       );
+
+      final double effectiveDiscount;
+      final bool effectiveIsPercent;
+      final double basePrice;
+
+      if (item.discount > 0) {
+        effectiveDiscount = item.discount;
+        effectiveIsPercent = item.isDiscountPercent;
+        if (item.originalPrice >= item.price && item.originalPrice > 0) {
+          basePrice = item.originalPrice;
+        } else if (item.isDiscountPercent) {
+          basePrice = item.discount < 100
+              ? item.price / (1 - item.discount / 100)
+              : (catalogProduct?.price ?? item.price);
+        } else {
+          basePrice = item.price + item.discount;
+        }
+      } else if (item.originalPrice > item.price) {
+        // Có giá gốc cao hơn giá bán thực tế nhưng discount không lưu riêng
+        basePrice = item.originalPrice;
+        effectiveDiscount = item.originalPrice - item.price;
+        effectiveIsPercent = false;
+      } else {
+        basePrice = item.price;
+        effectiveDiscount = 0.0;
+        effectiveIsPercent = false;
+      }
+
+      final product = catalogProduct ??
+          Product(
+            id: item.productId,
+            name: item.productName,
+            code: '',
+            brand: '',
+            model: '',
+            price: basePrice,
+            costPrice: 0.0,
+            branchStocks: const {},
+            category: '',
+          );
+
       newCart[item.productId] = CartItem(
         product: product,
         quantity: item.quantity,
-        customPrice: item.price != product.price ? item.price : null,
+        customPrice: basePrice != product.price ? basePrice : null,
+        discount: effectiveDiscount,
+        isDiscountPercent: effectiveIsPercent,
+        note: item.note,
       );
     }
 
@@ -647,6 +771,46 @@ class CartNotifier extends StateNotifier<Map<String, CartItem>> {
     }
   }
 
+  void updateItemDetails(
+    String productId, {
+    double? customPrice,
+    bool clearCustomPrice = false,
+    double? discount,
+    bool? isDiscountPercent,
+    String? note,
+    bool clearNote = false,
+  }) {
+    final multi = _targetMultiNotifier;
+    if (multi != null) {
+      multi.updateItemDetails(
+        productId,
+        customPrice: customPrice,
+        clearCustomPrice: clearCustomPrice,
+        discount: discount,
+        isDiscountPercent: isDiscountPercent,
+        note: note,
+        clearNote: clearNote,
+      );
+      state = multi.state.activeTab.items;
+      return;
+    }
+
+    if (state.containsKey(productId)) {
+      final currentItem = state[productId]!;
+      state = {
+        ...state,
+        productId: currentItem.copyWith(
+          customPrice: customPrice,
+          clearCustomPrice: clearCustomPrice,
+          discount: discount,
+          isDiscountPercent: isDiscountPercent,
+          note: note,
+          clearNote: clearNote,
+        ),
+      };
+    }
+  }
+
   void increaseQuantity(String productId) {
     final multi = _targetMultiNotifier;
     if (multi != null) {
@@ -698,6 +862,19 @@ class CartNotifier extends StateNotifier<Map<String, CartItem>> {
     state = updated;
   }
 
+  void restoreCartItem(CartItem item, {String? tabId}) {
+    final multi = _targetMultiNotifier;
+    if (multi != null) {
+      multi.restoreCartItem(item, tabId: tabId);
+      state = multi.state.activeTab.items;
+      return;
+    }
+
+    final updated = Map<String, CartItem>.from(state);
+    updated[item.product.id] = item;
+    state = updated;
+  }
+
   void clearCart() {
     final multi = _targetMultiNotifier;
     if (multi != null) {
@@ -735,6 +912,15 @@ class CartNotifier extends StateNotifier<Map<String, CartItem>> {
 
     final newCart = <String, CartItem>{};
     for (final item in items) {
+      final basePrice = item.originalPrice > 0
+          ? item.originalPrice
+          : (item.discount > 0
+              ? (item.isDiscountPercent
+                  ? (item.discount < 100
+                      ? item.price / (1 - item.discount / 100)
+                      : item.price)
+                  : item.price + item.discount)
+              : item.price);
       final product = allProducts.firstWhere(
         (p) => p.id == item.productId,
         orElse: () => Product(
@@ -743,7 +929,7 @@ class CartNotifier extends StateNotifier<Map<String, CartItem>> {
           code: '',
           brand: '',
           model: '',
-          price: item.price,
+          price: basePrice,
           costPrice: 0.0,
           branchStocks: const {},
           category: '',
@@ -752,7 +938,10 @@ class CartNotifier extends StateNotifier<Map<String, CartItem>> {
       newCart[item.productId] = CartItem(
         product: product,
         quantity: item.quantity,
-        customPrice: item.price != product.price ? item.price : null,
+        customPrice: basePrice != product.price ? basePrice : null,
+        discount: item.discount,
+        isDiscountPercent: item.isDiscountPercent,
+        note: item.note,
       );
     }
     state = newCart;
@@ -801,5 +990,9 @@ final cartTotalAmountProvider = Provider<double>((ref) {
   return multiCart.activeTab.totalAmount;
 });
 
-/// Provider quản lý mã đơn lưu tạm đang hoạt động
+/// Provider quản lý mã đơn lưu tạm hoặc mã đơn phiên bản đang hoạt động
 final activeOrderIdProvider = StateProvider<String?>((ref) => null);
+
+/// Provider quản lý thông tin hóa đơn gốc đang được sửa/thay thế (nếu có)
+final editingOriginalOrderProvider = StateProvider<Order?>((ref) => null);
+

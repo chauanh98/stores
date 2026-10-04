@@ -30,9 +30,10 @@ class CancelInvoiceUseCase {
     required String cancelReason,
     required UserAccount currentUser,
     required String storeId,
+    bool isReplacement = false,
   }) async {
     // 1. RBAC & Business Validation
-    if (!currentUser.canDeleteInvoice && !currentUser.isSupervisor) {
+    if (!isReplacement && !currentUser.canDeleteInvoice && !currentUser.isSupervisor) {
       throw const UnauthorizedException(
           'Bạn không có quyền quản trị để hủy hóa đơn đã thanh toán.');
     }

@@ -90,6 +90,12 @@ class _MockOrderRemoteDataSource implements OrderRemoteDataSource {
   @override
   Stream<List<Map<String, dynamic>>> watchReturnsByOrderId(String orderId) =>
       Stream.value([]);
+
+  @override
+  Stream<List<Map<String, dynamic>>> watchAllReturns() => Stream.value([]);
+
+  @override
+  Stream<List<Map<String, dynamic>>> watchDraftOrders() => Stream.value([]);
 }
 
 Widget _buildTestApp({

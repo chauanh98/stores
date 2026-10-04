@@ -8,11 +8,13 @@ import 'package:stores/presentation/common/widgets/loading_indicator.dart';
 
 import '../../../application/auth/auth_providers.dart';
 import '../../../application/orders/cart_providers.dart';
+import '../../../application/orders/orders_providers.dart';
 import '../../../application/products/products_providers.dart';
 import '../../../core/services/filter_storage_service.dart';
 import '../../../core/utils/combo_helper.dart';
 import '../../../domain/entities/product.dart';
 import '../../common/widgets/product_image_thumbnail.dart';
+import '../widgets/draft_orders_bottom_sheet.dart';
 import '../widgets/pos_cart_tab_bar.dart';
 import '../widgets/pos_category_bar.dart';
 import 'pos_checkout_page.dart';
@@ -44,6 +46,7 @@ class _POSPageState extends ConsumerState<POSPage> {
     final totalAmount = ref.watch(cartTotalAmountProvider);
     final selectedBranch = ref.watch(selectedPOSBranchProvider);
     final posBranchName = ref.watch(posBranchNameProvider);
+    final draftCount = ref.watch(posDraftOrdersCountProvider);
     final user = ref.watch(authProvider);
     final canSwitchBranch = user != null &&
         (user.isAdmin || user.isSupervisor || user.canSwitchStore);
@@ -98,13 +101,22 @@ class _POSPageState extends ConsumerState<POSPage> {
           ],
         ),
         actions: [
-          if (canSwitchBranch)
-            IconButton(
-              key: const Key('pos_branch_switcher_action'),
-              icon: const Icon(Icons.storefront, color: AppColors.primary),
-              tooltip: 'Đổi chi nhánh',
-              onPressed: () => _showBranchSelector(context),
+          IconButton(
+            key: const Key('pos_draft_orders_action'),
+            icon: Badge.count(
+              count: draftCount,
+              isLabelVisible: draftCount > 0,
+              backgroundColor: AppColors.warning,
+              child: const Icon(
+                Icons.pending_actions_outlined,
+                color: AppColors.primary,
+                size: 24,
+              ),
             ),
+            tooltip: AppLocalizations.of(context)?.posDraftOrders ??
+                'Đơn hàng tạm',
+            onPressed: () => DraftOrdersBottomSheet.show(context),
+          ),
         ],
         backgroundColor: AppColors.white,
       ),
@@ -519,16 +531,17 @@ class _POSPageState extends ConsumerState<POSPage> {
   }
 
   Widget _buildStockBadge(int effectiveStock, Product product) {
+    final l10n = AppLocalizations.of(context);
     final String label;
     final Color color;
     if (effectiveStock <= 0) {
-      label = 'Hết hàng';
+      label = l10n?.commonOutOfStock ?? 'Hết hàng';
       color = AppColors.danger;
     } else if (effectiveStock <= (product.minStock ?? 5)) {
-      label = 'Sắp hết';
+      label = l10n?.posStockWarningLow ?? 'Sắp hết';
       color = AppColors.warningDark;
     } else {
-      label = 'Còn hàng';
+      label = l10n?.commonInStock ?? 'Còn hàng';
       color = AppColors.success;
     }
 
@@ -590,11 +603,12 @@ class _POSPageState extends ConsumerState<POSPage> {
   }
 
   void _showBranchSelector(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final availableStoresAsync = ref.read(availableStoresProvider);
     final storesMap = availableStoresAsync.valueOrNull ??
-        const {
-          'store_001': 'Chi nhánh Đông Thắng',
-          'store_002': 'Chi nhánh Thới Bình',
+        {
+          'store_001': l10n?.branchDongThang ?? 'Chi nhánh Đông Thắng',
+          'store_002': l10n?.branchThoiBinh ?? 'Chi nhánh Thới Bình',
         };
     final currentBranch = ref.read(selectedPOSBranchProvider);
 
@@ -618,11 +632,11 @@ class _POSPageState extends ConsumerState<POSPage> {
                 ),
               ),
               const SizedBox(height: 12),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Text(
-                  'Chọn chi nhánh làm việc',
-                  style: TextStyle(
+                  l10n?.posSelectWorkingBranch ?? 'Chọn chi nhánh làm việc',
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: AppColors.textPrimary,
@@ -671,7 +685,10 @@ class _POSPageState extends ConsumerState<POSPage> {
                     ScaffoldMessenger.of(context).clearSnackBars();
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Đã chuyển sang ${entry.value}'),
+                        content: Text(
+                          l10n?.posSwitchedToBranch(entry.value) ??
+                              'Đã chuyển sang ${entry.value}',
+                        ),
                         duration: const Duration(seconds: 2),
                       ),
                     );

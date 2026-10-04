@@ -5,6 +5,7 @@ import '../../../data/datasources/firebase/customer_remote_data_source.dart';
 import '../../../domain/entities/customer_debt_transaction.dart';
 import '../../../domain/entities/inventory_transaction.dart';
 import '../../../domain/entities/order.dart';
+import '../../../domain/entities/purchase.dart';
 import '../../../domain/entities/return_order.dart';
 import '../../../domain/entities/transaction_type.dart';
 import '../../../domain/entities/user_account.dart';
@@ -170,13 +171,39 @@ class ProcessReturnOrderUseCase {
         final currentDebt = customer.displayCurrentDebt;
         final newDebt =
             (currentDebt - debtDeducted).clamp(0.0, double.infinity);
+        final currentTotalSales = customer.totalSales ?? 0.0;
+        final newTotalSales =
+            (currentTotalSales - grossReturnTotal).clamp(0.0, double.infinity);
         final currentNetSales = customer.netSales ?? customer.totalSales ?? 0.0;
         final newNetSales =
             (currentNetSales - totalRefund).clamp(0.0, double.infinity);
 
+        // Deduct returned items from customer.purchases
+        final updatedPurchases = List<Purchase>.from(customer.purchases);
+        for (final ret in returnItems) {
+          int remainingToDeduct = ret.quantity;
+          for (int i = updatedPurchases.length - 1; i >= 0; i--) {
+            if (remainingToDeduct <= 0) break;
+            if (updatedPurchases[i].productId == ret.productId) {
+              final p = updatedPurchases[i];
+              if (p.quantity <= remainingToDeduct) {
+                remainingToDeduct -= p.quantity;
+                updatedPurchases.removeAt(i);
+              } else {
+                updatedPurchases[i] = p.copyWith(
+                  quantity: p.quantity - remainingToDeduct,
+                );
+                remainingToDeduct = 0;
+              }
+            }
+          }
+        }
+
         final updatedCustomer = customer.copyWith(
           currentDebt: newDebt,
+          totalSales: newTotalSales,
           netSales: newNetSales,
+          purchases: updatedPurchases,
         );
         await customerRepository.upsert(updatedCustomer);
 

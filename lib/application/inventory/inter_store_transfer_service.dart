@@ -21,8 +21,9 @@ class InterStoreTransferService {
     String? createdByName,
   }) async {
     try {
-      if (sourceStoreId.isEmpty || targetStoreId.isEmpty)
+      if (sourceStoreId.isEmpty || targetStoreId.isEmpty) {
         return 'Chi nhánh không hợp lệ';
+      }
       if (quantity <= 0) return 'Số lượng phải lớn hơn 0';
       if (sourceStoreId == targetStoreId) return 'Không thể chuyển cùng kho';
 
@@ -82,10 +83,12 @@ class InterStoreTransferService {
       final updatedBranchStocks = Map<String, int>.from(product.branchStocks);
       updatedBranchStocks[sourceStoreId] = newSourceStock;
       updatedBranchStocks[targetStoreId] = newTargetStock;
-      if (normSource.isNotEmpty)
+      if (normSource.isNotEmpty) {
         updatedBranchStocks[normSource] = newSourceStock;
-      if (normTarget.isNotEmpty)
+      }
+      if (normTarget.isNotEmpty) {
         updatedBranchStocks[normTarget] = newTargetStock;
+      }
 
       if (normSource == 'store_001' ||
           normTarget == 'store_001' ||

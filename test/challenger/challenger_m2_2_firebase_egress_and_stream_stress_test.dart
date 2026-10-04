@@ -518,4 +518,7 @@ class _MockOrderRepository implements OrderRepository, OrderRepositoryReturnHand
 
   @override
   Stream<List<ReturnOrder>> watchReturnsByOrderId(String orderId) => const Stream.empty();
+
+  @override
+  Stream<List<ReturnOrder>> watchAllReturns() => const Stream.empty();
 }

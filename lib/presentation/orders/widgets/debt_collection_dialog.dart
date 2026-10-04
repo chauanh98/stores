@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -79,11 +80,13 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final l10n = AppLocalizations.of(context);
     final amount = _parsedAmount;
     if (amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Số tiền thu nợ phải lớn hơn 0đ'),
+        SnackBar(
+          content: Text(l10n?.orderCollectDebtMinAmountError ??
+              'Số tiền thu nợ phải lớn hơn 0đ'),
           backgroundColor: AppColors.danger,
         ),
       );
@@ -94,7 +97,9 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Số tiền thu không được vượt quá số nợ còn lại (${_currencyFormat.format(widget.remainingDebt)} đ)',
+            l10n?.orderCollectDebtExceedsLimit(
+                    _currencyFormat.format(widget.remainingDebt)) ??
+                'Số tiền thu không được vượt quá số nợ còn lại (${_currencyFormat.format(widget.remainingDebt)} đ)',
           ),
           backgroundColor: AppColors.danger,
         ),
@@ -105,8 +110,9 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
     final currentUser = ref.read(authProvider);
     if (currentUser == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Vui lòng đăng nhập để thực hiện thu nợ.'),
+        SnackBar(
+          content: Text(l10n?.orderCollectDebtLoginRequired ??
+              'Vui lòng đăng nhập để thực hiện thu nợ.'),
           backgroundColor: AppColors.danger,
         ),
       );
@@ -132,7 +138,9 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Đã thu ${_currencyFormat.format(amount)} đ thành công cho hóa đơn ${widget.order.id}.',
+              l10n?.orderCollectDebtSuccess(
+                      _currencyFormat.format(amount), widget.order.id) ??
+                  'Đã thu ${_currencyFormat.format(amount)} đ thành công cho hóa đơn ${widget.order.id}.',
             ),
             backgroundColor: AppColors.success,
           ),
@@ -143,7 +151,8 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Lỗi thu nợ: $e'),
+            content: Text(l10n?.orderCollectDebtError(e.toString()) ??
+                'Lỗi thu nợ: $e'),
             backgroundColor: AppColors.danger,
           ),
         );
@@ -153,10 +162,11 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final customerName = widget.customer?.name ??
         (widget.order.customerId == 'khach_le' ||
                 widget.order.customerId.isEmpty
-            ? 'Khách lẻ'
+            ? (l10n?.retailCustomer ?? 'Khách lẻ')
             : widget.order.customerId);
     final customerPhone = widget.customer?.phone ?? '';
 
@@ -178,7 +188,8 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
                   children: [
                     Expanded(
                       child: Text(
-                        'Thu nợ - Hóa đơn ${widget.order.id}',
+                        l10n?.orderCollectDebtTitle(widget.order.id) ??
+                            'Thu nợ - Hóa đơn ${widget.order.id}',
                         style: const TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.bold,
@@ -209,22 +220,23 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
                   ),
                   child: Column(
                     children: [
-                      _buildInfoRow('Khách hàng:', customerName,
+                      _buildInfoRow(
+                          l10n?.customerLabel ?? 'Khách hàng:', customerName,
                           phone: customerPhone),
                       const SizedBox(height: 6),
                       _buildInfoRow(
-                        'Tổng tiền HĐ:',
+                        l10n?.orderCollectTotalInvoice ?? 'Tổng tiền HĐ:',
                         '${_currencyFormat.format(widget.order.total)} đ',
                       ),
                       const SizedBox(height: 6),
                       _buildInfoRow(
-                        'Đã thanh toán:',
+                        l10n?.commonTotalPaidAmount ?? 'Đã thanh toán:',
                         '${_currencyFormat.format(widget.order.amountPaid)} đ',
                         color: AppColors.success,
                       ),
                       const SizedBox(height: 6),
                       _buildInfoRow(
-                        'Còn ghi nợ:',
+                        l10n?.orderCollectRemainingDebt ?? 'Còn ghi nợ:',
                         '${_currencyFormat.format(widget.remainingDebt)} đ',
                         color: AppColors.danger,
                         isBold: true,
@@ -235,9 +247,9 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
                 const SizedBox(height: 16),
 
                 // Input Amount
-                const Text(
-                  'Số tiền thu (VNĐ) *',
-                  style: TextStyle(
+                Text(
+                  l10n?.orderCollectAmountFieldLabel ?? 'Số tiền thu (VNĐ) *',
+                  style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 13,
                     color: AppColors.textPrimary,
@@ -279,12 +291,17 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
                   ),
                   validator: (val) {
                     if (val == null || val.trim().isEmpty) {
-                      return 'Vui lòng nhập số tiền thu';
+                      return l10n?.orderCollectAmountRequired ??
+                          'Vui lòng nhập số tiền thu';
                     }
                     final amt = _parsedAmount;
-                    if (amt <= 0) return 'Số tiền phải lớn hơn 0';
+                    if (amt <= 0) {
+                      return l10n?.orderCollectAmountMustBeGreaterThanZero ??
+                          'Số tiền phải lớn hơn 0';
+                    }
                     if (amt > widget.remainingDebt + 0.01) {
-                      return 'Vượt quá số nợ còn lại';
+                      return l10n?.orderCollectAmountExceedsRemainingDebt ??
+                          'Vượt quá số nợ còn lại';
                     }
                     return null;
                   },
@@ -310,9 +327,9 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
                           border: Border.all(
                               color: AppColors.primary.withOpacity(0.3)),
                         ),
-                        child: const Text(
-                          'Thu toàn bộ nợ',
-                          style: TextStyle(
+                        child: Text(
+                          l10n?.orderCollectAllDebt ?? 'Thu toàn bộ nợ',
+                          style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
                             color: AppColors.primary,
@@ -325,9 +342,10 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
                 const SizedBox(height: 14),
 
                 // Payment Method
-                const Text(
-                  'Phương thức thanh toán *',
-                  style: TextStyle(
+                Text(
+                  l10n?.orderCollectPaymentMethodLabel ??
+                      'Phương thức thanh toán *',
+                  style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 13,
                     color: AppColors.textPrimary,
@@ -367,7 +385,7 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
                               ),
                               const SizedBox(width: 6),
                               Text(
-                                'Tiền mặt',
+                                l10n?.cash ?? 'Tiền mặt',
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: _paymentMethod == 'cash'
@@ -416,7 +434,7 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
                               ),
                               const SizedBox(width: 6),
                               Text(
-                                'Chuyển khoản',
+                                l10n?.paymentMethodTransfer ?? 'Chuyển khoản',
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: _paymentMethod == 'transfer'
@@ -437,9 +455,9 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
                 const SizedBox(height: 14),
 
                 // Note
-                const Text(
-                  'Ghi chú',
-                  style: TextStyle(
+                Text(
+                  l10n?.note ?? 'Ghi chú',
+                  style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 13,
                     color: AppColors.textPrimary,
@@ -451,7 +469,8 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
                   controller: _noteController,
                   maxLines: 2,
                   decoration: InputDecoration(
-                    hintText: 'Nhập ghi chú thu nợ...',
+                    hintText:
+                        l10n?.orderCollectNoteHint ?? 'Nhập ghi chú thu nợ...',
                     filled: true,
                     fillColor: AppColors.grey50,
                     border: OutlineInputBorder(
@@ -486,8 +505,10 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
                               borderRadius: BorderRadius.circular(8)),
                           side: const BorderSide(color: AppColors.border),
                         ),
-                        child: const Text('Hủy bỏ',
-                            style: TextStyle(color: AppColors.textPrimary)),
+                        child: Text(
+                          l10n?.orderCollectCancelButton ?? 'Hủy bỏ',
+                          style: const TextStyle(color: AppColors.textPrimary),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -511,9 +532,10 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
                                   color: AppColors.white,
                                 ),
                               )
-                            : const Text(
-                                'Xác nhận thu nợ',
-                                style: TextStyle(
+                            : Text(
+                                l10n?.orderCollectConfirmButton ??
+                                    'Xác nhận thu nợ',
+                                style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 14,
                                 ),

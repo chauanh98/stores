@@ -68,12 +68,21 @@ class StockInReceiptsFilterState {
 
   int get activeFilterCount {
     int count = 0;
-    if (timeRange != OverviewTimeRange.thisMonth) count++;
-    if (supplierId != null && supplierId!.isNotEmpty && supplierId != 'all')
+    if (timeRange != OverviewTimeRange.thisMonth) {
       count++;
-    if (storeId != null && storeId!.isNotEmpty && storeId != 'all') count++;
-    if (searchQuery.trim().isNotEmpty) count++;
-    if (statusFilter != 'all') count++;
+    }
+    if (supplierId != null && supplierId!.isNotEmpty && supplierId != 'all') {
+      count++;
+    }
+    if (storeId != null && storeId!.isNotEmpty && storeId != 'all') {
+      count++;
+    }
+    if (searchQuery.trim().isNotEmpty) {
+      count++;
+    }
+    if (statusFilter != 'all') {
+      count++;
+    }
     return count;
   }
 

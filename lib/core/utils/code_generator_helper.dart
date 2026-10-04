@@ -53,4 +53,65 @@ class CodeGeneratorHelper {
   static String generateNextSupplierCode(List<String> existingSupplierCodes) {
     return generateNextCode('NCC', existingSupplierCodes, padLength: 6);
   }
+
+  /// Phân tích mã hóa đơn thành (baseCode, version).
+  /// Ví dụ:
+  /// - 'HD000001' -> ('HD000001', 0)
+  /// - 'HD000001_01' -> ('HD000001', 1)
+  /// - 'HD000001.02' -> ('HD000001', 2)
+  /// - 'HD000001-03' -> ('HD000001', 3)
+  static (String baseCode, int version) parseInvoiceCode(String code) {
+    final sanitized = code.trim();
+    if (sanitized.isEmpty) {
+      return ('HD000001', 0);
+    }
+
+    // Match trailing version suffix: e.g. _01, .01, -01, #01
+    final suffixMatch =
+        RegExp(r'^(.*?)[_.\-#$\[\]]+(\d+)$').firstMatch(sanitized);
+    if (suffixMatch != null) {
+      final base = suffixMatch
+          .group(1)!
+          .replaceAll(RegExp(r'[.#$\[\]]'), '')
+          .trim();
+      final ver = int.tryParse(suffixMatch.group(2)!) ?? 0;
+      return (base.isEmpty ? 'HD000001' : base, ver);
+    }
+
+    final cleanBase = sanitized.replaceAll(RegExp(r'[.#$\[\]]'), '').trim();
+    return (cleanBase.isEmpty ? 'HD000001' : cleanBase, 0);
+  }
+
+  /// Sinh mã hóa đơn mới cho chức năng Sửa hóa đơn theo phiên bản (Phương án 1):
+  /// - Mã hóa đơn gốc: `HD000001`
+  /// - Sửa lần 1: `HD000001_01`
+  /// - Sửa lần 2: `HD000001_02`
+  /// Dùng dấu gạch dưới `_` thay cho dấu chấm `.` để an toàn 100% với Firebase Realtime Database.
+  static String generateVersionedInvoiceCode(
+    String currentCode, {
+    List<String> existingCodes = const [],
+  }) {
+    final (baseCode, currentVersion) = parseInvoiceCode(currentCode);
+    int maxVersion = currentVersion;
+
+    final basePattern = RegExp(
+      '^${RegExp.escape(baseCode)}[_.\\-#\$\\[\\]]+(\\d+)\$',
+      caseSensitive: false,
+    );
+
+    for (final raw in existingCodes) {
+      final trimmed = raw.trim();
+      final match = basePattern.firstMatch(trimmed);
+      if (match != null) {
+        final v = int.tryParse(match.group(1)!) ?? 0;
+        if (v > maxVersion) {
+          maxVersion = v;
+        }
+      }
+    }
+
+    final nextVersion = maxVersion + 1;
+    final formattedVersion = nextVersion.toString().padLeft(2, '0');
+    return '${baseCode}_$formattedVersion';
+  }
 }

@@ -173,10 +173,12 @@ class ProductRemoteDataSource {
 
           if (curOtherVal == 0 && otherVal > 0) {
             mergedStocks[otherStoreId] = otherVal;
-            if (otherStoreId == 'store_001')
+            if (otherStoreId == 'store_001') {
               mergedStocks['branch_1'] = otherVal;
-            if (otherStoreId == 'store_002')
+            }
+            if (otherStoreId == 'store_002') {
               mergedStocks['branch_2'] = otherVal;
+            }
           }
 
           if (mergedStocks.containsKey('store_001')) {

@@ -170,11 +170,17 @@ final revenueByDateRangeProvider = StreamProvider.autoDispose
         final storeOrders = storeOrdersMap[storeId] ?? [];
         final filteredStoreOrders = storeOrders.where((order) {
           final orderModel = OrderModel.fromMap(order);
-          if (orderModel.isCancelled || orderModel.isDraft) return false;
+          if (orderModel.isCancelled ||
+              orderModel.isDraft ||
+              orderModel.isReturned ||
+              orderModel.allItemsReturned) {
+            return false;
+          }
 
           // Nếu là Admin/Supervisor (canSwitchStore == true), việc lọc theo chi nhánh đã được thực hiện bằng cách chỉ chọn query store tương ứng ở bước trên!
-          if (user?.canSwitchStore == true || user?.isAdmin == true)
+          if (user?.canSwitchStore == true || user?.isAdmin == true) {
             return true;
+          }
 
           // Nhân viên thường: Chỉ được xem chi nhánh được phân quyền của cửa hàng hiện tại
           final normalizedStoreId =

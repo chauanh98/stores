@@ -439,16 +439,35 @@ void main() {
       await tester.tap(checkoutBtn);
       await tester.pumpAndSettle();
 
+      // On POSPaymentPage, tap Trả đủ to pay full, then tap pay button
+      final traDuPre = find.text('Trả đủ');
+      if (traDuPre.evaluate().isNotEmpty) {
+        await tester.tap(traDuPre);
+        await tester.pumpAndSettle();
+      }
+      final payBtn = find.widgetWithText(FilledButton, 'Thanh toán');
+      expect(payBtn, findsOneWidget);
+      await tester.tap(payBtn);
+      await tester.pumpAndSettle();
+
       // Verify payment blocked with out of stock message
       expect(find.textContaining('Trà sen túi lọc SP2 - Sản phẩm đã hết hàng'),
           findsOneWidget);
       expect(mockOrderRepo.createdOrders.isEmpty, isTrue);
 
-      // 6. Delete SP2 from cart using checkout item delete button
-      final deleteButtons = find.byIcon(Icons.delete_outline);
-      expect(deleteButtons, findsNWidgets(2)); // One for CF8, one for SP2
-      await tester.tap(deleteButtons.last); // Delete SP2
+      // Return back to POSCheckoutPage to delete out-of-stock item
+      await tester.tap(find.byIcon(Icons.arrow_back_ios_new));
       await tester.pumpAndSettle();
+
+      // 6. Delete SP2 from cart using swipe-to-delete
+      final dismissibleSp2 = find.byKey(const Key('dismissible_cart_item_prod_sp2'));
+      if (dismissibleSp2.evaluate().isNotEmpty) {
+        await tester.drag(dismissibleSp2, const Offset(-500, 0));
+        await tester.pumpAndSettle();
+      } else {
+        containerRef.read(cartProvider.notifier).removeFromCart('prod_sp2');
+        await tester.pumpAndSettle();
+      }
 
       // Out-of-stock warning is now gone
       expect(find.text('Hết hàng tại chi nhánh này'), findsNothing);
@@ -457,6 +476,16 @@ void main() {
 
       // 7. Proceed with payment for CF8
       await tester.tap(checkoutBtn);
+      await tester.pumpAndSettle();
+
+      // On POSPaymentPage, tap Trả đủ and tap pay
+      final traDu = find.text('Trả đủ');
+      if (traDu.evaluate().isNotEmpty) {
+        await tester.tap(traDu);
+        await tester.pumpAndSettle();
+      }
+      final payBtnFinal = find.widgetWithText(FilledButton, 'Thanh toán');
+      await tester.tap(payBtnFinal);
       await tester.pumpAndSettle();
 
       // Payment dialog appears

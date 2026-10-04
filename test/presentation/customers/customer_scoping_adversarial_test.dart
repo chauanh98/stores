@@ -640,7 +640,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('Vũ Thị Phương'), findsOneWidget);
-      expect(find.text('Nợ hiện tại: 5.450.000đ'), findsOneWidget);
+      expect(find.text('Nợ: 5.450.000đ'), findsOneWidget);
     });
 
     testWidgets('POS Checkout selector card with zero debt customer omits badge',
@@ -720,7 +720,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Open customer selection sheet
-      await tester.tap(find.text('Thay đổi'));
+      await tester.tap(find.text('Khách lẻ'));
       await tester.pumpAndSettle();
 
       // All 4 customers visible initially

@@ -12,4 +12,18 @@ class Purchase {
     required this.purchaseDate,
     required this.warranty,
   });
+
+  Purchase copyWith({
+    String? productId,
+    int? quantity,
+    DateTime? purchaseDate,
+    Warranty? warranty,
+  }) {
+    return Purchase(
+      productId: productId ?? this.productId,
+      quantity: quantity ?? this.quantity,
+      purchaseDate: purchaseDate ?? this.purchaseDate,
+      warranty: warranty ?? this.warranty,
+    );
+  }
 }

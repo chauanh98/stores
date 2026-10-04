@@ -19,6 +19,7 @@ class _AddCustomerPageState extends ConsumerState<AddCustomerPage> {
   final _phone = TextEditingController();
   final _email = TextEditingController();
   final _address = TextEditingController();
+  final _notes = TextEditingController();
   bool _saving = false;
 
   @override
@@ -27,6 +28,7 @@ class _AddCustomerPageState extends ConsumerState<AddCustomerPage> {
     _phone.dispose();
     _email.dispose();
     _address.dispose();
+    _notes.dispose();
     super.dispose();
   }
 
@@ -62,6 +64,9 @@ class _AddCustomerPageState extends ConsumerState<AddCustomerPage> {
                 const SizedBox(height: 12),
                 _field(_address, l10n.address, Icons.location_on,
                     maxLines: 2, required: false),
+                const SizedBox(height: 12),
+                _field(_notes, l10n.note, Icons.note_alt_outlined,
+                    maxLines: 3, required: false),
               ]),
             ),
           ),
@@ -133,6 +138,7 @@ class _AddCustomerPageState extends ConsumerState<AddCustomerPage> {
         phone: _phone.text.trim(),
         email: _email.text.trim(),
         address: _address.text.trim(),
+        notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
         purchases: const [],
         branch: activeBranchName,
         createdAt: DateTime.now().toIso8601String(),

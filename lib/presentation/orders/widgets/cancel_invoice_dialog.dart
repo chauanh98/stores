@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../application/auth/auth_providers.dart';
@@ -51,11 +52,13 @@ class _CancelInvoiceDialogState extends ConsumerState<CancelInvoiceDialog> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final l10n = AppLocalizations.of(context);
     final currentUser = ref.read(authProvider);
     if (currentUser == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Vui lòng đăng nhập để thực hiện thao tác.'),
+        SnackBar(
+          content: Text(l10n?.orderCancelLoginRequired ??
+              'Vui lòng đăng nhập để thực hiện thao tác.'),
           backgroundColor: AppColors.danger,
         ),
       );
@@ -64,9 +67,9 @@ class _CancelInvoiceDialogState extends ConsumerState<CancelInvoiceDialog> {
 
     if (!currentUser.canDeleteInvoice) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content:
-              Text('Chỉ Quản trị viên mới có quyền hủy hóa đơn đã thanh toán.'),
+        SnackBar(
+          content: Text(l10n?.orderCancelPermissionDenied ??
+              'Chỉ Quản trị viên mới có quyền hủy hóa đơn đã thanh toán.'),
           backgroundColor: AppColors.danger,
         ),
       );
@@ -76,8 +79,9 @@ class _CancelInvoiceDialogState extends ConsumerState<CancelInvoiceDialog> {
     final reason = _reasonController.text.trim();
     if (reason.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Vui lòng nhập lý do hủy hóa đơn.'),
+        SnackBar(
+          content: Text(l10n?.orderCancelReasonRequired ??
+              'Vui lòng nhập lý do hủy hóa đơn.'),
           backgroundColor: AppColors.danger,
         ),
       );
@@ -102,7 +106,8 @@ class _CancelInvoiceDialogState extends ConsumerState<CancelInvoiceDialog> {
         Navigator.of(context).pop(true);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Hóa đơn ${widget.order.id} đã được hủy thành công.'),
+            content: Text(l10n?.orderCancelSuccess(widget.order.id) ??
+                'Hóa đơn ${widget.order.id} đã được hủy thành công.'),
             backgroundColor: AppColors.danger,
           ),
         );
@@ -112,7 +117,8 @@ class _CancelInvoiceDialogState extends ConsumerState<CancelInvoiceDialog> {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Lỗi khi hủy hóa đơn: $e'),
+            content: Text(l10n?.orderCancelErrorGeneric(e.toString()) ??
+                'Lỗi khi hủy hóa đơn: $e'),
             backgroundColor: AppColors.danger,
           ),
         );
@@ -122,6 +128,7 @@ class _CancelInvoiceDialogState extends ConsumerState<CancelInvoiceDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final currentUser = ref.watch(authProvider);
     final canDelete = currentUser?.canDeleteInvoice ?? false;
 
@@ -157,7 +164,8 @@ class _CancelInvoiceDialogState extends ConsumerState<CancelInvoiceDialog> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Hủy hóa đơn ${widget.order.id}',
+                          l10n?.orderCancelDialogTitle(widget.order.id) ??
+                              'Hủy hóa đơn ${widget.order.id}',
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -165,9 +173,10 @@ class _CancelInvoiceDialogState extends ConsumerState<CancelInvoiceDialog> {
                           ),
                         ),
                         const SizedBox(height: 2),
-                        const Text(
-                          'Thao tác hoàn tác kho và công nợ',
-                          style: TextStyle(
+                        Text(
+                          l10n?.orderCancelDialogSubtitle ??
+                              'Thao tác hoàn tác kho và công nợ',
+                          style: const TextStyle(
                             fontSize: 12,
                             color: AppColors.textSecondary,
                           ),
@@ -187,19 +196,20 @@ class _CancelInvoiceDialogState extends ConsumerState<CancelInvoiceDialog> {
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: AppColors.warningBorder),
                 ),
-                child: const Row(
+                child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.info_outline,
                       color: AppColors.warning,
                       size: 18,
                     ),
-                    SizedBox(width: 8),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Hủy hóa đơn sẽ tự động hoàn trả số lượng tồn kho và hoàn tác công nợ/doanh số của khách hàng.',
-                        style: TextStyle(
+                        l10n?.orderCancelWarningAuditImpact ??
+                            'Hủy hóa đơn sẽ tự động hoàn trả số lượng tồn kho và hoàn tác công nợ/doanh số của khách hàng.',
+                        style: const TextStyle(
                           fontSize: 12.5,
                           color: AppColors.warningDeep,
                           height: 1.35,
@@ -220,15 +230,16 @@ class _CancelInvoiceDialogState extends ConsumerState<CancelInvoiceDialog> {
                     border:
                         Border.all(color: AppColors.danger.withOpacity(0.3)),
                   ),
-                  child: const Row(
+                  child: Row(
                     children: [
-                      Icon(Icons.lock_outline,
+                      const Icon(Icons.lock_outline,
                           color: AppColors.danger, size: 18),
-                      SizedBox(width: 8),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Tài khoản của bạn không có quyền hủy hóa đơn đã thanh toán. Vui lòng liên hệ Quản trị viên.',
-                          style: TextStyle(
+                          l10n?.orderCancelPermissionDeniedDetails ??
+                              'Tài khoản của bạn không có quyền hủy hóa đơn đã thanh toán. Vui lòng liên hệ Quản trị viên.',
+                          style: const TextStyle(
                             fontSize: 12,
                             color: AppColors.danger,
                             fontWeight: FontWeight.w500,
@@ -242,9 +253,9 @@ class _CancelInvoiceDialogState extends ConsumerState<CancelInvoiceDialog> {
               ],
 
               // Reason Input
-              const Text(
-                'Lý do hủy hóa đơn *',
-                style: TextStyle(
+              Text(
+                l10n?.orderCancelReasonFieldLabel ?? 'Lý do hủy hóa đơn *',
+                style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 13,
                   color: AppColors.textPrimary,
@@ -257,7 +268,8 @@ class _CancelInvoiceDialogState extends ConsumerState<CancelInvoiceDialog> {
                 maxLines: 3,
                 enabled: canDelete && !_isLoading,
                 decoration: InputDecoration(
-                  hintText: 'Ví dụ: Khách đổi ý, lập sai sản phẩm...',
+                  hintText: l10n?.orderCancelReasonPlaceholder ??
+                      'Ví dụ: Khách đổi ý, lập sai sản phẩm...',
                   filled: true,
                   fillColor: AppColors.grey50,
                   border: OutlineInputBorder(
@@ -277,7 +289,8 @@ class _CancelInvoiceDialogState extends ConsumerState<CancelInvoiceDialog> {
                 ),
                 validator: (val) {
                   if (val == null || val.trim().isEmpty) {
-                    return 'Lý do hủy đơn không được để trống';
+                    return l10n?.orderCancelReasonEmptyError ??
+                        'Lý do hủy đơn không được để trống';
                   }
                   return null;
                 },
@@ -298,8 +311,8 @@ class _CancelInvoiceDialogState extends ConsumerState<CancelInvoiceDialog> {
                             borderRadius: BorderRadius.circular(8)),
                         side: const BorderSide(color: AppColors.border),
                       ),
-                      child: const Text('Đóng',
-                          style: TextStyle(color: AppColors.textPrimary)),
+                      child: Text(l10n?.close ?? 'Đóng',
+                          style: const TextStyle(color: AppColors.textPrimary)),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -324,9 +337,9 @@ class _CancelInvoiceDialogState extends ConsumerState<CancelInvoiceDialog> {
                                 color: AppColors.white,
                               ),
                             )
-                          : const Text(
-                              'Xác nhận hủy',
-                              style: TextStyle(
+                          : Text(
+                              l10n?.orderCancelConfirmButton ?? 'Xác nhận hủy',
+                              style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 14,
                                 color: AppColors.white,

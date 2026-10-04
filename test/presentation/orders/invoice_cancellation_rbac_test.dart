@@ -62,6 +62,7 @@ class _MockCancelInvoiceUseCase implements CancelInvoiceUseCase {
     required String cancelReason,
     required UserAccount currentUser,
     required String storeId,
+    bool isReplacement = false,
   }) async {
     executionCount++;
     capturedOrder = order;

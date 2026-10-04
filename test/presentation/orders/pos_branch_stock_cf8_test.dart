@@ -544,11 +544,25 @@ void main() {
         // Verify total amount displayed for 2 items: 65,000 * 2 = 130,000
         expect(find.text('130.000 đ'), findsWidgets);
 
-        // Tap on "Thanh toán" button
+        // Tap on "Thanh toán" button on POSCheckoutPage
         final checkoutButton =
             find.widgetWithText(ElevatedButton, 'Thanh toán');
         expect(checkoutButton, findsOneWidget);
         await tester.tap(checkoutButton);
+        await tester.pumpAndSettle();
+
+        // Tap Trả đủ to pay full in cash
+        final traDuBtn = find.text('Trả đủ');
+        if (traDuBtn.evaluate().isNotEmpty) {
+          await tester.tap(traDuBtn);
+          await tester.pumpAndSettle();
+        }
+
+        // Tap pay button on POSPaymentPage
+        final payButton =
+            find.widgetWithText(FilledButton, 'Thanh toán');
+        expect(payButton, findsOneWidget);
+        await tester.tap(payButton);
         await tester.pumpAndSettle();
 
         // Verify order created has storeId == 'store_002'

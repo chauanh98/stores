@@ -17,12 +17,27 @@ abstract class OrderRepository {
   Stream<List<Order>> watchByDateRange(DateTime start, DateTime end);
 }
 
+abstract class OrderRepositoryDraftHandler {
+  Stream<List<Order>> watchDraftOrders();
+}
+
+extension OrderRepositoryDraftExt on OrderRepository {
+  Stream<List<Order>> watchDraftOrders() {
+    final self = this;
+    if (self is OrderRepositoryDraftHandler) {
+      return (self as OrderRepositoryDraftHandler).watchDraftOrders();
+    }
+    return Stream.value([]);
+  }
+}
+
 abstract class OrderRepositoryReturnHandler {
   Future<void> createReturn(ReturnOrder returnOrder);
   Future<ReturnOrder?> fetchReturnById(String returnId);
   Stream<List<ReturnOrder>> watchReturnsByDateRange(
       DateTime start, DateTime end);
   Stream<List<ReturnOrder>> watchReturnsByOrderId(String orderId);
+  Stream<List<ReturnOrder>> watchAllReturns();
 }
 
 extension OrderRepositoryReturnExt on OrderRepository {
@@ -56,6 +71,14 @@ extension OrderRepositoryReturnExt on OrderRepository {
     if (self is OrderRepositoryReturnHandler) {
       return (self as OrderRepositoryReturnHandler)
           .watchReturnsByOrderId(orderId);
+    }
+    return Stream.value([]);
+  }
+
+  Stream<List<ReturnOrder>> watchAllReturns() {
+    final self = this;
+    if (self is OrderRepositoryReturnHandler) {
+      return (self as OrderRepositoryReturnHandler).watchAllReturns();
     }
     return Stream.value([]);
   }

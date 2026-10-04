@@ -438,7 +438,6 @@
   "noCategoryFound": "No categories found",
   "logoutAccount": "Log out account",
   "confirmLogoutApp": "Are you sure you want to log out of app?",
-
   "commonContinue": "Continue",
   "commonDone": "Done",
   "commonResetFilter": "Reset Filter",
@@ -454,7 +453,6 @@
   "commonCostPrice": "Cost Price",
   "commonTotalSalesAmount": "Total Goods Amount:",
   "commonTotalPaidAmount": "Total Paid:",
-
   "inventoryCreateReceipt": "Create Stock In Receipt",
   "inventoryReceiptDetail": "Stock In Receipt Detail",
   "inventoryReceiptCode": "Receipt Code",
@@ -471,7 +469,6 @@
   "inventoryCancelReasonHint": "Enter cancel reason (required)...",
   "inventoryCancelSuccess": "Stock in receipt cancelled and inventory rolled back successfully",
   "inventoryDeleteDraftSuccess": "Draft receipt deleted",
-
   "attendanceDashboard": "GPS Attendance & Shift Management",
   "attendancePersonalTimesheet": "Personal Timesheet",
   "attendanceWorking": "Working",
@@ -482,18 +479,957 @@
   "attendanceDeleteShiftConfirm": "Are you sure you want to delete shift \"{shiftName}\"?",
   "@attendanceDeleteShiftConfirm": {
     "placeholders": {
-      "shiftName": { "type": "String" }
+      "shiftName": {
+        "type": "String"
+      }
     }
   },
   "attendanceUpdateGpsSuccess": "GPS updated successfully!",
   "attendanceNoRecordsFilter": "No attendance records matched the filter.",
   "attendanceNoDataMonth": "No attendance data for this month.",
-
   "accountDeleteConfirm": "Are you sure you want to delete account \"{username}\"? This action cannot be undone.",
   "@accountDeleteConfirm": {
     "placeholders": {
-      "username": { "type": "String" }
+      "username": {
+        "type": "String"
+      }
     }
   },
-  "accountConfirmNewPassword": "Confirm New Password"
+  "accountConfirmNewPassword": "Confirm New Password",
+  "importInvoicesFromExcel": "Import Invoices from Excel",
+  "exportInvoicesToExcel": "Export Excel",
+  "orderStatusFilterChip": "Status: {status}",
+  "@orderStatusFilterChip": {
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "orderPaymentFilterChip": "Payment: {method}",
+  "@orderPaymentFilterChip": {
+    "placeholders": {
+      "method": {
+        "type": "String"
+      }
+    }
+  },
+  "orderDebtFilterChip": "Debt: {debt}",
+  "@orderDebtFilterChip": {
+    "placeholders": {
+      "debt": {
+        "type": "String"
+      }
+    }
+  },
+  "orderStaffFilterChip": "Staff: {staff}",
+  "@orderStaffFilterChip": {
+    "placeholders": {
+      "staff": {
+        "type": "String"
+      }
+    }
+  },
+  "orderSearchFilterChip": "Search: \"{query}\"",
+  "@orderSearchFilterChip": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "orderAllInvoicesTitle": "All Invoices",
+  "orderNoInvoicesToExport": "No invoice data to export to Excel.",
+  "orderExcelExportError": "Error exporting Excel file: {error}",
+  "@orderExcelExportError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "orderExcelImportError": "Error importing Excel file: {error}",
+  "@orderExcelImportError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "orderNoFileSelected": "No file selected",
+  "orderCannotReadFile": "Cannot read file content",
+  "orderReturnSummaryLabel": "returns • {qty} pcs",
+  "@orderReturnSummaryLabel": {
+    "placeholders": {
+      "qty": {
+        "type": "int"
+      }
+    }
+  },
+  "orderInvoicesSummaryLabel": "invoices • {qty} pcs",
+  "@orderInvoicesSummaryLabel": {
+    "placeholders": {
+      "qty": {
+        "type": "int"
+      }
+    }
+  },
+  "orderReturnUnit": "returns",
+  "orderInvoiceUnit": "invoices",
+  "orderAllStatuses": "All Statuses",
+  "orderReturnOrders": "Return Orders",
+  "orderPaymentMethodFilterTitle": "Payment Method",
+  "orderAllPaymentMethods": "All Payment Methods",
+  "orderDebtPaidInFull": "Paid in Full",
+  "orderDebtPaidShort": "Paid Full",
+  "orderDebtRemaining": "Remaining Debt",
+  "orderAllDebts": "All Debts",
+  "orderAllStaff": "All Staff",
+  "orderFilterActiveCount": "Filter ({count})",
+  "@orderFilterActiveCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "orderTotalReturnCount": "Returns count: {count}",
+  "@orderTotalReturnCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "orderTotalRefundAmount": "Total refund: {amount} VND",
+  "@orderTotalRefundAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "orderCashRefundedAmount": "Cash refund: {amount} VND",
+  "@orderCashRefundedAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "orderDebtDeductedAmount": "Debt offset: {amount} VND",
+  "@orderDebtDeductedAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "orderCountLabelShort": "{count} orders",
+  "@orderCountLabelShort": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "orderTotalGoodsShort": "Total Goods",
+  "orderCollapseItems": "Collapse",
+  "orderExpandItems": "View Items",
+  "orderCollapseItemsFull": "Collapse Details",
+  "orderExpandItemsFull": "View Item Details",
+  "orderBadgeCancelled": "Cancelled",
+  "orderBadgeReturned": "Returned",
+  "orderBadgePartiallyReturned": "Partially Returned",
+  "orderBadgeCompleted": "Completed",
+  "orderItemAndQtySummary": "{items} items • {qty} pcs",
+  "@orderItemAndQtySummary": {
+    "placeholders": {
+      "items": {
+        "type": "int"
+      },
+      "qty": {
+        "type": "int"
+      }
+    }
+  },
+  "orderItemReturnedQty": "(Returned {qty})",
+  "@orderItemReturnedQty": {
+    "placeholders": {
+      "qty": {
+        "type": "int"
+      }
+    }
+  },
+  "orderDiscountAmount": "Discount: -{amount} VND",
+  "@orderDiscountAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "orderRemainingDebtTag": "Debt: {amount} VND",
+  "@orderRemainingDebtTag": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "orderCancelledDetailTitle": "Cancelled Invoice Details",
+  "orderCancelledBanner": "CANCELLED INVOICE",
+  "orderCancelReasonLabel": "Cancel reason: {reason}",
+  "@orderCancelReasonLabel": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "orderCancelledByLabel": "Cancelled by: {name}",
+  "@orderCancelledByLabel": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "orderCancelledAtLabel": "Cancelled at: {time}",
+  "@orderCancelledAtLabel": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "orderPaymentNotApplicable": "Not applicable (Cancelled)",
+  "orderPaymentPaidFull": "Paid in Full",
+  "orderPaymentPartial": "Partial Payment",
+  "orderPaymentUnpaidDebt": "Unpaid (On Credit)",
+  "orderPaymentSplit": "Split (Cash + Transfer)",
+  "orderItemReturnedCount": "Returned: {count}",
+  "@orderItemReturnedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "orderCashBreakdown": "  • Cash",
+  "orderTransferBreakdown": "  • Transfer",
+  "orderRemainingDebtShort": "Remaining Debt",
+  "orderRemainingAmountShort": "Remaining",
+  "orderActionViewReturn": "View Return Receipt",
+  "orderActionEditInvoice": "Edit Invoice",
+  "orderActionReturnGoods": "Return Goods",
+  "orderActionCollectDebt": "Collect Debt ({amount})",
+  "@orderActionCollectDebt": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "orderActionCancelInvoice": "Cancel Invoice",
+  "orderActionRecreate": "Recreate Order",
+  "orderActionRestore": "Restore Order",
+  "orderActionPrint": "Print Invoice",
+  "orderCopyPhoneSuccess": "Phone number copied",
+  "orderCannotEditCancelledOrReturned": "Cannot edit cancelled or returned invoices.",
+  "orderRestoreInvoiceTitle": "Restore Invoice",
+  "orderRestoreInvoiceMsg": "Are you sure you want to restore invoice {id}?\n\nThe system will restore the order to Completed status, re-deduct branch stock, and update debt.",
+  "@orderRestoreInvoiceMsg": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "orderRestoreInvoiceSkip": "Skip",
+  "orderRestoreInvoiceConfirm": "Restore",
+  "orderRestoreSuccess": "Invoice {id} restored successfully",
+  "@orderRestoreSuccess": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "orderRestoreError": "Error restoring invoice: {error}",
+  "@orderRestoreError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "orderCancelError": "Error cancelling order: {error}",
+  "@orderCancelError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "posScanBarcode": "Scan Barcode",
+  "posScanBarcodePrompt": "Enter or scan product barcode to quickly add to cart:",
+  "posBarcodeLabel": "Barcode",
+  "posFindAndAdd": "Find & Add",
+  "posItemAddedSuccess": "Added: {name}",
+  "@posItemAddedSuccess": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "posBarcodeNotFound": "No product found for barcode: {barcode}",
+  "@posBarcodeNotFound": {
+    "placeholders": {
+      "barcode": {
+        "type": "String"
+      }
+    }
+  },
+  "posSearchProductsHint": "Name, code, barcode...",
+  "posAddNewProduct": "Add new product",
+  "posSearchResultsCount": "Search results ({count})",
+  "@posSearchResultsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "posNoMatchingProducts": "No matching products found",
+  "posInCartQty": "In cart: {count} +",
+  "@posInCartQty": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "posAddButton": "+ Add",
+  "posCartEmpty": "Cart is currently empty",
+  "posItemRemovedFromCart": "Removed \"{name}\" from cart",
+  "@posItemRemovedFromCart": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "commonUndo": "Undo",
+  "posEditItemDiscountNote": "Tap to edit discount / notes",
+  "posDiscountAndItemNote": "Discount / Item notes",
+  "posOutOfStockAtBranch": "Out of stock at this branch",
+  "posNotEnoughStockDetails": "Not enough stock (Stock: {available}, Need: {needed})",
+  "@posNotEnoughStockDetails": {
+    "placeholders": {
+      "available": {
+        "type": "int"
+      },
+      "needed": {
+        "type": "int"
+      }
+    }
+  },
+  "posComboIncludes": "Includes: {components}",
+  "@posComboIncludes": {
+    "placeholders": {
+      "components": {
+        "type": "String"
+      }
+    }
+  },
+  "posOrderNoteTitle": "Order Notes",
+  "posOrderNoteHint": "Enter order notes (if any)...",
+  "posRemoveFromCart": "Remove from cart",
+  "posDiscountPercent": "Discount (%)",
+  "posDiscountAmount": "Discount (VND)",
+  "posClearDiscount": "Remove discount",
+  "posItemNoteHint": "Enter note (up to 300 chars)",
+  "posSwitchToVnd": "Switch to VND",
+  "posSwitchToPercent": "Switch to %",
+  "posOtherSurcharge": "Other Surcharge",
+  "posCustomerPaidAmount": "Customer Paid",
+  "posPayExactAmount": "Exact Amount",
+  "posCardPaymentHint": "Payment via POS card terminal",
+  "posEWalletPaymentHint": "Payment via e-wallet (MoMo, ZaloPay, ShopeePay)",
+  "posRecordAsCustomerDebt": "Record as Customer Debt",
+  "posRemainingChangeDue": "Change due: +{amount} VND",
+  "@posRemainingChangeDue": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "posMethodCard": "Card",
+  "posMethodWallet": "Wallet",
+  "posMethodTransferShort": "Bank\nTransfer",
+  "posSplitPaymentTitle": "Split Payment:",
+  "posSplitPaymentHeader": "Split Payment",
+  "posChangeAction": "Change",
+  "posSplitCashLabel": "• Cash:",
+  "posSplitTransferLabel": "• Transfer:",
+  "posSmartCashSuggestions": "Smart Cash Suggestions:",
+  "posExactCashSuggestion": "{amount} VND (Exact)",
+  "@posExactCashSuggestion": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "posVietQrTitle": "VietQR Code ({amount} VND)",
+  "@posVietQrTitle": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "posVietQrAutoMatch": "Auto match",
+  "posVietQrLoadError": "Failed to load VietQR",
+  "posQrLoadError": "Failed to load QR code",
+  "posTapToEnlargeQr": "Tap to view full screen",
+  "posCopiedBankAccount": "Bank account copied!",
+  "posTransferQrDialogTitle": "Transfer QR Code",
+  "posTransferAmountLabel": "Amount: {amount} VND",
+  "@posTransferAmountLabel": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "posCartIsEmptyWarning": "Cart is empty!",
+  "posPaymentSuccessDialogTitle": "Payment Successful",
+  "posPaymentSuccessDialogMsg": "Order {id} created successfully.\nWould you like to print the invoice now?",
+  "@posPaymentSuccessDialogMsg": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "posBackToHome": "Back to Home",
+  "posPrintInvoice": "Print Invoice",
+  "posStockWarningLow": "Low Stock",
+  "branchDongThang": "Dong Thang Branch",
+  "branchThoiBinh": "Thoi Binh Branch",
+  "branchOther": "Other Branch",
+  "branchWithId": "Branch {id}",
+  "@branchWithId": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "branchSelectedCount": "{count} branches",
+  "@branchSelectedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "posSelectWorkingBranch": "Select Working Branch",
+  "posSwitchedToBranch": "Switched to {branch}",
+  "@posSwitchedToBranch": {
+    "placeholders": {
+      "branch": {
+        "type": "String"
+      }
+    }
+  },
+  "posDraftOrders": "Draft Orders",
+  "posViewCartItems": "View Cart Items ({count})",
+  "@posViewCartItems": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "orderCancelLoginRequired": "Please log in to perform this action.",
+  "orderCancelPermissionDenied": "Only Administrators have permission to cancel paid invoices.",
+  "orderCancelReasonRequired": "Please enter a reason for cancellation.",
+  "orderCancelSuccess": "Invoice {id} cancelled successfully.",
+  "@orderCancelSuccess": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "orderCancelErrorGeneric": "Error cancelling invoice: {error}",
+  "@orderCancelErrorGeneric": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "orderCancelDialogTitle": "Cancel invoice {id}",
+  "@orderCancelDialogTitle": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "orderCancelDialogSubtitle": "Stock and debt rollback operation",
+  "orderCancelWarningAuditImpact": "Cancelling will automatically restock items and revert customer debt and sales.",
+  "orderCancelPermissionDeniedDetails": "Your account does not have permission to cancel paid invoices. Please contact an Administrator.",
+  "orderCancelReasonFieldLabel": "Cancellation reason *",
+  "orderCancelReasonPlaceholder": "E.g., Customer changed mind, wrong items...",
+  "orderCancelReasonEmptyError": "Cancellation reason cannot be empty",
+  "orderCancelConfirmButton": "Confirm Cancellation",
+  "orderCollectDebtSubject": "Collect debt for invoice {id}",
+  "@orderCollectDebtSubject": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "orderCollectDebtMinAmountError": "Collection amount must be greater than 0 VND",
+  "orderCollectDebtExceedsLimit": "Collection amount cannot exceed remaining debt ({amount} VND)",
+  "@orderCollectDebtExceedsLimit": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "orderCollectDebtLoginRequired": "Please log in to collect debt.",
+  "orderCollectDebtSuccess": "Collected {amount} VND successfully for invoice {id}.",
+  "@orderCollectDebtSuccess": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "orderCollectDebtError": "Error collecting debt: {error}",
+  "@orderCollectDebtError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "orderCollectDebtTitle": "Collect Debt - Invoice {id}",
+  "@orderCollectDebtTitle": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "orderCollectTotalInvoice": "Total Invoice:",
+  "orderCollectRemainingDebt": "Remaining Debt:",
+  "orderCollectAmountFieldLabel": "Collection Amount (VND) *",
+  "orderCollectAmountRequired": "Please enter collection amount",
+  "orderCollectAllDebt": "Collect All Debt",
+  "orderCollectPaymentMethodLabel": "Payment Method *",
+  "orderCollectNoteHint": "Enter debt collection note...",
+  "orderCollectCancelButton": "Cancel",
+  "orderCollectConfirmButton": "Confirm Collection",
+  "draftOrdersCountTitle": "Draft Orders ({count})",
+  "@draftOrdersCountTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "draftOrdersTitle": "Draft Orders",
+  "draftOrdersLoadError": "Error loading draft orders: {error}",
+  "@draftOrdersLoadError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "draftOrdersEmpty": "No draft orders",
+  "draftOrdersEmptyHint": "When making a sale, you can tap \"Save Draft\" to save the cart and open it anytime.",
+  "draftOrderOpen": "Open Order",
+  "draftOrderCancelTitle": "Cancel Draft Order",
+  "draftOrderCancelConfirm": "Are you sure you want to cancel draft order {id}?",
+  "@draftOrderCancelConfirm": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "draftOrderSkip": "Skip",
+  "draftOrderCancelSuccess": "Cancelled draft order {id}",
+  "@draftOrderCancelSuccess": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "draftOrderCancelError": "Error cancelling draft: {error}",
+  "@draftOrderCancelError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "draftOrderCancelActionButton": "Cancel Order",
+  "draftOrderLoadedToCart": "Loaded draft {id} to cart",
+  "@draftOrderLoadedToCart": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "posCartTabCloseTitle": "Close Draft Invoice?",
+  "posCartTabCloseMsg": "Invoice \"{title}\" has {count} items ({amount} VND).\nAre you sure you want to close and clear this order?",
+  "@posCartTabCloseMsg": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "posCartTabCloseConfirm": "Close Invoice",
+  "posCartTabAddNew": "New Tab",
+  "orderReturnSelectAtLeastOne": "Please select at least 1 item to return.",
+  "orderReturnLoginRequired": "Please log in to perform returns.",
+  "orderReturnSuccessMsg": "Return successful: Refunded {cash} VND{debtDeductedPart}.",
+  "@orderReturnSuccessMsg": {
+    "placeholders": {
+      "cash": {
+        "type": "String"
+      },
+      "debtDeductedPart": {
+        "type": "String"
+      }
+    }
+  },
+  "orderReturnDebtDeductedSuffix": ", debt reduced {amount} VND",
+  "@orderReturnDebtDeductedSuffix": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "orderReturnError": "Return error: {error}",
+  "@orderReturnError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "orderReturnTitle": "Return - Invoice {id}",
+  "@orderReturnTitle": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "orderReturnInstruction": "Select items and quantity to return",
+  "orderReturnProductListCount": "Product List ({count})",
+  "@orderReturnProductListCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "orderReturnDeselectAll": "Deselect All",
+  "orderReturnSelectAll": "Select All to Return",
+  "orderReturnBoughtQty": "Purchased: {qty}",
+  "@orderReturnBoughtQty": {
+    "placeholders": {
+      "qty": {
+        "type": "int"
+      }
+    }
+  },
+  "orderReturnReturnedQty": "Returned: {qty}",
+  "@orderReturnReturnedQty": {
+    "placeholders": {
+      "qty": {
+        "type": "int"
+      }
+    }
+  },
+  "orderReturnFullyReturned": "Fully Returned",
+  "orderReturnTotalAmount": "Total Return Amount:",
+  "orderReturnDebtDeducted": "Offset Invoice Debt:",
+  "orderReturnCashRefunded": "Actual Cash Refund to Customer:",
+  "orderReturnRefundMethod": "Refund Method: ",
+  "orderReturnReasonHint": "Enter return reason (optional)...",
+  "orderReturnReasonLabel": "Return Reason",
+  "orderReturnConfirmWithCount": "Confirm Return ({count} items)",
+  "@orderReturnConfirmWithCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "orderReturnSelectPrompt": "Select items to return",
+  "orderReturnDefaultReason": "Customer return",
+  "orderReturnDebtDeductedMethod": "Debt Offset",
+  "orderReturnDebtAndCashMethod": "Debt Offset + Cash",
+  "orderReturnReceiptCodeLabel": "Return Receipt: {id}",
+  "@orderReturnReceiptCodeLabel": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "orderReturnRefundedStatus": "Refunded",
+  "orderReturnOriginalInvoiceLabel": "Original Invoice: #{id}",
+  "@orderReturnOriginalInvoiceLabel": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "orderReturnCustomerLabel": "Customer: {name}",
+  "@orderReturnCustomerLabel": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "orderReturnViewDetail": "View Detail",
+  "orderReturnReturnedItemsList": "Returned Items List",
+  "orderReturnTotalGoodsReturned": "Total Returned Goods Amount",
+  "orderReturnAdditionalInfo": "Additional Information",
+  "orderReturnStaffLabel": "Processed by",
+  "orderReturnCreatedTime": "Created Time",
+  "orderReturnViewOriginalInvoice": "View Original Invoice",
+  "customerFilterResetWithCount": "Reset ({count})",
+  "@customerFilterResetWithCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "customerCannotReadFile": "Cannot read file content",
+  "customerDebtNeedCollect": "To Collect",
+  "customerDeletePermissionDenied": "You do not have permission to delete customers",
+  "customerCannotDeleteHasDebtWarning": "Cannot delete customer with outstanding debt ({debt} VND)",
+  "@customerCannotDeleteHasDebtWarning": {
+    "placeholders": {
+      "debt": {
+        "type": "String"
+      }
+    }
+  },
+  "customerDeleteError": "Error deleting customer: {error}",
+  "@customerDeleteError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "customerTransactionsCountLabel": "{count} transactions",
+  "@customerTransactionsCountLabel": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "customerDebtInputHintExample": "E.g., 1,000,000",
+  "ordersUnit": "orders",
+  "transactionUnit": "transactions",
+  "weekdayMonday": "Monday",
+  "weekdayTuesday": "Tuesday",
+  "weekdayWednesday": "Wednesday",
+  "weekdayThursday": "Thursday",
+  "weekdayFriday": "Friday",
+  "weekdaySaturday": "Saturday",
+  "weekdaySunday": "Sunday",
+  "dateRelativeToday": "Today, {date}",
+  "@dateRelativeToday": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "dateRelativeYesterday": "Yesterday, {date}",
+  "@dateRelativeYesterday": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "commonUnitItems": "items",
+  "productStockThreshold": "Stock Threshold",
+  "productAllowSelling": "Allow Selling",
+  "productStatusActiveDescription": "Active (Visible on POS and allowed for sales)",
+  "productStatusInactiveDescription": "Inactive (Hidden from POS screen)",
+  "productStockMinMaxLabel": "Min stock: {min} • Max stock: {max}",
+  "@productStockMinMaxLabel": {
+    "placeholders": {
+      "min": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "productPermissionDeniedNotice": "You have read-only permissions for products. Contact Manager for edits.",
+  "categoriesManagementTitle": "Category Management",
+  "categoryAddRoot": "Add Root Category",
+  "categorySearchHint": "Search category name...",
+  "categoryCreateFirst": "Create first category",
+  "categorySearchNotFound": "No matching categories found",
+  "kpiNetRevenue": "Net Revenue",
+  "kpiGrossProfit": "Gross Profit",
+  "kpiAverageOrderValue": "AOV (Average Order Value)",
+  "reportHourlyRevenueTitle": "Hourly Revenue Throughout the Day",
+  "reportRecentActivityTitle": "Recent Activity",
+  "stockAlertTitle": "Stock Alerts & Operations",
+  "stockAlertInventoryCost": "Inventory Value (Cost Price)",
+  "settingsSwitchStoreTitle": "SWITCH STORE BRANCH",
+  "settingsReceiptQrConfigTitle": "Invoice & VietQR Setup",
+  "settingsPrintVietQrSwitch": "Print VietQR code on invoice",
+  "commonClearSearch": "Clear search",
+  "commonDeselect": "Deselect",
+  "inventoryDraftSavedSuccess": "Draft receipt saved",
+  "inventoryReceiptCompletedSuccess": "Stock-in receipt completed",
+  "inventoryReceiptTitleWithCode": "Receipt {code}",
+  "@inventoryReceiptTitleWithCode": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "inventoryImportStoreLabel": "Receiving store: {store}",
+  "@inventoryImportStoreLabel": {
+    "placeholders": {
+      "store": {
+        "type": "String"
+      }
+    }
+  },
+  "inventorySelectSupplierPrompt": "No supplier selected (Tap to choose)",
+  "inventoryBarcodeScannerActivated": "Barcode scanner is activated",
+  "inventoryNoItemsInReceipt": "No items in receipt yet",
+  "inventoryReceiptCountLabel": "{count} stock receipts",
+  "@inventoryReceiptCountLabel": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "inventoryTotalSumLabel": "Total: {amount} VND",
+  "@inventoryTotalSumLabel": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "inventoryDeleteItemTitle": "Remove item from receipt?",
+  "inventoryDeleteItemConfirm": "Are you sure you want to remove this item from receipt?",
+  "inventoryItemCodeAndStock": "Code: {code} • Stock: {stock}",
+  "@inventoryItemCodeAndStock": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      },
+      "stock": {
+        "type": "int"
+      }
+    }
+  },
+  "inventoryCostConfidentialNotice": "Cost value is hidden for staff accounts",
+  "inventoryCancelReceiptAction": "Cancel Receipt",
+  "inventoryDeleteReceiptAction": "Delete Receipt",
+  "inventoryCancelReasonLabel": "Cancellation reason: {reason}",
+  "@inventoryCancelReasonLabel": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "inventoryCancelledByLabel": "Cancelled by: {name}",
+  "@inventoryCancelledByLabel": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "inventoryCancelledAtLabel": "Cancelled at: {time}",
+  "@inventoryCancelledAtLabel": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "inventoryCancelWarningAudit": "Cancelling will roll back stock and supplier debt.",
+  "inventoryExitConfirmPrompt": "Stock-in receipt is incomplete. Do you want to save as draft?",
+  "dateToday": "Today",
+  "dateYesterday": "Yesterday",
+  "dateLast7Days": "Last 7 Days",
+  "dateThisMonthDefault": "This Month (Default)",
+  "dateCustomRange": "Custom Date Range...",
+  "supplierDebtTag": "Debt: {amount} VND",
+  "@supplierDebtTag": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "supplierNoDebt": "No Debt",
+  "supplierAddNew": "Add New Supplier",
+  "customerLabel": "Customer:",
+  "orderCollectAmountMustBeGreaterThanZero": "Amount must be greater than 0",
+  "orderCollectAmountExceedsRemainingDebt": "Exceeds remaining debt",
+  "posSellingPrice": "Selling Price",
+  "posStockCountLabel": "Stock: {count}",
+  "@posStockCountLabel": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

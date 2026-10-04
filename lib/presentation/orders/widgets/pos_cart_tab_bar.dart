@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -40,31 +41,37 @@ class _PosCartTabBarState extends ConsumerState<PosCartTabBar> {
       return;
     }
 
+    final l10n = AppLocalizations.of(context);
     final currencyFormat = NumberFormat('#,###', 'vi_VN');
     final shouldClose = await showDialog<bool>(
       context: context,
       builder: (dialogCtx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.warning_amber_rounded,
+            const Icon(Icons.warning_amber_rounded,
                 color: AppColors.warning, size: 24),
-            SizedBox(width: 8),
+            const SizedBox(width: 8),
             Text(
-              'Đóng hóa đơn tạm?',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              l10n?.posCartTabCloseTitle ?? 'Đóng hóa đơn tạm?',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ],
         ),
         content: Text(
-          'Hóa đơn "${tab.title}" đang có ${tab.totalItems} sản phẩm (${currencyFormat.format(tab.totalAmount)} đ).\nBạn có chắc chắn muốn đóng và xóa các món trong đơn này không?',
+          l10n?.posCartTabCloseMsg(
+                tab.title,
+                tab.totalItems,
+                currencyFormat.format(tab.totalAmount),
+              ) ??
+              'Hóa đơn "${tab.title}" đang có ${tab.totalItems} sản phẩm (${currencyFormat.format(tab.totalAmount)} đ).\nBạn có chắc chắn muốn đóng và xóa các món trong đơn này không?',
           style: const TextStyle(fontSize: 14, height: 1.4),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogCtx).pop(false),
-            child: const Text('Bỏ qua',
-                style: TextStyle(color: AppColors.textSecondary)),
+            child: Text(l10n?.draftOrderSkip ?? 'Bỏ qua',
+                style: const TextStyle(color: AppColors.textSecondary)),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
@@ -72,7 +79,7 @@ class _PosCartTabBarState extends ConsumerState<PosCartTabBar> {
               foregroundColor: AppColors.white,
             ),
             onPressed: () => Navigator.of(dialogCtx).pop(true),
-            child: const Text('Đóng hóa đơn'),
+            child: Text(l10n?.posCartTabCloseConfirm ?? 'Đóng hóa đơn'),
           ),
         ],
       ),
@@ -140,14 +147,15 @@ class _PosCartTabBarState extends ConsumerState<PosCartTabBar> {
                     style: BorderStyle.solid,
                   ),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.add, size: 16, color: AppColors.primary),
-                    SizedBox(width: 4),
+                    const Icon(Icons.add, size: 16, color: AppColors.primary),
+                    const SizedBox(width: 4),
                     Text(
-                      'Thêm đơn',
-                      style: TextStyle(
+                      AppLocalizations.of(context)?.posCartTabAddNew ??
+                          'Thêm đơn',
+                      style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: AppColors.primary,

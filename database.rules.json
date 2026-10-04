@@ -1,0 +1,101 @@
+{
+  "rules": {
+    ".read": true,
+    ".write": true,
+    "stores": {
+      "$storeId": {
+        "orders": {
+          ".indexOn": [
+            "createdAt",
+            "orderDate",
+            "customerId",
+            "status",
+            "createdBy"
+          ]
+        },
+        "return_orders": {
+          ".indexOn": [
+            "createdAt",
+            "orderId",
+            "customerId"
+          ]
+        },
+        "inventory_transactions": {
+          ".indexOn": [
+            "date",
+            "productId",
+            "type",
+            "importCode",
+            "supplierId"
+          ]
+        },
+        "stock_in_receipts": {
+          ".indexOn": [
+            "date",
+            "status",
+            "importCode",
+            "supplierId",
+            "createdAt"
+          ]
+        },
+        "products": {
+          ".indexOn": [
+            "category",
+            "code",
+            "id",
+            "allowSale",
+            "type"
+          ]
+        },
+        "attendance": {
+          ".indexOn": [
+            "date",
+            "userId",
+            "storeId"
+          ]
+        }
+      }
+    },
+    "attendances": {
+      ".indexOn": [
+        "date",
+        "storeId",
+        "userId"
+      ]
+    },
+    "attendance_adjustments": {
+      ".indexOn": [
+        "storeId",
+        "userId",
+        "status",
+        "submittedAt"
+      ]
+    },
+    "shifts": {
+      ".indexOn": [
+        "id",
+        "name"
+      ]
+    },
+    "shared_customers": {
+      ".indexOn": [
+        "phone",
+        "id",
+        "branch",
+        "currentDebt"
+      ]
+    },
+    "shared_suppliers": {
+      ".indexOn": [
+        "code",
+        "phone",
+        "id"
+      ]
+    },
+    "store_payment_configs": {
+      ".indexOn": [
+        "storeId"
+      ]
+    }
+  }
+}

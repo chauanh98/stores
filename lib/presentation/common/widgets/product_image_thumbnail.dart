@@ -543,14 +543,27 @@ class ProductImageThumbnail extends StatelessWidget {
   }
 
   Color _getDarkerTone(Color pastel) {
-    if (pastel == AppColors.thumbnailBlueBg) return AppColors.thumbnailBlueFg;
-    if (pastel == AppColors.thumbnailPurpleBg)
+    if (pastel == AppColors.thumbnailBlueBg) {
+      return AppColors.thumbnailBlueFg;
+    }
+    if (pastel == AppColors.thumbnailPurpleBg) {
       return AppColors.thumbnailPurpleFg;
-    if (pastel == AppColors.thumbnailTealBg) return AppColors.thumbnailTealFg;
-    if (pastel == AppColors.thumbnailAmberBg) return AppColors.thumbnailAmberFg;
-    if (pastel == AppColors.thumbnailRedBg) return AppColors.thumbnailRedFg;
-    if (pastel == AppColors.thumbnailGreenBg) return AppColors.thumbnailGreenFg;
-    if (pastel == AppColors.thumbnailRoseBg) return AppColors.thumbnailRoseFg;
+    }
+    if (pastel == AppColors.thumbnailTealBg) {
+      return AppColors.thumbnailTealFg;
+    }
+    if (pastel == AppColors.thumbnailAmberBg) {
+      return AppColors.thumbnailAmberFg;
+    }
+    if (pastel == AppColors.thumbnailRedBg) {
+      return AppColors.thumbnailRedFg;
+    }
+    if (pastel == AppColors.thumbnailGreenBg) {
+      return AppColors.thumbnailGreenFg;
+    }
+    if (pastel == AppColors.thumbnailRoseBg) {
+      return AppColors.thumbnailRoseFg;
+    }
     return AppColors.thumbnailDefaultFg;
   }
 }

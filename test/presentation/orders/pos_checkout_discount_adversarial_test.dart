@@ -203,18 +203,30 @@ void main() {
     // Verify initial gross total in UI: 6,000,000 đ
     expect(find.text('6.000.000 đ'), findsWidgets);
 
-    // Enter Discount of 500,000 đ
-    final discountField = find.byKey(const Key('pos_discount_textfield'));
+    // Click checkout button on POSCheckoutPage to open POSPaymentPage
+    final checkoutButton = find.widgetWithText(ElevatedButton, 'Thanh toán');
+    expect(checkoutButton, findsOneWidget);
+    await tester.tap(checkoutButton);
+    await tester.pumpAndSettle();
+
+    // On POSPaymentPage, enter Discount of 500,000 đ
+    final discountField = find.byKey(const Key('pos_payment_discount_textfield'));
     await tester.enterText(discountField, '500000');
     await tester.pumpAndSettle();
 
     // Now Net Pay is 5,500,000 đ
-    expect(find.text('5.500.000 đ'), findsWidgets);
+    expect(find.text('5.500.000'), findsWidgets);
 
-    // Click checkout button
-    final checkoutButton = find.widgetWithText(ElevatedButton, 'Thanh toán');
-    expect(checkoutButton, findsOneWidget);
-    await tester.tap(checkoutButton);
+    // Tap Trả đủ to pay full in cash
+    final traDu = find.text('Trả đủ');
+    if (traDu.evaluate().isNotEmpty) {
+      await tester.tap(traDu);
+      await tester.pumpAndSettle();
+    }
+
+    // Click pay button on POSPaymentPage
+    final payBtn = find.widgetWithText(FilledButton, 'Thanh toán');
+    await tester.tap(payBtn);
     await tester.pumpAndSettle();
 
     // Verify Order creation contract
@@ -284,26 +296,31 @@ void main() {
     await tester.pumpAndSettle();
 
     // Select Customer CUST_TB_01
-    await tester.tap(find.text('Thay đổi'));
+    await tester.tap(find.text('Khách lẻ'));
     await tester.pumpAndSettle();
 
     // Tap the customer in bottom sheet
     await tester.tap(find.text('Nguyễn Văn Thới'));
     await tester.pumpAndSettle();
 
+    // Click checkout button on POSCheckoutPage to open POSPaymentPage
+    final checkoutButton = find.widgetWithText(ElevatedButton, 'Thanh toán');
+    await tester.tap(checkoutButton);
+    await tester.pumpAndSettle();
+
     // Enter Discount of 1,000,000 đ -> Net Pay = 5,000,000 đ
-    final discountField = find.byKey(const Key('pos_discount_textfield'));
+    final discountField = find.byKey(const Key('pos_payment_discount_textfield'));
     await tester.enterText(discountField, '1000000');
     await tester.pumpAndSettle();
 
     // Customer pays partial amount 3,000,000 đ
-    final paymentField = find.byKey(const Key('pos_customer_payment_textfield'));
+    final paymentField = find.byKey(const Key('pos_payment_customer_payment_textfield'));
     await tester.enterText(paymentField, '3000000');
     await tester.pumpAndSettle();
 
-    // Click checkout button
-    final checkoutButton = find.widgetWithText(ElevatedButton, 'Thanh toán');
-    await tester.tap(checkoutButton);
+    // Click pay button on POSPaymentPage
+    final payBtn = find.widgetWithText(FilledButton, 'Thanh toán');
+    await tester.tap(payBtn);
     await tester.pumpAndSettle();
 
     // Verify Order creation contract

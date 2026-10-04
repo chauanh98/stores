@@ -63,6 +63,10 @@ class _FakeOrderRepo implements OrderRepository, OrderRepositoryReturnHandler {
   Stream<List<ReturnOrder>> watchReturnsByOrderId(String orderId) =>
       Stream.value(
           returnOrders.values.where((r) => r.orderId == orderId).toList());
+
+  @override
+  Stream<List<ReturnOrder>> watchAllReturns() =>
+      Stream.value(returnOrders.values.toList());
 }
 
 class _FakeProductRepo implements ProductRepository {

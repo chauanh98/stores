@@ -3,6 +3,7 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:stores/core/theme/app_colors.dart';
+import 'package:stores/presentation/common/widgets/empty_state_view.dart';
 import 'package:stores/presentation/common/widgets/error_view.dart';
 import 'package:stores/presentation/common/widgets/loading_indicator.dart';
 
@@ -12,6 +13,7 @@ import '../../../application/orders/orders_providers.dart';
 import '../../../application/products/products_providers.dart';
 import '../../../core/services/filter_storage_service.dart';
 import '../../../core/utils/combo_helper.dart';
+import '../../../core/utils/search_text_helper.dart';
 import '../../../domain/entities/product.dart';
 import '../../common/widgets/product_image_thumbnail.dart';
 import '../widgets/draft_orders_bottom_sheet.dart';
@@ -178,6 +180,7 @@ class _POSPageState extends ConsumerState<POSPage> {
           Expanded(
             child: productsAsync.when(
               data: (products) {
+                final queryTokens = SearchTextHelper.queryTokens(_searchQuery);
                 final filtered = products.where((p) {
                   // Hide products that are disabled / stopped selling
                   if (!p.allowSale) return false;
@@ -196,25 +199,50 @@ class _POSPageState extends ConsumerState<POSPage> {
                     if (!matchesCategory) return false;
                   }
 
-                  // 2) Lọc theo từ khóa tìm kiếm
-                  final query = _searchQuery.toLowerCase().trim();
-                  if (query.isNotEmpty) {
-                    final matchesSearch =
-                        p.name.toLowerCase().contains(query) ||
-                            p.code.toLowerCase().contains(query) ||
-                            (p.brand ?? '').toLowerCase().contains(query) ||
-                            p.category.toLowerCase().contains(query);
-                    if (!matchesSearch) return false;
+                  // 2) Lọc theo từ khóa tìm kiếm (không dấu, nhiều từ, cả mã vạch)
+                  if (queryTokens.isNotEmpty) {
+                    final haystack = SearchTextHelper.haystackOf(
+                      p,
+                      () => [p.name, p.code, p.barcode, p.brand, p.category],
+                    );
+                    if (!SearchTextHelper.matchesTokens(
+                        haystack, queryTokens)) {
+                      return false;
+                    }
                   }
 
                   return true;
                 }).toList();
 
                 if (filtered.isEmpty) {
-                  return Center(child: Text(l10n.noProductsFound));
+                  final hasFilter = _searchQuery.trim().isNotEmpty ||
+                      (_selectedCategoryId != 'all' &&
+                          _selectedCategoryId.isNotEmpty);
+                  return EmptyStateView(
+                    icon: hasFilter
+                        ? Icons.search_off_rounded
+                        : Icons.inventory_2_outlined,
+                    title: l10n.noProductsFound,
+                    message: hasFilter
+                        ? 'Thử từ khoá khác (có thể gõ không dấu) hoặc bỏ lọc nhóm hàng.'
+                        : null,
+                    actionLabel: hasFilter ? 'Xoá tìm kiếm & bộ lọc' : null,
+                    onAction: hasFilter
+                        ? () {
+                            _searchController.clear();
+                            setState(() {
+                              _searchQuery = '';
+                              _selectedCategoryId = 'all';
+                              _selectedCategoryName = 'Tất cả';
+                            });
+                          }
+                        : null,
+                  );
                 }
 
                 return ListView.separated(
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                   itemCount: filtered.length,
@@ -354,7 +382,10 @@ class _POSPageState extends ConsumerState<POSPage> {
                 );
               },
               loading: () => const Center(child: LoadingIndicator()),
-              error: (e, _) => Center(child: ErrorView(e)),
+              error: (e, _) => ErrorView(
+                e,
+                onRetry: () => ref.invalidate(productListProvider),
+              ),
             ),
           ),
           // Thanh trạng thái giỏ hàng dưới cùng (nếu giỏ hàng không trống)

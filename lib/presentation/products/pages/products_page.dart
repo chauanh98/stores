@@ -18,6 +18,7 @@ import '../../../core/utils/file_saver.dart';
 import '../../../core/utils/sample_image_helper.dart';
 import '../../../domain/entities/product.dart';
 import '../../../domain/entities/user_account.dart';
+import '../../common/widgets/empty_state_view.dart';
 import '../../common/widgets/error_view.dart';
 import '../../common/widgets/scroll_aware_fab.dart';
 import '../../inventories/pages/import_inventory_page.dart';
@@ -569,11 +570,13 @@ class ProductsPageState extends ConsumerState<ProductsPage> {
                     ),
                     Expanded(
                       child: data.filteredProducts.isEmpty
-                          ? Center(child: Text(l10n.notFound))
+                          ? _buildProductsEmptyState(l10n.notFound)
                           : RefreshIndicator(
                               onRefresh: _refreshProducts,
                               child: ListView.builder(
                                 controller: _scrollController,
+                                keyboardDismissBehavior:
+                                    ScrollViewKeyboardDismissBehavior.onDrag,
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 12, vertical: 6),
                                 itemCount: displayProducts.length,
@@ -586,7 +589,10 @@ class ProductsPageState extends ConsumerState<ProductsPage> {
                 );
               },
               loading: () => const LoadingIndicator(),
-              error: (error, stack) => ErrorView(error),
+              error: (error, stack) => ErrorView(
+                error,
+                onRetry: () => ref.invalidate(productListProvider),
+              ),
             ),
           ),
         ],
@@ -1261,6 +1267,26 @@ class ProductsPageState extends ConsumerState<ProductsPage> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildProductsEmptyState(String title) {
+    final search = ref.read(productSearchQueryProvider).trim();
+    final hasSearch = search.isNotEmpty;
+    return EmptyStateView(
+      icon: hasSearch ? Icons.search_off_rounded : Icons.inventory_2_outlined,
+      title: title,
+      message: hasSearch
+          ? 'Không có hàng hoá khớp "$search". Có thể gõ không dấu, tìm theo mã hoặc mã vạch.'
+          : 'Không có hàng hoá phù hợp với bộ lọc đang chọn.',
+      actionLabel: hasSearch ? 'Xoá từ khoá' : null,
+      actionIcon: Icons.close_rounded,
+      onAction: hasSearch
+          ? () {
+              _searchController.clear();
+              ref.read(productSearchQueryProvider.notifier).state = '';
+            }
+          : null,
     );
   }
 

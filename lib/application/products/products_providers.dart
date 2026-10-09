@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/utils/search_text_helper.dart';
 import '../../core/utils/store_resolver_helper.dart';
 import '../../data/datasources/firebase/product_remote_data_source.dart';
 import '../../data/repositories/product_repository_impl.dart';
@@ -453,7 +454,25 @@ final processedProductsProvider =
     // 4. Smart Search: match name, code (SKU), barcode, brand, model, category
     final q = searchQuery.trim().toLowerCase();
     if (q.isNotEmpty) {
+      // Khớp thêm kiểu không dấu & nhiều từ khoá ("nuoc ngot" ~ "Nước ngọt").
+      final tokens = SearchTextHelper.queryTokens(q);
       filtered = filtered.where((p) {
+        final unaccentedMatch = SearchTextHelper.matchesTokens(
+          SearchTextHelper.haystackOf(
+            p,
+            () => [
+              p.name,
+              p.code,
+              p.barcode,
+              p.brand,
+              p.model,
+              p.category,
+              p.category3Levels,
+            ],
+          ),
+          tokens,
+        );
+        if (unaccentedMatch) return true;
         final nameMatch = p.name.toLowerCase().contains(q);
         final codeMatch = p.code.toLowerCase().contains(q);
         final barcodeMatch =

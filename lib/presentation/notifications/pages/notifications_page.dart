@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../application/auth/auth_providers.dart';
 import '../../../application/notifications/notifications_providers.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/store_resolver_helper.dart';
+import '../../common/widgets/error_view.dart';
 import '../widgets/notification_card.dart';
 
 class NotificationsPage extends ConsumerStatefulWidget {
@@ -16,6 +18,9 @@ class NotificationsPage extends ConsumerStatefulWidget {
 
 class _NotificationsPageState extends ConsumerState<NotificationsPage> {
   final Set<String> _locallyDismissedIds = {};
+
+  /// Admin/Owner: xem thông báo của mọi chi nhánh thay vì chỉ chi nhánh đang chọn.
+  bool _allStores = false;
   late final ScrollController _scrollController;
 
   @override
@@ -33,13 +38,34 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final unreadCount = ref.watch(unreadNotificationCountProvider);
     final controllerState = ref.watch(notificationControllerProvider);
     final isMutating = controllerState.isLoading;
     final selectedFilter = ref.watch(notificationCategoryFilterProvider);
 
-    final streamAsync = ref.watch(notificationStreamProvider);
-    final allFiltered = ref.watch(filteredNotificationsProvider);
+    final hasOtherStores =
+        ref.watch(otherAdminNotificationStoreIdsKeyProvider).isNotEmpty;
+    final showAllStores = _allStores && hasOtherStores;
+
+    final AsyncValue<List<NotificationItem>> streamAsync;
+    final List<NotificationItem> allFiltered;
+    final int unreadCount;
+    if (showAllStores) {
+      // Gộp mọi chi nhánh (dùng chung listener với pop-up, không tải thêm).
+      streamAsync = ref.watch(popupNotificationStreamProvider);
+      final merged = streamAsync.valueOrNull ?? const <NotificationItem>[];
+      allFiltered = selectedFilter == null
+          ? merged
+          : merged.where((n) => n.category == selectedFilter).toList();
+      unreadCount = merged.where((n) => !n.isRead).length;
+    } else {
+      streamAsync = ref.watch(notificationStreamProvider);
+      allFiltered = ref.watch(filteredNotificationsProvider);
+      unreadCount = ref.watch(unreadNotificationCountProvider);
+    }
+    final storeNames = showAllStores
+        ? (ref.watch(availableStoresProvider).valueOrNull ??
+            const <String, String>{})
+        : const <String, String>{};
     final notifications = allFiltered
         .where((item) => !_locallyDismissedIds.contains(item.id))
         .toList();
@@ -86,10 +112,21 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                     ? null
                     : () async {
                         try {
-                          final storeId = ref.read(currentStoreIdProvider);
-                          await ref
-                              .read(notificationControllerProvider.notifier)
-                              .markAllAsRead(storeId: storeId);
+                          final controller =
+                              ref.read(notificationControllerProvider.notifier);
+                          if (showAllStores) {
+                            final storeIds = notifications
+                                .where((n) => !n.isRead)
+                                .map((n) => n.storeId)
+                                .where((id) => id.isNotEmpty)
+                                .toSet();
+                            for (final id in storeIds) {
+                              await controller.markAllAsRead(storeId: id);
+                            }
+                          } else {
+                            final storeId = ref.read(currentStoreIdProvider);
+                            await controller.markAllAsRead(storeId: storeId);
+                          }
                           if (!context.mounted) return;
                           ScaffoldMessenger.of(context).hideCurrentSnackBar();
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -164,6 +201,42 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                     icon: Icons.person_outline_rounded,
                     isSelected: selectedFilter == NotificationCategory.customers,
                   ),
+                  if (hasOtherStores) ...[
+                    const SizedBox(width: 12),
+                    Container(width: 1, height: 22, color: AppColors.borderLight),
+                    const SizedBox(width: 12),
+                    FilterChip(
+                      key: const Key('notification_chip_all_stores'),
+                      avatar: Icon(
+                        Icons.storefront_outlined,
+                        size: 16,
+                        color: showAllStores
+                            ? AppColors.primary
+                            : AppColors.textSecondary,
+                      ),
+                      label: const Text('Mọi chi nhánh'),
+                      selected: showAllStores,
+                      showCheckmark: false,
+                      onSelected: (v) => setState(() => _allStores = v),
+                      selectedColor: AppColors.primaryLight,
+                      backgroundColor: AppColors.surface,
+                      labelStyle: TextStyle(
+                        color: showAllStores
+                            ? AppColors.primary
+                            : AppColors.textSecondary,
+                        fontWeight:
+                            showAllStores ? FontWeight.bold : FontWeight.w500,
+                        fontSize: 13,
+                      ),
+                      side: BorderSide(
+                        color: showAllStores
+                            ? AppColors.primary
+                            : AppColors.borderLight,
+                      ),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20)),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -179,23 +252,9 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                 }
 
                 if (streamAsync.hasError && streamAsync.valueOrNull == null) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.error_outline,
-                            size: 48, color: AppColors.danger),
-                        const SizedBox(height: 12),
-                        Text(streamAsync.error.toString(),
-                            textAlign: TextAlign.center),
-                        const SizedBox(height: 12),
-                        ElevatedButton(
-                          onPressed: () =>
-                              ref.invalidate(notificationStreamProvider),
-                          child: const Text('Thử lại'),
-                        ),
-                      ],
-                    ),
+                  return ErrorView(
+                    streamAsync.error!,
+                    onRetry: () => ref.invalidate(notificationStreamProvider),
                   );
                 }
 
@@ -259,17 +318,35 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                   );
                 }
 
+                // Gom nhóm theo ngày: "Hôm nay", "Hôm qua", dd/MM/yyyy.
+                final entries = _groupByDay(notifications);
+
                 return RefreshIndicator(
+                  // Danh sách là realtime: chỉ mở lại listener khi đang lỗi
+                  // (mở lại khi đang ổn = tải lại toàn bộ 50 thông báo).
                   onRefresh: () async {
-                    ref.invalidate(notificationStreamProvider);
+                    if (ref.read(notificationStreamProvider).hasError) {
+                      ref.invalidate(notificationStreamProvider);
+                    }
+                    if (showAllStores &&
+                        ref.read(popupNotificationStreamProvider).hasError) {
+                      ref.invalidate(popupNotificationStreamProvider);
+                    }
+                    await Future<void>.delayed(
+                        const Duration(milliseconds: 400));
                   },
                   child: ListView.builder(
                     key: const Key('notification_list_view'),
                     controller: _scrollController,
+                    physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.symmetric(vertical: 8),
-                    itemCount: notifications.length,
+                    itemCount: entries.length,
                     itemBuilder: (context, index) {
-                      final item = notifications[index];
+                      final entry = entries[index];
+                      if (entry is String) {
+                        return _buildDayHeader(entry);
+                      }
+                      final item = entry as NotificationItem;
                       return Dismissible(
                         key: Key('dismissible_${item.id}'),
                         direction: DismissDirection.endToStart,
@@ -362,6 +439,12 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                           key: Key('notification_dismiss_${item.id}'),
                           child: NotificationCard(
                             item: item,
+                            storeLabel: showAllStores
+                                ? StoreResolverHelper.getShortStoreName(
+                                    item.storeId,
+                                    storeNames: storeNames,
+                                  )
+                                : null,
                           ),
                         ),
                       );
@@ -372,6 +455,62 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Trả về danh sách phẳng gồm tiêu đề ngày (String) xen kẽ các thông báo.
+  List<Object> _groupByDay(List<NotificationItem> items) {
+    final sorted = [...items]
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    final result = <Object>[];
+    String? lastLabel;
+    for (final item in sorted) {
+      final local = item.createdAt.toLocal();
+      final day = DateTime(local.year, local.month, local.day);
+      final String label;
+      if (day == today) {
+        label = 'Hôm nay';
+      } else if (day == yesterday) {
+        label = 'Hôm qua';
+      } else {
+        // Không dùng DateFormat theo locale để không phụ thuộc dữ liệu intl 'vi'.
+        const weekdays = [
+          'Thứ Hai',
+          'Thứ Ba',
+          'Thứ Tư',
+          'Thứ Năm',
+          'Thứ Sáu',
+          'Thứ Bảy',
+          'Chủ Nhật',
+        ];
+        String two(int v) => v.toString().padLeft(2, '0');
+        label =
+            '${weekdays[local.weekday - 1]}, ${two(local.day)}/${two(local.month)}/${local.year}';
+      }
+      if (label != lastLabel) {
+        result.add(label);
+        lastLabel = label;
+      }
+      result.add(item);
+    }
+    return result;
+  }
+
+  Widget _buildDayHeader(String label) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.3,
+          color: AppColors.textMuted,
+        ),
       ),
     );
   }

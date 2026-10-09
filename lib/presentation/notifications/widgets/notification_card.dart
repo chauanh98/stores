@@ -50,6 +50,48 @@ _CategoryStyle _resolveCategoryStyle(NotificationCategory category) {
   }
 }
 
+/// Icon & màu theo TỪNG loại sự kiện (huỷ đơn = đỏ, trả hàng = cam, thu nợ =
+/// xanh lá…) để chủ cửa hàng nhận ra mức độ quan trọng chỉ bằng một cái liếc.
+_CategoryStyle _resolveTypeStyle(NotificationItem item) {
+  switch (item.type) {
+    case NotificationType.orderCancelled:
+      return const _CategoryStyle(
+        icon: Icons.cancel_outlined,
+        iconColor: AppColors.danger,
+        backgroundColor: AppColors.dangerLight,
+      );
+    case NotificationType.orderReturn:
+      return const _CategoryStyle(
+        icon: Icons.assignment_return_outlined,
+        iconColor: AppColors.warningDark,
+        backgroundColor: AppColors.warningLight,
+      );
+    case NotificationType.orderUpdated:
+      return const _CategoryStyle(
+        icon: Icons.edit_note_rounded,
+        iconColor: AppColors.info,
+        backgroundColor: AppColors.infoLight,
+      );
+    case NotificationType.customerDebtAdded:
+      return const _CategoryStyle(
+        icon: Icons.account_balance_wallet_outlined,
+        iconColor: AppColors.warningDark,
+        backgroundColor: AppColors.warningLight,
+      );
+    case NotificationType.customerDebtPaid:
+      return const _CategoryStyle(
+        icon: Icons.payments_outlined,
+        iconColor: AppColors.success,
+        backgroundColor: AppColors.successLight,
+      );
+    default:
+      return _resolveCategoryStyle(item.category);
+  }
+}
+
+/// Chặn bấm liên tiếp vào cùng một thông báo (mở trùng bottom sheet).
+final Set<String> _notificationTapsInFlight = <String>{};
+
 String formatNotificationRelativeTime(BuildContext context, DateTime dateTime) {
   final l10n = AppLocalizations.of(context);
   final now = DateTime.now();
@@ -67,7 +109,8 @@ String formatNotificationRelativeTime(BuildContext context, DateTime dateTime) {
     final days = difference.inDays;
     return l10n?.notificationsTimeDaysAgo(days) ?? '$days ngày trước';
   } else {
-    return DateFormat('dd/MM/yyyy HH:mm').format(dateTime);
+    // createdAt lưu UTC => đổi về giờ máy trước khi hiển thị ngày giờ tuyệt đối.
+    return DateFormat('dd/MM/yyyy HH:mm').format(dateTime.toLocal());
   }
 }
 
@@ -75,15 +118,19 @@ class NotificationCard extends ConsumerWidget {
   final NotificationItem item;
   final VoidCallback? onTap;
 
+  /// Tên ngắn của chi nhánh phát sinh (hiện khi xem "Mọi chi nhánh").
+  final String? storeLabel;
+
   const NotificationCard({
     super.key,
     required this.item,
     this.onTap,
+    this.storeLabel,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final style = _resolveCategoryStyle(item.category);
+    final style = _resolveTypeStyle(item);
     final isRead = item.isRead;
     final relativeTime = formatNotificationRelativeTime(context, item.createdAt);
 
@@ -117,11 +164,16 @@ class NotificationCard extends ConsumerWidget {
               onTap!();
               return;
             }
-            await NotificationNavigationHandler.handleTap(
-              context: context,
-              ref: ref,
-              notification: item,
-            );
+            if (!_notificationTapsInFlight.add(item.id)) return;
+            try {
+              await NotificationNavigationHandler.handleTap(
+                context: context,
+                ref: ref,
+                notification: item,
+              );
+            } finally {
+              _notificationTapsInFlight.remove(item.id);
+            }
           },
           child: Padding(
             padding: const EdgeInsets.all(12),
@@ -187,6 +239,28 @@ class NotificationCard extends ConsumerWidget {
                           ],
                         ],
                       ),
+                      if (storeLabel != null && storeLabel!.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            const Icon(Icons.storefront_outlined,
+                                size: 12, color: AppColors.textMuted),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                storeLabel!,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textMuted,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                       const SizedBox(height: 4),
                       Text(
                         item.body,

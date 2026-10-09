@@ -9,6 +9,7 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:stores/core/theme/app_colors.dart';
+import 'package:stores/presentation/common/widgets/empty_state_view.dart';
 import 'package:stores/presentation/common/widgets/error_view.dart';
 import 'package:stores/presentation/common/widgets/loading_indicator.dart';
 import 'package:stores/presentation/common/widgets/product_image_thumbnail.dart';
@@ -39,6 +40,8 @@ import '../controllers/invoices_filter_controller.dart';
 import 'pos_checkout_page.dart';
 import '../../../application/inventory/inventory_providers.dart';
 import '../../../core/utils/order_code_resolver.dart';
+import '../../../core/utils/search_text_helper.dart';
+import '../../../core/utils/vietnamese_text_helper.dart';
 import '../../../domain/entities/inventory_transaction.dart';
 import '../../../domain/entities/transaction_type.dart';
 import '../../notifications/widgets/notification_bell_action.dart';
@@ -542,7 +545,7 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                       // List of invoices
                       Expanded(
                         child: searchFilteredOrders.isEmpty
-                            ? Center(child: Text(l10n.noInvoicesFound))
+                            ? _buildInvoicesEmptyState(l10n.noInvoicesFound)
                             : DateGroupedListView<Order>(
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 12, vertical: 8),
@@ -594,7 +597,7 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
 
                 // List of invoices (khối tổng kết màu cam đã ẩn theo R3)
                 if (searchFilteredOrders.isEmpty) {
-                  return Center(child: Text(l10n.noInvoicesFound));
+                  return _buildInvoicesEmptyState(l10n.noInvoicesFound);
                 }
 
                 // Compute summary metrics for filtered orders
@@ -672,11 +675,35 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                 );
               },
               loading: () => const Center(child: LoadingIndicator()),
-              error: (e, _) => Center(child: ErrorView(e)),
+              error: (e, _) => ErrorView(
+                e,
+                onRetry: () => ref.invalidate(
+                    allBranchesOrdersByDateRangeProvider(activeRange)),
+              ),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  /// Trạng thái rỗng: nếu đang tìm kiếm thì gợi ý & cho xoá từ khoá nhanh.
+  Widget _buildInvoicesEmptyState(String title) {
+    final hasSearch = _searchQuery.trim().isNotEmpty;
+    return EmptyStateView(
+      icon: hasSearch ? Icons.search_off_rounded : Icons.receipt_long_outlined,
+      title: title,
+      message: hasSearch
+          ? 'Không có hoá đơn khớp "${_searchQuery.trim()}". Có thể gõ không dấu, hoặc đổi khoảng thời gian / bộ lọc.'
+          : 'Chưa có hoá đơn trong khoảng thời gian và bộ lọc đang chọn.',
+      actionLabel: hasSearch ? 'Xoá từ khoá' : null,
+      actionIcon: Icons.close_rounded,
+      onAction: hasSearch
+          ? () {
+              _searchController.clear();
+              setState(() => _searchQuery = '');
+            }
+          : null,
     );
   }
 
@@ -754,7 +781,25 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
             !cCode.contains(query) &&
             !staff.contains(query) &&
             !hasItemMatch) {
-          return false;
+          // Khớp thêm kiểu không dấu & nhiều từ khoá ("nguyen van a", "nuoc ngot").
+          final tokens = SearchTextHelper.queryTokens(query);
+          final orderHaystack = SearchTextHelper.haystackOf(
+            order,
+            () => [
+              order.id,
+              order.customerName,
+              order.customerId,
+              order.createdByName,
+              order.createdBy,
+              for (final i in order.items) ...[i.productName, i.productId],
+            ],
+          );
+          final extra = VietnameseTextHelper.normalizeUnaccented(
+              '$cName $cPhone');
+          if (!SearchTextHelper.matchesTokens(
+              '$orderHaystack $extra', tokens)) {
+            return false;
+          }
         }
       }
 

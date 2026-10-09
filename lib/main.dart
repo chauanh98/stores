@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:stores/application/auth/auth_providers.dart';
 import 'package:stores/core/theme/app_theme.dart';
 import 'package:stores/presentation/auth/pages/login_page.dart';
+import 'package:stores/presentation/common/widgets/connection_status_banner.dart';
 import 'package:stores/presentation/notifications/pages/notifications_page.dart';
 import 'package:stores/presentation/orders/pages/invoices_page.dart';
 import 'package:stores/presentation/orders/pages/pos_page.dart';
@@ -205,23 +206,39 @@ class _AdaptiveScaffoldState extends ConsumerState<AdaptiveScaffold> {
         ],
       ),
       bottomNavigationBar: isWideScreen
-          ? null
-          : NavigationBar(
-              selectedIndex: _selectedIndex,
-              onDestinationSelected: (index) {
-                setState(() => _selectedIndex = index);
-              },
-              destinations: const [
-                NavigationDestination(
-                    icon: Icon(Icons.trending_up), label: 'Tổng quan'),
-                NavigationDestination(
-                    icon: Icon(Icons.inventory_2_outlined), label: 'Hàng hoá'),
-                NavigationDestination(
-                    icon: Icon(Icons.storefront_outlined), label: 'Bán hàng'),
-                NavigationDestination(
-                    icon: Icon(Icons.receipt_long_outlined), label: 'Hoá đơn'),
-                NavigationDestination(
-                    icon: Icon(Icons.menu), label: 'Nhiều hơn'),
+          ? const ConnectionStatusBanner()
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const ConnectionStatusBanner(),
+                NavigationBar(
+                  selectedIndex: _selectedIndex,
+                  onDestinationSelected: (index) {
+                    setState(() => _selectedIndex = index);
+                  },
+                  destinations: const [
+                    NavigationDestination(
+                        icon: Icon(Icons.trending_up),
+                        selectedIcon: Icon(Icons.insights_rounded),
+                        label: 'Tổng quan'),
+                    NavigationDestination(
+                        icon: Icon(Icons.inventory_2_outlined),
+                        selectedIcon: Icon(Icons.inventory_2_rounded),
+                        label: 'Hàng hoá'),
+                    NavigationDestination(
+                        icon: Icon(Icons.storefront_outlined),
+                        selectedIcon: Icon(Icons.storefront_rounded),
+                        label: 'Bán hàng'),
+                    NavigationDestination(
+                        icon: Icon(Icons.receipt_long_outlined),
+                        selectedIcon: Icon(Icons.receipt_long_rounded),
+                        label: 'Hoá đơn'),
+                    NavigationDestination(
+                        icon: Icon(Icons.menu),
+                        selectedIcon: Icon(Icons.menu_open_rounded),
+                        label: 'Nhiều hơn'),
+                  ],
+                ),
               ],
             ),
     );

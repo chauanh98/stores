@@ -3293,7 +3293,8 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
             );
     } on OrderCodeUnavailableException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      // `this.context`: context tham số thuộc bottom sheet vừa đóng ở đầu hàm.
+      ScaffoldMessenger.of(this.context).showSnackBar(
         SnackBar(content: Text(e.toString()), backgroundColor: AppColors.warning),
       );
       return;

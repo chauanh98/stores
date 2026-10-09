@@ -9,10 +9,12 @@ import '../../../domain/entities/stock_in_receipt.dart';
 import '../../../domain/entities/supplier.dart';
 import '../../../domain/entities/supplier_debt_transaction.dart';
 import '../../../domain/entities/transaction_type.dart';
+import '../../../domain/entities/user_account.dart';
 import '../../../domain/repositories/inventory_repository.dart';
 import '../../../domain/repositories/product_repository.dart';
 import '../../../domain/repositories/stock_in_receipt_repository.dart';
 import '../../../domain/repositories/supplier_repository.dart';
+import '../../notifications/notification_dispatcher.dart';
 
 /// Use case that completes a stock-in receipt using an atomic multi-path update.
 ///
@@ -28,6 +30,7 @@ class CompleteStockInReceiptUseCase {
   final InventoryRepository _inventoryRepo;
   final SupplierRepository _supplierRepo;
   final StockInReceiptRepository _receiptRepo;
+  final NotificationDispatcher? _notificationDispatcher;
 
   CompleteStockInReceiptUseCase({
     FirebaseDatabase? db,
@@ -35,15 +38,20 @@ class CompleteStockInReceiptUseCase {
     required InventoryRepository inventoryRepository,
     required SupplierRepository supplierRepository,
     required StockInReceiptRepository receiptRepository,
+    NotificationDispatcher? notificationDispatcher,
   })  : _db = db,
         _productRepo = productRepository,
         _inventoryRepo = inventoryRepository,
         _supplierRepo = supplierRepository,
-        _receiptRepo = receiptRepository;
+        _receiptRepo = receiptRepository,
+        _notificationDispatcher = notificationDispatcher;
 
   /// Executes atomic receipt completion.
   /// Returns the completed [StockInReceipt].
-  Future<StockInReceipt> execute(StockInReceipt receipt) async {
+  Future<StockInReceipt> execute(
+    StockInReceipt receipt, {
+    UserAccount? user,
+  }) async {
     final now = DateTime.now();
 
     final effectiveStoreId = receipt.storeId?.trim().isNotEmpty == true
@@ -275,6 +283,29 @@ class CompleteStockInReceiptUseCase {
           await _supplierRepo.recordDebtTransaction(debtTx,
               storeId: effectiveStoreId);
         } catch (_) {}
+      }
+    }
+
+    // Dispatch notification event
+    if (_notificationDispatcher != null) {
+      try {
+        final effectiveUser = user ??
+            (completedReceipt.createdBy != null
+                ? UserAccount(
+                    username: completedReceipt.createdBy!,
+                    displayName: completedReceipt.createdByName,
+                    role: 'nhanvien',
+                    storeId: effectiveStoreId,
+                  )
+                : null);
+
+        await _notificationDispatcher.notifyStockInCompleted(
+          storeId: effectiveStoreId,
+          receipt: completedReceipt,
+          user: effectiveUser,
+        );
+      } catch (_) {
+        // Safe against dispatch errors - business operations never fail
       }
     }
 

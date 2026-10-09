@@ -73,6 +73,7 @@ class ReturnOrder {
   final String id;
   final String orderId;
   final String customerId;
+  final String? customerName;
   final String storeId;
   final DateTime createdAt;
   final List<ReturnOrderItem> items;
@@ -88,6 +89,7 @@ class ReturnOrder {
     required this.id,
     required this.orderId,
     required this.customerId,
+    this.customerName,
     required this.storeId,
     required this.createdAt,
     required this.items,
@@ -106,6 +108,7 @@ class ReturnOrder {
     String? id,
     String? orderId,
     String? customerId,
+    String? customerName,
     String? storeId,
     DateTime? createdAt,
     List<ReturnOrderItem>? items,
@@ -121,6 +124,7 @@ class ReturnOrder {
       id: id ?? this.id,
       orderId: orderId ?? this.orderId,
       customerId: customerId ?? this.customerId,
+      customerName: customerName ?? this.customerName,
       storeId: storeId ?? this.storeId,
       createdAt: createdAt ?? this.createdAt,
       items: items ?? this.items,
@@ -138,6 +142,7 @@ class ReturnOrder {
         'id': id,
         'orderId': orderId,
         'customerId': customerId,
+        if (customerName != null) 'customerName': customerName,
         'storeId': storeId,
         'createdAt': createdAt.toIso8601String(),
         'items': items.map((e) => e.toMap()).toList(),
@@ -155,6 +160,7 @@ class ReturnOrder {
       id: map['id']?.toString() ?? '',
       orderId: map['orderId']?.toString() ?? '',
       customerId: map['customerId']?.toString() ?? '',
+      customerName: map['customerName']?.toString(),
       storeId: map['storeId']?.toString() ?? '',
       createdAt: DateTime.tryParse(map['createdAt']?.toString() ?? '') ??
           DateTime.now(),

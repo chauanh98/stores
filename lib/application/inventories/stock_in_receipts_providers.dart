@@ -19,6 +19,7 @@ import '../../domain/repositories/product_repository.dart';
 import '../../domain/repositories/stock_in_receipt_repository.dart';
 import '../auth/auth_providers.dart';
 import '../inventory/inventory_providers.dart';
+import '../notifications/notification_dispatcher.dart';
 import '../products/products_providers.dart';
 import '../reports/overview_providers.dart';
 import '../suppliers/suppliers_providers.dart';
@@ -500,6 +501,7 @@ final completeStockInReceiptUseCaseProvider =
     inventoryRepository: ref.watch(inventoryRepositoryProvider),
     supplierRepository: ref.watch(supplierRepositoryProvider),
     receiptRepository: ref.watch(stockInReceiptRepositoryProvider),
+    notificationDispatcher: ref.watch(notificationDispatcherProvider),
   );
 });
 
@@ -726,7 +728,20 @@ List<StockInReceipt> filterStockInReceipts(
       filter.customDateRange != null) {
     range = filter.customDateRange!;
   } else {
-    range = filter.timeRange.getRange();
+    var defaultRange = filter.timeRange.getRange();
+    if (filter.timeRange == OverviewTimeRange.thisMonth && receipts.isNotEmpty) {
+      final latestDate = receipts
+          .map((r) => r.date)
+          .reduce((a, b) => a.isAfter(b) ? a : b);
+      if (latestDate.isBefore(defaultRange.start)) {
+        defaultRange = DateTimeRange(
+          start: DateTime(latestDate.year, latestDate.month, 1),
+          end: DateTime(latestDate.year, latestDate.month, latestDate.day, 23,
+              59, 59, 999),
+        );
+      }
+    }
+    range = defaultRange;
   }
 
   DateTime effectiveEnd = range.end;

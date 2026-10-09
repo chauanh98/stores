@@ -23,6 +23,7 @@ import '../../common/widgets/scroll_aware_fab.dart';
 import '../../inventories/pages/import_inventory_page.dart';
 import '../widgets/category_filter_bottom_sheet.dart';
 import '../widgets/product_tile.dart';
+import '../../notifications/widgets/notification_bell_action.dart';
 import 'add_product_page.dart';
 
 class ProductsPage extends ConsumerStatefulWidget {
@@ -410,6 +411,7 @@ class ProductsPageState extends ConsumerState<ProductsPage> {
       appBar: AppBar(
         title: Text(l10n.products),
         actions: [
+          const NotificationBellAction(),
           if (canManageProducts)
             PopupMenuButton<String>(
               key: const Key('products_excel_actions_menu'),

@@ -13,6 +13,7 @@ import '../../../domain/repositories/customer_repository.dart';
 import '../../../domain/repositories/inventory_repository.dart';
 import '../../../domain/repositories/order_repository.dart';
 import '../../../domain/repositories/product_repository.dart';
+import '../../notifications/notification_dispatcher.dart';
 
 class ProcessReturnOrderResult {
   final ReturnOrder returnOrder;
@@ -36,6 +37,7 @@ class ProcessReturnOrderUseCase {
   final InventoryRepository inventoryRepository;
   final CustomerRepository customerRepository;
   final CustomerRemoteDataSource? customerDataSource;
+  final NotificationDispatcher? notificationDispatcher;
 
   ProcessReturnOrderUseCase({
     required this.orderRepository,
@@ -43,6 +45,7 @@ class ProcessReturnOrderUseCase {
     required this.inventoryRepository,
     required this.customerRepository,
     this.customerDataSource,
+    this.notificationDispatcher,
   });
 
   Future<ProcessReturnOrderResult> execute({
@@ -268,6 +271,7 @@ class ProcessReturnOrderUseCase {
       id: returnOrderId,
       orderId: originalOrder.id,
       customerId: originalOrder.customerId,
+      customerName: originalOrder.customerName,
       storeId: storeId,
       createdAt: now,
       items: returnItems,
@@ -281,6 +285,19 @@ class ProcessReturnOrderUseCase {
     );
 
     await orderRepository.createReturn(returnOrder);
+
+    // 7. Trigger Notification
+    if (notificationDispatcher != null) {
+      try {
+        await notificationDispatcher!.notifyOrderReturned(
+          storeId: storeId,
+          returnOrder: returnOrder,
+          user: currentUser,
+        );
+      } catch (e) {
+        // Safe against notification dispatch errors
+      }
+    }
 
     return ProcessReturnOrderResult(
       returnOrder: returnOrder,

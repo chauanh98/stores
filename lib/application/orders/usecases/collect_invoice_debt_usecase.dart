@@ -5,16 +5,19 @@ import '../../../domain/entities/order.dart';
 import '../../../domain/entities/user_account.dart';
 import '../../../domain/repositories/customer_repository.dart';
 import '../../../domain/repositories/order_repository.dart';
+import '../../notifications/notification_dispatcher.dart';
 
 class CollectInvoiceDebtUseCase {
   final OrderRepository orderRepository;
   final CustomerRepository customerRepository;
   final CustomerRemoteDataSource? customerDataSource;
+  final NotificationDispatcher? notificationDispatcher;
 
   CollectInvoiceDebtUseCase({
     required this.orderRepository,
     required this.customerRepository,
     this.customerDataSource,
+    this.notificationDispatcher,
   });
 
   Future<Order> execute({
@@ -84,6 +87,54 @@ class CollectInvoiceDebtUseCase {
           );
           await customerDataSource!
               .saveDebtTransaction(customer.id, debtTx.toMap());
+        }
+
+        // Trigger notification for customer debt collected
+        final dispatcher = notificationDispatcher;
+        if (dispatcher != null) {
+          try {
+            final effectiveStoreId =
+                (order.storeId != null && order.storeId!.isNotEmpty)
+                    ? order.storeId!
+                    : (currentUser.storeId.isNotEmpty
+                        ? currentUser.storeId
+                        : 'store_001');
+
+            await dispatcher.notifyCustomerDebtCollected(
+              storeId: effectiveStoreId,
+              customerId: customer.id,
+              customerName: customer.name,
+              collectedAmount: amount,
+              user: currentUser,
+              remainingDebt: newCustomerDebt,
+            );
+          } catch (e) {
+            // Safe against dispatch errors
+          }
+        }
+      } else {
+        // Fallback in case customer record is missing but order has customer info
+        final dispatcher = notificationDispatcher;
+        if (dispatcher != null) {
+          try {
+            final effectiveStoreId =
+                (order.storeId != null && order.storeId!.isNotEmpty)
+                    ? order.storeId!
+                    : (currentUser.storeId.isNotEmpty
+                        ? currentUser.storeId
+                        : 'store_001');
+
+            await dispatcher.notifyCustomerDebtCollected(
+              storeId: effectiveStoreId,
+              customerId: customerId,
+              customerName: order.customerName ?? customerId,
+              collectedAmount: amount,
+              user: currentUser,
+              remainingDebt: newDebtAmount,
+            );
+          } catch (e) {
+            // Safe against dispatch errors
+          }
         }
       }
     }

@@ -53,6 +53,23 @@
             "userId",
             "storeId"
           ]
+        },
+        "notifications": {
+          ".indexOn": [
+            "createdAt",
+            "isRead",
+            "type"
+          ]
+        },
+        "fcm_tokens": {
+          ".indexOn": [
+            "updatedAt"
+          ]
+        },
+        "fcm_queue": {
+          ".indexOn": [
+            "createdAt"
+          ]
         }
       }
     },

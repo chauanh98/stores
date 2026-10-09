@@ -41,6 +41,7 @@ import '../../../application/inventory/inventory_providers.dart';
 import '../../../core/utils/order_code_resolver.dart';
 import '../../../domain/entities/inventory_transaction.dart';
 import '../../../domain/entities/transaction_type.dart';
+import '../../notifications/widgets/notification_bell_action.dart';
 
 class InvoicesPage extends ConsumerStatefulWidget {
   const InvoicesPage({super.key});
@@ -385,6 +386,7 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
         ),
         backgroundColor: AppColors.white,
         actions: [
+          const NotificationBellAction(),
           if (kIsWeb && (user?.isAdmin == true))
             PopupMenuButton<String>(
               key: const Key('invoices_excel_actions_menu'),

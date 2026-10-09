@@ -205,7 +205,7 @@ class _ImportInventoryPageState extends ConsumerState<ImportInventoryPage> {
     );
 
     final completeUseCase = ref.read(completeStockInReceiptUseCaseProvider);
-    final completed = await completeUseCase.execute(receipt);
+    final completed = await completeUseCase.execute(receipt, user: user);
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

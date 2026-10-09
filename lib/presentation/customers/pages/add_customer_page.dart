@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../application/auth/auth_providers.dart';
 import '../../../application/customers/customers_providers.dart';
+import '../../../application/notifications/notification_dispatcher.dart';
 import '../../../domain/entities/customer.dart';
 
 class AddCustomerPage extends ConsumerStatefulWidget {
@@ -145,6 +146,19 @@ class _AddCustomerPageState extends ConsumerState<AddCustomerPage> {
         createdBy: currentUser?.username ?? 'admin',
       );
       await ref.read(customerRepositoryProvider).upsert(customer);
+
+      final currentStoreId = ref.read(currentStoreIdProvider);
+      try {
+        await ref.read(notificationDispatcherProvider).notifyCustomerCreated(
+              storeId: currentStoreId.isNotEmpty ? currentStoreId : 'store_001',
+              customer: customer,
+              user: currentUser,
+            );
+      } catch (notifErr) {
+        debugPrint(
+            'Warning: Could not dispatch customer created notification: $notifErr');
+      }
+
       if (!mounted) return;
       Navigator.pop(context);
       ScaffoldMessenger.of(context)

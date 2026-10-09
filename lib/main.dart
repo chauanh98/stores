@@ -7,13 +7,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:stores/application/auth/auth_providers.dart';
 import 'package:stores/core/theme/app_theme.dart';
 import 'package:stores/presentation/auth/pages/login_page.dart';
+import 'package:stores/presentation/notifications/pages/notifications_page.dart';
 import 'package:stores/presentation/orders/pages/invoices_page.dart';
 import 'package:stores/presentation/orders/pages/pos_page.dart';
 import 'package:stores/presentation/products/pages/products_page.dart';
 import 'package:stores/presentation/reports/pages/overview_page.dart';
 import 'package:stores/presentation/settings/pages/more_page.dart';
+import 'package:stores/application/notifications/local_notification_service.dart';
 
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:stores/application/notifications/notifications_providers.dart';
 import 'package:stores/core/services/filter_storage_service.dart';
 
 import 'firebase_options.dart';
@@ -33,6 +37,11 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  try {
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  } catch (e) {
+    debugPrint('FirebaseMessaging onBackgroundMessage initialization: $e');
+  }
   try {
     FirebaseDatabase.instance.setPersistenceEnabled(false);
   } catch (e) {
@@ -66,6 +75,7 @@ class MyApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(fcmTokenLifecycleManagerProvider);
     final user = ref.watch(authProvider);
     final isAuthLoading = ref.watch(authLoadingProvider);
 
@@ -89,6 +99,9 @@ class MyApp extends ConsumerWidget {
       supportedLocales: AppLocalizations.supportedLocales,
       locale: const Locale('vi'),
       home: user == null ? const LoginPage() : const AdaptiveScaffold(),
+      routes: {
+        '/notifications': (context) => const NotificationsPage(),
+      },
     );
   }
 }
@@ -104,7 +117,32 @@ class _AdaptiveScaffoldState extends ConsumerState<AdaptiveScaffold> {
   int _selectedIndex = 0;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final user = ref.read(authProvider);
+      if (user != null && user.isAdmin) {
+        ref.read(localNotificationServiceProvider).requestPermissions();
+        ref.read(pushNotificationServiceProvider).requestPermissions();
+        final storeId = ref.read(currentStoreIdProvider);
+        if (storeId.isNotEmpty) {
+          ref.read(pushNotificationServiceProvider).registerAdminToken(
+            storeId: storeId,
+            userId: user.username,
+          );
+        }
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final user = ref.watch(authProvider);
+    if (user != null && user.isAdmin) {
+      ref.watch(notificationListenerServiceProvider);
+      ref.watch(fcmTokenLifecycleManagerProvider);
+    }
+
     final isWideScreen = MediaQuery.of(context).size.width > 600;
 
     final screens = [

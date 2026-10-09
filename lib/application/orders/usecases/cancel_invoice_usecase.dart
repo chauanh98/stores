@@ -9,6 +9,7 @@ import '../../../domain/repositories/customer_repository.dart';
 import '../../../domain/repositories/inventory_repository.dart';
 import '../../../domain/repositories/order_repository.dart';
 import '../../../domain/repositories/product_repository.dart';
+import '../../notifications/notification_dispatcher.dart';
 
 class CancelInvoiceUseCase {
   final OrderRepository orderRepository;
@@ -16,6 +17,7 @@ class CancelInvoiceUseCase {
   final InventoryRepository inventoryRepository;
   final CustomerRepository customerRepository;
   final CustomerRemoteDataSource? customerDataSource;
+  final NotificationDispatcher? notificationDispatcher;
 
   CancelInvoiceUseCase({
     required this.orderRepository,
@@ -23,6 +25,7 @@ class CancelInvoiceUseCase {
     required this.inventoryRepository,
     required this.customerRepository,
     this.customerDataSource,
+    this.notificationDispatcher,
   });
 
   Future<Order> execute({
@@ -157,6 +160,20 @@ class CancelInvoiceUseCase {
       storeId: order.storeId ?? storeId,
     );
     await orderRepository.update(cancelledOrder);
+
+    // 5. Trigger Notification (skip if replacement/versioned edit)
+    if (!isReplacement && notificationDispatcher != null) {
+      try {
+        await notificationDispatcher!.notifyOrderCancelled(
+          storeId: cancelledOrder.storeId ?? storeId,
+          order: cancelledOrder,
+          cancelReason: cancelReason.trim(),
+          user: currentUser,
+        );
+      } catch (e) {
+        // Safe against notification dispatch errors
+      }
+    }
 
     return cancelledOrder;
   }

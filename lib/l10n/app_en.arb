@@ -1431,5 +1431,58 @@
         "type": "int"
       }
     }
+  },
+  "notificationsTitle": "Notifications",
+  "notificationsEmpty": "No notifications",
+  "notificationsEmptyDesc": "You will receive notifications when new orders, stock imports, or debt changes occur.",
+  "notificationsMarkAllAsRead": "Mark all as read",
+  "notificationsMarkAllAsReadSuccess": "All notifications marked as read",
+  "notificationsDeleteSuccess": "Notification deleted",
+  "notificationsUndo": "Undo",
+  "notificationsFilterAll": "All",
+  "notificationsFilterOrders": "Orders",
+  "notificationsFilterInventory": "Inventory",
+  "notificationsFilterCustomers": "Customers",
+  "notificationsTimeJustNow": "Just now",
+  "notificationsTimeMinutesAgo": "{minutes} minutes ago",
+  "@notificationsTimeMinutesAgo": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "notificationsTimeHoursAgo": "{hours} hours ago",
+  "@notificationsTimeHoursAgo": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "notificationsTimeDaysAgo": "{days} days ago",
+  "@notificationsTimeDaysAgo": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "notificationsFallbackOrderCreated": "New Order",
+  "notificationsFallbackOrderUpdated": "Invoice Updated",
+  "notificationsFallbackOrderCancelled": "Invoice Cancelled",
+  "notificationsFallbackOrderReturn": "Return Order",
+  "notificationsFallbackInventoryImported": "New Stock-In Receipt",
+  "notificationsFallbackCustomerCreated": "New Customer",
+  "notificationsFallbackCustomerDebtAdded": "New Debt Recorded",
+  "notificationsFallbackCustomerDebtPaid": "Customer Debt Collected",
+  "notificationsBellTooltip": "Notifications",
+  "notificationsUnreadCountBadge": "{count} unread notifications",
+  "@notificationsUnreadCountBadge": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }

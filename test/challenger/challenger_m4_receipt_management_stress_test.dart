@@ -191,7 +191,7 @@ class SpyCompleteStockInReceiptUseCase extends CompleteStockInReceiptUseCase {
   });
 
   @override
-  Future<StockInReceipt> execute(StockInReceipt receipt) async {
+  Future<StockInReceipt> execute(StockInReceipt receipt, {UserAccount? user}) async {
     lastCompletedReceipt = receipt;
     return receipt.copyWith(status: 'completed');
   }

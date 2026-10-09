@@ -17,6 +17,7 @@ import '../../common/widgets/product_image_thumbnail.dart';
 import '../widgets/draft_orders_bottom_sheet.dart';
 import '../widgets/pos_cart_tab_bar.dart';
 import '../widgets/pos_category_bar.dart';
+import '../../notifications/widgets/notification_bell_action.dart';
 import 'pos_checkout_page.dart';
 
 class POSPage extends ConsumerStatefulWidget {
@@ -101,6 +102,7 @@ class _POSPageState extends ConsumerState<POSPage> {
           ],
         ),
         actions: [
+          const NotificationBellAction(),
           IconButton(
             key: const Key('pos_draft_orders_action'),
             icon: Badge.count(

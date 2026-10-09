@@ -5,7 +5,9 @@ import 'package:intl/intl.dart';
 
 import '../../../core/extensions/context_extensions.dart';
 
+import '../../../application/auth/auth_providers.dart';
 import '../../../application/customers/customers_providers.dart';
+import '../../../application/notifications/notification_dispatcher.dart';
 import '../../../application/orders/orders_providers.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/currency_input_formatter.dart';
@@ -675,6 +677,29 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
 
               final updated = customer.copyWith(currentDebt: newDebt);
               await ref.read(customerRepositoryProvider).upsert(updated);
+
+              final currentUser = ref.read(authProvider);
+              final storeId = ref.read(currentStoreIdProvider);
+              final effectiveStoreId = storeId.isNotEmpty
+                  ? storeId
+                  : (currentUser?.storeId.isNotEmpty == true
+                      ? currentUser!.storeId
+                      : 'store_001');
+
+              try {
+                await ref
+                    .read(notificationDispatcherProvider)
+                    .notifyCustomerDebtCollected(
+                      storeId: effectiveStoreId,
+                      customerId: customer.id,
+                      customerName: customer.name,
+                      collectedAmount: payAmount,
+                      user: currentUser,
+                      remainingDebt: newDebt,
+                    );
+              } catch (e) {
+                // Safe against notification dispatch errors
+              }
 
               if (context.mounted) {
                 Navigator.pop(dialogContext);

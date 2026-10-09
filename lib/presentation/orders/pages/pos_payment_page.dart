@@ -9,6 +9,7 @@ import 'package:stores/presentation/common/widgets/loading_indicator.dart';
 import '../../../application/auth/auth_providers.dart';
 import '../../../application/customers/customers_providers.dart';
 import '../../../application/inventory/inventory_providers.dart';
+import '../../../application/notifications/notification_dispatcher.dart';
 import '../../../application/orders/cart_providers.dart';
 import '../../../application/orders/orders_providers.dart';
 import '../../../application/products/products_providers.dart';
@@ -1939,6 +1940,7 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
 
       final currentUser = ref.read(authProvider);
       final originalOrder = ref.read(editingOriginalOrderProvider);
+      final originalOrderId = originalOrder?.id;
 
       // Tối ưu Firebase: Chỉ fetch đúng các sản phẩm liên quan có trong giỏ hàng
       final Map<String, Product> freshCartProducts = {};
@@ -2085,7 +2087,35 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
         ref.read(editingOriginalOrderProvider.notifier).state = null;
       }
 
-      // 2) Cập nhật lịch sử mua hàng & công nợ cho Customer (nếu không phải Khách lẻ & không phải đơn nháp)
+      // 3) Trigger notification for Order Created or Order Versioned Update
+      if (!isDraft) {
+        try {
+          final dispatcher = ref.read(notificationDispatcherProvider);
+          final effectiveStoreId =
+              (order.storeId != null && order.storeId!.isNotEmpty)
+                  ? order.storeId!
+                  : (selectedBranch.isNotEmpty ? selectedBranch : 'store_001');
+
+          if (originalOrderId != null && originalOrderId.isNotEmpty) {
+            await dispatcher.notifyOrderUpdated(
+              storeId: effectiveStoreId,
+              order: order,
+              originalOrderId: originalOrderId,
+              user: currentUser,
+            );
+          } else {
+            await dispatcher.notifyOrderCreated(
+              storeId: effectiveStoreId,
+              order: order,
+              user: currentUser,
+            );
+          }
+        } catch (notifErr) {
+          debugPrint('Warning: Could not dispatch order notification: $notifErr');
+        }
+      }
+
+      // 4) Cập nhật lịch sử mua hàng & công nợ cho Customer (nếu không phải Khách lẻ & không phải đơn nháp)
       if (customerId != 'khach_le' && !isDraft) {
         final customerRepo = ref.read(customerRepositoryProvider);
         final customer = await customerRepo.fetchById(customerId);
@@ -2138,6 +2168,24 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
             await ref
                 .read(customerRemoteDataSourceProvider)
                 .saveDebtTransaction(customerId, debtTx.toMap());
+
+            // Gửi thông báo công nợ phát sinh cho Admin/Owner
+            try {
+              final effectiveDebtStoreId =
+                  selectedBranch.isNotEmpty ? selectedBranch : 'store_001';
+              await ref
+                  .read(notificationDispatcherProvider)
+                  .notifyCustomerDebtAdded(
+                    storeId: effectiveDebtStoreId,
+                    customerId: customerId,
+                    customerName: customer.name,
+                    debtAmount: debtAmount,
+                    orderId: id,
+                    user: currentUser,
+                  );
+            } catch (debtNotifErr) {
+              debugPrint('Warning: Could not dispatch debt notification: $debtNotifErr');
+            }
           }
         }
       }

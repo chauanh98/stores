@@ -222,7 +222,7 @@ class _MockCompleteStockInReceiptUseCase
   final List<StockInReceipt> executed = [];
 
   @override
-  Future<StockInReceipt> execute(StockInReceipt receipt) async {
+  Future<StockInReceipt> execute(StockInReceipt receipt, {UserAccount? user}) async {
     executeCallCount++;
     final completed = receipt.copyWith(status: 'completed');
     executed.add(completed);

@@ -15,6 +15,7 @@ import '../../inventories/pages/stock_in_receipts_page.dart';
 import '../../orders/pages/invoices_page.dart';
 import '../../products/pages/categories_management_page.dart';
 import '../../suppliers/pages/suppliers_page.dart';
+import '../../notifications/widgets/notification_bell_action.dart';
 import 'account_management_page.dart';
 import 'store_payment_settings_page.dart';
 
@@ -48,6 +49,9 @@ class MorePage extends ConsumerWidget {
         ),
         backgroundColor: AppColors.white,
         elevation: 0,
+        actions: const [
+          NotificationBellAction(),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.only(top: 8, bottom: 32),

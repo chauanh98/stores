@@ -9,6 +9,7 @@ import 'package:stores/presentation/common/widgets/product_image_thumbnail.dart'
 import 'package:flutter/services.dart';
 import '../../../application/auth/auth_providers.dart';
 import '../../../application/customers/customers_providers.dart';
+import '../../../application/notifications/notification_dispatcher.dart';
 import '../../../application/orders/cart_providers.dart';
 import '../../../application/orders/orders_providers.dart';
 import '../../../application/products/products_providers.dart';
@@ -2340,6 +2341,18 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
 
       await ref.read(customerRepositoryProvider).upsert(newCust);
       ref.invalidate(customerListNotifierProvider);
+
+      final currentStoreId = ref.read(currentStoreIdProvider);
+      try {
+        await ref.read(notificationDispatcherProvider).notifyCustomerCreated(
+              storeId: currentStoreId.isNotEmpty ? currentStoreId : 'store_001',
+              customer: newCust,
+              user: currentUser,
+            );
+      } catch (notifErr) {
+        debugPrint(
+            'Warning: Could not dispatch customer created notification: $notifErr');
+      }
 
       if (!mounted) return;
       Navigator.of(context).pop(newCust);

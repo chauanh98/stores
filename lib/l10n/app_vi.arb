@@ -1431,5 +1431,58 @@
         "type": "int"
       }
     }
+  },
+  "notificationsTitle": "Thông báo",
+  "notificationsEmpty": "Không có thông báo nào",
+  "notificationsEmptyDesc": "Bạn sẽ nhận được thông báo khi có đơn hàng mới, nhập kho hoặc biến động công nợ.",
+  "notificationsMarkAllAsRead": "Đánh dấu tất cả là đã đọc",
+  "notificationsMarkAllAsReadSuccess": "Đã đánh dấu tất cả thông báo là đã đọc",
+  "notificationsDeleteSuccess": "Đã xóa thông báo",
+  "notificationsUndo": "Hoàn tác",
+  "notificationsFilterAll": "Tất cả",
+  "notificationsFilterOrders": "Đơn hàng",
+  "notificationsFilterInventory": "Kho hàng",
+  "notificationsFilterCustomers": "Khách hàng",
+  "notificationsTimeJustNow": "Vừa xong",
+  "notificationsTimeMinutesAgo": "{minutes} phút trước",
+  "@notificationsTimeMinutesAgo": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "notificationsTimeHoursAgo": "{hours} giờ trước",
+  "@notificationsTimeHoursAgo": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "notificationsTimeDaysAgo": "{days} ngày trước",
+  "@notificationsTimeDaysAgo": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "notificationsFallbackOrderCreated": "Đơn hàng mới",
+  "notificationsFallbackOrderUpdated": "Hóa đơn đã chỉnh sửa",
+  "notificationsFallbackOrderCancelled": "Hóa đơn đã bị hủy",
+  "notificationsFallbackOrderReturn": "Đơn trả hàng",
+  "notificationsFallbackInventoryImported": "Phiếu nhập kho mới",
+  "notificationsFallbackCustomerCreated": "Khách hàng mới",
+  "notificationsFallbackCustomerDebtAdded": "Ghi nhận công nợ mới",
+  "notificationsFallbackCustomerDebtPaid": "Thu nợ khách hàng thành công",
+  "notificationsBellTooltip": "Thông báo",
+  "notificationsUnreadCountBadge": "{count} thông báo chưa đọc",
+  "@notificationsUnreadCountBadge": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }

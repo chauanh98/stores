@@ -6,6 +6,7 @@ import '../../domain/entities/customer.dart';
 import '../../domain/entities/order.dart';
 import '../../domain/entities/return_order.dart';
 import '../../domain/entities/stock_in_receipt.dart';
+import '../../data/datasources/firebase/server_clock.dart';
 import '../../domain/entities/user_account.dart';
 import 'notifications_providers.dart';
 
@@ -31,6 +32,13 @@ class NotificationDispatcher {
     this._repository, [
     this._pushNotificationService,
   ]);
+
+  /// Thời điểm tạo theo giờ máy chủ, lưu dạng UTC (`…Z`): máy nhận ở múi giờ
+  /// hay đồng hồ khác vẫn tính đúng độ "mới" để bật pop-up.
+  static DateTime _now() {
+    ServerClock.ensureStarted();
+    return ServerClock.now().toUtc();
+  }
 
   static String _generateId(String prefix) {
     final now = DateTime.now().millisecondsSinceEpoch;
@@ -221,7 +229,7 @@ class NotificationDispatcher {
         body:
             '${_formatCurrency(order.total)} - Khách: $customerName (Tạo bởi: $createdBy)',
         type: NotificationType.orderCreated,
-        createdAt: DateTime.now(),
+        createdAt: _now(),
         targetRoute: 'invoice_detail',
         targetId: order.id,
         metadata: {
@@ -273,7 +281,7 @@ class NotificationDispatcher {
         body:
             'Mã mới #${order.id}: ${_formatCurrency(order.total)} - Khách: $customerName (Bởi: $createdBy)',
         type: NotificationType.orderUpdated,
-        createdAt: DateTime.now(),
+        createdAt: _now(),
         targetRoute: 'invoice_detail',
         targetId: order.id,
         metadata: {
@@ -330,7 +338,7 @@ class NotificationDispatcher {
         body:
             'Lý do: $effectiveReason - Khách: $customerName (Bởi: $createdBy)',
         type: NotificationType.orderCancelled,
-        createdAt: DateTime.now(),
+        createdAt: _now(),
         targetRoute: 'invoice_detail',
         targetId: order.id,
         metadata: {
@@ -382,7 +390,7 @@ class NotificationDispatcher {
         body:
             'Hoàn ${_formatCurrency(returnOrder.totalReturnAmount)} - Khách: $resolvedCustomerName (Xử lý: $createdBy)',
         type: NotificationType.orderReturn,
-        createdAt: DateTime.now(),
+        createdAt: _now(),
         targetRoute: 'invoice_detail',
         targetId: effectiveOrderId,
         metadata: {
@@ -438,7 +446,7 @@ class NotificationDispatcher {
         body:
             '${_formatCurrency(receipt.totalAmount)} - NCC: $supplierName (Lập bởi: $createdBy)',
         type: NotificationType.inventoryImported,
-        createdAt: DateTime.now(),
+        createdAt: _now(),
         targetRoute: 'stock_in_detail',
         targetId: effectiveImportCode,
         metadata: {
@@ -489,7 +497,7 @@ class NotificationDispatcher {
         body:
             '$customerName - SĐT: $phone (Tạo bởi: $createdBy)',
         type: NotificationType.customerCreated,
-        createdAt: DateTime.now(),
+        createdAt: _now(),
         targetRoute: 'customer_detail',
         targetId: customerId,
         metadata: {
@@ -540,7 +548,7 @@ class NotificationDispatcher {
         body:
             'Ghi nợ ${_formatCurrency(debtAmount)} từ đơn #$effectiveOrderId - Khách: $effectiveName (Bởi: $createdBy)',
         type: NotificationType.customerDebtAdded,
-        createdAt: DateTime.now(),
+        createdAt: _now(),
         targetRoute: 'customer_debt',
         targetId: effectiveId,
         metadata: {
@@ -592,7 +600,7 @@ class NotificationDispatcher {
         title: 'Thu nợ khách hàng',
         body: body,
         type: NotificationType.customerDebtPaid,
-        createdAt: DateTime.now(),
+        createdAt: _now(),
         targetRoute: 'customer_debt',
         targetId: effectiveId,
         metadata: {

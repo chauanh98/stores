@@ -14,6 +14,8 @@ import 'package:stores/presentation/products/pages/products_page.dart';
 import 'package:stores/presentation/reports/pages/overview_page.dart';
 import 'package:stores/presentation/settings/pages/more_page.dart';
 import 'package:stores/application/notifications/local_notification_service.dart';
+import 'package:stores/data/datasources/firebase/server_clock.dart';
+import 'package:stores/presentation/notifications/utils/notification_tap_router.dart';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -47,6 +49,8 @@ void main() async {
   } catch (e) {
     debugPrint('Firebase Database persistence initialization: $e');
   }
+  // Độ lệch đồng hồ máy so với máy chủ (node cục bộ, không tốn băng thông).
+  ServerClock.ensureStarted();
   final prefs = await SharedPreferences.getInstance();
   FilterStorageService.setSharedPrefs(prefs);
   setupFilterStorageResolver();
@@ -70,6 +74,9 @@ void main() async {
   ));
 }
 
+/// Navigator gốc — dùng để mở đúng màn hình khi người dùng bấm thông báo hệ thống.
+final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
+
 class MyApp extends ConsumerWidget {
   const MyApp({super.key});
 
@@ -92,6 +99,7 @@ class MyApp extends ConsumerWidget {
     }
 
     return MaterialApp(
+      navigatorKey: appNavigatorKey,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       themeMode: ThemeMode.light,
@@ -115,24 +123,34 @@ class AdaptiveScaffold extends ConsumerStatefulWidget {
 
 class _AdaptiveScaffoldState extends ConsumerState<AdaptiveScaffold> {
   int _selectedIndex = 0;
+  NotificationTapRouter? _tapRouter;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       final user = ref.read(authProvider);
       if (user != null && user.isAdmin) {
         ref.read(localNotificationServiceProvider).requestPermissions();
         ref.read(pushNotificationServiceProvider).requestPermissions();
-        final storeId = ref.read(currentStoreIdProvider);
-        if (storeId.isNotEmpty) {
-          ref.read(pushNotificationServiceProvider).registerAdminToken(
-            storeId: storeId,
-            userId: user.username,
-          );
-        }
+        // Đăng ký token FCM do fcmTokenLifecycleManagerProvider đảm nhận
+        // (đăng nhập, đổi chi nhánh, đăng xuất) — không ghi trùng ở đây.
+
+        // Bấm thông báo hệ thống (kể cả khi app mở từ trạng thái tắt hẳn)
+        // => mở đúng hoá đơn / phiếu nhập / khách hàng.
+        _tapRouter = NotificationTapRouter(
+          ref: ref,
+          navigatorKey: appNavigatorKey,
+        )..start();
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _tapRouter?.dispose();
+    super.dispose();
   }
 
   @override

@@ -5,6 +5,8 @@ import '../../../application/auth/auth_providers.dart';
 import '../../../application/customers/customers_providers.dart';
 import '../../../application/notifications/notifications_providers.dart';
 import '../../../application/orders/orders_providers.dart';
+import '../../../data/datasources/firebase/order_remote_data_source.dart';
+import '../../../data/repositories/order_repository_impl.dart';
 import '../../../domain/entities/customer.dart';
 import '../../customers/pages/customer_debt_page.dart';
 import '../../customers/pages/customer_detail_page.dart';
@@ -49,7 +51,13 @@ class NotificationNavigationHandler {
     dynamic orderRepo;
     if (isOrder) {
       try {
-        orderRepo = ref.read(orderRepositoryProvider);
+        // Thông báo có thể thuộc chi nhánh khác chi nhánh đang xem (Admin nhận
+        // pop-up của mọi chi nhánh) => tra cứu đơn đúng chi nhánh phát sinh.
+        final notifStore = notification.storeId.trim();
+        orderRepo = notifStore.isNotEmpty && notifStore != storeId
+            ? OrderRepositoryImpl(OrderRemoteDataSource(
+                ref.read(firebaseDatabaseProvider), notifStore))
+            : ref.read(orderRepositoryProvider);
       } catch (_) {}
     }
 

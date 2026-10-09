@@ -12,6 +12,9 @@ import 'local_notification_service.dart';
 /// Must be an entry point and must not depend on UI context or active Flutter views.
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  // Tin có `notification` payload đã được HỆ ĐIỀU HÀNH tự hiển thị khi app ở
+  // nền / đã tắt. Hiện thêm local notification sẽ thành 2 thông báo trùng.
+  if (message.notification != null) return;
   WidgetsFlutterBinding.ensureInitialized();
   try {
     if (Firebase.apps.isEmpty) {
@@ -134,6 +137,19 @@ class FirebasePushNotificationServiceImpl implements PushNotificationService {
   final LocalNotificationService _localNotificationService;
   final FirebaseMessaging? _messaging;
 
+  /// Ghi yêu cầu gửi push vào `stores/{storeId}/fcm_queue`.
+  ///
+  /// Hiện CHƯA có máy chủ (Cloud Function) đọc hàng đợi này, nên mỗi sự kiện
+  /// chỉ tốn băng thông vô ích (đọc toàn bộ fcm_tokens + ghi queue). App tắt
+  /// cờ này; bật lại khi đã có backend tiêu thụ hàng đợi.
+  final bool enableServerQueue;
+
+  /// Tin FCM người dùng đã BẤM để mở app (từ nền hoặc từ trạng thái đã tắt).
+  /// Dùng để điều hướng tới đúng màn hình, KHÔNG hiển thị lại thông báo.
+  final StreamController<RemoteMessage> _openedController =
+      StreamController<RemoteMessage>.broadcast();
+  RemoteMessage? _pendingOpenedMessage;
+
   bool _isInitialized = false;
   String? _currentToken;
   final Set<String> _registeredStoreIds = {};
@@ -152,6 +168,7 @@ class FirebasePushNotificationServiceImpl implements PushNotificationService {
     required FcmTokenRepository repository,
     required LocalNotificationService localNotificationService,
     FirebaseMessaging? messaging,
+    this.enableServerQueue = true,
   })  : _repository = repository,
         _localNotificationService = localNotificationService,
         _messaging = messaging;
@@ -173,6 +190,16 @@ class FirebasePushNotificationServiceImpl implements PushNotificationService {
 
   @override
   Stream<String> get onTokenRefresh => _tokenRefreshController.stream;
+
+  /// Luồng tin FCM được bấm để mở app (xem [_openedController]).
+  Stream<RemoteMessage> get onMessageOpened => _openedController.stream;
+
+  /// Lấy (và xoá) tin đã mở app từ trạng thái tắt hẳn, nếu chưa ai xử lý.
+  RemoteMessage? takePendingOpenedMessage() {
+    final message = _pendingOpenedMessage;
+    _pendingOpenedMessage = null;
+    return message;
+  }
 
   @override
   Future<bool> initialize() async {
@@ -198,17 +225,17 @@ class FirebasePushNotificationServiceImpl implements PushNotificationService {
         }));
       });
 
-      // Listen for incoming background message opened app events
+      // Người dùng bấm thông báo khi app ở nền: chỉ cần điều hướng.
+      // (Trước đây gọi lại handleFcmBackgroundMessage => hiện thêm 1 thông báo.)
       _openedAppSubscription =
-          FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-        _messageController.add(message);
-        unawaited(handleFcmBackgroundMessage(
-          message,
-          localNotificationService: _localNotificationService,
-        ).catchError((e) {
-          debugPrint('[FCM] Error handling onMessageOpenedApp: $e');
-        }));
-      });
+          FirebaseMessaging.onMessageOpenedApp.listen(_emitOpened);
+
+      // App được mở từ trạng thái TẮT HẲN bằng cách bấm thông báo FCM.
+      unawaited(_effectiveMessaging.getInitialMessage().then((message) {
+        if (message != null) _emitOpened(message);
+      }).catchError((Object e) {
+        debugPrint('[FCM] getInitialMessage failed: $e');
+      }));
 
       // Listen for token refresh and automatically sync to RTDB
       _tokenRefreshSubscription = _effectiveMessaging.onTokenRefresh.listen((String newToken) {
@@ -244,6 +271,14 @@ class FirebasePushNotificationServiceImpl implements PushNotificationService {
     } catch (e) {
       debugPrint('[FCM] Initialize skipped or failed: $e');
       return false;
+    }
+  }
+
+  void _emitOpened(RemoteMessage message) {
+    if (_openedController.hasListener) {
+      _openedController.add(message);
+    } else {
+      _pendingOpenedMessage = message;
     }
   }
 
@@ -353,6 +388,7 @@ class FirebasePushNotificationServiceImpl implements PushNotificationService {
     required String storeId,
     required NotificationItem notification,
   }) async {
+    if (!enableServerQueue) return;
     try {
       final targetStores = _resolveTargetStores(storeId);
       if (targetStores.isEmpty) return;
@@ -382,6 +418,7 @@ class FirebasePushNotificationServiceImpl implements PushNotificationService {
     _tokenRefreshSubscription?.cancel();
     _messageController.close();
     _tokenRefreshController.close();
+    _openedController.close();
   }
 }
 

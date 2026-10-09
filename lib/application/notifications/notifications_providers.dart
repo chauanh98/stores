@@ -12,6 +12,7 @@ import '../../domain/entities/notification_item.dart';
 import '../../domain/entities/notification_type.dart';
 import '../../domain/repositories/fcm_token_repository.dart';
 import '../../domain/repositories/notification_repository.dart';
+import '../../core/utils/store_resolver_helper.dart';
 import '../../domain/entities/user_account.dart';
 import '../auth/auth_providers.dart';
 import 'fcm_service.dart';
@@ -70,6 +71,9 @@ final pushNotificationServiceProvider =
     final service = FirebasePushNotificationServiceImpl(
       repository: repository,
       localNotificationService: localService,
+      // Chưa có backend đọc fcm_queue → tắt để không đọc toàn bộ fcm_tokens
+      // và ghi hàng đợi vô ích ở mỗi sự kiện (xem enableServerQueue).
+      enableServerQueue: false,
     );
     unawaited(service.initialize());
     return service;
@@ -194,6 +198,77 @@ final notificationStreamProvider =
 
   final repository = ref.watch(notificationRepositoryProvider);
   return repository.watchNotifications(storeId, limit: 50);
+});
+
+/// Các chi nhánh KHÁC chi nhánh đang xem mà Admin/Owner cần nhận pop-up
+/// (key so sánh theo giá trị; rỗng với nhân viên / chưa đăng nhập).
+///
+/// Sự kiện được ghi vào `stores/{chi nhánh phát sinh}/notifications`, nên nếu
+/// chỉ nghe chi nhánh đang chọn thì chủ cửa hàng sẽ không nhận được thông báo
+/// của chi nhánh còn lại.
+final otherAdminNotificationStoreIdsKeyProvider =
+    Provider.autoDispose<String>((ref) {
+  final user = ref.watch(authProvider);
+  if (user == null || !user.isAdmin) return '';
+  final current =
+      StoreResolverHelper.normalizeStoreId(ref.watch(currentStoreIdProvider));
+  final known = StoreResolverHelper.storeIdsFromKey(
+          ref.watch(availableStoreIdsKeyProvider))
+      .map(StoreResolverHelper.normalizeStoreId)
+      .where((id) => id.isNotEmpty)
+      .toList();
+  final ids = known.isNotEmpty ? known : const ['store_001', 'store_002'];
+  return StoreResolverHelper.storeIdsKey(ids.where((id) => id != current));
+});
+
+/// Luồng thông báo dùng để bật pop-up: chi nhánh đang xem (dùng chung listener
+/// với [notificationStreamProvider]) + các chi nhánh khác của Admin/Owner.
+/// Mỗi chi nhánh vẫn chỉ `limitToLast(50)`.
+final popupNotificationStreamProvider =
+    StreamProvider.autoDispose<List<NotificationItem>>((ref) {
+  final otherStoreIds = StoreResolverHelper.storeIdsFromKey(
+      ref.watch(otherAdminNotificationStoreIdsKeyProvider.select((k) => k)));
+
+  final controller = StreamController<List<NotificationItem>>();
+  final Map<String, List<NotificationItem>> byStore = {};
+  final List<StreamSubscription> subs = [];
+
+  void emit() {
+    if (controller.isClosed) return;
+    controller.add(byStore.values.expand((e) => e).toList());
+  }
+
+  ref.listen<AsyncValue<List<NotificationItem>>>(
+    notificationStreamProvider,
+    (_, next) => next.whenData((items) {
+      byStore['__current__'] = items;
+      emit();
+    }),
+    fireImmediately: true,
+  );
+
+  if (otherStoreIds.isNotEmpty) {
+    final repository = ref.watch(notificationRepositoryProvider);
+    for (final storeId in otherStoreIds) {
+      subs.add(repository.watchNotifications(storeId, limit: 50).listen(
+        (items) {
+          byStore[storeId] = items;
+          emit();
+        },
+        onError: (Object e) =>
+            debugPrint('[Notifications] watch $storeId failed: $e'),
+      ));
+    }
+  }
+
+  ref.onDispose(() {
+    for (final sub in subs) {
+      sub.cancel();
+    }
+    controller.close();
+  });
+
+  return controller.stream;
 });
 
 /// Auto-disposed provider calculating unread notification count.

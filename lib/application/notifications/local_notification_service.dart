@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/datasources/firebase/server_clock.dart';
 import 'notifications_providers.dart';
 
 /// Callback invoked when a user taps a local notification.
@@ -231,6 +232,11 @@ class FlutterLocalNotificationServiceImpl implements LocalNotificationService {
         showWhen: true,
         enableVibration: true,
         playSound: true,
+        // Cùng 1 sự kiện có thể đến từ cả listener RTDB lẫn FCM (cùng id):
+        // cập nhật lại thông báo cũ thay vì rung/kêu lần 2.
+        onlyAlertOnce: true,
+        category: AndroidNotificationCategory.message,
+        visibility: NotificationVisibility.public,
       );
 
       const darwinDetails = DarwinNotificationDetails(
@@ -277,6 +283,23 @@ class FlutterLocalNotificationServiceImpl implements LocalNotificationService {
       body: item.body,
       payload: payload,
     );
+  }
+
+  /// Payload của local notification đã MỞ app từ trạng thái tắt hẳn (chỉ
+  /// trả về 1 lần), để điều hướng tới đúng màn hình sau khi đăng nhập xong.
+  bool _launchPayloadConsumed = false;
+  Future<String?> takeLaunchPayload() async {
+    if (_launchPayloadConsumed) return null;
+    _launchPayloadConsumed = true;
+    try {
+      final details = await _plugin.getNotificationAppLaunchDetails();
+      if (details?.didNotificationLaunchApp == true) {
+        return details?.notificationResponse?.payload;
+      }
+    } catch (e) {
+      debugPrint('LocalNotificationService: launch details failed: $e');
+    }
+    return null;
   }
 
   @override
@@ -426,7 +449,9 @@ class NotificationListenerService {
   /// Evaluates incoming notification items and triggers local pop-ups for eligible items.
   /// Returns the number of new notifications triggered.
   Future<int> processNotifications(List<NotificationItem> items) async {
-    final now = (clock != null ? clock!() : DateTime.now()).toUtc();
+    // Mặc định dùng giờ đã hiệu chỉnh theo máy chủ để không bỏ sót pop-up khi
+    // đồng hồ máy nhận và máy tạo sự kiện lệch nhau.
+    final now = (clock != null ? clock!() : ServerClock.now()).toUtc();
     int triggeredCount = 0;
 
     for (final item in items) {
@@ -483,9 +508,9 @@ final notificationListenerServiceProvider =
     maxAge: const Duration(seconds: 60),
   );
 
-  // Actively listen to notificationStreamProvider
+  // Nghe mọi chi nhánh của Admin/Owner (không chỉ chi nhánh đang xem).
   ref.listen<AsyncValue<List<NotificationItem>>>(
-    notificationStreamProvider,
+    popupNotificationStreamProvider,
     (previous, next) {
       next.whenData((items) {
         unawaited(listener.processNotifications(items));

@@ -76,7 +76,8 @@ final customerOrdersProvider =
     StreamProvider.autoDispose.family<List<Order>, String>((ref, customerId) {
   final user = ref.watch(authProvider);
   final currentStoreId = ref.watch(currentStoreIdProvider);
-  final availableStores = ref.watch(availableStoresProvider).valueOrNull ?? {};
+  final availableStores =
+      availableStoresFromKey(ref.watch(availableStoreIdsKeyProvider));
 
   final isAdmin = user?.canSwitchStore == true || user?.isAdmin == true;
 
@@ -182,17 +183,10 @@ final ordersByDateRangeProvider =
 
 final allBranchesOrdersByDateRangeProvider =
     StreamProvider.autoDispose.family<List<Order>, DateTimeRange>((ref, range) {
-  final user = ref.watch(authProvider);
-  final currentStoreId = ref.watch(currentStoreIdProvider);
-  final selectedBranches = ref.watch(selectedBranchesProvider);
-  final availableStores = ref.watch(availableStoresProvider).valueOrNull ?? {};
-
-  final targetStoreIds = StoreResolverHelper.resolveTargetStoreIds(
-    selectedBranches,
-    currentStoreId: currentStoreId,
-    user: user,
-    availableStores: availableStores,
-  );
+  // Chỉ phụ thuộc vào tập store ID (so sánh theo giá trị) để không mở lại
+  // listener RTDB khi các provider đầu vào rebuild mà kết quả không đổi.
+  final targetStoreIds = StoreResolverHelper.storeIdsFromKey(
+      ref.watch(branchScopedStoreIdsKeyProvider.select((k) => k)));
 
   if (targetStoreIds.isEmpty) {
     return Stream.value(<Order>[]);
@@ -249,17 +243,10 @@ final returnOrdersByOrderIdProvider = StreamProvider.autoDispose
 
 final allBranchesReturnOrdersByDateRangeProvider = StreamProvider.autoDispose
     .family<List<ReturnOrder>, DateTimeRange>((ref, range) {
-  final user = ref.watch(authProvider);
-  final currentStoreId = ref.watch(currentStoreIdProvider);
-  final selectedBranches = ref.watch(selectedBranchesProvider);
-  final availableStores = ref.watch(availableStoresProvider).valueOrNull ?? {};
-
-  final targetStoreIds = StoreResolverHelper.resolveTargetStoreIds(
-    selectedBranches,
-    currentStoreId: currentStoreId,
-    user: user,
-    availableStores: availableStores,
-  );
+  // Chỉ phụ thuộc vào tập store ID (so sánh theo giá trị) để không mở lại
+  // listener RTDB khi các provider đầu vào rebuild mà kết quả không đổi.
+  final targetStoreIds = StoreResolverHelper.storeIdsFromKey(
+      ref.watch(branchScopedStoreIdsKeyProvider.select((k) => k)));
 
   if (targetStoreIds.isEmpty) {
     return Stream.value(<ReturnOrder>[]);
@@ -305,17 +292,10 @@ Stream<List<ReturnOrder>> _createCombinedReturnsStream(
 
 final allBranchesReturnOrdersProvider =
     StreamProvider.autoDispose<List<ReturnOrder>>((ref) {
-  final user = ref.watch(authProvider);
-  final currentStoreId = ref.watch(currentStoreIdProvider);
-  final selectedBranches = ref.watch(selectedBranchesProvider);
-  final availableStores = ref.watch(availableStoresProvider).valueOrNull ?? {};
-
-  final targetStoreIds = StoreResolverHelper.resolveTargetStoreIds(
-    selectedBranches,
-    currentStoreId: currentStoreId,
-    user: user,
-    availableStores: availableStores,
-  );
+  // Chỉ phụ thuộc vào tập store ID (so sánh theo giá trị) để không mở lại
+  // listener RTDB khi các provider đầu vào rebuild mà kết quả không đổi.
+  final targetStoreIds = StoreResolverHelper.storeIdsFromKey(
+      ref.watch(branchScopedStoreIdsKeyProvider.select((k) => k)));
 
   if (targetStoreIds.isEmpty) {
     return Stream.value(<ReturnOrder>[]);
@@ -378,7 +358,8 @@ final posDraftOrdersProvider = StreamProvider.autoDispose<List<Order>>((ref) {
   final user = ref.watch(authProvider);
   final currentStoreId = ref.watch(currentStoreIdProvider);
   final selectedBranch = ref.watch(selectedPOSBranchProvider);
-  final availableStores = ref.watch(availableStoresProvider).valueOrNull ?? {};
+  final availableStores =
+      availableStoresFromKey(ref.watch(availableStoreIdsKeyProvider));
 
   final isAdmin = user?.canSwitchStore == true || user?.isAdmin == true;
   final List<String> targetStoreIds;

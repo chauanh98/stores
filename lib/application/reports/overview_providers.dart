@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/services/filter_storage_service.dart';
+import '../../core/utils/store_resolver_helper.dart';
 import '../../domain/entities/user_account.dart';
 import '../auth/auth_providers.dart';
 
@@ -262,6 +263,14 @@ class SelectedBranchesNotifier extends StateNotifier<List<String>> {
     this._ref,
   ]) : super(initialBranches ?? _initialBranches(_user));
 
+  /// Chỉ thông báo khi danh sách chi nhánh thực sự thay đổi.
+  /// Mặc định StateNotifier so sánh `identical`, nên gán một List mới có cùng
+  /// nội dung cũng làm mọi stream provider theo chi nhánh rebuild và mở lại
+  /// listener Firebase (tải lại toàn bộ dữ liệu).
+  @override
+  bool updateShouldNotify(List<String> old, List<String> current) =>
+      !listEquals(old, current);
+
   static List<String> _initialBranches(UserAccount? user) {
     if (user != null && user.isStaff) {
       return [user.storeId.isNotEmpty ? user.storeId : 'store_001'];
@@ -373,6 +382,49 @@ final selectedStoreFilterProvider = StateProvider<String?>((ref) {
     return val is String ? val : null;
   }
   return null;
+});
+
+/// Danh sách store ID (dạng key so sánh theo giá trị) mà các báo cáo theo chi nhánh
+/// (đơn hàng, trả hàng) cần mở listener. Không tính `selectedStoreFilterProvider`.
+///
+/// Các StreamProvider mở listener RTDB nên `watch` key này thay vì tự watch
+/// authProvider / selectedBranchesProvider / availableStoresProvider: key chỉ
+/// đổi khi tập chi nhánh thực sự đổi, tránh huỷ & mở lại listener (= tải lại
+/// toàn bộ dữ liệu của truy vấn).
+final branchScopedStoreIdsKeyProvider = Provider<String>((ref) {
+  final user = ref.watch(authProvider);
+  final currentStoreId = ref.watch(currentStoreIdProvider);
+  final selectedBranches = ref.watch(selectedBranchesProvider);
+  final availableStores =
+      availableStoresFromKey(ref.watch(availableStoreIdsKeyProvider));
+  return StoreResolverHelper.storeIdsKey(
+    StoreResolverHelper.resolveTargetStoreIds(
+      selectedBranches,
+      currentStoreId: currentStoreId,
+      user: user,
+      availableStores: availableStores,
+    ),
+  );
+});
+
+/// Giống [branchScopedStoreIdsKeyProvider] nhưng có áp dụng bộ lọc cửa hàng
+/// của trang Tổng quan (`selectedStoreFilterProvider`) — dùng cho sản phẩm & doanh thu.
+final filteredStoreIdsKeyProvider = Provider<String>((ref) {
+  final user = ref.watch(authProvider);
+  final currentStoreId = ref.watch(currentStoreIdProvider);
+  final selectedBranches = ref.watch(selectedBranchesProvider);
+  final storeFilter = ref.watch(selectedStoreFilterProvider);
+  final availableStores =
+      availableStoresFromKey(ref.watch(availableStoreIdsKeyProvider));
+  return StoreResolverHelper.storeIdsKey(
+    StoreResolverHelper.resolveTargetStoreIds(
+      selectedBranches,
+      currentStoreId: currentStoreId,
+      user: user,
+      storeFilter: storeFilter,
+      availableStores: availableStores,
+    ),
+  );
 });
 
 /// Persists all active Overview filters to user-scoped SharedPreferences:

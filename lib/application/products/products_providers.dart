@@ -74,19 +74,9 @@ final productListProvider = StreamProvider.autoDispose<List<Product>>((ref) {
 // Optimized: thêm autoDispose để tự hủy listener khi không cần
 final allStoresProductsProvider =
     StreamProvider.autoDispose<List<Product>>((ref) {
-  final storeFilter = ref.watch(selectedStoreFilterProvider);
-  final currentStoreId = ref.watch(currentStoreIdProvider);
-  final selectedBranches = ref.watch(selectedBranchesProvider);
-  final user = ref.watch(authProvider);
-  final availableStores = ref.watch(availableStoresProvider).valueOrNull ?? {};
-
-  final targetStoreIds = StoreResolverHelper.resolveTargetStoreIds(
-    selectedBranches,
-    currentStoreId: currentStoreId,
-    user: user,
-    storeFilter: storeFilter,
-    availableStores: availableStores,
-  );
+  // Chỉ mở lại listener khi tập chi nhánh thực sự đổi (key so sánh theo giá trị).
+  final targetStoreIds = StoreResolverHelper.storeIdsFromKey(
+      ref.watch(filteredStoreIdsKeyProvider.select((k) => k)));
 
   final controller = StreamController<List<Product>>();
   final List<StreamSubscription> subscriptions = [];

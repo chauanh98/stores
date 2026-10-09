@@ -748,7 +748,6 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
         notes: _notes.text.trim().isEmpty ? '' : _notes.text.trim(),
       );
       await ref.read(customerRepositoryProvider).upsert(updated);
-      await ref.read(customerListNotifierProvider.notifier).refresh();
       if (mounted) {
         setState(() => _isEditing = false);
         ScaffoldMessenger.of(context).showSnackBar(

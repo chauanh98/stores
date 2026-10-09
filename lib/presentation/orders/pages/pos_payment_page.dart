@@ -2311,10 +2311,9 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
         }
       }
 
-      // Refresh providers
-      ref.invalidate(productListProvider);
-      ref.invalidate(orderRepositoryProvider);
-      ref.invalidate(customerListNotifierProvider);
+      // Không invalidate các provider realtime (sản phẩm, đơn hàng, khách hàng):
+      // listener RTDB đã tự nhận thay đổi vừa ghi; invalidate sẽ huỷ listener và
+      // tải lại TOÀN BỘ danh mục sản phẩm + khách hàng sau mỗi đơn bán.
 
       // Reset activeOrderIdProvider unconditionally to prevent draft ID reuse in subsequent orders
       ref.read(activeOrderIdProvider.notifier).state = null;

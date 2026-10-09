@@ -1265,12 +1265,12 @@ class ProductsPageState extends ConsumerState<ProductsPage> {
   }
 
   Future<void> _refreshProducts() async {
-    try {
+    // Danh sách sản phẩm là listener realtime: chỉ mở lại khi đang lỗi.
+    // Invalidate khi dữ liệu đang tốt sẽ tải lại toàn bộ danh mục (rất tốn băng thông).
+    if (ref.read(productListProvider).hasError) {
       ref.invalidate(productListProvider);
-      await Future.delayed(const Duration(milliseconds: 100));
-    } catch (_) {}
-    ref.invalidate(productListProvider);
-    await Future.delayed(const Duration(milliseconds: 100));
+    }
+    await Future.delayed(const Duration(milliseconds: 400));
   }
 
   void _navigateToAddProduct() {
@@ -1326,8 +1326,6 @@ class ProductsPageState extends ConsumerState<ProductsPage> {
                 products: importedProducts,
                 targetStoreId: currentStoreId,
               );
-
-      ref.invalidate(productListProvider);
 
       if (mounted) {
         if (Navigator.of(context).canPop()) {

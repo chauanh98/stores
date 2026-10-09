@@ -284,8 +284,7 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                 targetStoreId: currentStoreId,
               );
 
-      final activeRange = ref.read(invoicesActiveDateRangeProvider);
-      ref.invalidate(allBranchesOrdersByDateRangeProvider(activeRange));
+      // Danh sách hoá đơn là listener realtime nên tự nhận các đơn vừa nhập.
 
       if (mounted) {
         if (navigator.canPop()) {

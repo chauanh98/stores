@@ -459,7 +459,6 @@ class _InterStoreTransferPageState
             ),
           );
         } else {
-          ref.invalidate(productListProvider);
           Navigator.of(context).pop();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(

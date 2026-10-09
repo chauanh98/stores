@@ -276,10 +276,8 @@ class _CustomerListTileState extends ConsumerState<CustomerListTile> {
         widget.onDeleted?.call();
         final messenger = ScaffoldMessenger.of(context);
         final repo = ref.read(customerRepositoryProvider);
-        final listNotifier = ref.read(customerListNotifierProvider.notifier);
         try {
           await repo.delete(customer.id);
-          listNotifier.refresh();
           if (messenger.mounted) {
             messenger.hideCurrentSnackBar();
             messenger.showSnackBar(

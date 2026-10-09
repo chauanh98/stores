@@ -2340,7 +2340,7 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
       );
 
       await ref.read(customerRepositoryProvider).upsert(newCust);
-      ref.invalidate(customerListNotifierProvider);
+      // Danh sách khách hàng là realtime, không cần invalidate (tránh tải lại toàn bộ).
 
       final currentStoreId = ref.read(currentStoreIdProvider);
       try {

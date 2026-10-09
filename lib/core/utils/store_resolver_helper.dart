@@ -4,6 +4,34 @@ import '../../domain/entities/user_account.dart';
 /// across canonical IDs ('store_001', 'store_002'), legacy aliases ('branch_1', 'branch_2'),
 /// short codes ('ĐT', 'TB'), and store names ('Chi nhánh Đông Thắng', 'Chi nhánh Thới Bình' / 'Thời Bình').
 class StoreResolverHelper {
+  /// Encodes a resolved list of store IDs into a value-comparable key.
+  ///
+  /// Riverpod stream providers that open Firebase listeners should watch this
+  /// key (a `String`, compared by value) instead of raw maps/lists, so that an
+  /// unrelated upstream rebuild (e.g. `availableStoresProvider` going from
+  /// loading → data with the same store set) does NOT cancel and re-open the
+  /// RTDB listeners — every re-open re-downloads the whole query result.
+  static String storeIdsKey(Iterable<String> storeIds) {
+    final seen = <String>{};
+    final ordered = <String>[];
+    for (final id in storeIds) {
+      final trimmed = id.trim();
+      if (trimmed.isEmpty || !seen.add(trimmed)) continue;
+      ordered.add(trimmed);
+    }
+    return ordered.join(',');
+  }
+
+  /// Decodes a key produced by [storeIdsKey].
+  static List<String> storeIdsFromKey(String key) {
+    if (key.trim().isEmpty) return const [];
+    return key
+        .split(',')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList(growable: false);
+  }
+
   /// Normalizes any branch identifier (canonical ID, legacy alias, short code, store name)
   /// to a canonical store ID ('store_001', 'store_002', etc.).
   static String normalizeStoreId(String? input) {

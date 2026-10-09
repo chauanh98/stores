@@ -624,8 +624,6 @@ class CustomersPageState extends ConsumerState<CustomersPage> {
                 customers: importedCustomers,
               );
 
-      ref.invalidate(customerListNotifierProvider);
-
       if (mounted) {
         if (Navigator.of(context).canPop()) {
           Navigator.of(context).pop(); // dismiss loading

@@ -309,16 +309,22 @@ final stockInReceiptsFilterProvider = StateNotifierProvider.autoDispose<
 /// resolved by [StoreResolverHelper.resolveTargetStoreIds].
 final rawImportTransactionsStreamProvider =
     StreamProvider.autoDispose<List<InventoryTransaction>>((ref) {
-  final filter = ref.watch(stockInReceiptsFilterProvider);
+  // BĂNG THÔNG: chỉ watch đúng các field quyết định truy vấn RTDB. Watch cả
+  // filter state (có searchQuery/statusFilter/supplierId) khiến mỗi lần gõ tìm
+  // kiếm là huỷ & mở lại listener => tải lại toàn bộ phiếu nhập trong kỳ.
+  final (storeFilter, timeRange, customDateRange) = ref.watch(
+      stockInReceiptsFilterProvider
+          .select((f) => (f.storeId, f.timeRange, f.customDateRange)));
   final user = ref.watch(authProvider);
   final currentStoreId = ref.watch(currentStoreIdProvider);
-  final availableStores = ref.watch(availableStoresProvider).valueOrNull ?? {};
+  final availableStores =
+      availableStoresFromKey(ref.watch(availableStoreIdsKeyProvider));
 
   final targetStoreIds = StoreResolverHelper.resolveTargetStoreIds(
     [],
     currentStoreId: currentStoreId,
     user: user,
-    storeFilter: filter.storeId,
+    storeFilter: storeFilter,
     availableStores: availableStores,
   );
 
@@ -327,11 +333,10 @@ final rawImportTransactionsStreamProvider =
   }
 
   DateTimeRange range;
-  if (filter.timeRange == OverviewTimeRange.custom &&
-      filter.customDateRange != null) {
-    range = filter.customDateRange!;
+  if (timeRange == OverviewTimeRange.custom && customDateRange != null) {
+    range = customDateRange;
   } else {
-    range = filter.timeRange.getRange();
+    range = timeRange.getRange();
   }
 
   DateTime effectiveEnd = range.end;
@@ -417,8 +422,12 @@ Stream<List<InventoryTransaction>> _createCombinedImportTransactionsStream(
 /// Provider streaming all supplier debt transactions across known suppliers.
 final allSupplierDebtTransactionsProvider =
     StreamProvider.autoDispose<List<SupplierDebtTransaction>>((ref) {
-  final suppliersAsync = ref.watch(supplierListNotifierProvider);
-  final suppliers = suppliersAsync.value ?? [];
+  // Danh sách NCC đổi mỗi khi công nợ NCC đổi; chỉ cần tập ID để mở listener.
+  final supplierIdsKey = ref.watch(supplierListNotifierProvider.select(
+      (async) => (async.value ?? const []).map((s) => s.id).join('\u0001')));
+  final suppliers = supplierIdsKey.isEmpty
+      ? const <String>[]
+      : supplierIdsKey.split('\u0001');
   if (suppliers.isEmpty) {
     return Stream.value(<SupplierDebtTransaction>[]);
   }
@@ -429,11 +438,10 @@ final allSupplierDebtTransactionsProvider =
   final repo = ref.watch(supplierRepositoryProvider);
   final storeId = ref.watch(currentStoreIdProvider);
 
-  for (final supplier in suppliers) {
-    final sub =
-        repo.watchDebtTransactions(supplier.id, storeId: storeId).listen(
+  for (final supplierId in suppliers) {
+    final sub = repo.watchDebtTransactions(supplierId, storeId: storeId).listen(
       (debts) {
-        debtsBySupplier[supplier.id] = debts;
+        debtsBySupplier[supplierId] = debts;
         final allDebts = debtsBySupplier.values.expand((e) => e).toList();
         if (!controller.isClosed) {
           controller.add(allDebts);
@@ -531,16 +539,19 @@ final deleteStockInReceiptUseCaseProvider =
 /// Real-time stream of stored stock-in receipts from RTDB path `stores/$storeId/stock_in_receipts`.
 final storedStockInReceiptsStreamProvider =
     StreamProvider.autoDispose<List<StockInReceipt>>((ref) {
-  final filter = ref.watch(stockInReceiptsFilterProvider);
+  // Chỉ phụ thuộc chi nhánh được lọc — không mở lại listener khi gõ tìm kiếm.
+  final storeFilter =
+      ref.watch(stockInReceiptsFilterProvider.select((f) => f.storeId));
   final user = ref.watch(authProvider);
   final currentStoreId = ref.watch(currentStoreIdProvider);
-  final availableStores = ref.watch(availableStoresProvider).valueOrNull ?? {};
+  final availableStores =
+      availableStoresFromKey(ref.watch(availableStoreIdsKeyProvider));
 
   final targetStoreIds = StoreResolverHelper.resolveTargetStoreIds(
     [],
     currentStoreId: currentStoreId,
     user: user,
-    storeFilter: filter.storeId,
+    storeFilter: storeFilter,
     availableStores: availableStores,
   );
 

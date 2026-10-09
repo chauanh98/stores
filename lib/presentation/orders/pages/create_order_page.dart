@@ -497,9 +497,7 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
         }
       }
 
-      // 4) Refresh các provider để cập nhật UI
-      ref.invalidate(customerListNotifierProvider);
-      ref.invalidate(productListProvider);
+      // 4) UI tự cập nhật qua listener RTDB — không invalidate để tránh tải lại toàn bộ dữ liệu.
 
       if (mounted) {
         Navigator.of(context).pop();

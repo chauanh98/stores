@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../application/customers/customers_providers.dart';
 import '../../../application/products/products_providers.dart';
-import '../../../application/reports/overview_kpi_providers.dart';
+import '../../../application/orders/orders_providers.dart';
 import '../../../application/reports/overview_providers.dart';
 import '../../../application/reports/revenue_providers.dart';
 import '../../../core/theme/app_colors.dart';
@@ -33,19 +33,24 @@ import '../widgets/top_rankings_section.dart';
 class OverviewPage extends ConsumerWidget {
   const OverviewPage({super.key});
 
+  /// Toàn bộ số liệu Tổng quan được tính từ listener realtime nên luôn mới.
+  /// Kéo để làm mới chỉ mở lại những nguồn đang lỗi — invalidate khi dữ liệu
+  /// đang tốt sẽ tải lại toàn bộ đơn hàng / sản phẩm / khách hàng (rất tốn băng thông).
   Future<void> _refreshAll(WidgetRef ref) async {
     final activeRange = ref.read(overviewActiveDateRangeProvider);
-    ref.invalidate(revenueByDateRangeProvider(activeRange));
-    ref.invalidate(overviewKPIsProvider);
-    ref.invalidate(hourlyRevenueListProvider);
-    ref.invalidate(paymentBreakdownProvider);
-    ref.invalidate(categoryRevenueShareProvider);
-    ref.invalidate(stockAlertSummaryProvider);
-    ref.invalidate(topSellingProductsRankingProvider);
-    ref.invalidate(topCustomersRankingProvider);
-    ref.invalidate(recentOrdersFeedProvider);
-    ref.invalidate(allStoresProductsProvider);
-    ref.invalidate(customerListNotifierProvider);
+    if (ref.read(revenueByDateRangeProvider(activeRange)).hasError) {
+      ref.invalidate(revenueByDateRangeProvider(activeRange));
+    }
+    if (ref.read(allBranchesOrdersByDateRangeProvider(activeRange)).hasError) {
+      ref.invalidate(allBranchesOrdersByDateRangeProvider(activeRange));
+    }
+    if (ref.read(allStoresProductsProvider).hasError) {
+      ref.invalidate(allStoresProductsProvider);
+    }
+    if (ref.read(customerListNotifierProvider).hasError) {
+      ref.invalidate(customerListNotifierProvider);
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 400));
   }
 
   @override

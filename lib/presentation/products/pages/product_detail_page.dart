@@ -1941,7 +1941,6 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
         allowSale: v,
       );
       await ref.read(productRepositoryProvider).upsert(updated);
-      ref.invalidate(productListProvider);
       if (!mounted) return;
       setState(() {
         _currentProduct = updated;
@@ -3318,8 +3317,6 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
       );
 
       await ref.read(productRepositoryProvider).upsert(updatedProduct);
-      ref.invalidate(productListProvider);
-      ref.invalidate(transactionsByProductProvider(_currentProduct.id));
 
       if (mounted) {
         setState(() {
@@ -3410,7 +3407,6 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
       }
 
       await ref.read(productRepositoryProvider).delete(_currentProduct.id);
-      ref.invalidate(productListProvider);
 
       if (mounted) {
         Navigator.of(context).pop();

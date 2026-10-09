@@ -66,19 +66,16 @@ final revenueByDateProvider = StreamProvider.autoDispose
 
 final revenueByDateRangeProvider = StreamProvider.autoDispose
     .family<RevenueSummary, DateTimeRange>((ref, range) async* {
+  // BĂNG THÔNG: provider này giữ listener RTDB cho toàn bộ đơn hàng + phiếu nhập
+  // trong khoảng ngày. Mọi `ref.watch` ở đây đều khiến listener bị huỷ & mở lại
+  // (= tải lại toàn bộ khoảng ngày). Vì vậy:
+  // - Chỉ watch tập store ID dưới dạng key so sánh theo giá trị.
+  // - KHÔNG watch danh sách sản phẩm (đổi tồn kho sau mỗi lần bán) — chỉ `listen`
+  //   và tính lại khi giá vốn / giá bán / tên thay đổi.
+  final targetStoreIds = StoreResolverHelper.storeIdsFromKey(
+      ref.watch(filteredStoreIdsKeyProvider.select((k) => k)));
   final selectedBranches = ref.watch(selectedBranchesProvider);
-  final currentStoreId = ref.watch(currentStoreIdProvider);
-  final storeFilter = ref.watch(selectedStoreFilterProvider);
   final user = ref.watch(authProvider);
-  final availableStores = ref.watch(availableStoresProvider).valueOrNull ?? {};
-
-  final targetStoreIds = StoreResolverHelper.resolveTargetStoreIds(
-    selectedBranches,
-    currentStoreId: currentStoreId,
-    user: user,
-    storeFilter: storeFilter,
-    availableStores: availableStores,
-  );
 
   if (targetStoreIds.isEmpty) {
     yield RevenueSummary(
@@ -98,71 +95,100 @@ final revenueByDateRangeProvider = StreamProvider.autoDispose
   final end =
       DateTime(range.end.year, range.end.month, range.end.day, 23, 59, 59, 999);
 
-  // Tạo combined stream để gộp các update của nhiều store
-  final controller = StreamController<List<Map<String, dynamic>>>();
+  // Mỗi sự kiện trên trigger = "dữ liệu đầu vào đã đổi, tính lại".
+  final trigger = StreamController<void>();
   final List<StreamSubscription> subscriptions = [];
   final Map<String, List<Map<String, dynamic>>> storeOrdersMap = {};
+  final Map<String, List<Map>> storeImportsMap = {};
+
+  void notify() {
+    if (!trigger.isClosed) trigger.add(null);
+  }
 
   for (final storeId in targetStoreIds) {
     final orderDs = OrderRemoteDataSource(FirebaseDatabase.instance, storeId);
-    final sub = orderDs.watchByDateRange(start, end).listen(
+    subscriptions.add(orderDs.watchByDateRange(start, end).listen(
       (orders) {
         storeOrdersMap[storeId] = orders;
-        // Gộp tất cả các đơn hàng từ các store
-        final combined = storeOrdersMap.values.expand((e) => e).toList();
-        if (!controller.isClosed) {
-          controller.add(combined);
-        }
+        notify();
       },
-      onError: (err) {
-        if (!controller.isClosed) {
-          controller.addError(err);
-        }
+      onError: (Object err, StackTrace st) {
+        if (!trigger.isClosed) trigger.addError(err, st);
       },
-    );
-    subscriptions.add(sub);
+    ));
+
+    // Phiếu nhập dùng để tính giá vốn FIFO: nghe realtime (cùng truy vấn với
+    // trang Nhập hàng nên SDK dùng chung 1 listener) thay vì `get()` lại mỗi
+    // lần provider rebuild.
+    final inventoryDs =
+        InventoryRemoteDataSource(FirebaseDatabase.instance, storeId);
+    subscriptions.add(inventoryDs.watchImportsByDateRange(start, end).listen(
+      (imports) {
+        storeImportsMap[storeId] = imports;
+        notify();
+      },
+      onError: (Object e) {
+        debugPrint('Error watching inventory imports for store $storeId: $e');
+        storeImportsMap[storeId] = const [];
+        notify();
+      },
+    ));
   }
+
+  int pricingSignature(List<Product>? products) {
+    if (products == null) return 0;
+    var hash = products.length;
+    for (final p in products) {
+      hash = Object.hash(hash, p.id, p.costPrice, p.price, p.name);
+    }
+    return hash;
+  }
+
+  List<Product> currentProducts() {
+    final all = ref.read(allStoresProductsProvider).valueOrNull;
+    if (all != null && all.isNotEmpty) return all;
+    return ref.read(productListProvider).valueOrNull ?? const <Product>[];
+  }
+
+  var lastPricingSignature = pricingSignature(currentProducts());
+  void onProductsChanged() {
+    final sig = pricingSignature(currentProducts());
+    if (sig != lastPricingSignature) {
+      lastPricingSignature = sig;
+      notify();
+    }
+  }
+
+  // `listen` giữ 2 provider sản phẩm sống (như watch cũ) nhưng không rebuild provider này.
+  ref.listen<AsyncValue<List<Product>>>(
+      allStoresProductsProvider, (_, __) => onProductsChanged());
+  ref.listen<AsyncValue<List<Product>>>(
+      productListProvider, (_, __) => onProductsChanged());
 
   ref.onDispose(() {
     for (final sub in subscriptions) {
       sub.cancel();
     }
-    controller.close();
+    trigger.close();
   });
 
-  // R1: Tái sử dụng sản phẩm từ bộ nhớ (productListProvider / allStoresProductsProvider)
-  // Triệt tiêu lệnh productDs.fetchAll() tải lại toàn bộ cây dữ liệu khi đổi khoảng ngày
-  final inMemoryProducts =
-      ref.watch(productListProvider).valueOrNull ?? const <Product>[];
-  final inMemoryProductMaps = inMemoryProducts
-      .map((p) => <String, dynamic>{
-            'id': p.id,
-            'name': p.name,
-            'price': p.price,
-            'costPrice': p.costPrice,
-          })
-      .toList();
-
-  final allStoresProducts =
-      ref.watch(allStoresProductsProvider).valueOrNull ?? const <Product>[];
-  final allStoresProductMaps = allStoresProducts
-      .map((p) => <String, dynamic>{
-            'id': p.id,
-            'name': p.name,
-            'price': p.price,
-            'costPrice': p.costPrice,
-          })
-      .toList();
-
-  final combinedProducts = allStoresProductMaps.isNotEmpty
-      ? allStoresProductMaps
-      : inMemoryProductMaps;
-
-  // Optimized: cache inventory imports cho mỗi store theo khoảng ngày
-  final Map<String, List<Map>> inventoryCache = {};
-
   try {
-    await for (final _ in controller.stream) {
+    await for (final _ in trigger.stream) {
+      // Chờ đủ dữ liệu đơn hàng + phiếu nhập của mọi chi nhánh để không phát ra
+      // kết quả tạm (giá vốn = 0 => lợi nhuận ảo).
+      final ready = targetStoreIds.every((id) =>
+          storeOrdersMap.containsKey(id) && storeImportsMap.containsKey(id));
+      if (!ready) continue;
+
+      final products = currentProducts()
+          .map((p) => <String, dynamic>{
+                'id': p.id,
+                'name': p.name,
+                'price': p.price,
+                'costPrice': p.costPrice,
+              })
+          .toList();
+
       // Tính toán summary cho từng store riêng biệt, rồi gộp lại để đảm bảo FIFO chuẩn xác từng store
       final List<RevenueSummary> summaries = [];
 
@@ -189,23 +215,6 @@ final revenueByDateRangeProvider = StreamProvider.autoDispose
               StoreResolverHelper.normalizeStoreId(b) == normalizedStoreId);
         }).toList();
 
-        // Optimized: cache inventory per store - chỉ fetch 1 lần
-        if (!inventoryCache.containsKey(storeId)) {
-          final inventoryDs =
-              InventoryRemoteDataSource(FirebaseDatabase.instance, storeId);
-          try {
-            inventoryCache[storeId] =
-                await inventoryDs.fetchImportsByDateRange(start, end);
-          } catch (e) {
-            debugPrint(
-                'Error fetching inventory imports for store $storeId: $e');
-            inventoryCache[storeId] = [];
-          }
-        }
-
-        final inventory = inventoryCache[storeId]!;
-        final products = combinedProducts;
-
         // Tạo repo cho storeId này để tính toán chuẩn xác độc lập
         final storeRepo = RevenueRepositoryImpl(
           OrderRemoteDataSource(FirebaseDatabase.instance, storeId),
@@ -215,7 +224,7 @@ final revenueByDateRangeProvider = StreamProvider.autoDispose
 
         final storeSummary = storeRepo.calculateRevenueSummary(
           orders: filteredStoreOrders,
-          inventoryTransactions: inventory,
+          inventoryTransactions: storeImportsMap[storeId] ?? const [],
           products: products,
           startDate: range.start,
           endDate: range.end,

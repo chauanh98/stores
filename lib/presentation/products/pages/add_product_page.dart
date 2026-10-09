@@ -2217,7 +2217,6 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
       );
 
       await ref.read(productRepositoryProvider).upsert(product);
-      ref.invalidate(productListProvider);
 
       if (mounted) {
         final scaffoldMessenger = ScaffoldMessenger.of(context);

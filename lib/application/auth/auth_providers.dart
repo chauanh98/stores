@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/services/filter_storage_service.dart';
+import '../../core/utils/store_resolver_helper.dart';
 import '../../data/datasources/firebase/auth_remote_data_source.dart';
 import '../../domain/entities/user_account.dart';
 
@@ -161,17 +162,26 @@ class AuthNotifier extends StateNotifier<UserAccount?> {
         if (remoteUser != null) {
           // Máy chủ phản hồi thành công -> cập nhật trạng thái mới nhất và lưu cache
           if (!mounted || epoch != _authEpoch) return;
-          state = remoteUser;
+          // Băng thông: phiên đã được khôi phục từ cache với cùng dữ liệu tài khoản.
+          // Gán lại state bằng một instance mới (dù bằng nhau) sẽ khiến toàn bộ
+          // provider phụ thuộc authProvider rebuild => huỷ & mở lại mọi listener
+          // RTDB (tải lại toàn bộ dữ liệu lần 2 ngay khi mở app).
+          final unchanged = cachedUser != null && remoteUser == cachedUser;
+          if (state != remoteUser) {
+            state = remoteUser;
+          }
           final userJson = jsonEncode(remoteUser.toJson());
           if (!mounted || epoch != _authEpoch) return;
           await prefs.setString('saved_user_account', userJson);
           if (!mounted || epoch != _authEpoch) return;
           await prefs.setString('saved_user_session', userJson);
           if (!mounted || epoch != _authEpoch) return;
-          await _hydrateUserSelectedStore(remoteUser);
-          if (!mounted || epoch != _authEpoch) return;
-          await rehydrateAllUserFilters(
-              _ref, remoteUser, () => state?.username);
+          if (!unchanged) {
+            await _hydrateUserSelectedStore(remoteUser);
+            if (!mounted || epoch != _authEpoch) return;
+            await rehydrateAllUserFilters(
+                _ref, remoteUser, () => state?.username);
+          }
         } else {
           // Máy chủ trả về null -> Mã lỗi xác thực rõ ràng:
           // Mật khẩu đã bị đổi từ xa hoặc tài khoản đã bị vô hiệu hóa / xóa khỏi hệ thống.
@@ -424,6 +434,27 @@ final availableStoresProvider =
     };
   }
 });
+
+/// Value-comparable key of the known store IDs (keys of [availableStoresProvider]).
+///
+/// Store-scoped RTDB stream providers only need the store IDs, never the names,
+/// so they watch this key instead of the whole `AsyncValue<Map>`: the key only
+/// changes when the actual set of stores changes, which prevents listeners from
+/// being torn down and re-created (= full re-download) when the map reloads.
+final availableStoreIdsKeyProvider = Provider<String>((ref) {
+  return ref.watch(availableStoresProvider.select((async) {
+    final map = async.valueOrNull;
+    if (map == null || map.isEmpty) return '';
+    return StoreResolverHelper.storeIdsKey(map.keys);
+  }));
+});
+
+/// Rebuilds a `{storeId: storeId}` map from [availableStoreIdsKeyProvider] for
+/// APIs (like [StoreResolverHelper.resolveTargetStoreIds]) that only read keys.
+Map<String, String> availableStoresFromKey(String key) {
+  final ids = StoreResolverHelper.storeIdsFromKey(key);
+  return {for (final id in ids) id: id};
+}
 
 final accountsListProvider =
     StreamProvider.autoDispose<List<UserAccount>>((ref) {

@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart';
 
 import '../../application/auth/auth_providers.dart';
 import '../../application/orders/orders_providers.dart';
-import '../../application/reports/overview_providers.dart';
 import 'code_generator_helper.dart';
 
 class OrderCodeResolver {
@@ -23,30 +22,9 @@ class OrderCodeResolver {
       existingCodes.add(currentOrderId.trim());
     }
 
-    // 1. Lấy mã từ cache / bộ nhớ trong các provider đã nạp
-    try {
-      final thisMonth = ref
-          .read(allBranchesOrdersByDateRangeProvider(
-              OverviewTimeRange.thisMonth.getRange()))
-          .valueOrNull;
-      if (thisMonth is List) {
-        for (final o in thisMonth) {
-          existingCodes.add(o.id.toString());
-        }
-      }
-    } catch (_) {}
-
-    try {
-      final activeRange = ref.read(invoicesActiveDateRangeProvider);
-      final activeOrders = ref
-          .read(allBranchesOrdersByDateRangeProvider(activeRange))
-          .valueOrNull;
-      if (activeOrders is List) {
-        for (final o in activeOrders) {
-          existingCodes.add(o.id.toString());
-        }
-      }
-    } catch (_) {}
+    // 1. (Đã bỏ) Không `ref.read` các provider đơn hàng theo khoảng ngày ở đây:
+    // chúng là autoDispose, nếu màn hình chưa mở thì `read` sẽ tạo listener mới và
+    // tải TOÀN BỘ đơn của tháng chỉ để lấy mã. Truy vấn RTDB bên dưới đã đủ chính xác.
 
     // 2. Truy vấn trực tiếp Firebase Realtime Database để lấy các mã đơn lớn nhất
     try {
@@ -63,10 +41,14 @@ class OrderCodeResolver {
       for (final sId in targetStores) {
         if (sId.isEmpty || sId == 'all') continue;
         try {
+          // Chỉ lấy vài đơn có mã lớn nhất trong dải khoá 'HD…' (thay vì 10 đơn
+          // bất kỳ) — đủ để suy ra mã kế tiếp, giảm một nửa dữ liệu tải về mỗi lần bán.
           final snap = await db
               .ref('stores/$sId/orders')
               .orderByKey()
-              .limitToLast(10)
+              .startAt('HD')
+              .endAt('HD\uf8ff')
+              .limitToLast(5)
               .get();
           if (snap.exists && snap.value is Map) {
             final map = snap.value as Map;
@@ -113,31 +95,12 @@ class OrderCodeResolver {
     if (originalOrderId.trim().isNotEmpty) {
       existingCodes.add(originalOrderId.trim());
     }
+    final (baseCode, _) =
+        CodeGeneratorHelper.parseInvoiceCode(originalOrderId);
 
-    // 1. Lấy mã từ cache / bộ nhớ trong các provider đã nạp
-    try {
-      final thisMonth = ref
-          .read(allBranchesOrdersByDateRangeProvider(
-              OverviewTimeRange.thisMonth.getRange()))
-          .valueOrNull;
-      if (thisMonth is List) {
-        for (final o in thisMonth) {
-          existingCodes.add(o.id.toString());
-        }
-      }
-    } catch (_) {}
-
-    try {
-      final activeRange = ref.read(invoicesActiveDateRangeProvider);
-      final activeOrders = ref
-          .read(allBranchesOrdersByDateRangeProvider(activeRange))
-          .valueOrNull;
-      if (activeOrders is List) {
-        for (final o in activeOrders) {
-          existingCodes.add(o.id.toString());
-        }
-      }
-    } catch (_) {}
+    // 1. (Đã bỏ) Không `ref.read` các provider đơn hàng theo khoảng ngày ở đây:
+    // chúng là autoDispose, nếu màn hình chưa mở thì `read` sẽ tạo listener mới và
+    // tải TOÀN BỘ đơn của tháng chỉ để lấy mã. Truy vấn RTDB bên dưới đã đủ chính xác.
 
     // 2. Truy vấn Firebase Realtime Database
     try {
@@ -154,10 +117,13 @@ class OrderCodeResolver {
       for (final sId in targetStores) {
         if (sId.isEmpty || sId == 'all') continue;
         try {
+          // Chỉ tải các phiên bản của đúng hoá đơn gốc (HD000123, HD000123_01, …)
+          // thay vì 20 đơn mới nhất của chi nhánh.
           final snap = await db
               .ref('stores/$sId/orders')
               .orderByKey()
-              .limitToLast(20)
+              .startAt(baseCode)
+              .endAt('$baseCode\uf8ff')
               .get();
           if (snap.exists && snap.value is Map) {
             final map = snap.value as Map;

@@ -38,7 +38,13 @@ class CustomerListNotifier extends AutoDisposeAsyncNotifier<List<Customer>> {
     return completer.future;
   }
 
+  /// Danh sách khách hàng được đồng bộ realtime, nên "làm mới" chỉ mở lại
+  /// listener khi đang lỗi. Mở lại khi đang ổn sẽ tải lại toàn bộ khách hàng.
   Future<void> refresh() async {
-    ref.invalidateSelf();
+    if (state.hasError) {
+      ref.invalidateSelf();
+      return;
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 400));
   }
 }

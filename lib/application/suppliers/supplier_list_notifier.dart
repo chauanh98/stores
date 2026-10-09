@@ -36,8 +36,13 @@ class SupplierListNotifier extends AutoDisposeAsyncNotifier<List<Supplier>> {
     return completer.future;
   }
 
+  /// Danh sách NCC là realtime: chỉ mở lại listener khi đang lỗi.
   Future<void> refresh() async {
-    ref.invalidateSelf();
+    if (state.hasError) {
+      ref.invalidateSelf();
+      return;
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 400));
   }
 
   Future<void> upsertSupplier(Supplier supplier) async {

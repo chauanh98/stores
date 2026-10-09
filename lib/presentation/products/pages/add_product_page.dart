@@ -12,6 +12,7 @@ import 'package:stores/core/theme/app_colors.dart';
 
 import '../../../application/auth/auth_providers.dart';
 import '../../../application/products/categories_providers.dart';
+import '../../../application/products/product_image_resolver.dart';
 import '../../../application/products/products_providers.dart';
 import '../../../core/utils/code_generator_helper.dart';
 import '../../../core/utils/combo_helper.dart';
@@ -57,6 +58,30 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
   File? _selectedImageFile;
   Uint8List? _imageBytes;
   String? _onlineImageUrl;
+
+  // Ảnh hiện tại có thể là tham chiếu `rtdb-img://…` (ảnh lưu tách):
+  // tải ảnh thật để XEM TRƯỚC; giá trị lưu vẫn là tham chiếu nếu không đổi ảnh.
+  String? _resolvingPreviewRef;
+  String? _previewRef;
+  String? _previewResolvedUrl;
+
+  String? _previewUrlFor(String? url) {
+    if (url == null || !ProductImageResolver.isRef(url)) return url;
+    if (_previewRef == url) return _previewResolvedUrl ?? url;
+    final cached = ProductImageResolver.peek(url);
+    if (cached != null && cached.isNotEmpty) return cached.first;
+    if (_resolvingPreviewRef != url) {
+      _resolvingPreviewRef = url;
+      ProductImageResolver.resolve(url).then((images) {
+        if (!mounted) return;
+        setState(() {
+          _previewRef = url;
+          _previewResolvedUrl = images.isNotEmpty ? images.first : null;
+        });
+      }, onError: (_) {});
+    }
+    return url;
+  }
   bool _imageRemoved = false;
   bool _isLoading = false;
 
@@ -961,8 +986,8 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
 
   // Image Picker Top Card
   Widget _buildImagePickerCard({required bool enabled}) {
-    final primaryOnlineUrl =
-        ImageCompressionHelper.resolvePrimaryUrl(_onlineImageUrl);
+    final primaryOnlineUrl = _previewUrlFor(
+        ImageCompressionHelper.resolvePrimaryUrl(_onlineImageUrl));
     final hasOnlineImage =
         primaryOnlineUrl != null && primaryOnlineUrl.isNotEmpty;
     final hasImage =

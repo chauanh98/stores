@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/constants/product_image_ref.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/image_compression_helper.dart';
+import '../../../application/products/product_image_resolver.dart';
 
 class ProductImageThumbnail extends StatelessWidget {
   final String? imageUrl;
@@ -34,88 +37,120 @@ class ProductImageThumbnail extends StatelessWidget {
     return ImageCompressionHelper.parseImageUrls(rawUrl);
   }
 
+  /// Cache bytes đã giải mã của ảnh Base64.
+  /// `Image.memory` so sánh bytes theo identity, nên giải mã lại mỗi lần build
+  /// sẽ khiến Flutter decode lại ảnh liên tục khi cuộn danh sách.
+  static final Map<String, Uint8List> _decodedCache = <String, Uint8List>{};
+  static const int _decodedCacheLimit = 300;
+
+  static Uint8List? _decodeCached(String dataUrl) {
+    final hit = _decodedCache[dataUrl];
+    if (hit != null) return hit;
+    final bytes = ImageCompressionHelper.decodeBase64DataUrl(dataUrl);
+    if (bytes == null || bytes.isEmpty) return null;
+    if (_decodedCache.length >= _decodedCacheLimit) {
+      _decodedCache.remove(_decodedCache.keys.first);
+    }
+    _decodedCache[dataUrl] = bytes;
+    return bytes;
+  }
+
   @override
   Widget build(BuildContext context) {
     final cleanUrl = resolvePrimaryUrl(imageUrl);
-    final hasValidUrl = cleanUrl != null && cleanUrl.isNotEmpty;
+    if (cleanUrl != null && cleanUrl.isNotEmpty) {
+      // Ảnh lưu tách ở node product_images: tải lười khi widget hiển thị.
+      if (ProductImageRef.isRef(cleanUrl)) {
+        return _ExternalProductImage(
+          key: ValueKey(cleanUrl),
+          refValue: cleanUrl,
+          size: size,
+          borderRadius: borderRadius,
+          builder: (resolvedUrl) =>
+              (resolvedUrl == null ? null : _buildFromUrl(resolvedUrl)) ??
+              _buildCategoryPlaceholder(),
+        );
+      }
+      final widget = _buildFromUrl(cleanUrl);
+      if (widget != null) return widget;
+    }
+    return _buildCategoryPlaceholder();
+  }
+
+  Widget? _buildFromUrl(String cleanUrl) {
     final effectiveCacheWidth = cacheWidth;
     final effectiveCacheHeight = cacheHeight;
 
-    if (hasValidUrl) {
-      // 1. Xử lý Base64 Data URL
-      if (ImageCompressionHelper.isBase64DataUrl(cleanUrl)) {
-        final bytes = ImageCompressionHelper.decodeBase64DataUrl(cleanUrl);
-        if (bytes != null && bytes.isNotEmpty) {
-          return ClipRRect(
-            borderRadius: BorderRadius.circular(borderRadius),
-            child: Container(
-              width: size,
-              height: size,
-              color: AppColors.grey100,
-              child: Image.memory(
-                bytes,
-                width: size,
-                height: size,
-                fit: fit,
-                cacheWidth: effectiveCacheWidth,
-                cacheHeight: effectiveCacheHeight,
-                errorBuilder: (context, error, stackTrace) {
-                  return _buildCategoryPlaceholder();
-                },
-              ),
-            ),
-          );
-        } else {
-          return _buildCategoryPlaceholder();
-        }
-      }
-
-      // 2. Xử lý URL mạng (HTTP / HTTPS)
-      if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) {
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(borderRadius),
-          child: Container(
+    // 1. Xử lý Base64 Data URL
+    if (ImageCompressionHelper.isBase64DataUrl(cleanUrl)) {
+      final bytes = _decodeCached(cleanUrl);
+      if (bytes == null) return null;
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(borderRadius),
+        child: Container(
+          width: size,
+          height: size,
+          color: AppColors.grey100,
+          child: Image.memory(
+            bytes,
             width: size,
             height: size,
-            color: AppColors.grey100,
-            child: Image.network(
-              cleanUrl,
-              width: size,
-              height: size,
-              fit: fit,
-              cacheWidth: effectiveCacheWidth,
-              cacheHeight: effectiveCacheHeight,
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return Container(
-                  width: size,
-                  height: size,
-                  color: AppColors.grey100,
-                  child: Center(
-                    child: SizedBox(
-                      width: size * 0.4,
-                      height: size * 0.4,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        value: loadingProgress.expectedTotalBytes != null
-                            ? loadingProgress.cumulativeBytesLoaded /
-                                loadingProgress.expectedTotalBytes!
-                            : null,
-                      ),
-                    ),
-                  ),
-                );
-              },
-              errorBuilder: (context, error, stackTrace) {
-                return _buildCategoryPlaceholder();
-              },
-            ),
+            fit: fit,
+            gaplessPlayback: true,
+            cacheWidth: effectiveCacheWidth,
+            cacheHeight: effectiveCacheHeight,
+            errorBuilder: (context, error, stackTrace) {
+              return _buildCategoryPlaceholder();
+            },
           ),
-        );
-      }
+        ),
+      );
     }
 
-    return _buildCategoryPlaceholder();
+    // 2. Xử lý URL mạng (HTTP / HTTPS)
+    if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(borderRadius),
+        child: Container(
+          width: size,
+          height: size,
+          color: AppColors.grey100,
+          child: Image.network(
+            cleanUrl,
+            width: size,
+            height: size,
+            fit: fit,
+            cacheWidth: effectiveCacheWidth,
+            cacheHeight: effectiveCacheHeight,
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return Container(
+                width: size,
+                height: size,
+                color: AppColors.grey100,
+                child: Center(
+                  child: SizedBox(
+                    width: size * 0.4,
+                    height: size * 0.4,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      value: loadingProgress.expectedTotalBytes != null
+                          ? loadingProgress.cumulativeBytesLoaded /
+                              loadingProgress.expectedTotalBytes!
+                          : null,
+                    ),
+                  ),
+                ),
+              );
+            },
+            errorBuilder: (context, error, stackTrace) {
+              return _buildCategoryPlaceholder();
+            },
+          ),
+        ),
+      );
+    }
+    return null;
   }
 
   Widget _buildCategoryPlaceholder() {
@@ -565,5 +600,78 @@ class ProductImageThumbnail extends StatelessWidget {
       return AppColors.thumbnailRoseFg;
     }
     return AppColors.thumbnailDefaultFg;
+  }
+}
+
+
+/// Hiển thị ảnh sản phẩm lưu tách (`rtdb-img://…`): tải một lần qua
+/// [ProductImageResolver] (bộ nhớ → file cache → RTDB), có hiệu ứng mờ dần.
+class _ExternalProductImage extends StatefulWidget {
+  final String refValue;
+  final double size;
+  final double borderRadius;
+  final Widget Function(String? resolvedUrl) builder;
+
+  const _ExternalProductImage({
+    super.key,
+    required this.refValue,
+    required this.size,
+    required this.borderRadius,
+    required this.builder,
+  });
+
+  @override
+  State<_ExternalProductImage> createState() => _ExternalProductImageState();
+}
+
+class _ExternalProductImageState extends State<_ExternalProductImage> {
+  String? _resolved;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    final cached = ProductImageResolver.peek(widget.refValue);
+    if (cached != null) {
+      _resolved = cached.isNotEmpty ? cached.first : null;
+      _loading = false;
+    } else {
+      _load();
+    }
+  }
+
+  Future<void> _load() async {
+    try {
+      final images = await ProductImageResolver.resolve(widget.refValue);
+      if (!mounted) return;
+      setState(() {
+        _resolved = images.isNotEmpty ? images.first : null;
+        _loading = false;
+      });
+    } catch (e) {
+      debugPrint('[ProductImageThumbnail] load ${widget.refValue} failed: $e');
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(widget.borderRadius),
+        child: Container(
+          width: widget.size,
+          height: widget.size,
+          color: AppColors.grey100,
+        ),
+      );
+    }
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 180),
+      child: KeyedSubtree(
+        key: ValueKey(_resolved),
+        child: widget.builder(_resolved),
+      ),
+    );
   }
 }

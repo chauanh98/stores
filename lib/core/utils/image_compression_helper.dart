@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
 
+import '../constants/product_image_ref.dart';
+
 /// Helper tiện ích nén ảnh và xử lý Base64 Data URL chuẩn
 class ImageCompressionHelper {
   const ImageCompressionHelper._();
@@ -128,6 +130,7 @@ class ImageCompressionHelper {
       if (trimmed.startsWith('http://') ||
           trimmed.startsWith('https://') ||
           trimmed.startsWith('gs://') ||
+          ProductImageRef.isRef(trimmed) ||
           isBase64DataUrl(trimmed)) {
         return [trimmed];
       }
@@ -163,13 +166,15 @@ class ImageCompressionHelper {
         final currentBuffer = buffer.toString().trim();
         final isNetwork = currentBuffer.startsWith('http://') ||
             currentBuffer.startsWith('https://') ||
-            currentBuffer.startsWith('gs://');
+            currentBuffer.startsWith('gs://') ||
+            ProductImageRef.isRef(currentBuffer);
         final isCompleteBase64 = currentBuffer.startsWith('data:image') &&
             currentBuffer.contains('base64,') &&
             currentBuffer.split('base64,').last.isNotEmpty;
         final isNewBoundary = nextTrimmed.startsWith('http://') ||
             nextTrimmed.startsWith('https://') ||
             nextTrimmed.startsWith('gs://') ||
+            ProductImageRef.isRef(nextTrimmed) ||
             nextTrimmed.startsWith('data:image');
 
         if (isNetwork || isCompleteBase64 || isNewBoundary) {
@@ -197,6 +202,7 @@ class ImageCompressionHelper {
             u.startsWith('http://') ||
             u.startsWith('https://') ||
             u.startsWith('gs://') ||
+            ProductImageRef.isRef(u) ||
             isBase64DataUrl(u))
         .toList();
   }

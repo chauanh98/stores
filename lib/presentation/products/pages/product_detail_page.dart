@@ -14,6 +14,7 @@ import 'package:stores/core/theme/app_colors.dart';
 import '../../../application/auth/auth_providers.dart';
 import '../../../application/inventory/inventory_providers.dart';
 import '../../../application/products/categories_providers.dart';
+import '../../../application/products/product_image_resolver.dart';
 import '../../../application/products/products_providers.dart';
 import '../../../application/reports/overview_providers.dart';
 import '../../../domain/entities/category.dart';
@@ -50,6 +51,13 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
   bool _isLoading = false;
   bool _controllersInitialized = false;
   late Product _currentProduct;
+
+  // Ảnh lưu tách (rtdb-img://…) được tải lười để hiển thị/xem gallery.
+  // Dữ liệu sản phẩm (và khi lưu) vẫn giữ nguyên chuỗi tham chiếu.
+  String? _resolvingImageRef;
+  String? _resolvedImageRef;
+  List<String>? _resolvedImages;
+
   int _txFilterIndex =
       0; // 0: Tất cả, 1: Nhập hàng, 2: Bán hàng / Xuất, 3: Chuyển kho
 
@@ -121,6 +129,35 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
         _loadProductFallback();
       });
     }
+  }
+
+  /// Danh sách ảnh để HIỂN THỊ: thay tham chiếu `rtdb-img://…` bằng ảnh thật
+  /// khi đã tải xong (tải nền một lần, setState khi có kết quả).
+  List<String> _displayImageUrls() {
+    final urls = _currentProduct.allImageUrls;
+    final ref = urls.firstWhere(ProductImageResolver.isRef, orElse: () => '');
+    if (ref.isEmpty) return urls;
+
+    if (_resolvedImageRef == ref && _resolvedImages != null) {
+      return [
+        for (final url in urls)
+          if (ProductImageResolver.isRef(url)) ..._resolvedImages! else url,
+      ];
+    }
+    final cached = ProductImageResolver.expandCached(urls);
+    if (!cached.any(ProductImageResolver.isRef)) return cached;
+
+    if (_resolvingImageRef != ref) {
+      _resolvingImageRef = ref;
+      ProductImageResolver.resolve(ref).then((images) {
+        if (!mounted) return;
+        setState(() {
+          _resolvedImageRef = ref;
+          _resolvedImages = images;
+        });
+      }, onError: (_) {});
+    }
+    return urls;
   }
 
   Future<void> _loadProductFallback() async {
@@ -470,7 +507,9 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
         children: [
           GestureDetector(
             onTap: () {
-              final urls = _currentProduct.allImageUrls;
+              final urls = _displayImageUrls()
+                  .where((u) => !ProductImageResolver.isRef(u))
+                  .toList();
               if (urls.isNotEmpty) {
                 _showImageGalleryDialog(context, urls, _currentProduct.name);
               }
@@ -485,7 +524,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                   size: 64,
                   borderRadius: 10,
                 ),
-                if (_currentProduct.allImageUrls.length > 1)
+                if (_displayImageUrls().length > 1)
                   Positioned(
                     right: 2,
                     bottom: 2,
@@ -497,7 +536,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
-                        '+${_currentProduct.allImageUrls.length}',
+                        '+${_displayImageUrls().length}',
                         style: const TextStyle(
                           color: AppColors.white,
                           fontSize: 9,
@@ -2162,8 +2201,10 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
         ImageCompressionHelper.resolvePrimaryUrl(_newOnlineImageUrl);
     final hasNewOnline =
         resolvedNewOnline != null && resolvedNewOnline.isNotEmpty;
-    final primaryCurrentUrl = _currentProduct.primaryImageUrl ??
-        ProductImageThumbnail.resolvePrimaryUrl(_currentProduct.imageUrl);
+    final displayUrls = _displayImageUrls();
+    final String? primaryCurrentUrl = displayUrls.isNotEmpty
+        ? displayUrls.first
+        : ProductImageThumbnail.resolvePrimaryUrl(_currentProduct.imageUrl);
     final showCurrentImage = primaryCurrentUrl != null &&
         primaryCurrentUrl.isNotEmpty &&
         !_clearCurrentImage &&

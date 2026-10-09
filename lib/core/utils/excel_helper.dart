@@ -835,7 +835,11 @@ class ExcelHelper {
         p.description ?? '',
         p.noteTemplate ?? '',
         p.components ?? '',
-        p.imageUrl ?? ''
+        // Chỉ xuất link ảnh dạng URL; bỏ Base64 / tham chiếu nội bộ (rtdb-img://)
+        // vì không dùng được ở ứng dụng khác và làm file Excel phình to.
+        p.allImageUrls
+            .where((u) => u.startsWith('http://') || u.startsWith('https://'))
+            .join(',')
       ];
 
       for (int col = 0; col < values.length; col++) {

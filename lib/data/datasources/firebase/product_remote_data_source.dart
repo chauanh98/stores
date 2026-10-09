@@ -2,8 +2,11 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:firebase_database/firebase_database.dart';
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/utils/store_resolver_helper.dart';
+import 'product_image_store.dart';
 
 class ProductRemoteDataSource {
   ProductRemoteDataSource(this._db, this.storeId);
@@ -137,7 +140,16 @@ class ProductRemoteDataSource {
 
   Future<Map?> getById(String id) => fetchById(id);
 
-  Future<void> upsert(String id, Map<String, dynamic> map) async {
+  Future<void> upsert(String id, Map<String, dynamic> rawMap) async {
+    // Tách ảnh Base64 sang `product_images/{id}`: bản ghi sản phẩm (được mọi
+    // thiết bị nghe realtime) chỉ còn chuỗi tham chiếu vài chục byte.
+    Map<String, dynamic> map = rawMap;
+    try {
+      map = await ProductImageStore.instance
+          .externalize(id, rawMap, database: _db);
+    } catch (e) {
+      debugPrint('[ProductRemoteDataSource] externalize image failed: $e');
+    }
     await _ref.child(id).set(map);
 
     // Cross-store catalog synchronization for canonical store branches
@@ -212,6 +224,7 @@ class ProductRemoteDataSource {
 
   Future<void> delete(String id) async {
     await _ref.child(id).remove();
+    unawaited(ProductImageStore.instance.deleteFor(id, database: _db));
     final normCurrent = StoreResolverHelper.normalizeStoreId(storeId);
     if (normCurrent == 'store_001' || normCurrent == 'store_002') {
       final otherStoreId =
@@ -228,16 +241,47 @@ class ProductRemoteDataSource {
 
   static bool _hasAutoHealed = false;
 
+  /// Khoá SharedPreferences lưu thời điểm chạy bảo trì gần nhất trên thiết bị.
+  static const String _maintenancePrefsKey = 'rtdb_product_maintenance_at';
+
+  /// Khoảng cách tối thiểu giữa 2 lần bảo trì trên cùng thiết bị.
+  /// Mỗi lần bảo trì tải toàn bộ sản phẩm của 2 chi nhánh, nên không chạy mỗi lần mở app.
+  static const Duration maintenanceInterval = Duration(hours: 24);
+
   static void resetAutoHealedForTesting() {
     _hasAutoHealed = false;
   }
 
-  /// Background scan to auto-heal existing products with split-brain branchStocks
-  /// (e.g. SP000775 where store_001 has 7 and store_002 has 100).
+  static Future<bool> _isMaintenanceDue() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final last = prefs.getInt(_maintenancePrefsKey);
+      if (last == null) return true;
+      final elapsed = DateTime.now().millisecondsSinceEpoch - last;
+      return elapsed < 0 || elapsed >= maintenanceInterval.inMilliseconds;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  static Future<void> _markMaintenanceDone() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(
+          _maintenancePrefsKey, DateTime.now().millisecondsSinceEpoch);
+    } catch (_) {}
+  }
+
+  /// Bảo trì dữ liệu sản phẩm chạy nền (tối đa 1 lần / [maintenanceInterval] / thiết bị):
+  /// 1. Đồng bộ branchStocks bị lệch giữa store_001 và store_002
+  ///    (e.g. SP000775 where store_001 has 7 and store_002 has 100).
+  /// 2. Tách ảnh Base64 còn nằm trong bản ghi sản phẩm sang `product_images/{id}`
+  ///    (dữ liệu cũ, hoặc do thiết bị chưa cập nhật app ghi vào).
   static Future<void> autoHealSplitBranchStocks(FirebaseDatabase db,
       {bool force = false}) async {
     if (_hasAutoHealed && !force) return;
     _hasAutoHealed = true;
+    if (!force && !await _isMaintenanceDue()) return;
     try {
       final snap001 = await db.ref('stores/store_001/products').get();
       final snap002 = await db.ref('stores/store_002/products').get();
@@ -250,21 +294,65 @@ class ProductRemoteDataSource {
           : <String, dynamic>{};
 
       final allIds = <String>{...map001.keys, ...map002.keys};
-      final updates = <String, dynamic>{};
+      final batches = <Map<String, dynamic>>[<String, dynamic>{}];
+      Map<String, dynamic> current() {
+        if (batches.last.length >= 200) batches.add(<String, dynamic>{});
+        return batches.last;
+      }
+
+      int migratedImages = 0;
+      final imageStore = ProductImageStore.instance;
 
       for (final id in allIds) {
-        final p1 = map001[id] is Map
+        // Gom mọi thay đổi của 1 sản phẩm vào CÙNG một batch để node ảnh và
+        // tham chiếu luôn được ghi nguyên tử cùng nhau.
+        final updates = current();
+        var p1 = map001[id] is Map
             ? Map<String, dynamic>.from(map001[id] as Map)
             : null;
-        final p2 = map002[id] is Map
+        var p2 = map002[id] is Map
             ? Map<String, dynamic>.from(map002[id] as Map)
             : null;
 
+        // --- (2) Tách ảnh Base64 ---
+        final source = p1 ?? p2;
+        final payload =
+            source == null ? null : imageStore.buildExternalPayload(id, source);
+        if (payload != null) {
+          final sourceHash = ProductImageStore.collectImages(source!);
+          updates['product_images/$id'] = payload.node;
+          migratedImages++;
+
+          bool sameImages(Map<String, dynamic>? p) =>
+              p != null &&
+              listEquals(ProductImageStore.collectImages(p), sourceHash);
+
+          if (sameImages(p1)) {
+            p1 = {...p1!, 'imageUrl': payload.ref, 'images': null};
+            if (map001.containsKey(id)) {
+              updates['stores/store_001/products/$id/imageUrl'] = payload.ref;
+              updates['stores/store_001/products/$id/images'] = null;
+            }
+          }
+          if (sameImages(p2)) {
+            p2 = {...p2!, 'imageUrl': payload.ref, 'images': null};
+            if (map002.containsKey(id)) {
+              updates['stores/store_002/products/$id/imageUrl'] = payload.ref;
+              updates['stores/store_002/products/$id/images'] = null;
+            }
+          }
+        }
+
+        // --- (1) Đồng bộ branchStocks ---
         if (p1 == null && p2 != null) {
+          updates.removeWhere(
+              (k, _) => k.startsWith('stores/store_001/products/$id/'));
           updates['stores/store_001/products/$id'] = p2;
           continue;
         }
         if (p2 == null && p1 != null) {
+          updates.removeWhere(
+              (k, _) => k.startsWith('stores/store_002/products/$id/'));
           updates['stores/store_002/products/$id'] = p1;
           continue;
         }
@@ -315,9 +403,18 @@ class ProductRemoteDataSource {
         }
       }
 
-      if (updates.isNotEmpty) {
-        await db.ref().update(updates);
+      for (final batch in batches) {
+        if (batch.isNotEmpty) {
+          await db.ref().update(batch);
+        }
       }
-    } catch (_) {}
+      if (migratedImages > 0) {
+        debugPrint(
+            '[ProductMaintenance] moved images of $migratedImages products to product_images/');
+      }
+      await _markMaintenanceDone();
+    } catch (e) {
+      debugPrint('[ProductMaintenance] skipped: $e');
+    }
   }
 }

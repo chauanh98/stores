@@ -1,3 +1,4 @@
+import '../../core/constants/product_image_ref.dart';
 import 'combo_component.dart';
 import 'product_unit.dart';
 
@@ -80,6 +81,7 @@ class Product {
       if (trimmed.startsWith('http://') ||
           trimmed.startsWith('https://') ||
           trimmed.startsWith('gs://') ||
+          ProductImageRef.isRef(trimmed) ||
           (trimmed.startsWith('data:image') && trimmed.contains('base64,'))) {
         return [trimmed];
       }
@@ -112,6 +114,7 @@ class Product {
         final isNewBoundary = nextTrimmed.startsWith('http://') ||
             nextTrimmed.startsWith('https://') ||
             nextTrimmed.startsWith('gs://') ||
+            ProductImageRef.isRef(nextTrimmed) ||
             nextTrimmed.startsWith('data:image');
 
         if (isNewBoundary) {
@@ -139,6 +142,7 @@ class Product {
             u.startsWith('http://') ||
             u.startsWith('https://') ||
             u.startsWith('gs://') ||
+            ProductImageRef.isRef(u) ||
             (u.startsWith('data:image') && u.contains('base64,')))
         .toList();
   }
@@ -148,6 +152,10 @@ class Product {
     if (images.isNotEmpty) return images;
     return parseImageUrls(imageUrl);
   }
+
+  /// `true` khi ảnh của sản phẩm được lưu tách ở node `product_images`
+  /// (bản ghi chỉ giữ chuỗi tham chiếu `rtdb-img://…`).
+  bool get hasExternalImages => allImageUrls.any(ProductImageRef.isRef);
 
   /// Link ảnh chính (ảnh đầu tiên nếu có nhiều ảnh)
   String? get primaryImageUrl =>

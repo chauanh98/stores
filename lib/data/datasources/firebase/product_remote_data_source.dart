@@ -141,16 +141,29 @@ class ProductRemoteDataSource {
   Future<Map?> getById(String id) => fetchById(id);
 
   Future<void> upsert(String id, Map<String, dynamic> rawMap) async {
-    // Tách ảnh Base64 sang `product_images/{id}`: bản ghi sản phẩm (được mọi
-    // thiết bị nghe realtime) chỉ còn chuỗi tham chiếu vài chục byte.
+    // Tách ảnh Base64 sang `product_images/{id}/{hash}`: bản ghi sản phẩm
+    // (được mọi thiết bị nghe realtime) chỉ còn chuỗi tham chiếu vài chục byte.
     Map<String, dynamic> map = rawMap;
+    ProductImagePayload? imagePayload;
     try {
-      map = await ProductImageStore.instance
-          .externalize(id, rawMap, database: _db);
+      final prepared = await ProductImageStore.instance.prepare(id, rawMap);
+      map = prepared.map;
+      imagePayload = prepared.payload;
     } catch (e) {
-      debugPrint('[ProductRemoteDataSource] externalize image failed: $e');
+      debugPrint('[ProductRemoteDataSource] prepare image failed: $e');
+      map = rawMap;
+      imagePayload = null;
     }
-    await _ref.child(id).set(map);
+    if (imagePayload == null) {
+      await _ref.child(id).set(map);
+    } else {
+      // Ảnh + bản ghi trong CÙNG một multi-path update (nguyên tử, được SDK
+      // xếp hàng ngay cả khi mạng chập chờn — không có trạng thái nửa vời).
+      await _db.ref().update({
+        imagePayload.path: imagePayload.node,
+        'stores/$storeId/products/$id': map,
+      });
+    }
 
     // Cross-store catalog synchronization for canonical store branches
     final normCurrent = StoreResolverHelper.normalizeStoreId(storeId);
@@ -224,7 +237,9 @@ class ProductRemoteDataSource {
 
   Future<void> delete(String id) async {
     await _ref.child(id).remove();
-    unawaited(ProductImageStore.instance.deleteFor(id, database: _db));
+    // Không xoá node ảnh: hoá đơn / phiếu nhập cũ và bản sao ở chi nhánh khác
+    // vẫn có thể tham chiếu tới; không ai nghe node này nên giữ lại không tốn
+    // băng thông.
     final normCurrent = StoreResolverHelper.normalizeStoreId(storeId);
     if (normCurrent == 'store_001' || normCurrent == 'store_002') {
       final otherStoreId =
@@ -282,6 +297,9 @@ class ProductRemoteDataSource {
     if (_hasAutoHealed && !force) return;
     _hasAutoHealed = true;
     if (!force && !await _isMaintenanceDue()) return;
+    // Ghi nhận lần THỬ trước khi chạy: nếu lỗi / offline thì cũng không tải lại
+    // 2 danh mục đầy đủ ở mỗi lần mở app (chờ chu kỳ sau).
+    await _markMaintenanceDone();
     try {
       final snap001 = await db.ref('stores/store_001/products').get();
       final snap002 = await db.ref('stores/store_002/products').get();
@@ -315,33 +333,25 @@ class ProductRemoteDataSource {
             : null;
 
         // --- (2) Tách ảnh Base64 ---
-        final source = p1 ?? p2;
-        final payload =
-            source == null ? null : imageStore.buildExternalPayload(id, source);
-        if (payload != null) {
-          final sourceHash = ProductImageStore.collectImages(source!);
-          updates['product_images/$id'] = payload.node;
+        // Xử lý TỪNG chi nhánh độc lập: node ảnh lưu theo hash nội dung nên 2
+        // chi nhánh lệch ảnh nhau không ghi đè lên nhau; bản ghi đã có tham
+        // chiếu được bỏ qua.
+        Map<String, dynamic>? migrate(
+            Map<String, dynamic>? product, String storeKey, bool exists) {
+          if (product == null) return null;
+          final payload = imageStore.buildMigrationPayload(id, product);
+          if (payload == null) return product;
+          updates[payload.path] = payload.node;
           migratedImages++;
-
-          bool sameImages(Map<String, dynamic>? p) =>
-              p != null &&
-              listEquals(ProductImageStore.collectImages(p), sourceHash);
-
-          if (sameImages(p1)) {
-            p1 = {...p1!, 'imageUrl': payload.ref, 'images': null};
-            if (map001.containsKey(id)) {
-              updates['stores/store_001/products/$id/imageUrl'] = payload.ref;
-              updates['stores/store_001/products/$id/images'] = null;
-            }
+          if (exists) {
+            updates['stores/$storeKey/products/$id/imageUrl'] = payload.ref;
+            updates['stores/$storeKey/products/$id/images'] = null;
           }
-          if (sameImages(p2)) {
-            p2 = {...p2!, 'imageUrl': payload.ref, 'images': null};
-            if (map002.containsKey(id)) {
-              updates['stores/store_002/products/$id/imageUrl'] = payload.ref;
-              updates['stores/store_002/products/$id/images'] = null;
-            }
-          }
+          return {...product, 'imageUrl': payload.ref, 'images': null};
         }
+
+        p1 = migrate(p1, 'store_001', map001.containsKey(id));
+        p2 = migrate(p2, 'store_002', map002.containsKey(id));
 
         // --- (1) Đồng bộ branchStocks ---
         if (p1 == null && p2 != null) {
@@ -412,7 +422,6 @@ class ProductRemoteDataSource {
         debugPrint(
             '[ProductMaintenance] moved images of $migratedImages products to product_images/');
       }
-      await _markMaintenanceDone();
     } catch (e) {
       debugPrint('[ProductMaintenance] skipped: $e');
     }

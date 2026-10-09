@@ -74,8 +74,12 @@ final revenueByDateRangeProvider = StreamProvider.autoDispose
   //   và tính lại khi giá vốn / giá bán / tên thay đổi.
   final targetStoreIds = StoreResolverHelper.storeIdsFromKey(
       ref.watch(filteredStoreIdsKeyProvider.select((k) => k)));
-  final selectedBranches = ref.watch(selectedBranchesProvider);
   final user = ref.watch(authProvider);
+  final isPrivileged = user?.canSwitchStore == true || user?.isAdmin == true;
+  // Chi nhánh được chọn chỉ dùng để lọc cho nhân viên; Admin/Giám sát đã lọc
+  // qua tập store ID ở trên => không watch để bấm chip chi nhánh không mở lại listener.
+  final selectedBranches =
+      isPrivileged ? const <String>[] : ref.watch(selectedBranchesProvider);
 
   if (targetStoreIds.isEmpty) {
     yield RevenueSummary(
@@ -98,6 +102,7 @@ final revenueByDateRangeProvider = StreamProvider.autoDispose
   // Mỗi sự kiện trên trigger = "dữ liệu đầu vào đã đổi, tính lại".
   final trigger = StreamController<void>();
   final List<StreamSubscription> subscriptions = [];
+  final List<Timer> timers = [];
   final Map<String, List<Map<String, dynamic>>> storeOrdersMap = {};
   final Map<String, List<Map>> storeImportsMap = {};
 
@@ -122,8 +127,18 @@ final revenueByDateRangeProvider = StreamProvider.autoDispose
     // lần provider rebuild.
     final inventoryDs =
         InventoryRemoteDataSource(FirebaseDatabase.instance, storeId);
+    // Offline & chưa có dữ liệu: không để báo cáo "Đang tải" mãi — sau 8s tính
+    // với danh sách phiếu nhập rỗng, dữ liệu thật đến sau sẽ tính lại.
+    final importsTimeout = Timer(const Duration(seconds: 8), () {
+      if (!storeImportsMap.containsKey(storeId)) {
+        storeImportsMap[storeId] = const [];
+        notify();
+      }
+    });
+    timers.add(importsTimeout);
     subscriptions.add(inventoryDs.watchImportsByDateRange(start, end).listen(
       (imports) {
+        importsTimeout.cancel();
         storeImportsMap[storeId] = imports;
         notify();
       },
@@ -169,6 +184,9 @@ final revenueByDateRangeProvider = StreamProvider.autoDispose
     for (final sub in subscriptions) {
       sub.cancel();
     }
+    for (final t in timers) {
+      t.cancel();
+    }
     trigger.close();
   });
 
@@ -204,7 +222,7 @@ final revenueByDateRangeProvider = StreamProvider.autoDispose
           }
 
           // Nếu là Admin/Supervisor (canSwitchStore == true), việc lọc theo chi nhánh đã được thực hiện bằng cách chỉ chọn query store tương ứng ở bước trên!
-          if (user?.canSwitchStore == true || user?.isAdmin == true) {
+          if (isPrivileged) {
             return true;
           }
 

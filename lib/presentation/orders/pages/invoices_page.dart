@@ -793,6 +793,7 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
               order.createdBy,
               for (final i in order.items) ...[i.productName, i.productId],
             ],
+            namespace: 'invoices',
           );
           final extra = VietnameseTextHelper.normalizeUnaccented(
               '$cName $cPhone');
@@ -3277,17 +3278,26 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
     // 1. Sinh mã hóa đơn mới:
     // - Sửa hóa đơn (!isFromCancelled): Phương án 1 (mã cũ + '_' + số lần sửa + 1: HD000001 -> HD000001_01)
     // - Tạo lại đơn từ đơn đã hủy (isFromCancelled): lấy mã hóa đơn mới tiếp theo của hệ thống
-    final newOrderId = isFromCancelled
-        ? await OrderCodeResolver.resolveNextOrderCode(
-            ref,
-            storeId: order.storeId,
-            currentOrderId: order.id,
-          )
-        : await OrderCodeResolver.resolveVersionedOrderCode(
-            ref,
-            originalOrderId: order.id,
-            storeId: order.storeId,
-          );
+    final String newOrderId;
+    try {
+      newOrderId = isFromCancelled
+          ? await OrderCodeResolver.resolveNextOrderCode(
+              ref,
+              storeId: order.storeId,
+              currentOrderId: order.id,
+            )
+          : await OrderCodeResolver.resolveVersionedOrderCode(
+              ref,
+              originalOrderId: order.id,
+              storeId: order.storeId,
+            );
+    } on OrderCodeUnavailableException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString()), backgroundColor: AppColors.warning),
+      );
+      return;
+    }
 
     // 2. Tải danh mục sản phẩm nếu chưa có trong cache
     var products = ref.read(productListProvider).valueOrNull ?? [];

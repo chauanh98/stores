@@ -8,19 +8,26 @@ import 'vietnamese_text_helper.dart';
 class SearchTextHelper {
   const SearchTextHelper._();
 
-  static final Expando<String> _cache = Expando<String>('searchText');
+  /// Mỗi màn hình (namespace) có cache riêng vì mỗi nơi tìm trên tập trường khác nhau.
+  static final Map<String, Expando<String>> _caches = {};
 
   /// Chuỗi tìm kiếm đã chuẩn hoá (thường, không dấu) của [owner], tạo 1 lần
-  /// từ [fields] và cache theo identity của [owner].
-  static String haystackOf(Object owner, Iterable<String?> Function() fields) {
-    final cached = _cache[owner];
+  /// từ [fields] và cache theo identity của [owner] trong [namespace].
+  static String haystackOf(
+    Object owner,
+    Iterable<String?> Function() fields, {
+    String namespace = 'default',
+  }) {
+    final cache =
+        _caches.putIfAbsent(namespace, () => Expando<String>(namespace));
+    final cached = cache[owner];
     if (cached != null) return cached;
     final joined = fields()
         .whereType<String>()
         .where((f) => f.trim().isNotEmpty)
         .join(' ');
     final normalized = VietnameseTextHelper.normalizeUnaccented(joined);
-    _cache[owner] = normalized;
+    cache[owner] = normalized;
     return normalized;
   }
 

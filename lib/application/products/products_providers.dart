@@ -469,6 +469,7 @@ final processedProductsProvider =
               p.category,
               p.category3Levels,
             ],
+            namespace: 'products',
           ),
           tokens,
         );

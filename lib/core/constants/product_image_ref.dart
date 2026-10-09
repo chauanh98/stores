@@ -4,7 +4,8 @@
 /// `stores/{storeId}/products/{id}/imageUrl|images`, nên mỗi lần một thiết bị
 /// mở listener danh sách sản phẩm là tải về TOÀN BỘ ảnh của mọi sản phẩm
 /// (hàng chục MB/lần mở app). Ảnh Base64 nay được chuyển sang node riêng
-/// `product_images/{productId}` và bản ghi sản phẩm chỉ giữ một chuỗi tham chiếu:
+/// `product_images/{productId}/{contentHash}` (bất biến) và bản ghi sản phẩm
+/// chỉ giữ một chuỗi tham chiếu:
 ///
 /// ```
 /// rtdb-img://{productId}#{contentHash}
@@ -21,7 +22,7 @@ class ProductImageRef {
   /// Tiền tố nhận diện tham chiếu ảnh.
   static const String scheme = 'rtdb-img://';
 
-  /// Node RTDB chứa ảnh: `product_images/{productId}`.
+  /// Node RTDB gốc chứa ảnh: `product_images/{productId}/{contentHash}`.
   static const String dbNode = 'product_images';
 
   static bool isRef(String? value) =>

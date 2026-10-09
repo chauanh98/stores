@@ -254,7 +254,9 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                 if (streamAsync.hasError && streamAsync.valueOrNull == null) {
                   return ErrorView(
                     streamAsync.error!,
-                    onRetry: () => ref.invalidate(notificationStreamProvider),
+                    onRetry: () => ref.invalidate(showAllStores
+                        ? popupNotificationStreamProvider
+                        : notificationStreamProvider),
                   );
                 }
 

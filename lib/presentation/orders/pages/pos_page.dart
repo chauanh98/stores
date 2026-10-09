@@ -204,6 +204,7 @@ class _POSPageState extends ConsumerState<POSPage> {
                     final haystack = SearchTextHelper.haystackOf(
                       p,
                       () => [p.name, p.code, p.barcode, p.brand, p.category],
+                      namespace: 'pos',
                     );
                     if (!SearchTextHelper.matchesTokens(
                         haystack, queryTokens)) {

@@ -33,11 +33,16 @@ class NotificationDispatcher {
     this._pushNotificationService,
   ]);
 
-  /// Thời điểm tạo theo giờ máy chủ, lưu dạng UTC (`…Z`): máy nhận ở múi giờ
-  /// hay đồng hồ khác vẫn tính đúng độ "mới" để bật pop-up.
+  /// Thời điểm tạo theo giờ máy chủ (bù độ lệch đồng hồ của máy tạo sự kiện)
+  /// để máy nhận tính đúng độ "mới" khi bật pop-up.
+  ///
+  /// GIỮ định dạng giờ địa phương (không `.toUtc()`): truy vấn
+  /// `orderByChild('createdAt').limitToLast(50)` so sánh CHUỖI, trộn chuỗi
+  /// "…Z" (UTC) với chuỗi giờ địa phương cũ sẽ làm thông báo mới bị xếp sai
+  /// và rơi khỏi cửa sổ 50 thông báo gần nhất.
   static DateTime _now() {
     ServerClock.ensureStarted();
-    return ServerClock.now().toUtc();
+    return ServerClock.now();
   }
 
   static String _generateId(String prefix) {

@@ -155,7 +155,10 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
           _resolvedImageRef = ref;
           _resolvedImages = images;
         });
-      }, onError: (_) {});
+      }, onError: (_) {
+        // Cho phép thử lại ở lần build sau (ví dụ khi có mạng trở lại).
+        _resolvingImageRef = null;
+      });
     }
     return urls;
   }

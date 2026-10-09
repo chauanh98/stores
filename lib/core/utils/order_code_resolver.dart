@@ -1,11 +1,45 @@
 import 'package:firebase_database/firebase_database.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 
 import '../../application/auth/auth_providers.dart';
 import '../../application/orders/orders_providers.dart';
+import '../../application/reports/overview_providers.dart';
 import 'code_generator_helper.dart';
 
+/// Không xác minh được mã hoá đơn với máy chủ (mất mạng). Dừng thay vì đoán
+/// mã — `set()` với mã đoán sai sẽ GHI ĐÈ hoá đơn đã tồn tại khi có mạng lại.
+class OrderCodeUnavailableException implements Exception {
+  const OrderCodeUnavailableException();
+
+  @override
+  String toString() =>
+      'Không xác định được mã hoá đơn mới vì mất kết nối máy chủ. '
+      'Vui lòng kiểm tra mạng rồi thử lại.';
+}
+
 class OrderCodeResolver {
+  /// Gom mã đơn từ các danh sách đơn ĐANG được nghe sẵn trong bộ nhớ.
+  /// Chỉ đọc provider đã tồn tại (`exists`) để không mở listener mới — đọc
+  /// provider autoDispose chưa sống sẽ tải toàn bộ đơn của cả tháng.
+  static void _collectAliveCodes(dynamic ref, Set<String> into) {
+    final ranges = <DateTimeRange>{OverviewTimeRange.thisMonth.getRange()};
+    try {
+      ranges.add(ref.read(invoicesActiveDateRangeProvider) as DateTimeRange);
+    } catch (_) {}
+    for (final range in ranges) {
+      try {
+        final provider = allBranchesOrdersByDateRangeProvider(range);
+        if (ref.exists(provider) != true) continue;
+        final orders = ref.read(provider).valueOrNull;
+        if (orders is List) {
+          for (final o in orders) {
+            into.add(o.id.toString());
+          }
+        }
+      } catch (_) {}
+    }
+  }
+
   /// Sinh mã hóa đơn mới nhất đảm bảo:
   /// 1. Luôn lấy từ mã hóa đơn mới nhất trong hệ thống + 1 (ví dụ: HD000001 -> HD000002).
   /// 2. Tuyệt đối không chứa ký tự cấm của Firebase (như dấu '.', '#', '$', '[', ']').
@@ -22,13 +56,15 @@ class OrderCodeResolver {
       existingCodes.add(currentOrderId.trim());
     }
 
-    // 1. (Đã bỏ) Không `ref.read` các provider đơn hàng theo khoảng ngày ở đây:
-    // chúng là autoDispose, nếu màn hình chưa mở thì `read` sẽ tạo listener mới và
-    // tải TOÀN BỘ đơn của tháng chỉ để lấy mã. Truy vấn RTDB bên dưới đã đủ chính xác.
+    // 1. Mã từ các danh sách đơn đang có sẵn trong bộ nhớ (không mở listener mới).
+    _collectAliveCodes(ref, existingCodes);
+    var serverVerified = false;
+    var databaseAvailable = false;
 
     // 2. Truy vấn trực tiếp Firebase Realtime Database để lấy các mã đơn lớn nhất
     try {
       final db = ref.read(firebaseDatabaseProvider) as FirebaseDatabase;
+      databaseAvailable = true;
       final availableStores =
           ref.read(availableStoresProvider).valueOrNull ?? <String, String>{};
       final targetStores = <String>{
@@ -50,6 +86,7 @@ class OrderCodeResolver {
               .endAt('HD\uf8ff')
               .limitToLast(5)
               .get();
+          serverVerified = true;
           if (snap.exists && snap.value is Map) {
             final map = snap.value as Map;
             for (final key in map.keys) {
@@ -68,6 +105,12 @@ class OrderCodeResolver {
     // 3. Tính mã tiếp theo: tìm số lớn nhất của tiền tố 'HD' và + 1
     var candidate =
         CodeGeneratorHelper.generateNextOrderCode(existingCodes.toList());
+
+    // Không xác minh được với máy chủ ở bất kỳ chi nhánh nào => dừng, KHÔNG đoán.
+    // (Môi trường không có Firebase — unit test — vẫn giữ hành vi cũ.)
+    if (databaseAvailable && !serverVerified) {
+      throw const OrderCodeUnavailableException();
+    }
 
     // 4. Kiểm tra fetchById trên repository để bảo đảm tuyệt đối không trùng lặp
     try {
@@ -98,13 +141,15 @@ class OrderCodeResolver {
     final (baseCode, _) =
         CodeGeneratorHelper.parseInvoiceCode(originalOrderId);
 
-    // 1. (Đã bỏ) Không `ref.read` các provider đơn hàng theo khoảng ngày ở đây:
-    // chúng là autoDispose, nếu màn hình chưa mở thì `read` sẽ tạo listener mới và
-    // tải TOÀN BỘ đơn của tháng chỉ để lấy mã. Truy vấn RTDB bên dưới đã đủ chính xác.
+    // 1. Mã từ các danh sách đơn đang có sẵn trong bộ nhớ (không mở listener mới).
+    _collectAliveCodes(ref, existingCodes);
+    var serverVerified = false;
+    var databaseAvailable = false;
 
     // 2. Truy vấn Firebase Realtime Database
     try {
       final db = ref.read(firebaseDatabaseProvider) as FirebaseDatabase;
+      databaseAvailable = true;
       final availableStores =
           ref.read(availableStoresProvider).valueOrNull ?? <String, String>{};
       final targetStores = <String>{
@@ -125,6 +170,7 @@ class OrderCodeResolver {
               .startAt(baseCode)
               .endAt('$baseCode\uf8ff')
               .get();
+          serverVerified = true;
           if (snap.exists && snap.value is Map) {
             final map = snap.value as Map;
             for (final key in map.keys) {
@@ -145,6 +191,12 @@ class OrderCodeResolver {
       originalOrderId,
       existingCodes: existingCodes.toList(),
     );
+
+    // Không xác minh được với máy chủ ở bất kỳ chi nhánh nào => dừng, KHÔNG đoán.
+    // (Môi trường không có Firebase — unit test — vẫn giữ hành vi cũ.)
+    if (databaseAvailable && !serverVerified) {
+      throw const OrderCodeUnavailableException();
+    }
 
     // 4. Kiểm tra fetchById trên repository để bảo đảm tuyệt đối không trùng lặp
     try {

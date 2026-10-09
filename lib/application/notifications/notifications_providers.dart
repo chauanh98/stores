@@ -238,10 +238,20 @@ final popupNotificationStreamProvider =
     controller.add(byStore.values.expand((e) => e).toList());
   }
 
+  // Bản ghi cũ có thể thiếu storeId: gắn chi nhánh nguồn để đánh dấu đã đọc /
+  // mở chi tiết đúng chi nhánh (không tạo node rác ở chi nhánh đang xem).
+  List<NotificationItem> stamp(List<NotificationItem> items, String storeId) {
+    if (storeId.isEmpty) return items;
+    return [
+      for (final n in items)
+        n.storeId.trim().isEmpty ? n.copyWith(storeId: storeId) : n,
+    ];
+  }
+
   ref.listen<AsyncValue<List<NotificationItem>>>(
     notificationStreamProvider,
     (_, next) => next.whenData((items) {
-      byStore['__current__'] = items;
+      byStore['__current__'] = stamp(items, ref.read(currentStoreIdProvider));
       emit();
     }),
     fireImmediately: true,
@@ -252,7 +262,7 @@ final popupNotificationStreamProvider =
     for (final storeId in otherStoreIds) {
       subs.add(repository.watchNotifications(storeId, limit: 50).listen(
         (items) {
-          byStore[storeId] = items;
+          byStore[storeId] = stamp(items, storeId);
           emit();
         },
         onError: (Object e) =>

@@ -78,7 +78,10 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
           _previewRef = url;
           _previewResolvedUrl = images.isNotEmpty ? images.first : null;
         });
-      }, onError: (_) {});
+      }, onError: (_) {
+        // Cho phép thử lại ở lần build sau (ví dụ khi có mạng trở lại).
+        _resolvingPreviewRef = null;
+      });
     }
     return url;
   }

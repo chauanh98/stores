@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../common/widgets/barcode_scanner_page.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -190,6 +191,17 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                 labelText: l10n?.posBarcodeLabel ?? 'Mã vạch (Barcode)',
                 border: const OutlineInputBorder(),
                 prefixIcon: const Icon(Icons.qr_code),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.qr_code_scanner,
+                      color: AppColors.primary),
+                  tooltip: 'Quét bằng camera',
+                  onPressed: () async {
+                    final code = await BarcodeScannerPage.open(dialogCtx);
+                    if (code != null && dialogCtx.mounted) {
+                      Navigator.pop(dialogCtx, code);
+                    }
+                  },
+                ),
               ),
               onSubmitted: (val) => Navigator.pop(dialogCtx, val.trim()),
             ),
@@ -308,7 +320,10 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                             },
                           )
                         : null,
+                    filled: false,
                     border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
                     contentPadding: const EdgeInsets.symmetric(
                         horizontal: 12, vertical: 12),
                     isDense: true,
@@ -2229,8 +2244,17 @@ Future<void> showCustomerSelectionSheet({
                                 title: Text(customer.name,
                                     style: const TextStyle(
                                         fontWeight: FontWeight.bold)),
-                                subtitle: Text(
-                                    '${customer.phone} • ${customer.address}'),
+                                subtitle: (() {
+                                  final info = [
+                                    customer.phone,
+                                    customer.address,
+                                  ]
+                                      .whereType<String>()
+                                      .map((e) => e.trim())
+                                      .where((e) => e.isNotEmpty)
+                                      .join(' • ');
+                                  return info.isEmpty ? null : Text(info);
+                                })(),
                                 trailing: (customer.displayCurrentDebt > 0)
                                     ? Text(
                                         'Nợ: ${NumberFormat('#,###', 'vi_VN').format(customer.displayCurrentDebt)}đ',

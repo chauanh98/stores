@@ -4,6 +4,7 @@ import '../../../application/products/services/image_upload_service.dart';
 import '../../../core/utils/image_compression_helper.dart';
 import 'package:flutter/foundation.dart' hide Category;
 import 'package:flutter/material.dart';
+import '../../common/widgets/barcode_scanner_page.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -486,7 +487,7 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
         suffixIcon: IconButton(
           icon: const Icon(Icons.qr_code_scanner, color: AppColors.primary),
           tooltip: 'Quét mã vạch',
-          onPressed: enabled ? _scanBarcode : null,
+          onPressed: enabled ? _scanWithCamera : null,
         ),
         border: const OutlineInputBorder(),
         contentPadding:
@@ -495,56 +496,10 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
     );
   }
 
-  void _scanBarcode() async {
-    final scanController = TextEditingController(text: _barcodeController.text);
-    final scanned = await showDialog<String>(
-      context: context,
-      builder: (dialogCtx) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.qr_code_scanner, color: AppColors.primary),
-            SizedBox(width: 8),
-            Text('Quét mã vạch',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Nhập hoặc quét mã vạch từ đầu đọc mã vạch:',
-                style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-            const SizedBox(height: 12),
-            TextField(
-              controller: scanController,
-              autofocus: true,
-              decoration: const InputDecoration(
-                labelText: 'Mã vạch (Barcode)',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.qr_code),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('Hủy'),
-          ),
-          FilledButton(
-            onPressed: () =>
-                Navigator.pop(dialogCtx, scanController.text.trim()),
-            style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
-            child: const Text('Xác nhận'),
-          ),
-        ],
-      ),
-    );
-
-    if (scanned != null && mounted) {
-      setState(() {
-        _barcodeController.text = scanned;
-      });
+  Future<void> _scanWithCamera() async {
+    final code = await BarcodeScannerPage.open(context);
+    if (code != null && mounted) {
+      setState(() => _barcodeController.text = code);
     }
   }
 

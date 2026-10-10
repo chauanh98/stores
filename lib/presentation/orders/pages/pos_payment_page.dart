@@ -351,7 +351,10 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
                 hintText: l10n?.posOrderNoteHint ?? 'Nhập ghi chú cho đơn hàng (nếu có)...',
                 hintStyle:
                     const TextStyle(fontSize: 13, color: AppColors.textMuted),
+                filled: false,
                 border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
                 isDense: true,
                 contentPadding: EdgeInsets.zero,
               ),

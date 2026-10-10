@@ -8,9 +8,8 @@ plugins {
 
 android {
     namespace = "com.example.stores"
-    compileSdk = 35
-    ndkVersion = flutter.ndkVersion
-    ndkVersion = "25.1.8937393"
+    compileSdk = 36
+    ndkVersion = "27.0.12077973"
 
     compileOptions {
         coreLibraryDesugaringEnabled true

@@ -317,6 +317,12 @@ void main() {
     testWidgets(
         'InvoicesPage filter interaction and active filter reset functionality',
         (tester) async {
+      // Real narrow viewport (MediaQueryData alone does not resize the test view).
+      tester.view.physicalSize = const Size(400, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
       await tester.pumpWidget(
         _buildTestApp(
           screenSize: const Size(400, 900),
@@ -341,12 +347,14 @@ void main() {
       await tester.tap(paymentChipFinder);
       await tester.pumpAndSettle();
 
-      // Select 'Chuyển khoản'
-      await tester.tap(find.text('Chuyển khoản').last);
+      // Select the transfer item (l10n.transfer is the short label 'Chuyển').
+      await tester.tap(find.descendant(
+          of: find.byType(PopupMenuItem<String>),
+          matching: find.text('Chuyển')));
       await tester.pumpAndSettle();
 
       // Verify active filter indicator and reset button are visible
-      expect(find.widgetWithText(PopupMenuButton<String>, 'Chuyển khoản'),
+      expect(find.widgetWithText(PopupMenuButton<String>, 'Chuyển'),
           findsOneWidget);
       final resetBtnFinder = find.byKey(const Key('invoices_reset_filter_button'));
       await tester.ensureVisible(resetBtnFinder);

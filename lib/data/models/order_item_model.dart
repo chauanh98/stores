@@ -44,26 +44,32 @@ class OrderItemModel {
 
   factory OrderItemModel.fromMap(Map<dynamic, dynamic> map) {
     final rawQty = map['quantity'];
-    final quantity = rawQty is num
-        ? rawQty.toInt()
+    final parsedQty = rawQty is num
+        ? (rawQty.isFinite ? rawQty.toInt() : 0)
         : (int.tryParse(rawQty?.toString() ?? '') ??
-            (double.tryParse(rawQty?.toString() ?? '')?.toInt() ?? 1));
+            (() {
+              final d = double.tryParse(rawQty?.toString() ?? '');
+              return d == null ? 1 : (d.isFinite ? d.toInt() : 0);
+            })());
+    final quantity = parsedQty < 0 ? 0 : parsedQty;
 
     final rawPrice = map['price'];
     final parsedPrice = rawPrice is num
         ? rawPrice.toDouble()
         : (double.tryParse(rawPrice?.toString() ?? '') ?? 0.0);
-    final price = parsedPrice < 0 ? 0.0 : parsedPrice;
+    final price = (parsedPrice < 0 || !parsedPrice.isFinite) ? 0.0 : parsedPrice;
 
     final rawOrigPrice = map['originalPrice'];
-    final originalPrice = rawOrigPrice is num
+    final parsedOrig = rawOrigPrice is num
         ? rawOrigPrice.toDouble()
         : (double.tryParse(rawOrigPrice?.toString() ?? '') ?? price);
+    final originalPrice = parsedOrig.isFinite ? parsedOrig : price;
 
     final rawDiscount = map['discount'];
-    final discount = rawDiscount is num
+    final parsedDisc = rawDiscount is num
         ? rawDiscount.toDouble()
         : (double.tryParse(rawDiscount?.toString() ?? '') ?? 0.0);
+    final discount = parsedDisc.isFinite ? parsedDisc : 0.0;
 
     final isDiscountPercent = map['isDiscountPercent'] == true ||
         map['isDiscountPercent']?.toString() == 'true';
@@ -76,9 +82,10 @@ class OrderItemModel {
         : (int.tryParse(rawWarranty?.toString() ?? '') ?? 0);
 
     final rawReturned = map['returnedQuantity'];
-    final returnedQuantity = rawReturned is num
-        ? rawReturned.toInt()
+    final parsedReturned = rawReturned is num
+        ? (rawReturned.isFinite ? rawReturned.toInt() : 0)
         : (int.tryParse(rawReturned?.toString() ?? '') ?? 0);
+    final returnedQuantity = parsedReturned < 0 ? 0 : parsedReturned;
 
     return OrderItemModel(
       productId: map['productId']?.toString() ?? '',

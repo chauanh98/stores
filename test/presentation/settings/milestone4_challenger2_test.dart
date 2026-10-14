@@ -24,7 +24,7 @@ import 'package:stores/domain/entities/store_payment_config.dart';
 import 'package:stores/domain/entities/supplier.dart';
 import 'package:stores/domain/entities/user_account.dart';
 import 'package:stores/presentation/customers/pages/customers_page.dart';
-import 'package:stores/presentation/inventories/pages/inter_store_transfer_page.dart';
+import 'package:stores/presentation/inventories/pages/stock_transfers_page.dart';
 import 'package:stores/presentation/inventories/pages/stock_in_receipts_page.dart';
 import 'package:stores/presentation/orders/pages/invoices_page.dart';
 import 'package:stores/presentation/settings/pages/account_management_page.dart';
@@ -885,7 +885,7 @@ void main() {
       expect(find.byType(StockInReceiptsPage), findsOneWidget);
     });
 
-    testWidgets('Navigation to InterStoreTransferPage from MorePage', (tester) async {
+    testWidgets('Navigation to StockTransfersPage from MorePage', (tester) async {
       _setTestViewport(tester);
       await tester.pumpWidget(
         _buildTestApp(
@@ -901,7 +901,7 @@ void main() {
       await tester.ensureVisible(find.text('Chuyển kho'));
       await tester.tap(find.text('Chuyển kho'));
       await tester.pumpAndSettle();
-      expect(find.byType(InterStoreTransferPage), findsOneWidget);
+      expect(find.byType(StockTransfersPage), findsOneWidget);
     });
 
     testWidgets('Navigation to InvoicesPage from MorePage', (tester) async {

@@ -54,6 +54,8 @@ Widget buildTestApp({
   return ProviderScope(
     overrides: [
       currentStoreIdProvider.overrideWith((ref) => 'store_001'),
+      // Giá nhập chỉ hiện cho vai trò có quyền xem giá (admin/giám sát).
+      canViewCostPriceProvider.overrideWithValue(true),
       ...overrides,
     ],
     child: MaterialApp(
@@ -101,7 +103,7 @@ void main() {
       // Root widget and header
       expect(find.byKey(const Key('product_edit_sheet')), findsOneWidget);
       expect(find.byKey(const Key('sheet_header_sku')), findsOneWidget);
-      expect(find.text('< ST26'), findsOneWidget);
+      expect(find.text('ST26'), findsOneWidget);
 
       // Stock badge
       expect(find.byKey(const Key('sheet_stock_badge')), findsOneWidget);

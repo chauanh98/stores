@@ -262,16 +262,23 @@ class ProcessedProductsData {
   });
 }
 
-final processedProductsProvider =
-    Provider.autoDispose<AsyncValue<ProcessedProductsData>>((ref) {
+/// Facets (categories / brands / harvested category tree) depend only on the
+/// product list and category list - NOT on search text, filters or sort - so
+/// they are memoised in their own provider and are not recomputed per keystroke.
+class ProductFacets {
+  const ProductFacets({
+    required this.allKnownCategories,
+    required this.categories,
+    required this.brands,
+  });
+  final List<Category> allKnownCategories;
+  final List<String> categories;
+  final List<String> brands;
+}
+
+final _productFacetsProvider =
+    Provider.autoDispose<AsyncValue<ProductFacets>>((ref) {
   final productsAsync = ref.watch(productListProvider);
-  final searchQuery = ref.watch(productSearchQueryProvider);
-  final selectedCategory = ref.watch(productCategoryFilterProvider);
-  final selectedCategories = ref.watch(productSelectedCategoriesProvider);
-  final selectedProductTypes = ref.watch(productTypeFilterProvider);
-  final selectedBrand = ref.watch(productBrandFilterProvider);
-  final stockStatus = ref.watch(productStockStatusFilterProvider);
-  final sortOption = ref.watch(productSortOptionProvider);
   final categoryRepo = ref.watch(categoryRepositoryProvider);
   final rawKnownCategories =
       ref.watch(categoryListProvider).valueOrNull ?? const <Category>[];
@@ -285,12 +292,13 @@ final processedProductsProvider =
     // Dynamic categories and brands extraction from all store products
     final categoriesSet = <String>{};
     final brandsSet = <String>{};
+    final splitter = RegExp(r'>>|>');
 
     for (final p in products) {
       final cat = p.category.trim();
       if (cat.isNotEmpty) {
-        if (cat.contains('>>') || cat.contains('>')) {
-          for (final seg in cat.split(RegExp(r'>>|>'))) {
+        if (cat.contains('>')) {
+          for (final seg in cat.split(splitter)) {
             final s = seg.trim();
             if (s.isNotEmpty) categoriesSet.add(s);
           }
@@ -300,7 +308,7 @@ final processedProductsProvider =
       }
       final c3 = p.category3Levels?.trim();
       if (c3 != null && c3.isNotEmpty) {
-        for (final seg in c3.split(RegExp(r'>>|>'))) {
+        for (final seg in c3.split(splitter)) {
           final s = seg.trim();
           if (s.isNotEmpty) categoriesSet.add(s);
         }
@@ -318,8 +326,31 @@ final processedProductsProvider =
       }
     }
 
-    final categories = ['All', ...(categoriesSet.toList()..sort())];
-    final brands = brandsSet.toList()..sort();
+    return ProductFacets(
+      allKnownCategories: allKnownCategories,
+      categories: ['All', ...(categoriesSet.toList()..sort())],
+      brands: brandsSet.toList()..sort(),
+    );
+  });
+});
+
+final processedProductsProvider =
+    Provider.autoDispose<AsyncValue<ProcessedProductsData>>((ref) {
+  final productsAsync = ref.watch(productListProvider);
+  final facetsAsync = ref.watch(_productFacetsProvider);
+  final searchQuery = ref.watch(productSearchQueryProvider);
+  final selectedCategory = ref.watch(productCategoryFilterProvider);
+  final selectedCategories = ref.watch(productSelectedCategoriesProvider);
+  final selectedProductTypes = ref.watch(productTypeFilterProvider);
+  final selectedBrand = ref.watch(productBrandFilterProvider);
+  final stockStatus = ref.watch(productStockStatusFilterProvider);
+  final sortOption = ref.watch(productSortOptionProvider);
+
+  return productsAsync.whenData((products) {
+    final facets = facetsAsync.requireValue;
+    final allKnownCategories = facets.allKnownCategories;
+    final categories = facets.categories;
+    final brands = facets.brands;
 
     // Start with a copy of all products
     List<Product> filtered = List<Product>.from(products);

@@ -113,6 +113,7 @@ class _ShiftConfigPageState extends ConsumerState<ShiftConfigPage>
       ),
       floatingActionButton: (_tabController.index == 0 && canManage)
           ? FloatingActionButton(
+              heroTag: null,
               backgroundColor: AppColors.primary,
               foregroundColor: AppColors.white,
               onPressed: () => _showShiftEditDialog(null),
@@ -167,6 +168,7 @@ class _ShiftConfigPageState extends ConsumerState<ShiftConfigPage>
                           final confirm = await showDialog<bool>(
                             context: context,
                             builder: (ctx) => AlertDialog(
+                              scrollable: true,
                               title: const Text('Xác nhận xóa'),
                               content: Text(
                                   'Bạn có chắc muốn xóa ca "${shift.name}"?'),
@@ -248,13 +250,17 @@ class _ShiftConfigPageState extends ConsumerState<ShiftConfigPage>
                         TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                 const SizedBox(height: 6),
                 DropdownButtonFormField<String>(
+                  isExpanded: true,
                   value: storeNames.containsKey(currentStoreId)
                       ? currentStoreId
                       : null,
                   decoration: const InputDecoration(
                       border: OutlineInputBorder(), isDense: true),
                   items: storeNames.entries.map((e) {
-                    return DropdownMenuItem(value: e.key, child: Text(e.value));
+                    return DropdownMenuItem(
+                        value: e.key,
+                        child: Text(e.value,
+                            maxLines: 1, overflow: TextOverflow.ellipsis));
                   }).toList(),
                   onChanged: canManage
                       ? (newStore) {
@@ -417,6 +423,7 @@ class _ShiftConfigPageState extends ConsumerState<ShiftConfigPage>
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
+          scrollable: true,
           title: Text(
               shift == null ? 'Thêm ca làm việc mới' : 'Chỉnh sửa ca làm việc'),
           content: SingleChildScrollView(
@@ -433,6 +440,7 @@ class _ShiftConfigPageState extends ConsumerState<ShiftConfigPage>
                 ),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
+                  isExpanded: true,
                   value: shiftType,
                   decoration: const InputDecoration(
                       labelText: 'Loại ca',

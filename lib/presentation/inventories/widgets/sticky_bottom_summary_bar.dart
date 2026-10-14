@@ -17,6 +17,9 @@ class StickyBottomSummaryBar extends StatelessWidget {
   final VoidCallback onContinue;
   final bool isEnabled;
 
+  /// false: ẩn tổng tiền (nhân viên không có quyền xem giá nhập).
+  final bool showAmount;
+
   const StickyBottomSummaryBar({
     super.key,
     required this.totalAmount,
@@ -25,6 +28,7 @@ class StickyBottomSummaryBar extends StatelessWidget {
     required this.onSaveDraft,
     required this.onContinue,
     this.isEnabled = true,
+    this.showAmount = true,
   });
 
   @override
@@ -54,36 +58,37 @@ class StickyBottomSummaryBar extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        'Tổng tiền hàng',
-                        style: TextStyle(
-                          color: AppColors.textMuted,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          '${currencyFormat.format(totalAmount)} đ',
-                          key: const Key('bottom_bar_total_amount'),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                            color: AppColors.primaryAction,
+                if (showAmount)
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'Tổng tiền hàng',
+                          style: TextStyle(
+                            color: AppColors.textMuted,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 2),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            '${currencyFormat.format(totalAmount)} đ',
+                            key: const Key('bottom_bar_total_amount'),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                              color: AppColors.primaryAction,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
                 const SizedBox(width: 8),
                 Flexible(
                   child: Text(

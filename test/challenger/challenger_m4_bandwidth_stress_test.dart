@@ -86,12 +86,12 @@ void main() {
           });
         }
 
-        // Before debounce window (at 20ms)
+        // Before debounce window (at 20ms; Order/Inventory window is 250ms)
         await Future.delayed(const Duration(milliseconds: 20));
         expect(emissions, isEmpty);
 
-        // After debounce window (75ms total)
-        await Future.delayed(const Duration(milliseconds: 55));
+        // After the 250ms debounce window
+        await Future.delayed(const Duration(milliseconds: 280));
         expect(emissions.length, equals(1));
         expect(emissions.first.length, equals(150));
         expect(mockDb.wasGetCalled('stores/$storeId/orders'), isFalse);
@@ -174,7 +174,7 @@ void main() {
         await Future.delayed(const Duration(milliseconds: 20));
         expect(emissions, isEmpty);
 
-        await Future.delayed(const Duration(milliseconds: 55));
+        await Future.delayed(const Duration(milliseconds: 280));
         expect(emissions.length, equals(1));
         expect(emissions.first.length, equals(100));
         expect(mockDb.wasGetCalled('stores/$storeId/inventory_transactions'),
@@ -864,7 +864,7 @@ void main() {
       });
 
       test(
-          'OrderRemoteDataSource.fetchByDateRange(): recovers via fallback when query throws index-not-defined',
+          'OrderRemoteDataSource.fetchByDateRange(): returns [] (no unbounded fallback scan) when query throws index-not-defined',
           () async {
         final ds = OrderRemoteDataSource(mockDb, storeId);
         mockDb.seedData(ordersPath, {
@@ -898,13 +898,11 @@ void main() {
 
         final list = await ds.fetchByDateRange(startDate, endDate);
 
-        // Verify fallback succeeded in loading and filtering data
-        expect(list.length, equals(2));
-        expect(list.map((o) => o['id']), containsAll(['o1', 'o2']));
-        expect(list.map((o) => o['id']), isNot(contains('o_out')));
-
-        // Verify fallback called .get() on the node
-        expect(mockDb.wasGetCalled(ordersPath), isTrue);
+        // The illegal full-node fallback was removed to protect egress quota:
+        // a failed indexed query degrades to [] and never scans the node.
+        expect(list, isEmpty);
+        expect(mockDb.getCallCount(ordersPath), equals(1),
+            reason: 'Only the single bounded query; no fallback .get()');
       });
 
       test(
@@ -923,7 +921,7 @@ void main() {
       });
 
       test(
-          'OrderRemoteDataSource.fetchByDateRange(): strict boundary date and malformed string handling in fallback',
+          'OrderRemoteDataSource.fetchByDateRange(): index failure never leaks boundary/malformed rows (no fallback scan)',
           () async {
         final ds = OrderRemoteDataSource(mockDb, storeId);
         mockDb.seedData(ordersPath, {
@@ -956,12 +954,8 @@ void main() {
 
         final list = await ds.fetchByDateRange(startDate, endDate);
 
-        expect(list.length, equals(2));
-        expect(list.map((o) => o['id']), containsAll(['b_start', 'b_end']));
-        expect(list.map((o) => o['id']), isNot(contains('b_before')));
-        expect(list.map((o) => o['id']), isNot(contains('b_after')));
-        expect(list.map((o) => o['id']), isNot(contains('b_null')));
-        expect(list.map((o) => o['id']), isNot(contains('b_invalid')));
+        // No fallback scan any more: failed indexed query => empty result.
+        expect(list, isEmpty);
       });
 
       test(
@@ -1002,7 +996,7 @@ void main() {
       });
 
       test(
-          'InventoryRemoteDataSource.fetchImportsByDateRange(): recovers via fallback on index failure',
+          'InventoryRemoteDataSource.fetchImportsByDateRange(): returns [] (no unbounded fallback scan) on index failure',
           () async {
         final ds = InventoryRemoteDataSource(mockDb, storeId);
         mockDb.seedData(inventoryPath, {
@@ -1038,9 +1032,9 @@ void main() {
 
         final list = await ds.fetchImportsByDateRange(startDate, endDate);
 
-        expect(list.length, equals(2));
-        expect(list.map((t) => t['id']), containsAll(['t1', 't3']));
-        expect(mockDb.wasGetCalled(inventoryPath), isTrue);
+        expect(list, isEmpty);
+        expect(mockDb.getCallCount(inventoryPath), equals(1),
+            reason: 'Only the single bounded query; no fallback .get()');
       });
 
       test(

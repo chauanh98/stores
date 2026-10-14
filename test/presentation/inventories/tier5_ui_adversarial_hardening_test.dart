@@ -572,6 +572,7 @@ void main() {
 
         await tester.pumpWidget(
           _buildHarness(
+            overrides: [canViewCostPriceProvider.overrideWithValue(true)],
             child: StockInPaymentConfirmationView(
               receipt: completedReceipt,
               suppliers: const [sampleSupplier],

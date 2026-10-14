@@ -559,34 +559,43 @@ class ProductsPageState extends ConsumerState<ProductsPage> {
               data: (data) {
                 final displayProducts =
                     data.filteredProducts.take(_currentLimit).toList();
-                return Column(
-                  children: [
-                    _buildTotalSummaryCard(
-                      count: data.totalProducts,
-                      totalStock: data.totalStock,
-                      totalCostValue: data.totalCostValue,
-                      canViewCostValue: canViewCostValue,
-                      l10n: l10n,
-                    ),
-                    Expanded(
-                      child: data.filteredProducts.isEmpty
-                          ? _buildProductsEmptyState(l10n.notFound)
-                          : RefreshIndicator(
-                              onRefresh: _refreshProducts,
-                              child: ListView.builder(
-                                controller: _scrollController,
-                                keyboardDismissBehavior:
-                                    ScrollViewKeyboardDismissBehavior.onDrag,
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 6),
-                                itemCount: displayProducts.length,
-                                itemBuilder: (_, i) =>
-                                    ProductTile(product: displayProducts[i]),
+                return LayoutBuilder(builder: (context, box) {
+                  return Column(
+                    children: [
+                      // Capped so tiny screens / huge text keep room for the list.
+                      ConstrainedBox(
+                        constraints:
+                            BoxConstraints(maxHeight: box.maxHeight * 0.5),
+                        child: SingleChildScrollView(
+                          child: _buildTotalSummaryCard(
+                            count: data.totalProducts,
+                            totalStock: data.totalStock,
+                            totalCostValue: data.totalCostValue,
+                            canViewCostValue: canViewCostValue,
+                            l10n: l10n,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: data.filteredProducts.isEmpty
+                            ? _buildProductsEmptyState(l10n.notFound)
+                            : RefreshIndicator(
+                                onRefresh: _refreshProducts,
+                                child: ListView.builder(
+                                  controller: _scrollController,
+                                  keyboardDismissBehavior:
+                                      ScrollViewKeyboardDismissBehavior.onDrag,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 6),
+                                  itemCount: displayProducts.length,
+                                  itemBuilder: (_, i) =>
+                                      ProductTile(product: displayProducts[i]),
+                                ),
                               ),
-                            ),
-                    ),
-                  ],
-                );
+                      ),
+                    ],
+                  );
+                });
               },
               loading: () => const LoadingIndicator(),
               error: (error, stack) => ErrorView(
@@ -1465,6 +1474,7 @@ class ProductsPageState extends ConsumerState<ProductsPage> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
+        scrollable: true,
         title: const Text('Tự động gán ảnh mẫu'),
         content: Text(
           'Tìm thấy ${missingImageProducts.length} sản phẩm chưa có ảnh. Hệ thống sẽ tự động gán hình ảnh minh họa chất lượng cao phù hợp cho từng sản phẩm.\n\nBạn có muốn tiếp tục?',
@@ -1491,6 +1501,7 @@ class ProductsPageState extends ConsumerState<ProductsPage> {
       builder: (ctx) => PopScope(
         canPop: false,
         child: AlertDialog(
+          scrollable: true,
           content: Row(
             children: [
               const CircularProgressIndicator(),

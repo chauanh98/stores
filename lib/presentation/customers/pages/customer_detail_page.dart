@@ -1,3 +1,4 @@
+import 'package:stores/core/utils/initials.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
@@ -155,7 +156,9 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
                       const Icon(Icons.edit,
                           color: AppColors.primary, size: 20),
                       const SizedBox(width: 8),
-                      Text(l10n.edit),
+                      Flexible(
+                          child:
+                              Text(l10n.edit, overflow: TextOverflow.ellipsis)),
                     ],
                   ),
                 ),
@@ -166,7 +169,9 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
                       const Icon(Icons.receipt_long,
                           color: AppColors.primary, size: 20),
                       const SizedBox(width: 8),
-                      Text(l10n.createOrder),
+                      Flexible(
+                          child: Text(l10n.createOrder,
+                              overflow: TextOverflow.ellipsis)),
                     ],
                   ),
                 ),
@@ -178,7 +183,9 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
                         const Icon(Icons.delete,
                             color: AppColors.danger, size: 20),
                         const SizedBox(width: 8),
-                        Text(l10n.delete),
+                        Flexible(
+                            child: Text(l10n.delete,
+                                overflow: TextOverflow.ellipsis)),
                       ],
                     ),
                   ),
@@ -229,9 +236,7 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
                               backgroundColor:
                                   AppColors.primary.withOpacity(0.12),
                               child: Text(
-                                c.name.isNotEmpty
-                                    ? c.name[0].toUpperCase()
-                                    : '?',
+                                initialOf(c.name),
                                 style: const TextStyle(
                                   color: AppColors.primary,
                                   fontWeight: FontWeight.bold,
@@ -648,17 +653,20 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
               ),
               if (onEditTap != null) ...[
                 const SizedBox(width: 8),
-                InkWell(
+                Flexible(
+                    child: InkWell(
                   onTap: onEditTap,
                   child: Text(
                     AppLocalizations.of(context)!.edit,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
                       color: AppColors.primary,
                     ),
                   ),
-                ),
+                )),
               ],
             ],
           ),
@@ -777,6 +785,7 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
+        scrollable: true,
         title: Text(l10n.deleteCustomerTitle),
         content: Text(l10n.deleteCustomerConfirm(c.name)),
         actions: [

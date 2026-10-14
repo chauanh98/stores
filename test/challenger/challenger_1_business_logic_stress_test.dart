@@ -30,6 +30,21 @@ File _resolveProjectFile(String filename) {
   throw StateError('Could not find required project test file: $filename');
 }
 
+/// Returns a skip reason (String) when any of [names] is absent, else `false`.
+/// The 21/09/2026 KiotViet exports are not checked into DATA_IMPORT.
+Object _skipIfMissing(List<String> names) {
+  for (final n in names) {
+    final exists = [
+      File(n),
+      File('../$n'),
+      File('../../$n'),
+      File('/Users/chauanh/FlutterProject/stores/$n'),
+    ].any((f) => f.existsSync());
+    if (!exists) return 'fixture file missing: $n';
+  }
+  return false;
+}
+
 // -----------------------------------------------------------------------------
 // In-Memory Test Harness Repositories
 // -----------------------------------------------------------------------------
@@ -164,7 +179,7 @@ void main() {
   const receiptsFileName = 'DanhSachChiTietNhapHang_KV21092026-132019-161.xlsx';
   const suppliersFileName = 'DanhSachNhaCungCap_KV21092026-131848-781.xlsx';
 
-  group('CHALLENGER 1: Empirical Verification of Real KiotViet File Invariants', () {
+  group('CHALLENGER 1: Empirical Verification of Real KiotViet File Invariants', skip: _skipIfMissing([receiptsFileName, suppliersFileName]), () {
     late Uint8List receiptsBytes;
     late Uint8List suppliersBytes;
     late List<StockInReceipt> receipts;
@@ -775,7 +790,7 @@ void main() {
     });
   });
 
-  group('CHALLENGER 1: Full Real-Data Ingestion Simulation (End-to-End Stress Harness)', () {
+  group('CHALLENGER 1: Full Real-Data Ingestion Simulation (End-to-End Stress Harness)', skip: _skipIfMissing([receiptsFileName, suppliersFileName]), () {
     late List<StockInReceipt> realReceipts;
     late List<Supplier> realSuppliers;
 

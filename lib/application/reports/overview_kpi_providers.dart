@@ -105,6 +105,17 @@ final overviewPriorPeriodDateRangeProvider =
   }
 });
 
+/// Đơn được tính là một lần bán thực sự: hoàn thành và còn ít nhất 1 mặt hàng
+/// chưa trả. Khớp với bộ lọc của RevenueRepositoryImpl (đơn đã trả hết hàng
+/// không tính vào số đơn / sản phẩm bán / khách mua).
+bool _isNetSale(Order o) =>
+    o.status == 'completed' &&
+    !(o.items.isNotEmpty && o.items.every((i) => i.activeQuantity <= 0));
+
+/// Khách vãng lai không phải khách hàng để xếp hạng.
+bool _isWalkIn(String customerId) =>
+    customerId.isEmpty || customerId == 'khach_le' || customerId == 'walk_in';
+
 /// Công thức toán học tính % tăng/giảm giữa 2 kỳ
 double calculateGrowthPercent(double current, double prior) {
   if (prior == 0.0 && current == 0.0) return 0.0;
@@ -213,8 +224,7 @@ final hourlyRevenueListProvider =
 
   return ordersAsync.whenData((orders) {
     // Chỉ tính các đơn hàng hoàn thành
-    final completedOrders =
-        orders.where((o) => o.status == 'completed').toList();
+    final completedOrders = orders.where(_isNetSale).toList();
 
     // Khởi tạo 24 khung giờ
     final hourlyRevenueMap = <int, double>{};
@@ -257,6 +267,15 @@ final hourlyRevenueListProvider =
 // 4. Payment Method Breakdown Provider (R4)
 // =============================================================================
 
+/// Phương thức không phải tiền mặt (POS lưu card/wallet vào transferAmount).
+bool _isNonCashMethod(String method) =>
+    method.contains('transfer') ||
+    method.contains('bank') ||
+    method.contains('qr') ||
+    method.contains('chuyen') ||
+    method == 'card' ||
+    method == 'wallet';
+
 /// Provider cơ cấu doanh thu theo phương thức thanh toán: Tiền mặt, Chuyển khoản, Ghi nợ
 final paymentBreakdownProvider =
     Provider.autoDispose<AsyncValue<PaymentBreakdown>>((ref) {
@@ -289,22 +308,14 @@ final paymentBreakdownProvider =
         cash += (order.cashAmount ?? 0.0);
         transfer += (order.transferAmount ?? 0.0);
       } else if (paid > 0) {
-        if (method.contains('transfer') ||
-            method.contains('bank') ||
-            method.contains('qr') ||
-            method.contains('vietqr') ||
-            method.contains('chuyen')) {
+        if (_isNonCashMethod(method)) {
           transfer += paid;
         } else {
           cash += paid;
         }
       } else if (orderDebt == 0) {
         // Đơn hàng thanh toán đủ nhưng không ghi rõ amountPaid (fallback)
-        if (method.contains('transfer') ||
-            method.contains('bank') ||
-            method.contains('qr') ||
-            method.contains('vietqr') ||
-            method.contains('chuyen')) {
+        if (_isNonCashMethod(method)) {
           transfer += orderTotal;
         } else {
           cash += orderTotal;
@@ -355,14 +366,16 @@ final categoryRevenueShareProvider =
   final categoryRevenueMap = <String, double>{};
   final categoryQtyMap = <String, int>{};
 
-  final completedOrders = orders.where((o) => o.status == 'completed');
+  final completedOrders = orders.where(_isNetSale);
   for (final order in completedOrders) {
     for (final item in order.items) {
+      final qty = item.activeQuantity;
+      if (qty <= 0) continue;
       final cat = productCategoryMap[item.productId] ?? 'Khác';
-      final itemRevenue = item.price * item.quantity;
+      final itemRevenue = item.price * qty;
 
       categoryRevenueMap[cat] = (categoryRevenueMap[cat] ?? 0.0) + itemRevenue;
-      categoryQtyMap[cat] = (categoryQtyMap[cat] ?? 0) + item.quantity;
+      categoryQtyMap[cat] = (categoryQtyMap[cat] ?? 0) + qty;
     }
   }
 
@@ -496,20 +509,22 @@ final topSellingProductsRankingProvider =
 
   final Map<String, _AggregatedProduct> itemMap = {};
 
-  final completedOrders = orders.where((o) => o.status == 'completed');
+  final completedOrders = orders.where(_isNetSale);
   for (final order in completedOrders) {
     for (final item in order.items) {
+      final qty = item.activeQuantity;
+      if (qty <= 0) continue;
       final existing = itemMap[item.productId];
-      final itemRev = item.price * item.quantity;
+      final itemRev = item.price * qty;
 
       if (existing != null) {
-        existing.quantity += item.quantity;
+        existing.quantity += qty;
         existing.revenue += itemRev;
       } else {
         itemMap[item.productId] = _AggregatedProduct(
           productId: item.productId,
           productName: item.productName,
-          quantity: item.quantity,
+          quantity: qty,
           revenue: itemRev,
         );
       }
@@ -583,10 +598,10 @@ final topCustomersRankingProvider =
 
   final customerStats = <String, _CustomerStat>{};
 
-  final completedOrders = orders.where((o) => o.status == 'completed');
+  final completedOrders = orders.where(_isNetSale);
   for (final order in completedOrders) {
     final custId = order.customerId;
-    if (custId.isEmpty) continue; // Bỏ qua đơn khách vãng lai không có ID
+    if (_isWalkIn(custId)) continue; // Bỏ qua đơn khách vãng lai
 
     final stat = customerStats[custId];
     if (stat != null) {

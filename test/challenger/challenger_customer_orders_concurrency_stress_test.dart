@@ -382,7 +382,8 @@ void main() {
       expect(sparseOrder.status, equals('completed'));
       expect(sparseOrder.storeId, equals('store_003'));
 
-      // 4. Verify Customer.effectiveTotalSales excludes the 5M cancelled order!
+      // 4. Verify Customer.effectiveTotalSales excludes the 5M cancelled order.
+      // Stored total is lower than the live orders sum, so the live sum wins.
       const customer = Customer(
         id: 'cust_mixed_states',
         name: 'Khách Thử Nghiệm',
@@ -390,12 +391,26 @@ void main() {
         email: 'test@example.com',
         address: 'Cà Mau',
         purchases: [],
-        totalSales: 9999999.0, // Should be ignored when active orders exist
+        totalSales: 1000000.0,
       );
 
       // Active orders: ord_normal (2M) + ord_sparse (350k) + ord_zero (0) = 2,350,000 đ
       final effectiveSales = customer.effectiveTotalSales(orders);
       expect(effectiveSales, equals(2350000.0));
+
+      // Legacy stored totals (e.g. imported KiotViet history) larger than the
+      // sum of loaded orders are deliberately preserved:
+      // effectiveTotalSales = max(ordersSum, min(displayTotalSales, stored - returns)).
+      const legacyCustomer = Customer(
+        id: 'cust_mixed_states',
+        name: 'Khách Thử Nghiệm',
+        phone: '0901234567',
+        email: 'test@example.com',
+        address: 'Cà Mau',
+        purchases: [],
+        totalSales: 9999999.0,
+      );
+      expect(legacyCustomer.effectiveTotalSales(orders), equals(9999999.0));
     });
 
     // =========================================================================
@@ -696,6 +711,12 @@ void main() {
       );
       addTearDown(sub.close);
 
+      // customerOrdersProvider rebuilds once availableStoreIdsKeyProvider
+      // resolves; wait for that so the branch subscriptions are final before
+      // emitting (otherwise the initial emissions race the rebuild).
+      await container.read(availableStoresProvider.future);
+      await Future<void>.delayed(Duration.zero);
+
       // Phase 1: Each branch emits 5 orders (20 total)
       final now = DateTime(2026, 9, 19, 12, 0, 0);
       final storeMaps = <String, Map<String, dynamic>>{};
@@ -715,7 +736,8 @@ void main() {
         stressDb.getBranchRef(bId).emitOrders(storeMaps[bId]!);
       }
 
-      await Future<void>.delayed(const Duration(milliseconds: 40));
+      // watchByCustomer debounces onValue by 250ms, so wait past that window.
+      await Future<void>.delayed(const Duration(milliseconds: 350));
       expect(latestEmissions.last.length, equals(20));
 
       // Phase 2: Concurrent churn:
@@ -761,7 +783,7 @@ void main() {
         Future(() => stressDb.getBranchRef('store_004').emitOrders(storeMaps['store_004']!)),
       ]);
 
-      await Future<void>.delayed(const Duration(milliseconds: 50));
+      await Future<void>.delayed(const Duration(milliseconds: 350));
 
       final updatedOrders = latestEmissions.last;
       // Total orders: 5 + (5+3) + (5-1) + 5 = 22 orders

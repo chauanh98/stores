@@ -45,7 +45,7 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
       ),
       body: _isSaving
           ? const Center(child: CircularProgressIndicator())
-          : Padding(
+          : SingleChildScrollView(
               padding: const EdgeInsets.all(16.0),
               child: Form(
                 key: _formKey,

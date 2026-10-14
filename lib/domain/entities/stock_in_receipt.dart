@@ -77,7 +77,9 @@ class StockInReceipt {
   double get effectiveNetPayable => netPayable ?? (totalAmount - discount);
 
   /// Outstanding debt remaining to be paid: effectiveNetPayable - paidAmount
-  double get remainingDebt => effectiveNetPayable - (paidAmount ?? 0.0);
+  /// Không bao giờ âm: trả dư không được làm giảm công nợ NCC đã có.
+  double get remainingDebt =>
+      (effectiveNetPayable - (paidAmount ?? 0.0)).clamp(0.0, double.infinity);
 
   StockInReceipt copyWith({
     String? id,

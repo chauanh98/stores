@@ -1,3 +1,4 @@
+import 'package:stores/core/utils/initials.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -24,7 +25,7 @@ class MonthlyTimesheetPage extends ConsumerStatefulWidget {
 }
 
 class _MonthlyTimesheetPageState extends ConsumerState<MonthlyTimesheetPage>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late TabController _tabController;
 
   @override
@@ -57,6 +58,15 @@ class _MonthlyTimesheetPageState extends ConsumerState<MonthlyTimesheetPage>
     final storeNames = storeNamesAsync.valueOrNull ?? {};
 
     final isStaff = widget.isPersonalOnly || (user?.isStaff == true);
+    // Role can change while the page is alive (logout/login as another user):
+    // keep the tab controller in sync with the number of tabs.
+    final wantedTabs = isStaff ? 1 : 2;
+    if (_tabController.length != wantedTabs) {
+      final old = _tabController;
+      _tabController = TabController(length: wantedTabs, vsync: this);
+      // dispose after this frame: widgets built earlier may still reference it
+      WidgetsBinding.instance.addPostFrameCallback((_) => old.dispose());
+    }
     final currentStoreId = timesheetState.storeId;
     final currentStoreName = StoreResolverHelper.resolveStoreName(
       currentStoreId,
@@ -353,9 +363,7 @@ class _MonthlyTimesheetPageState extends ConsumerState<MonthlyTimesheetPage>
             leading: CircleAvatar(
               backgroundColor: AppColors.primary.withOpacity(0.15),
               child: Text(
-                item.userName.isNotEmpty
-                    ? item.userName[0].toUpperCase()
-                    : 'NV',
+                initialOf(item.userName, 'NV'),
                 style: const TextStyle(
                     fontWeight: FontWeight.bold, color: AppColors.primary),
               ),
@@ -579,37 +587,73 @@ class _MonthlyTimesheetPageState extends ConsumerState<MonthlyTimesheetPage>
         color: AppColors.surfaceLight,
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Row(
-        children: [
-          Text(dateStr,
-              style:
-                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(
+      child: LayoutBuilder(builder: (context, constraints) {
+        // Trên màn hình hẹp / chữ lớn: đưa huy hiệu trạng thái xuống dòng riêng
+        // để dòng chính không bị tràn.
+        final stacked = constraints.maxWidth < 340 ||
+            MediaQuery.textScalerOf(context).scale(1) > 1.3;
+        final badge = AttendanceStatusBadge(
+          status: r.status,
+          lateMinutes: r.lateMinutes,
+          earlyLeaveMinutes: r.earlyLeaveMinutes,
+          overtimeMinutes: r.overtimeMinutes,
+          isGpsValid: r.isGpsValid,
+          isWorking: r.isWorking,
+        );
+        final mainRow = Row(
+          children: [
+            Text(dateStr,
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                '${r.shiftName} ($inStr - $outStr)',
+                style: const TextStyle(fontSize: 12),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text('${r.totalWorkHours}h',
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            if (!stacked) ...[
+              const SizedBox(width: 6),
+              Flexible(child: badge),
+            ],
+          ],
+        );
+        if (!stacked) return mainRow;
+        // Narrow / large text: wrap every piece on its own line instead of a
+        // single Row whose fixed-width date + hours can exceed the width.
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Wrap(
+              spacing: 8,
+              runSpacing: 2,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(dateStr,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 13)),
+                Text('${r.totalWorkHours}h',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 13)),
+              ],
+            ),
+            Text(
               '${r.shiftName} ($inStr - $outStr)',
               style: const TextStyle(fontSize: 12),
-              maxLines: 1,
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
-          ),
-          const SizedBox(width: 6),
-          Text('${r.totalWorkHours}h',
-              style:
-                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-          const SizedBox(width: 6),
-          Flexible(
-            child: AttendanceStatusBadge(
-              status: r.status,
-              lateMinutes: r.lateMinutes,
-              earlyLeaveMinutes: r.earlyLeaveMinutes,
-              overtimeMinutes: r.overtimeMinutes,
-              isGpsValid: r.isGpsValid,
-              isWorking: r.isWorking,
-            ),
-          ),
-        ],
-      ),
+            const SizedBox(height: 4),
+            badge,
+          ],
+        );
+      }),
     );
   }
 

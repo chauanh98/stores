@@ -1,3 +1,4 @@
+import 'package:stores/core/utils/initials.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -77,7 +78,8 @@ class TopRankingsSection extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  Material(
+                  Flexible(
+                      child: Material(
                     color: AppColors.transparent,
                     child: InkWell(
                       borderRadius: BorderRadius.circular(6),
@@ -94,14 +96,17 @@ class TopRankingsSection extends ConsumerWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(
+                            Flexible(
+                                child: Text(
                               'Xem tất cả',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 fontSize: 12,
                                 color: AppColors.primary,
                                 fontWeight: FontWeight.w600,
                               ),
-                            ),
+                            )),
                             SizedBox(width: 2),
                             Icon(Icons.chevron_right,
                                 size: 14, color: AppColors.primary),
@@ -109,39 +114,42 @@ class TopRankingsSection extends ConsumerWidget {
                         ),
                       ),
                     ),
-                  ),
+                  )),
                 ],
               ),
               const SizedBox(height: 10),
               // Segmented Tabs: Theo Doanh thu / Theo Số lượng
-              Container(
-                padding: const EdgeInsets.all(2),
-                decoration: BoxDecoration(
-                  color: AppColors.grey100,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildSortTab(
-                      label: 'Doanh thu',
-                      isSelected: sortBy == TopProductsSortBy.revenue,
-                      onTap: () {
-                        ref.read(topSellingSortByProvider.notifier).state =
-                            TopProductsSortBy.revenue;
-                      },
+              FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: AppColors.grey100,
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    _buildSortTab(
-                      label: 'Số lượng',
-                      isSelected: sortBy == TopProductsSortBy.quantity,
-                      onTap: () {
-                        ref.read(topSellingSortByProvider.notifier).state =
-                            TopProductsSortBy.quantity;
-                      },
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildSortTab(
+                          label: 'Doanh thu',
+                          isSelected: sortBy == TopProductsSortBy.revenue,
+                          onTap: () {
+                            ref.read(topSellingSortByProvider.notifier).state =
+                                TopProductsSortBy.revenue;
+                          },
+                        ),
+                        _buildSortTab(
+                          label: 'Số lượng',
+                          isSelected: sortBy == TopProductsSortBy.quantity,
+                          onTap: () {
+                            ref.read(topSellingSortByProvider.notifier).state =
+                                TopProductsSortBy.quantity;
+                          },
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
+                  )),
 
               const SizedBox(height: 14),
 
@@ -217,7 +225,8 @@ class TopRankingsSection extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  Material(
+                  Flexible(
+                      child: Material(
                     color: AppColors.transparent,
                     child: InkWell(
                       borderRadius: BorderRadius.circular(6),
@@ -234,14 +243,17 @@ class TopRankingsSection extends ConsumerWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(
+                            Flexible(
+                                child: Text(
                               'Xem tất cả',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 fontSize: 12,
                                 color: AppColors.primary,
                                 fontWeight: FontWeight.w600,
                               ),
-                            ),
+                            )),
                             SizedBox(width: 2),
                             Icon(Icons.chevron_right,
                                 size: 14, color: AppColors.primary),
@@ -249,7 +261,7 @@ class TopRankingsSection extends ConsumerWidget {
                         ),
                       ),
                     ),
-                  ),
+                  )),
                 ],
               ),
               const SizedBox(height: 14),
@@ -413,6 +425,8 @@ class TopRankingsSection extends ConsumerWidget {
                         const SizedBox(height: 2),
                         Text(
                           'Đã bán: ${item.quantity}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontSize: 11,
                             color: AppColors.textSecondary,
@@ -423,12 +437,21 @@ class TopRankingsSection extends ConsumerWidget {
                   ),
 
                   // Revenue
-                  Text(
-                    '${format.format(item.revenue)} đ',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                        maxWidth: (MediaQuery.sizeOf(context).width * 0.28)
+                            .clamp(56.0, 120.0)),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        '${format.format(item.revenue)} đ',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 4),
@@ -477,9 +500,7 @@ class TopRankingsSection extends ConsumerWidget {
         final item = customers[index];
         final rank = index + 1;
 
-        final initial = item.customerName.isNotEmpty
-            ? item.customerName.trim().substring(0, 1).toUpperCase()
-            : 'K';
+        final initial = initialOf(item.customerName, 'K');
 
         return Material(
           color: AppColors.transparent,
@@ -569,6 +590,8 @@ class TopRankingsSection extends ConsumerWidget {
                                   item.phoneNumber!.isNotEmpty
                               ? '${item.phoneNumber} • ${item.orderCount} đơn'
                               : '${item.orderCount} đơn hàng',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontSize: 11,
                             color: AppColors.textSecondary,
@@ -579,12 +602,21 @@ class TopRankingsSection extends ConsumerWidget {
                   ),
 
                   // Total spent
-                  Text(
-                    '${format.format(item.totalSpent)} đ',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                        maxWidth: (MediaQuery.sizeOf(context).width * 0.28)
+                            .clamp(56.0, 120.0)),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        '${format.format(item.totalSpent)} đ',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 4),

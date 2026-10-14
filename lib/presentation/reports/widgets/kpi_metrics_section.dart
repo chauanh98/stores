@@ -231,16 +231,22 @@ class KPIMetricsSection extends ConsumerWidget {
                         const SizedBox(height: 3),
                         Row(
                           children: [
-                            Text(
-                              '${kpis.orderCount}',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.textPrimary,
+                            Flexible(
+                              child: Text(
+                                '${kpis.orderCount}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textPrimary,
+                                ),
                               ),
                             ),
                             const SizedBox(width: 6),
-                            _buildMiniGrowthBadge(kpis.orderCountGrowthPercent),
+                            Flexible(
+                                child: _buildMiniGrowthBadge(
+                                    kpis.orderCountGrowthPercent)),
                           ],
                         ),
                       ],
@@ -276,7 +282,9 @@ class KPIMetricsSection extends ConsumerWidget {
                               ),
                             ),
                             const SizedBox(width: 6),
-                            _buildMiniGrowthBadge(kpis.aovGrowthPercent),
+                            Flexible(
+                                child: _buildMiniGrowthBadge(
+                                    kpis.aovGrowthPercent)),
                           ],
                         ),
                       ],
@@ -313,12 +321,18 @@ class KPIMetricsSection extends ConsumerWidget {
                         ),
                       ),
                       const SizedBox(width: 6),
-                      Text(
-                        '${currencyFormat.format(kpis.returnGoodsValue)} đ',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.danger,
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            '${currencyFormat.format(kpis.returnGoodsValue)} đ',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.danger,
+                            ),
+                          ),
                         ),
                       ),
                     ],
@@ -459,7 +473,8 @@ class KPIMetricsSection extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: alignment,
       children: [
-        Container(
+        Flexible(
+            child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
           decoration: BoxDecoration(
             color: bgColor,
@@ -476,17 +491,21 @@ class KPIMetricsSection extends ConsumerWidget {
                   size: 11,
                   color: color,
                 ),
-              Text(
-                formattedPercent,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
+              Flexible(
+                child: Text(
+                  formattedPercent,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ],
           ),
-        ),
+        )),
         const SizedBox(width: 4),
         Flexible(
           child: Text(
@@ -523,12 +542,16 @@ class KPIMetricsSection extends ConsumerWidget {
             size: 12,
             color: color,
           ),
-          Text(
-            '$sign${growthPercent.toStringAsFixed(0)}%',
-            style: TextStyle(
-              fontSize: 9,
-              fontWeight: FontWeight.bold,
-              color: color,
+          Flexible(
+            child: Text(
+              '$sign${growthPercent.toStringAsFixed(0)}%',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
             ),
           ),
         ],

@@ -313,12 +313,12 @@ void main() {
 
         await completeUseCase.execute(promoReceipt);
 
-        // Product.stock sums all branchStocks keys: 5 (store_001) + 5 (branch_1) = 10.
-        // Initial value: 10 * 50,000 = 500,000. Added: 15 * 0 = 0.
-        // Total units: 10 + 15 = 25. New Cost: 500,000 / 25 = 20,000 VND.
+        // store_001/branch_1 are aliases of ONE branch => Product.stock = 5.
+        // Initial value: 5 * 50,000 = 250,000. Added: 15 * 0 = 0.
+        // Total units: 5 + 15 = 20. New Cost: 250,000 / 20 = 12,500 VND.
         final updatedP = pRepo.products[pPromo.id]!;
         expect(updatedP.stockInBranch('store_001'), equals(20));
-        expect(updatedP.costPrice, equals(20000.0));
+        expect(updatedP.costPrice, equals(12500.0));
         expect(updatedP.costPrice.isNaN, isFalse);
         expect(updatedP.costPrice.isInfinite, isFalse);
       });
@@ -474,10 +474,10 @@ void main() {
         expect(updatedP.stockInBranch('branch_2'), equals(25));
 
         // 2. Weighted Cost Calculation:
-        // Product.stock sums all branchStocks keys: 10 + 10 + 25 + 25 = 70.
-        // Initial value: 70 * 120,000 = 8,400,000. Added: 6,800,000.
-        // Total units: 70 + 60 = 130. Cost: 15,200,000 / 130 = 116,923.0769...
-        expect(updatedP.costPrice, closeTo(116923.08, 0.05));
+        // Aliases count once: Product.stock = 10 + 25 = 35.
+        // Initial value: 35 * 120,000 = 4,200,000. Added: 6,800,000.
+        // Total units: 35 + 60 = 95. Cost: 11,000,000 / 95 = 115,789.47...
+        expect(updatedP.costPrice, closeTo(115789.47, 0.05));
 
         // 3. Exactly 3 inventory transactions recorded
         expect(invRepo.transactions.length, equals(3));

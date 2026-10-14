@@ -1,3 +1,4 @@
+import 'package:stores/core/utils/initials.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -27,7 +28,7 @@ class SupplierListTile extends ConsumerWidget {
         leading: CircleAvatar(
           backgroundColor: AppColors.primary.withOpacity(0.1),
           child: Text(
-            supplier.name.isNotEmpty ? supplier.name[0].toUpperCase() : 'N',
+            initialOf(supplier.name, 'N'),
             style: const TextStyle(
               color: AppColors.primary,
               fontWeight: FontWeight.bold,
@@ -49,7 +50,8 @@ class SupplierListTile extends ConsumerWidget {
               ),
             ),
             if (supplier.code.isNotEmpty)
-              Container(
+              Flexible(
+                  child: Container(
                 margin: const EdgeInsets.only(left: 6),
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
@@ -59,13 +61,15 @@ class SupplierListTile extends ConsumerWidget {
                 ),
                 child: Text(
                   supplier.code,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                     color: AppColors.textSecondary,
                   ),
                 ),
-              ),
+              )),
           ],
         ),
         subtitle: Padding(
@@ -79,11 +83,15 @@ class SupplierListTile extends ConsumerWidget {
                     const Icon(Icons.phone_outlined,
                         size: 13, color: AppColors.textSecondary),
                     const SizedBox(width: 4),
-                    Text(
-                      supplier.phone,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
+                    Expanded(
+                      child: Text(
+                        supplier.phone,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ),
                   ],
@@ -113,52 +121,67 @@ class SupplierListTile extends ConsumerWidget {
             ],
           ),
         ),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(
-              '${currencyFormat.format(supplier.totalPurchase)} đ',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 4),
-            if (supplier.currentDebt > 0)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.dangerLight,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  'Nợ: ${currencyFormat.format(supplier.currentDebt)} đ',
+        trailing: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerRight,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+                maxWidth: (MediaQuery.sizeOf(context).width * 0.32)
+                    .clamp(70.0, 140.0)),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '${currencyFormat.format(supplier.totalPurchase)} đ',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 11,
                     fontWeight: FontWeight.bold,
-                    color: AppColors.danger,
+                    fontSize: 13,
+                    color: AppColors.textPrimary,
                   ),
                 ),
-              )
-            else
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.successLight,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: const Text(
-                  'Hết nợ',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.success,
+                const SizedBox(height: 4),
+                if (supplier.currentDebt > 0)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.dangerLight,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      'Nợ: ${currencyFormat.format(supplier.currentDebt)} đ',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.danger,
+                      ),
+                    ),
+                  )
+                else
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.successLight,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text(
+                      'Hết nợ',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.success,
+                      ),
+                    ),
                   ),
-                ),
-              ),
-          ],
+              ],
+            ),
+          ),
         ),
         onTap: () {
           Navigator.of(context).push(

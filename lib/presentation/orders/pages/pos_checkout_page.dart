@@ -1,4 +1,6 @@
+import '../../common/utils/number_parsing.dart';
 import 'package:flutter/material.dart';
+import '../../common/utils/route_utils.dart';
 import '../../common/widgets/barcode_scanner_page.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -79,7 +81,9 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
       _orderNoteController.text = currentTabNote;
     }
     _orderNoteController.addListener(() {
-      ref.read(multiCartProvider.notifier).setNote(_orderNoteController.text.trim());
+      ref
+          .read(multiCartProvider.notifier)
+          .setNote(_orderNoteController.text.trim());
     });
   }
 
@@ -128,28 +132,42 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
       ),
       body: _isSaving
           ? const Center(child: LoadingIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Thanh tìm kiếm sản phẩm nhanh (KiotViet style)
-                  _buildProductSearchBar(context, cart, currencyFormat),
-                  const SizedBox(height: 12),
+          : CustomScrollView(
+              // Cart lines are built lazily (a 300-line cart used to build all
+              // rows at once inside a shrink-wrapped ListView).
+              slivers: [
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                  sliver: SliverToBoxAdapter(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Thanh tìm kiếm sản phẩm nhanh (KiotViet style)
+                        _buildProductSearchBar(context, cart, currencyFormat),
+                        const SizedBox(height: 12),
 
-                  // 1. Chọn Khách Hàng
-                  _buildCustomerSelectorCard(context),
-                  const SizedBox(height: 12),
+                        // 1. Chọn Khách Hàng
+                        _buildCustomerSelectorCard(context),
+                        const SizedBox(height: 12),
+                      ],
+                    ),
+                  ),
+                ),
 
-                  // 2. Danh sách sản phẩm mua
-                  _buildOrderItemsCard(context, cart, currencyFormat),
-                  const SizedBox(height: 12),
+                // 2. Danh sách sản phẩm mua
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  sliver: _buildOrderItemsSliver(context, cart, currencyFormat),
+                ),
 
-                  // 3. Ghi chú đơn hàng tổng (KiotViet style)
-                  _buildOrderNoteCard(context),
-                  const SizedBox(height: 24),
-                ],
-              ),
+                // 3. Ghi chú đơn hàng tổng (KiotViet style)
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                  sliver: SliverToBoxAdapter(
+                    child: _buildOrderNoteCard(context),
+                  ),
+                ),
+              ],
             ),
       bottomNavigationBar: _buildBottomActionsBar(
         context,
@@ -166,12 +184,16 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
     final scanned = await showDialog<String>(
       context: context,
       builder: (dialogCtx) => AlertDialog(
+        scrollable: true,
         title: Row(
           children: [
             const Icon(Icons.qr_code_scanner, color: AppColors.primary),
             const SizedBox(width: 8),
-            Text(l10n?.posScanBarcode ?? 'Quét mã vạch',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            Flexible(
+              child: Text(l10n?.posScanBarcode ?? 'Quét mã vạch',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 16)),
+            ),
           ],
         ),
         content: Column(
@@ -181,7 +203,8 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
             Text(
               l10n?.posScanBarcodePrompt ??
                   'Nhập hoặc quét mã vạch sản phẩm để thêm nhanh vào đơn:',
-              style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              style:
+                  const TextStyle(fontSize: 13, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 12),
             TextField(
@@ -415,14 +438,19 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'Kết quả tìm kiếm (${searchResults.length})',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textSecondary,
+                      Flexible(
+                        child: Text(
+                          'Kết quả tìm kiếm (${searchResults.length})',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ),
+                      const SizedBox(width: 8),
                       InkWell(
                         onTap: () {
                           _searchController.clear();
@@ -442,12 +470,16 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                 ),
                 const Divider(height: 1, color: AppColors.borderLight),
                 if (searchResults.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Text(
-                      'Không tìm thấy sản phẩm phù hợp',
-                      style: TextStyle(
-                          fontSize: 13, color: AppColors.textSecondary),
+                  const Flexible(
+                    child: SingleChildScrollView(
+                      child: Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Text(
+                          'Không tìm thấy sản phẩm phù hợp',
+                          style: TextStyle(
+                              fontSize: 13, color: AppColors.textSecondary),
+                        ),
+                      ),
                     ),
                   )
                 else
@@ -456,8 +488,8 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                       shrinkWrap: true,
                       padding: const EdgeInsets.symmetric(vertical: 4),
                       itemCount: searchResults.length,
-                      separatorBuilder: (_, __) =>
-                          const Divider(height: 1, color: AppColors.borderLight),
+                      separatorBuilder: (_, __) => const Divider(
+                          height: 1, color: AppColors.borderLight),
                       itemBuilder: (ctx, idx) {
                         final p = searchResults[idx];
                         final stock = ComboHelper.getAvailableStock(
@@ -485,14 +517,16 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                                 horizontal: 12, vertical: 8),
                             child: Row(
                               children: [
-                                ProductImageThumbnail(
-                                  imageUrl: p.primaryImageUrl ?? p.imageUrl,
-                                  productName: p.name,
-                                  categoryName: p.category,
-                                  size: 40,
-                                  borderRadius: 6,
-                                ),
-                                const SizedBox(width: 10),
+                                if (MediaQuery.sizeOf(context).width >= 300) ...[
+                                  ProductImageThumbnail(
+                                    imageUrl: p.primaryImageUrl ?? p.imageUrl,
+                                    productName: p.name,
+                                    categoryName: p.category,
+                                    size: 40,
+                                    borderRadius: 6,
+                                  ),
+                                  const SizedBox(width: 10),
+                                ],
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment:
@@ -512,24 +546,33 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                                       Row(
                                         children: [
                                           if (p.code.isNotEmpty) ...[
-                                            Text(
-                                              p.code,
-                                              style: const TextStyle(
-                                                fontSize: 11,
-                                                color: AppColors.textSecondary,
+                                            Flexible(
+                                              child: Text(
+                                                p.code,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                  fontSize: 11,
+                                                  color:
+                                                      AppColors.textSecondary,
+                                                ),
                                               ),
                                             ),
                                             const SizedBox(width: 6),
                                             const Text('•',
                                                 style: TextStyle(
                                                     fontSize: 11,
-                                                    color: AppColors.textMuted)),
+                                                    color:
+                                                        AppColors.textMuted)),
                                             const SizedBox(width: 6),
                                           ],
-                                          Text(
+                                          Flexible(
+                                              child: Text(
                                             stock > 0
                                                 ? 'Tồn: $stock'
                                                 : 'Hết hàng',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
                                             style: TextStyle(
                                               fontSize: 11,
                                               color: stock > 0
@@ -539,23 +582,29 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                                                   ? FontWeight.normal
                                                   : FontWeight.bold,
                                             ),
-                                          ),
+                                          )),
                                         ],
                                       ),
                                     ],
                                   ),
                                 ),
                                 const SizedBox(width: 8),
-                                Column(
+                                ConstrainedBox(
+                                  constraints:
+                                      const BoxConstraints(maxWidth: 130),
+                                  child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
-                                    Text(
+                                    FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Text(
                                       '${format.format(p.price)} đ',
                                       style: const TextStyle(
                                         fontSize: 13,
                                         fontWeight: FontWeight.bold,
                                         color: AppColors.primary,
                                       ),
+                                    ),
                                     ),
                                     const SizedBox(height: 2),
                                     if (inCart != null)
@@ -596,6 +645,7 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                                         ),
                                       ),
                                   ],
+                                ),
                                 ),
                               ],
                             ),
@@ -648,6 +698,8 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
             Expanded(
               child: Text(
                 _selectedCustomer?.name ?? l10n.retailCustomer,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 15,
@@ -657,17 +709,20 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
             ),
             if (_selectedCustomer != null &&
                 _selectedCustomer!.displayCurrentDebt > 0)
-              Padding(
+              Flexible(
+                  child: Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: Text(
                   'Nợ: ${NumberFormat('#,###', 'vi_VN').format(_selectedCustomer!.displayCurrentDebt)}đ',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: AppColors.danger,
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-              ),
+              )),
             const Icon(Icons.chevron_right,
                 color: AppColors.textSecondary, size: 20),
           ],
@@ -677,340 +732,373 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
   }
 
   // 2. Card danh sách sản phẩm
-  Widget _buildOrderItemsCard(
+  Widget _buildOrderItemsSliver(
       BuildContext context, Map<String, CartItem> cart, NumberFormat format) {
     final selectedBranch = ref.watch(selectedPOSBranchProvider);
     final allProducts = ref.watch(productListProvider).valueOrNull ?? [];
 
     if (cart.isEmpty) {
-      return Container(
-        decoration: BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border),
-        ),
-        padding: const EdgeInsets.all(24),
-        alignment: Alignment.center,
-        child: Text(
-          AppLocalizations.of(context)?.posCartEmpty ?? 'Giỏ hàng đang trống',
-          style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+      return SliverToBoxAdapter(
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.border),
+          ),
+          padding: const EdgeInsets.all(24),
+          alignment: Alignment.center,
+          child: Text(
+            AppLocalizations.of(context)?.posCartEmpty ?? 'Giỏ hàng đang trống',
+            style:
+                const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+          ),
         ),
       );
     }
 
-    return Container(
+    final cartItems = cart.values.toList(growable: false);
+    // id -> catalog product, built only if a row is actually built.
+    Map<String, Product>? catalogById;
+
+    return DecoratedSliver(
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.border),
       ),
-      padding: const EdgeInsets.all(16),
-      child: ListView.separated(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: cart.length,
-        separatorBuilder: (_, __) =>
-            const Divider(height: 20, color: AppColors.borderLight),
-        itemBuilder: (context, index) {
-          final item = cart.values.elementAt(index);
-          final catalogProduct = allProducts.firstWhere(
-            (p) => p.id == item.product.id,
-            orElse: () => item.product,
-          );
-          final availableStock = ComboHelper.getAvailableStock(
-            product: catalogProduct,
-            branchId: selectedBranch,
-            allProducts: allProducts,
-          );
-          final bool isOutOfStock = availableStock <= 0;
-          final bool isInsufficient = item.quantity > availableStock;
+      sliver: SliverPadding(
+        padding: const EdgeInsets.all(16),
+        sliver: SliverList.separated(
+          itemCount: cartItems.length,
+          separatorBuilder: (_, __) =>
+              const Divider(height: 20, color: AppColors.borderLight),
+          itemBuilder: (context, index) {
+            final item = cartItems[index];
+            catalogById ??= {for (final p in allProducts) p.id: p};
+            final catalogProduct =
+                catalogById![item.product.id] ?? item.product;
+            final availableStock = ComboHelper.getAvailableStock(
+              product: catalogProduct,
+              branchId: selectedBranch,
+              allProducts: allProducts,
+            );
+            final bool isOutOfStock = availableStock <= 0;
+            final bool isInsufficient = item.quantity > availableStock;
 
-          return Dismissible(
-            key: Key('dismissible_cart_item_${item.product.id}'),
-            direction: DismissDirection.horizontal,
-            background: Container(
-              alignment: Alignment.centerLeft,
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              decoration: BoxDecoration(
-                color: AppColors.danger,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
-                Icons.delete_outline,
-                color: AppColors.white,
-                size: 24,
-              ),
-            ),
-            secondaryBackground: Container(
-              alignment: Alignment.centerRight,
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              decoration: BoxDecoration(
-                color: AppColors.danger,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
-                Icons.delete_outline,
-                color: AppColors.white,
-                size: 24,
-              ),
-            ),
-            onDismissed: (direction) {
-              final removedItem = item;
-              final currentTabId = ref.read(multiCartProvider).activeTabId;
-              final cartNotifier = ref.read(cartProvider.notifier);
-              cartNotifier.removeFromCart(item.product.id);
-
-              final messenger = ScaffoldMessenger.of(context);
-              messenger.hideCurrentSnackBar();
-              messenger.showSnackBar(
-                SnackBar(
-                  content: Text(
-                    AppLocalizations.of(context)?.posItemRemovedFromCart(
-                            removedItem.product.name) ??
-                        'Đã xóa "${removedItem.product.name}" khỏi giỏ hàng',
-                  ),
-                  duration: const Duration(seconds: 4),
-                  action: SnackBarAction(
-                    label: AppLocalizations.of(context)?.commonUndo ?? 'Hoàn tác',
-                    textColor: AppColors.white,
-                    onPressed: () {
-                      cartNotifier.restoreCartItem(
-                        removedItem,
-                        tabId: currentTabId,
-                      );
-                    },
-                  ),
+            return Dismissible(
+              key: Key('dismissible_cart_item_${item.product.id}'),
+              direction: DismissDirection.horizontal,
+              background: Container(
+                alignment: Alignment.centerLeft,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                decoration: BoxDecoration(
+                  color: AppColors.danger,
+                  borderRadius: BorderRadius.circular(8),
                 ),
-              );
-            },
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-              InkWell(
-                onTap: () => _showEditItemSheet(context, item),
-                child: ProductImageThumbnail(
-                  imageUrl: item.product.primaryImageUrl ??
-                      item.product.imageUrl,
-                  productName: item.product.name,
-                  categoryName: item.product.category,
-                  size: 46,
-                  borderRadius: 8,
+                child: const Icon(
+                  Icons.delete_outline,
+                  color: AppColors.white,
+                  size: 24,
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: InkWell(
-                  onTap: () => _showEditItemSheet(context, item),
-                  borderRadius: BorderRadius.circular(6),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item.product.name,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                          color: AppColors.textPrimary,
-                        ),
+              secondaryBackground: Container(
+                alignment: Alignment.centerRight,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                decoration: BoxDecoration(
+                  color: AppColors.danger,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.delete_outline,
+                  color: AppColors.white,
+                  size: 24,
+                ),
+              ),
+              onDismissed: (direction) {
+                final removedItem = item;
+                final currentTabId = ref.read(multiCartProvider).activeTabId;
+                final cartNotifier = ref.read(cartProvider.notifier);
+                cartNotifier.removeFromCart(item.product.id);
+
+                final messenger = ScaffoldMessenger.of(context);
+                messenger.hideCurrentSnackBar();
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      AppLocalizations.of(context)?.posItemRemovedFromCart(
+                              removedItem.product.name) ??
+                          'Đã xóa "${removedItem.product.name}" khỏi giỏ hàng',
+                    ),
+                    duration: const Duration(seconds: 4),
+                    action: SnackBarAction(
+                      label: AppLocalizations.of(context)?.commonUndo ??
+                          'Hoàn tác',
+                      textColor: AppColors.white,
+                      onPressed: () {
+                        cartNotifier.restoreCartItem(
+                          removedItem,
+                          tabId: currentTabId,
+                        );
+                      },
+                    ),
+                  ),
+                );
+              },
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Thumbnail is dropped on tiny (<300dp) screens to leave room
+                  // for the name + quantity stepper.
+                  if (MediaQuery.sizeOf(context).width >= 300) ...[
+                    InkWell(
+                      onTap: () => _showEditItemSheet(context, item),
+                      child: ProductImageThumbnail(
+                        imageUrl: item.product.primaryImageUrl ??
+                            item.product.imageUrl,
+                        productName: item.product.name,
+                        categoryName: item.product.category,
+                        size: 46,
+                        borderRadius: 8,
                       ),
-                      const SizedBox(height: 4),
-                      if (item.discount > 0) ...[
-                        Wrap(
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          spacing: 6,
-                          runSpacing: 2,
-                          children: [
+                    ),
+                    const SizedBox(width: 12),
+                  ],
+                  Expanded(
+                    child: InkWell(
+                      onTap: () => _showEditItemSheet(context, item),
+                      borderRadius: BorderRadius.circular(6),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.product.name,
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          if (item.discount > 0) ...[
+                            Wrap(
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: 6,
+                              runSpacing: 2,
+                              children: [
+                                Text(
+                                  format.format(item.effectivePrice),
+                                  style: const TextStyle(
+                                    color: AppColors.primary,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                Text(
+                                  format.format(item.price),
+                                  style: const TextStyle(
+                                    color: AppColors.textMuted,
+                                    fontSize: 12,
+                                    decoration: TextDecoration.lineThrough,
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 5, vertical: 1.5),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    item.isDiscountPercent
+                                        ? '-${NumberFormat.compact().format(item.discount)}%'
+                                        : '-${format.format(item.discount)}đ',
+                                    style: const TextStyle(
+                                      color: Colors.red,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ] else ...[
                             Text(
-                              format.format(item.effectivePrice),
+                              format.format(item.price),
                               style: const TextStyle(
                                 color: AppColors.primary,
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            Text(
-                              format.format(item.price),
-                              style: const TextStyle(
-                                color: AppColors.textMuted,
-                                fontSize: 12,
-                                decoration: TextDecoration.lineThrough,
-                              ),
-                            ),
+                          ],
+                          if (item.note != null &&
+                              item.note!.trim().isNotEmpty) ...[
+                            const SizedBox(height: 4),
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 5, vertical: 1.5),
+                                  horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: Colors.red.withOpacity(0.1),
+                                color: const Color(0xFFF1F5F9),
                                 borderRadius: BorderRadius.circular(4),
+                                border:
+                                    Border.all(color: const Color(0xFFE2E8F0)),
                               ),
-                              child: Text(
-                                item.isDiscountPercent
-                                    ? '-${NumberFormat.compact().format(item.discount)}%'
-                                    : '-${format.format(item.discount)}đ',
-                                style: const TextStyle(
-                                  color: Colors.red,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.sticky_note_2_outlined,
+                                      size: 12, color: AppColors.textSecondary),
+                                  const SizedBox(width: 4),
+                                  Flexible(
+                                    child: Text(
+                                      item.note!,
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        color: AppColors.textSecondary,
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
-                        ),
-                      ] else ...[
-                        Text(
-                          format.format(item.price),
-                          style: const TextStyle(
-                            color: AppColors.primary,
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                      if (item.note != null &&
-                          item.note!.trim().isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF1F5F9),
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(color: const Color(0xFFE2E8F0)),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
+                          const SizedBox(height: 2),
+                          Row(
                             children: [
-                              const Icon(Icons.sticky_note_2_outlined,
-                                  size: 12, color: AppColors.textSecondary),
-                              const SizedBox(width: 4),
+                              Icon(Icons.edit_note,
+                                  size: 13,
+                                  color: AppColors.primary.withOpacity(0.8)),
+                              const SizedBox(width: 2),
                               Flexible(
                                 child: Text(
-                                  item.note!,
-                                  style: const TextStyle(
+                                  item.discount > 0 ||
+                                          (item.note != null &&
+                                              item.note!.isNotEmpty)
+                                      ? 'Chạm để sửa giảm giá / ghi chú'
+                                      : 'Giảm giá / Ghi chú món',
+                                  style: TextStyle(
                                     fontSize: 11,
-                                    color: AppColors.textSecondary,
-                                    fontStyle: FontStyle.italic,
+                                    color: AppColors.primary.withOpacity(0.8),
+                                    fontWeight: FontWeight.w500,
                                   ),
-                                  maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                      ],
-                      const SizedBox(height: 2),
-                      Row(
-                        children: [
-                          Icon(Icons.edit_note,
-                              size: 13,
-                              color: AppColors.primary.withOpacity(0.8)),
-                          const SizedBox(width: 2),
-                          Flexible(
-                            child: Text(
-                              item.discount > 0 ||
-                                      (item.note != null && item.note!.isNotEmpty)
-                                  ? 'Chạm để sửa giảm giá / ghi chú'
-                                  : 'Giảm giá / Ghi chú món',
+                          if (isOutOfStock) ...[
+                            const SizedBox(height: 2),
+                            const Text(
+                              'Hết hàng tại chi nhánh này',
                               style: TextStyle(
+                                color: AppColors.danger,
                                 fontSize: 11,
-                                color: AppColors.primary.withOpacity(0.8),
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ] else if (isInsufficient) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              'Không đủ hàng (Tồn: $availableStock, Cần: ${item.quantity})',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: AppColors.warning,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                          if (item.product.isCombo &&
+                              item.product.comboComponents.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              'Gồm: ${item.product.comboComponents.map((c) => "${c.quantity * item.quantity}x ${c.productName}").join(", ")}',
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: AppColors.primary,
+                                fontSize: 11,
                                 fontWeight: FontWeight.w500,
                               ),
-                              overflow: TextOverflow.ellipsis,
                             ),
-                          ),
+                          ],
                         ],
                       ),
-                      if (isOutOfStock) ...[
-                        const SizedBox(height: 2),
-                        const Text(
-                          'Hết hàng tại chi nhánh này',
-                          style: TextStyle(
-                            color: AppColors.danger,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ] else if (isInsufficient) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          'Không đủ hàng (Tồn: $availableStock, Cần: ${item.quantity})',
-                          style: const TextStyle(
-                            color: AppColors.warning,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                      if (item.product.isCombo &&
-                          item.product.comboComponents.isNotEmpty) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          'Gồm: ${item.product.comboComponents.map((c) => "${c.quantity * item.quantity}x ${c.productName}").join(", ")}',
-                          style: const TextStyle(
-                            color: AppColors.primary,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ],
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  // Bộ tăng giảm số lượng Stepper [-] [1] [+] chuẩn KiotViet
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: AppColors.border),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        InkWell(
+                          onTap: () {
+                            ref
+                                .read(cartProvider.notifier)
+                                .decreaseQuantity(item.product.id);
+                          },
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(
+                                horizontal:
+                                    MediaQuery.sizeOf(context).width < 300
+                                        ? 5
+                                        : 10,
+                                vertical: 6),
+                            child: const Icon(Icons.remove,
+                                size: 16, color: AppColors.textSecondary),
+                          ),
+                        ),
+                        Container(
+                          constraints: const BoxConstraints(minWidth: 26),
+                          alignment: Alignment.center,
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 56),
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                '${item.quantity}',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 14),
+                              ),
+                            ),
+                          ),
+                        ),
+                        InkWell(
+                          onTap: () {
+                            ref
+                                .read(cartProvider.notifier)
+                                .increaseQuantity(item.product.id);
+                          },
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(
+                                horizontal:
+                                    MediaQuery.sizeOf(context).width < 300
+                                        ? 5
+                                        : 10,
+                                vertical: 6),
+                            child: const Icon(Icons.add,
+                                size: 16, color: AppColors.textSecondary),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 8),
-              // Bộ tăng giảm số lượng Stepper [-] [1] [+] chuẩn KiotViet
-              Container(
-                decoration: BoxDecoration(
-                  border: Border.all(color: AppColors.border),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    InkWell(
-                      onTap: () {
-                        ref
-                            .read(cartProvider.notifier)
-                            .decreaseQuantity(item.product.id);
-                      },
-                      child: const Padding(
-                        padding: EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 6),
-                        child: Icon(Icons.remove,
-                            size: 16, color: AppColors.textSecondary),
-                      ),
-                    ),
-                    Container(
-                      constraints: const BoxConstraints(minWidth: 26),
-                      alignment: Alignment.center,
-                      child: Text(
-                        '${item.quantity}',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 14),
-                      ),
-                    ),
-                    InkWell(
-                      onTap: () {
-                        ref
-                            .read(cartProvider.notifier)
-                            .increaseQuantity(item.product.id);
-                      },
-                      child: const Padding(
-                        padding: EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 6),
-                        child: Icon(Icons.add,
-                            size: 16, color: AppColors.textSecondary),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-      },
+            );
+          },
+        ),
       ),
     );
   }
@@ -1032,13 +1120,17 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
               const Icon(Icons.notes_rounded,
                   size: 20, color: AppColors.textPrimary),
               const SizedBox(width: 8),
-              Text(
-                AppLocalizations.of(context)?.posOrderNoteTitle ??
-                    'Ghi chú đơn hàng',
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
+              Flexible(
+                child: Text(
+                  AppLocalizations.of(context)?.posOrderNoteTitle ??
+                      'Ghi chú đơn hàng',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
               ),
             ],
@@ -1057,7 +1149,8 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
             decoration: InputDecoration(
               hintText: AppLocalizations.of(context)?.posOrderNoteHint ??
                   'Nhập ghi chú cho đơn hàng (nếu có)...',
-              hintStyle: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+              hintStyle:
+                  const TextStyle(fontSize: 13, color: AppColors.textMuted),
               filled: true,
               fillColor: const Color(0xFFF8FAFC),
               contentPadding:
@@ -1072,7 +1165,8 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                borderSide:
+                    const BorderSide(color: AppColors.primary, width: 1.5),
               ),
             ),
           ),
@@ -1111,45 +1205,55 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    const Text(
-                      'Tổng tiền hàng',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                      ),
+                Flexible(
+                    child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text(
+                              'Tổng tiền hàng',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withOpacity(0.08),
+                                border: Border.all(
+                                    color: AppColors.primary.withOpacity(0.3)),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                '$totalItemsCount',
+                                style: const TextStyle(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ))),
+                const SizedBox(width: 8),
+                Flexible(
+                    child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    '${currencyFormat.format(totalAmount)} đ',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
                     ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.08),
-                        border: Border.all(
-                            color: AppColors.primary.withOpacity(0.3)),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '$totalItemsCount',
-                        style: const TextStyle(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                Text(
-                  '${currencyFormat.format(totalAmount)} đ',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
                   ),
-                ),
+                )),
               ],
             ),
             const SizedBox(height: 12),
@@ -1206,14 +1310,17 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
                                   initialCustomer: _selectedCustomer,
                                   initialDiscount: effDiscount,
                                   isDiscountPercent: effIsPercent,
-                                  initialNote: _orderNoteController.text.trim().isNotEmpty
+                                  initialNote: _orderNoteController.text
+                                          .trim()
+                                          .isNotEmpty
                                       ? _orderNoteController.text.trim()
                                       : widget.initialNote,
                                 ),
                               ),
                             );
                             if (mounted && updatedCustomer != null) {
-                              setState(() => _selectedCustomer = updatedCustomer);
+                              setState(
+                                  () => _selectedCustomer = updatedCustomer);
                             }
                           },
                     style: ElevatedButton.styleFrom(
@@ -1252,6 +1359,7 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
       context: context,
       builder: (dialogCtx) {
         return AlertDialog(
+          scrollable: true,
           title: Text(l10n.saveDraftTitle),
           content: Text(l10n.saveDraftConfirm),
           actions: [
@@ -1392,7 +1500,8 @@ class _POSCheckoutPageState extends ConsumerState<POSCheckoutPage> {
             isReplacement: true,
           );
         } catch (cancelErr) {
-          debugPrint('Warning: Could not cancel replaced order when saving draft: $cancelErr');
+          debugPrint(
+              'Warning: Could not cancel replaced order when saving draft: $cancelErr');
         }
       }
 
@@ -1446,7 +1555,7 @@ class _EditCartItemSheetState extends ConsumerState<_EditCartItemSheet> {
     final discountStr = widget.item.discount > 0
         ? (_isPercent
             ? (widget.item.discount == widget.item.discount.roundToDouble()
-                ? widget.item.discount.toInt().toString()
+                ? (widget.item.discount.isFinite ? widget.item.discount.toInt() : 0).toString()
                 : widget.item.discount.toString())
             : NumberFormat('#,###', 'vi_VN').format(widget.item.discount))
         : '';
@@ -1478,11 +1587,9 @@ class _EditCartItemSheetState extends ConsumerState<_EditCartItemSheet> {
     );
 
     double parsedDiscount = 0.0;
-    final rawDiscount = _discountController.text
-        .replaceAll('.', '')
-        .replaceAll(',', '')
-        .trim();
-    parsedDiscount = double.tryParse(rawDiscount) ?? 0.0;
+    final rawDiscount =
+        _discountController.text.replaceAll('.', '').replaceAll(',', '').trim();
+    parsedDiscount = tryParseFinite(rawDiscount) ?? 0.0;
 
     final unitBasePrice = widget.item.price;
     final double unitDiscountAmount;
@@ -1584,6 +1691,8 @@ class _EditCartItemSheetState extends ConsumerState<_EditCartItemSheet> {
                               children: [
                                 Text(
                                   widget.item.product.name,
+                                  maxLines: 4,
+                                  overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 16,
@@ -1594,34 +1703,44 @@ class _EditCartItemSheetState extends ConsumerState<_EditCartItemSheet> {
                                 const SizedBox(height: 6),
                                 Row(
                                   children: [
-                                    if (widget.item.product.code.isNotEmpty) ...[
-                                      Text(
-                                        widget.item.product.code,
-                                        style: const TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w500,
-                                          color: AppColors.textSecondary,
+                                    if (widget
+                                        .item.product.code.isNotEmpty) ...[
+                                      Flexible(
+                                        child: Text(
+                                          widget.item.product.code,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                            color: AppColors.textSecondary,
+                                          ),
                                         ),
                                       ),
                                       const SizedBox(width: 8),
                                     ],
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 8, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFF1F5F9),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: Text(
-                                        l10n?.posStockCountLabel(
-                                                availableStock) ??
-                                            'Tồn: $availableStock',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w600,
-                                          color: availableStock > 0
-                                              ? AppColors.textSecondary
-                                              : AppColors.danger,
+                                    Flexible(
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFF1F5F9),
+                                          borderRadius:
+                                              BorderRadius.circular(4),
+                                        ),
+                                        child: Text(
+                                          l10n?.posStockCountLabel(
+                                                  availableStock) ??
+                                              'Tồn: $availableStock',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            color: availableStock > 0
+                                                ? AppColors.textSecondary
+                                                : AppColors.danger,
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -1651,15 +1770,21 @@ class _EditCartItemSheetState extends ConsumerState<_EditCartItemSheet> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              l10n?.quantity ?? 'Số lượng',
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
+                            Flexible(
+                              child: Text(
+                                l10n?.quantity ?? 'Số lượng',
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textPrimary,
+                                ),
                               ),
                             ),
-                            Container(
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Container(
                               decoration: BoxDecoration(
                                 border: Border.all(color: AppColors.border),
                                 borderRadius: BorderRadius.circular(8),
@@ -1673,40 +1798,55 @@ class _EditCartItemSheetState extends ConsumerState<_EditCartItemSheet> {
                                         setState(() => _currentQty--);
                                       }
                                     },
-                                    child: const Padding(
+                                    child: Padding(
                                       padding: EdgeInsets.symmetric(
-                                          horizontal: 14, vertical: 6),
-                                      child: Icon(Icons.remove,
+                                          horizontal:
+                                              MediaQuery.sizeOf(context).width <
+                                                      300
+                                                  ? 8
+                                                  : 14,
+                                          vertical: 6),
+                                      child: const Icon(Icons.remove,
                                           size: 18,
                                           color: AppColors.textSecondary),
                                     ),
                                   ),
-                                  Container(
-                                    constraints:
-                                        const BoxConstraints(minWidth: 32),
-                                    alignment: Alignment.center,
-                                    child: Text(
-                                      '$_currentQty',
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 15),
+                                  Flexible(
+                                    child: Container(
+                                      constraints:
+                                          const BoxConstraints(minWidth: 32),
+                                      alignment: Alignment.center,
+                                      child: FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        child: Text(
+                                          '$_currentQty',
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 15),
+                                        ),
+                                      ),
                                     ),
                                   ),
                                   InkWell(
                                     onTap: () {
                                       setState(() => _currentQty++);
                                     },
-                                    child: const Padding(
+                                    child: Padding(
                                       padding: EdgeInsets.symmetric(
-                                          horizontal: 14, vertical: 6),
-                                      child: Icon(Icons.add,
+                                          horizontal:
+                                              MediaQuery.sizeOf(context).width <
+                                                      300
+                                                  ? 8
+                                                  : 14,
+                                          vertical: 6),
+                                      child: const Icon(Icons.add,
                                           size: 18,
                                           color: AppColors.textSecondary),
                                     ),
                                   ),
                                 ],
                               ),
-                            ),
+                            )),
                           ],
                         ),
                       ),
@@ -1717,27 +1857,37 @@ class _EditCartItemSheetState extends ConsumerState<_EditCartItemSheet> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              l10n?.unitPrice ?? 'Đơn giá',
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.only(bottom: 4),
-                              decoration: const BoxDecoration(
-                                border: Border(
-                                    bottom:
-                                        BorderSide(color: Color(0xFFE2E8F0))),
-                              ),
+                            Flexible(
                               child: Text(
-                                '${format.format(unitBasePrice)} đ',
+                                l10n?.unitPrice ?? 'Đơn giá',
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w600,
                                   color: AppColors.textPrimary,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Container(
+                                padding: const EdgeInsets.only(bottom: 4),
+                                decoration: const BoxDecoration(
+                                  border: Border(
+                                      bottom:
+                                          BorderSide(color: Color(0xFFE2E8F0))),
+                                ),
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    '${format.format(unitBasePrice)} đ',
+                                    style: const TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.textPrimary,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
@@ -1792,9 +1942,8 @@ class _EditCartItemSheetState extends ConsumerState<_EditCartItemSheet> {
                                           borderRadius:
                                               BorderRadius.circular(6),
                                           child: Container(
-                                            padding:
-                                                const EdgeInsets.symmetric(
-                                                    horizontal: 8, vertical: 3),
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 8, vertical: 3),
                                             decoration: BoxDecoration(
                                               color: _isPercent
                                                   ? AppColors.primary
@@ -1826,9 +1975,8 @@ class _EditCartItemSheetState extends ConsumerState<_EditCartItemSheet> {
                                           borderRadius:
                                               BorderRadius.circular(6),
                                           child: Container(
-                                            padding:
-                                                const EdgeInsets.symmetric(
-                                                    horizontal: 8, vertical: 3),
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 8, vertical: 3),
                                             decoration: BoxDecoration(
                                               color: !_isPercent
                                                   ? AppColors.primary
@@ -1870,22 +2018,19 @@ class _EditCartItemSheetState extends ConsumerState<_EditCartItemSheet> {
                                   isDense: true,
                                   hintText: '0',
                                   hintStyle: TextStyle(
-                                      fontSize: 15,
-                                      color: AppColors.textMuted),
-                                  contentPadding:
-                                      EdgeInsets.only(bottom: 4),
+                                      fontSize: 15, color: AppColors.textMuted),
+                                  contentPadding: EdgeInsets.only(bottom: 4),
                                   border: UnderlineInputBorder(
-                                    borderSide: BorderSide(
-                                        color: Color(0xFFE2E8F0)),
+                                    borderSide:
+                                        BorderSide(color: Color(0xFFE2E8F0)),
                                   ),
                                   enabledBorder: UnderlineInputBorder(
-                                    borderSide: BorderSide(
-                                        color: Color(0xFFE2E8F0)),
+                                    borderSide:
+                                        BorderSide(color: Color(0xFFE2E8F0)),
                                   ),
                                   focusedBorder: UnderlineInputBorder(
                                     borderSide: BorderSide(
-                                        color: AppColors.primary,
-                                        width: 1.5),
+                                        color: AppColors.primary, width: 1.5),
                                   ),
                                 ),
                                 onChanged: (_) => setState(() {}),
@@ -1903,13 +2048,7 @@ class _EditCartItemSheetState extends ConsumerState<_EditCartItemSheet> {
                           child: Row(
                             children: (_isPercent
                                     ? [5, 10, 15, 20, 30]
-                                    : [
-                                        10000,
-                                        20000,
-                                        50000,
-                                        100000,
-                                        200000
-                                      ])
+                                    : [10000, 20000, 50000, 100000, 200000])
                                 .map((val) {
                               return Padding(
                                 padding: const EdgeInsets.only(right: 6),
@@ -1927,8 +2066,7 @@ class _EditCartItemSheetState extends ConsumerState<_EditCartItemSheet> {
                                     setState(() {
                                       _discountController.text = _isPercent
                                           ? val.toString()
-                                          : NumberFormat(
-                                                  '#,###', 'vi_VN')
+                                          : NumberFormat('#,###', 'vi_VN')
                                               .format(val);
                                     });
                                   },
@@ -1937,8 +2075,7 @@ class _EditCartItemSheetState extends ConsumerState<_EditCartItemSheet> {
                             }).toList()
                               ..add(
                                 Padding(
-                                  padding:
-                                      const EdgeInsets.only(right: 6),
+                                  padding: const EdgeInsets.only(right: 6),
                                   child: ActionChip(
                                     label: Text(
                                       l10n?.posClearDiscount ?? 'Bỏ giảm',
@@ -1967,27 +2104,37 @@ class _EditCartItemSheetState extends ConsumerState<_EditCartItemSheet> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              l10n?.posSellingPrice ?? 'Giá bán',
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.only(bottom: 4),
-                              decoration: const BoxDecoration(
-                                border: Border(
-                                    bottom: BorderSide(
-                                        color: Color(0xFFE2E8F0))),
-                              ),
+                            Flexible(
                               child: Text(
-                                '${format.format(unitEffectivePrice)} đ',
+                                l10n?.posSellingPrice ?? 'Giá bán',
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w600,
                                   color: AppColors.textPrimary,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Container(
+                                padding: const EdgeInsets.only(bottom: 4),
+                                decoration: const BoxDecoration(
+                                  border: Border(
+                                      bottom:
+                                          BorderSide(color: Color(0xFFE2E8F0))),
+                                ),
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    '${format.format(unitEffectivePrice)} đ',
+                                    style: const TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.textPrimary,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
@@ -2001,20 +2148,30 @@ class _EditCartItemSheetState extends ConsumerState<_EditCartItemSheet> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              l10n?.amount ?? 'Thành tiền',
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.textPrimary,
+                            Flexible(
+                              child: Text(
+                                l10n?.amount ?? 'Thành tiền',
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textPrimary,
+                                ),
                               ),
                             ),
-                            Text(
-                              '${format.format(lineTotal)} đ',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.textPrimary,
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  '${format.format(lineTotal)} đ',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
                               ),
                             ),
                           ],
@@ -2073,8 +2230,8 @@ class _EditCartItemSheetState extends ConsumerState<_EditCartItemSheet> {
 
               // Nút Xong (Full-width KiotViet Blue)
               Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 decoration: BoxDecoration(
                   color: AppColors.white,
                   boxShadow: [
@@ -2168,16 +2325,20 @@ Future<void> showCustomerSelectionSheet({
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          l10n.selectCustomer,
-                          style: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.bold),
+                        Flexible(
+                          child: Text(
+                            l10n.selectCustomer,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
                         ),
                         IconButton(
                           icon: const Icon(Icons.add_circle_outline,
                               color: AppColors.primary, size: 28),
                           onPressed: () {
-                            Navigator.pop(bottomSheetContext, 'ADD_NEW');
+                            closeRoute(bottomSheetContext, 'ADD_NEW');
                           },
                         )
                       ],
@@ -2232,8 +2393,8 @@ Future<void> showCustomerSelectionSheet({
                                       style: const TextStyle(
                                           fontWeight: FontWeight.bold)),
                                   onTap: () {
+                                    if (!closeRoute(bottomSheetContext)) return;
                                     onCustomerSelected(null);
-                                    Navigator.pop(bottomSheetContext);
                                   },
                                 );
                               }
@@ -2256,18 +2417,25 @@ Future<void> showCustomerSelectionSheet({
                                   return info.isEmpty ? null : Text(info);
                                 })(),
                                 trailing: (customer.displayCurrentDebt > 0)
-                                    ? Text(
-                                        'Nợ: ${NumberFormat('#,###', 'vi_VN').format(customer.displayCurrentDebt)}đ',
-                                        style: const TextStyle(
-                                          color: AppColors.danger,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
+                                    ? ConstrainedBox(
+                                        constraints: const BoxConstraints(
+                                            maxWidth: 110),
+                                        child: FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          child: Text(
+                                            'Nợ: ${NumberFormat('#,###', 'vi_VN').format(customer.displayCurrentDebt)}đ',
+                                            style: const TextStyle(
+                                              color: AppColors.danger,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
                                         ),
                                       )
                                     : null,
                                 onTap: () {
+                                  if (!closeRoute(bottomSheetContext)) return;
                                   onCustomerSelected(customer);
-                                  Navigator.pop(bottomSheetContext);
                                 },
                               );
                             },
@@ -2339,11 +2507,10 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
 
     try {
       final currentUser = ref.read(authProvider);
-      final activeBranchName =
-          await ref.read(currentStoreNameProvider.future);
+      final activeBranchName = await ref.read(currentStoreNameProvider.future);
 
       final existingCusts =
-          ref.read(customerListNotifierProvider).value ?? [];
+          ref.read(customerListNotifierProvider).valueOrNull ?? [];
       final custIds = existingCusts.map((c) => c.id).toList();
       final newCustId = CodeGeneratorHelper.generateNextCustomerCode(custIds);
 
@@ -2393,6 +2560,7 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return AlertDialog(
+      scrollable: true,
       title: Text(
         l10n.addNewCustomer,
         style: const TextStyle(fontWeight: FontWeight.bold),

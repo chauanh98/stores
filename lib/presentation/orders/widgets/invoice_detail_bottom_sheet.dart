@@ -97,9 +97,12 @@ class InvoiceDetailBottomSheet extends ConsumerWidget {
             ? order.customerPhone!.trim()
             : '');
 
-    final products =
-        ref.watch(productListProvider).valueOrNull ?? <Product>[];
-    final productMap = {for (final p in products) p.id: p};
+    final products = ref.watch(productListProvider).valueOrNull ?? <Product>[];
+    final orderProductIds = {for (final i in order.items) i.productId};
+    final productMap = {
+      for (final p in products)
+        if (orderProductIds.contains(p.id)) p.id: p
+    };
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -137,255 +140,303 @@ class InvoiceDetailBottomSheet extends ConsumerWidget {
 
           // ── Scrollable Content ──
           Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Cancelled banner if cancelled
-                  if (order.isCancelled) ...[
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.danger.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                            color: AppColors.danger.withOpacity(0.3)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
+            child: CustomScrollView(
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Cancelled banner if cancelled
+                      if (order.isCancelled) ...[
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppColors.danger.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                                color: AppColors.danger.withOpacity(0.3)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Icon(Icons.cancel,
-                                  color: AppColors.danger, size: 18),
-                              const SizedBox(width: 6),
+                              Row(
+                                children: [
+                                  const Icon(Icons.cancel,
+                                      color: AppColors.danger, size: 18),
+                                  const SizedBox(width: 6),
+                                  Flexible(
+                                    child: Text(
+                                      l10n?.orderCancelledBanner ??
+                                          'HÓA ĐƠN NÀY ĐÃ BỊ HỦY',
+                                      style: const TextStyle(
+                                        color: AppColors.danger,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
                               Text(
-                                l10n?.orderCancelledBanner ??
-                                    'HÓA ĐƠN NÀY ĐÃ BỊ HỦY',
+                                l10n?.orderCancelReasonLabel(
+                                        order.cancelReason ?? '—') ??
+                                    'Lý do hủy: ${order.cancelReason ?? '—'}',
                                 style: const TextStyle(
-                                  color: AppColors.danger,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13,
+                                  fontSize: 12.5,
+                                  color: AppColors.textPrimary,
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 6),
-                          Text(
-                            l10n?.orderCancelReasonLabel(
-                                    order.cancelReason ?? '—') ??
-                                'Lý do hủy: ${order.cancelReason ?? '—'}',
-                            style: const TextStyle(
-                              fontSize: 12.5,
-                              color: AppColors.textPrimary,
+                        ),
+                      ],
+
+                      // Order ID & Date
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              '#${order.id}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                dateFormat.format(order.createdAt),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
                             ),
                           ),
                         ],
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 8),
 
-                  // Order ID & Date
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        '#${order.id}',
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
+                      // Store Badge
+                      if (order.storeId != null &&
+                          order.storeId!.isNotEmpty) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryLight,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            StoreResolverHelper.resolveStoreName(order.storeId),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+
+                      // Customer info section
+                      if (resolvedCustomerName.isNotEmpty) ...[
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.person_outline,
+                                      size: 16, color: AppColors.textSecondary),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: targetCustomer != null
+                                        ? InkWell(
+                                            onTap: () {
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) =>
+                                                      CustomerDetailPage(
+                                                          customer:
+                                                              targetCustomer!),
+                                                ),
+                                              );
+                                            },
+                                            child: Text(
+                                              resolvedCustomerName,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 13,
+                                                color: AppColors.primary,
+                                                decoration:
+                                                    TextDecoration.underline,
+                                              ),
+                                            ),
+                                          )
+                                        : Text(
+                                            resolvedCustomerName,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                  ),
+                                ],
+                              ),
+                              if (customerPhone.isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.phone_outlined,
+                                        size: 16,
+                                        color: AppColors.textSecondary),
+                                    const SizedBox(width: 6),
+                                    Flexible(
+                                      child: Text(
+                                        customerPhone,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(fontSize: 12),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    InkWell(
+                                      key: const Key(
+                                          'copy_customer_phone_button'),
+                                      onTap: () {
+                                        Clipboard.setData(
+                                            ClipboardData(text: customerPhone));
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                                'Đã sao chép số điện thoại'),
+                                            duration: Duration(seconds: 2),
+                                          ),
+                                        );
+                                      },
+                                      child: const Icon(Icons.copy,
+                                          size: 14, color: AppColors.primary),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+
+                      // Status & Payment
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Flexible(
+                                child: Text(l10n?.status ?? 'Trạng thái',
+                                    style: const TextStyle(
+                                        fontSize: 13,
+                                        color: AppColors.textSecondary))),
+                            const SizedBox(width: 8),
+                            Flexible(
+                                child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    alignment: Alignment.centerRight,
+                                    child: Text(
+                                      order.isCancelled
+                                          ? (l10n?.orderBadgeCancelled ??
+                                              'Đã hủy')
+                                          : (order.isReturned
+                                              ? (l10n?.orderBadgeReturned ??
+                                                  'Đã trả hàng')
+                                              : (order.status == 'draft'
+                                                  ? (l10n?.draft ?? 'Phiếu tạm')
+                                                  : (l10n?.orderBadgeCompleted ??
+                                                      'Hoàn thành'))),
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: order.isCancelled
+                                            ? AppColors.danger
+                                            : (order.status == 'draft'
+                                                ? AppColors.warning
+                                                : AppColors.success),
+                                      ),
+                                    ))),
+                          ],
                         ),
                       ),
+
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Flexible(
+                                child: Text(l10n?.payment ?? 'Thanh toán',
+                                    style: const TextStyle(
+                                        fontSize: 13,
+                                        color: AppColors.textSecondary))),
+                            const SizedBox(width: 8),
+                            Flexible(
+                                child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    alignment: Alignment.centerRight,
+                                    child: Text(
+                                      order.remainingDebt <= 0.001
+                                          ? (l10n?.orderPaymentPaidFull ??
+                                              'Đã trả đủ')
+                                          : (l10n?.orderPaymentUnpaidDebt ??
+                                              'Còn nợ'),
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: order.remainingDebt <= 0.001
+                                            ? AppColors.success
+                                            : AppColors.danger,
+                                      ),
+                                    ))),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // Products list
                       Text(
-                        dateFormat.format(order.createdAt),
+                        l10n?.productList ?? 'Danh sách sản phẩm',
                         style: const TextStyle(
-                          fontSize: 12,
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
                           color: AppColors.textSecondary,
                         ),
                       ),
+                      const SizedBox(height: 8),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                ),
+                SliverList.builder(
+                  itemCount: order.items.length,
+                  itemBuilder: (context, index) {
+                    final item = order.items[index];
 
-                  // Store Badge
-                  if (order.storeId != null && order.storeId!.isNotEmpty) ...[
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryLight,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        StoreResolverHelper.resolveStoreName(order.storeId),
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-
-                  // Customer info section
-                  if (resolvedCustomerName.isNotEmpty) ...[
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.person_outline,
-                                  size: 16, color: AppColors.textSecondary),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: targetCustomer != null
-                                    ? InkWell(
-                                        onTap: () {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (context) =>
-                                                  CustomerDetailPage(
-                                                      customer:
-                                                          targetCustomer!),
-                                            ),
-                                          );
-                                        },
-                                        child: Text(
-                                          resolvedCustomerName,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w600,
-                                            fontSize: 13,
-                                            color: AppColors.primary,
-                                            decoration:
-                                                TextDecoration.underline,
-                                          ),
-                                        ),
-                                      )
-                                    : Text(
-                                        resolvedCustomerName,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 13,
-                                        ),
-                                      ),
-                              ),
-                            ],
-                          ),
-                          if (customerPhone.isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                const Icon(Icons.phone_outlined,
-                                  size: 16, color: AppColors.textSecondary),
-                                const SizedBox(width: 6),
-                                Text(
-                                  customerPhone,
-                                  style: const TextStyle(fontSize: 12),
-                                ),
-                                const SizedBox(width: 8),
-                                InkWell(
-                                  key: const Key('copy_customer_phone_button'),
-                                  onTap: () {
-                                    Clipboard.setData(
-                                        ClipboardData(text: customerPhone));
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Đã sao chép số điện thoại'),
-                                        duration: Duration(seconds: 2),
-                                      ),
-                                    );
-                                  },
-                                  child: const Icon(Icons.copy,
-                                      size: 14, color: AppColors.primary),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-
-                  // Status & Payment
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(l10n?.status ?? 'Trạng thái',
-                            style: const TextStyle(
-                                fontSize: 13, color: AppColors.textSecondary)),
-                        Text(
-                          order.isCancelled
-                              ? (l10n?.orderBadgeCancelled ?? 'Đã hủy')
-                              : (order.isReturned
-                                  ? (l10n?.orderBadgeReturned ?? 'Đã trả hàng')
-                                  : (order.status == 'draft'
-                                      ? (l10n?.draft ?? 'Phiếu tạm')
-                                      : (l10n?.orderBadgeCompleted ??
-                                          'Hoàn thành'))),
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: order.isCancelled
-                                ? AppColors.danger
-                                : (order.status == 'draft'
-                                    ? AppColors.warning
-                                    : AppColors.success),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(l10n?.payment ?? 'Thanh toán',
-                            style: const TextStyle(
-                                fontSize: 13, color: AppColors.textSecondary)),
-                        Text(
-                          order.remainingDebt <= 0.001
-                              ? (l10n?.orderPaymentPaidFull ?? 'Đã trả đủ')
-                              : (l10n?.orderPaymentUnpaidDebt ?? 'Còn nợ'),
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: order.remainingDebt <= 0.001
-                                ? AppColors.success
-                                : AppColors.danger,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // Products list
-                  Text(
-                    l10n?.productList ?? 'Danh sách sản phẩm',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  ...order.items.map((item) {
                     final matchingProduct = productMap[item.productId];
                     final itemSubtotal = item.price * item.quantity;
                     final hasDiscount = item.discount > 0 ||
@@ -429,10 +480,12 @@ class InvoiceDetailBottomSheet extends ConsumerWidget {
                                   ),
                                 ],
                                 const SizedBox(height: 2),
-                                Row(
+                                Wrap(
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  spacing: 4,
                                   children: [
                                     Text(
-                                      '${item.quantity} x ',
+                                      '${item.quantity} x',
                                       style: const TextStyle(
                                         fontSize: 12,
                                         color: AppColors.textSecondary,
@@ -448,7 +501,6 @@ class InvoiceDetailBottomSheet extends ConsumerWidget {
                                               TextDecoration.lineThrough,
                                         ),
                                       ),
-                                      const SizedBox(width: 4),
                                     ],
                                     Text(
                                       '${currencyFormat.format(item.price)}đ',
@@ -463,100 +515,148 @@ class InvoiceDetailBottomSheet extends ConsumerWidget {
                               ],
                             ),
                           ),
-                          Text(
-                            '${currencyFormat.format(itemSubtotal)}đ',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
+                          const SizedBox(width: 8),
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 140),
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerRight,
+                              child: Text(
+                                '${currencyFormat.format(itemSubtotal)}đ',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
                             ),
                           ),
                         ],
                       ),
                     );
-                  }),
-                  const Divider(color: AppColors.divider),
+                  },
+                ),
+                SliverToBoxAdapter(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Divider(color: AppColors.divider),
 
-                  // Financial summary
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(l10n?.totalPaymentAmount ?? 'Tổng tiền hàng:'),
-                        Text(
-                          '${currencyFormat.format(order.total)}đ',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                      // Financial summary
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Flexible(
+                                child: Text(l10n?.totalPaymentAmount ??
+                                    'Tổng tiền hàng:')),
+                            const SizedBox(width: 8),
+                            Flexible(
+                                child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    alignment: Alignment.centerRight,
+                                    child: Text(
+                                      '${currencyFormat.format(order.total)}đ',
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold),
+                                    ))),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
-                  if (order.discount > 0) ...[
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('Giảm giá:'),
-                          Text(
-                            '-${currencyFormat.format(order.discount)}đ',
-                            style: const TextStyle(color: AppColors.danger),
-                          ),
-                        ],
                       ),
-                    ),
-                  ],
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Khách phải trả:',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          '${currencyFormat.format(order.netPayable)}đ',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primary,
-                            fontSize: 15,
+                      if (order.discount > 0) ...[
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Flexible(child: Text('Giảm giá:')),
+                              const SizedBox(width: 8),
+                              Flexible(
+                                  child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      alignment: Alignment.centerRight,
+                                      child: Text(
+                                        '-${currencyFormat.format(order.discount)}đ',
+                                        style: const TextStyle(
+                                            color: AppColors.danger),
+                                      ))),
+                            ],
                           ),
                         ),
                       ],
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(l10n?.paid ?? 'Đã thanh toán:'),
-                        Text(
-                          '${currencyFormat.format(order.amountPaid)}đ',
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Flexible(
+                                child: Text(
+                              'Khách phải trả:',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            )),
+                            const SizedBox(width: 8),
+                            Flexible(
+                                child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    alignment: Alignment.centerRight,
+                                    child: Text(
+                                      '${currencyFormat.format(order.netPayable)}đ',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.primary,
+                                        fontSize: 15,
+                                      ),
+                                    ))),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
-                  if (order.remainingDebt > 0.001) ...[
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(l10n?.orderDebtRemaining ?? 'Còn ghi nợ:'),
-                          Text(
-                            '${currencyFormat.format(order.remainingDebt)}đ',
-                            style: const TextStyle(
-                              color: AppColors.danger,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
                       ),
-                    ),
-                  ],
-                ],
-              ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Flexible(
+                                child: Text(l10n?.paid ?? 'Đã thanh toán:')),
+                            const SizedBox(width: 8),
+                            Flexible(
+                                child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    alignment: Alignment.centerRight,
+                                    child: Text(
+                                      '${currencyFormat.format(order.amountPaid)}đ',
+                                    ))),
+                          ],
+                        ),
+                      ),
+                      if (order.remainingDebt > 0.001) ...[
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Flexible(
+                                  child: Text(l10n?.orderDebtRemaining ??
+                                      'Còn ghi nợ:')),
+                              const SizedBox(width: 8),
+                              Flexible(
+                                  child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      alignment: Alignment.centerRight,
+                                      child: Text(
+                                        '${currencyFormat.format(order.remainingDebt)}đ',
+                                        style: const TextStyle(
+                                          color: AppColors.danger,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ))),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         ],

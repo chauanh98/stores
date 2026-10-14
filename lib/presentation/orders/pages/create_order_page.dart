@@ -36,6 +36,8 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
   bool _saving = false;
 
   static const warrantyOptions = [6, 12, 18, 24];
+  static final NumberFormat _vnd =
+      NumberFormat.currency(locale: 'vi_VN', symbol: 'đ');
 
   @override
   Widget build(BuildContext context) {
@@ -176,6 +178,7 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: DropdownButtonFormField<int>(
+                                    isExpanded: true,
                                     value: item.warrantyMonths,
                                     decoration: InputDecoration(
                                       labelText:
@@ -207,13 +210,13 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
                                       labelText: l10n.unitPrice,
                                       border: const OutlineInputBorder(),
                                     ),
-                                    controller: TextEditingController(
-                                      text: product == null
-                                          ? ''
-                                          : NumberFormat.currency(
-                                                  locale: 'vi_VN', symbol: 'đ')
-                                              .format(product.price),
-                                    ),
+                                    // initialValue (+ value key) instead of allocating a
+                                    // new, never-disposed controller on every build.
+                                    key: ValueKey(
+                                        'unit_price_${product?.id}_${product?.price}'),
+                                    initialValue: product == null
+                                        ? ''
+                                        : _vnd.format(product.price),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
@@ -224,14 +227,12 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
                                       labelText: l10n.amount,
                                       border: const OutlineInputBorder(),
                                     ),
-                                    controller: TextEditingController(
-                                      text: product == null
-                                          ? '—'
-                                          : NumberFormat.currency(
-                                                  locale: "vi_VN", symbol: "đ")
-                                              .format(product.price *
-                                                  item.quantity),
-                                    ),
+                                    key: ValueKey(
+                                        'line_total_${product?.id}_${item.quantity}'),
+                                    initialValue: product == null
+                                        ? '—'
+                                        : _vnd.format(
+                                            product.price * item.quantity),
                                   ),
                                 ),
                               ],
@@ -273,13 +274,19 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
             Card(
               child: ListTile(
                 title: Text(l10n.totalAmount),
-                trailing: Text(
-                  NumberFormat.currency(locale: 'vi_VN', symbol: 'đ')
-                      .format(total),
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleLarge
-                      ?.copyWith(fontWeight: FontWeight.bold),
+                trailing: ConstrainedBox(
+                  constraints: BoxConstraints(
+                      maxWidth: MediaQuery.sizeOf(context).width * 0.5),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      _vnd.format(total),
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleLarge
+                          ?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                  ),
                 ),
               ),
             ),

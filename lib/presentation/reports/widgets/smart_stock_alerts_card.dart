@@ -73,12 +73,15 @@ class SmartStockAlertsCard extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(width: 6),
-                  const Text(
-                    'Cảnh báo kho & Vận hành',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
+                  const Flexible(
+                    child: Text(
+                      'Cảnh báo kho & Vận hành',
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
                     ),
                   ),
                 ],
@@ -113,14 +116,16 @@ class SmartStockAlertsCard extends ConsumerWidget {
                         color: AppColors.secondary,
                       ),
                       SizedBox(width: 4),
-                      Text(
+                      Flexible(
+                          child: Text(
                         'Nhập hàng',
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
                           color: AppColors.secondary,
                         ),
-                      ),
+                      )),
                     ],
                   ),
                 ),
@@ -193,16 +198,19 @@ class SmartStockAlertsCard extends ConsumerWidget {
                           crossAxisAlignment: CrossAxisAlignment.baseline,
                           textBaseline: TextBaseline.alphabetic,
                           children: [
-                            Text(
-                              '${summary.outOfStockCount}',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w900,
-                                color: summary.outOfStockCount > 0
-                                    ? AppColors.danger
-                                    : AppColors.textPrimary,
-                              ),
-                            ),
+                            Flexible(
+                                child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      '${summary.outOfStockCount}',
+                                      style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w900,
+                                        color: summary.outOfStockCount > 0
+                                            ? AppColors.danger
+                                            : AppColors.textPrimary,
+                                      ),
+                                    ))),
                             const SizedBox(width: 4),
                             Flexible(
                               child: Text(
@@ -286,16 +294,19 @@ class SmartStockAlertsCard extends ConsumerWidget {
                           crossAxisAlignment: CrossAxisAlignment.baseline,
                           textBaseline: TextBaseline.alphabetic,
                           children: [
-                            Text(
-                              '${summary.lowStockCount}',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w900,
-                                color: summary.lowStockCount > 0
-                                    ? AppColors.warningMedium
-                                    : AppColors.textPrimary,
-                              ),
-                            ),
+                            Flexible(
+                                child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      '${summary.lowStockCount}',
+                                      style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w900,
+                                        color: summary.lowStockCount > 0
+                                            ? AppColors.warningMedium
+                                            : AppColors.textPrimary,
+                                      ),
+                                    ))),
                             const SizedBox(width: 4),
                             Flexible(
                               child: Text(

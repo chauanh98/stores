@@ -272,7 +272,8 @@ class _ReturnOrderBottomSheetState
                   ),
                 ),
                 const SizedBox(width: 8),
-                TextButton.icon(
+                Flexible(
+                    child: TextButton.icon(
                   onPressed: () => _setSelectAll(!isAllSelected),
                   icon: Icon(
                     isAllSelected ? Icons.remove_done : Icons.done_all,
@@ -281,23 +282,28 @@ class _ReturnOrderBottomSheetState
                   ),
                   label: Text(
                     isAllSelected ? 'Bỏ chọn tất cả' : 'Chọn trả tất cả',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                       color: AppColors.primary,
                     ),
                   ),
-                ),
+                )),
               ],
             ),
           ],
 
           // Item list
           Flexible(
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  ...widget.order.items.map((item) {
+            child: CustomScrollView(
+              shrinkWrap: true,
+              slivers: [
+                SliverList.builder(
+                  itemCount: widget.order.items.length,
+                  itemBuilder: (context, index) {
+                    final item = widget.order.items[index];
                     final activeQty = item.activeQuantity;
                     final currentReturnQty =
                         _returnQuantities[item.productId] ?? 0;
@@ -402,167 +408,185 @@ class _ReturnOrderBottomSheetState
                             ),
                           ] else ...[
                             // Stepper
-                            Row(
-                              children: [
-                                IconButton(
-                                  key:
-                                      Key('decrement_return_${item.productId}'),
-                                  icon: const Icon(Icons.remove_circle_outline),
-                                  color: currentReturnQty > 0
-                                      ? AppColors.primary
-                                      : AppColors.textDisabled,
-                                  onPressed: currentReturnQty > 0
-                                      ? () => _updateQuantity(
-                                            item.productId,
-                                            currentReturnQty - 1,
-                                            activeQty,
-                                          )
-                                      : null,
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(),
-                                ),
-                                Container(
-                                  margin:
-                                      const EdgeInsets.symmetric(horizontal: 8),
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 10, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: currentReturnQty > 0
-                                        ? AppColors.primary.withOpacity(0.1)
-                                        : AppColors.grey100,
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Text(
-                                    '$currentReturnQty / $activeQty',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 13,
-                                      color: currentReturnQty > 0
-                                          ? AppColors.primary
-                                          : AppColors.textPrimary,
-                                    ),
-                                  ),
-                                ),
-                                IconButton(
-                                  key:
-                                      Key('increment_return_${item.productId}'),
-                                  icon: const Icon(Icons.add_circle_outline),
-                                  color: currentReturnQty < activeQty
-                                      ? AppColors.primary
-                                      : AppColors.textDisabled,
-                                  onPressed: currentReturnQty < activeQty
-                                      ? () => _updateQuantity(
-                                            item.productId,
-                                            currentReturnQty + 1,
-                                            activeQty,
-                                          )
-                                      : null,
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(),
-                                ),
-                              ],
-                            ),
+                            ConstrainedBox(
+                                constraints:
+                                    const BoxConstraints(maxWidth: 170),
+                                child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Row(
+                                      children: [
+                                        IconButton(
+                                          key: Key(
+                                              'decrement_return_${item.productId}'),
+                                          icon: const Icon(
+                                              Icons.remove_circle_outline),
+                                          color: currentReturnQty > 0
+                                              ? AppColors.primary
+                                              : AppColors.textDisabled,
+                                          onPressed: currentReturnQty > 0
+                                              ? () => _updateQuantity(
+                                                    item.productId,
+                                                    currentReturnQty - 1,
+                                                    activeQty,
+                                                  )
+                                              : null,
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(),
+                                        ),
+                                        Container(
+                                          margin: const EdgeInsets.symmetric(
+                                              horizontal: 8),
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 10, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: currentReturnQty > 0
+                                                ? AppColors.primary
+                                                    .withOpacity(0.1)
+                                                : AppColors.grey100,
+                                            borderRadius:
+                                                BorderRadius.circular(6),
+                                          ),
+                                          child: Text(
+                                            '$currentReturnQty / $activeQty',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13,
+                                              color: currentReturnQty > 0
+                                                  ? AppColors.primary
+                                                  : AppColors.textPrimary,
+                                            ),
+                                          ),
+                                        ),
+                                        IconButton(
+                                          key: Key(
+                                              'increment_return_${item.productId}'),
+                                          icon: const Icon(
+                                              Icons.add_circle_outline),
+                                          color: currentReturnQty < activeQty
+                                              ? AppColors.primary
+                                              : AppColors.textDisabled,
+                                          onPressed:
+                                              currentReturnQty < activeQty
+                                                  ? () => _updateQuantity(
+                                                        item.productId,
+                                                        currentReturnQty + 1,
+                                                        activeQty,
+                                                      )
+                                                  : null,
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(),
+                                        ),
+                                      ],
+                                    ))),
                           ],
                         ],
                       ),
                     );
-                  }),
-                  const SizedBox(height: 12),
+                  },
+                ),
+                SliverToBoxAdapter(
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 12),
 
-                  // Calculation Live Preview Card
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.06),
-                      borderRadius: BorderRadius.circular(10),
-                      border:
-                          Border.all(color: AppColors.primary.withOpacity(0.2)),
-                    ),
-                    child: Column(
-                      children: [
-                        _buildSummaryRow(
-                          'Tổng tiền trả hàng:',
-                          '${_currencyFormat.format(_totalReturnAmount)} đ',
-                          isBold: true,
+                      // Calculation Live Preview Card
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withOpacity(0.06),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                              color: AppColors.primary.withOpacity(0.2)),
                         ),
-                        if (_debtDeducted > 0) ...[
-                          const SizedBox(height: 6),
-                          _buildSummaryRow(
-                            'Trừ vào công nợ HĐ:',
-                            '-${_currencyFormat.format(_debtDeducted)} đ',
-                            color: AppColors.warningDark,
-                          ),
-                        ],
-                        const Divider(height: 14, color: AppColors.divider),
-                        _buildSummaryRow(
-                          'Hoàn tiền thực tế cho khách:',
-                          '${_currencyFormat.format(_cashRefunded)} đ',
-                          color: AppColors.successDark,
-                          isBold: true,
-                          fontSize: 14,
+                        child: Column(
+                          children: [
+                            _buildSummaryRow(
+                              'Tổng tiền trả hàng:',
+                              '${_currencyFormat.format(_totalReturnAmount)} đ',
+                              isBold: true,
+                            ),
+                            if (_debtDeducted > 0) ...[
+                              const SizedBox(height: 6),
+                              _buildSummaryRow(
+                                'Trừ vào công nợ HĐ:',
+                                '-${_currencyFormat.format(_debtDeducted)} đ',
+                                color: AppColors.warningDark,
+                              ),
+                            ],
+                            const Divider(height: 14, color: AppColors.divider),
+                            _buildSummaryRow(
+                              'Hoàn tiền thực tế cho khách:',
+                              '${_currencyFormat.format(_cashRefunded)} đ',
+                              color: AppColors.successDark,
+                              isBold: true,
+                              fontSize: 14,
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Payment method for refund
-                  if (_cashRefunded > 0) ...[
-                    Wrap(
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      spacing: 8,
-                      runSpacing: 6,
-                      children: [
-                        const Text(
-                          'Hình thức hoàn tiền: ',
-                          style: TextStyle(
-                              fontSize: 12.5, fontWeight: FontWeight.bold),
-                        ),
-                        ChoiceChip(
-                          label: const Text('Tiền mặt',
-                              style: TextStyle(fontSize: 12)),
-                          selected: _refundPaymentMethod == 'cash',
-                          onSelected: (val) {
-                            if (val) {
-                              setState(() => _refundPaymentMethod = 'cash');
-                            }
-                          },
-                        ),
-                        ChoiceChip(
-                          label: const Text('Chuyển khoản',
-                              style: TextStyle(fontSize: 12)),
-                          selected: _refundPaymentMethod == 'transfer',
-                          onSelected: (val) {
-                            if (val) {
-                              setState(() => _refundPaymentMethod = 'transfer');
-                            }
-                          },
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-
-                  // Return Reason
-                  TextField(
-                    key: const Key('return_order_reason_field'),
-                    controller: _reasonController,
-                    decoration: InputDecoration(
-                      hintText: 'Nhập lý do trả hàng (không bắt buộc)...',
-                      labelText: 'Lý do trả hàng',
-                      filled: true,
-                      fillColor: AppColors.grey50,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: AppColors.border),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 10),
-                    ),
+                      const SizedBox(height: 12),
+
+                      // Payment method for refund
+                      if (_cashRefunded > 0) ...[
+                        Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 8,
+                          runSpacing: 6,
+                          children: [
+                            const Text(
+                              'Hình thức hoàn tiền: ',
+                              style: TextStyle(
+                                  fontSize: 12.5, fontWeight: FontWeight.bold),
+                            ),
+                            ChoiceChip(
+                              label: const Text('Tiền mặt',
+                                  style: TextStyle(fontSize: 12)),
+                              selected: _refundPaymentMethod == 'cash',
+                              onSelected: (val) {
+                                if (val) {
+                                  setState(() => _refundPaymentMethod = 'cash');
+                                }
+                              },
+                            ),
+                            ChoiceChip(
+                              label: const Text('Chuyển khoản',
+                                  style: TextStyle(fontSize: 12)),
+                              selected: _refundPaymentMethod == 'transfer',
+                              onSelected: (val) {
+                                if (val) {
+                                  setState(
+                                      () => _refundPaymentMethod = 'transfer');
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+
+                      // Return Reason
+                      TextField(
+                        key: const Key('return_order_reason_field'),
+                        controller: _reasonController,
+                        decoration: InputDecoration(
+                          hintText: 'Nhập lý do trả hàng (không bắt buộc)...',
+                          labelText: 'Lý do trả hàng',
+                          filled: true,
+                          fillColor: AppColors.grey50,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide:
+                                const BorderSide(color: AppColors.border),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
                   ),
-                  const SizedBox(height: 16),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
 

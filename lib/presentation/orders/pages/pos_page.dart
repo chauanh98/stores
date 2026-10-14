@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../common/utils/route_utils.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -6,6 +7,7 @@ import 'package:stores/core/theme/app_colors.dart';
 import 'package:stores/presentation/common/widgets/empty_state_view.dart';
 import 'package:stores/presentation/common/widgets/error_view.dart';
 import 'package:stores/presentation/common/widgets/loading_indicator.dart';
+import 'package:stores/presentation/common/widgets/min_height_scroll.dart';
 
 import '../../../application/auth/auth_providers.dart';
 import '../../../application/orders/cart_providers.dart';
@@ -77,8 +79,11 @@ class _POSPageState extends ConsumerState<POSPage> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
+                    Flexible(
+                        child: Text(
                       posBranchName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 11,
                         color: canSwitchBranch
@@ -88,7 +93,7 @@ class _POSPageState extends ConsumerState<POSPage> {
                             ? FontWeight.w600
                             : FontWeight.normal,
                       ),
-                    ),
+                    )),
                     if (canSwitchBranch) ...[
                       const SizedBox(width: 2),
                       const Icon(
@@ -117,284 +122,296 @@ class _POSPageState extends ConsumerState<POSPage> {
                 size: 24,
               ),
             ),
-            tooltip: AppLocalizations.of(context)?.posDraftOrders ??
-                'Đơn hàng tạm',
+            tooltip:
+                AppLocalizations.of(context)?.posDraftOrders ?? 'Đơn hàng tạm',
             onPressed: () => DraftOrdersBottomSheet.show(context),
           ),
         ],
         backgroundColor: AppColors.white,
       ),
-      body: Column(
-        children: [
-          // Thanh tab giỏ hàng đa đơn
-          const PosCartTabBar(),
-          // Thanh tìm kiếm sản phẩm nhanh
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: l10n.searchPOSHint,
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() => _searchQuery = '');
-                        },
-                      )
-                    : null,
-                fillColor: AppColors.white,
-                filled: true,
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: AppColors.border),
+      body: MinHeightScroll(
+          minHeight: 380,
+          child: Column(
+            children: [
+              // Thanh tab giỏ hàng đa đơn
+              const PosCartTabBar(),
+              // Thanh tìm kiếm sản phẩm nhanh
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: l10n.searchPOSHint,
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() => _searchQuery = '');
+                            },
+                          )
+                        : null,
+                    fillColor: AppColors.white,
+                    filled: true,
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: AppColors.border),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: AppColors.primary),
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: AppColors.border),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
+                  ),
+                  onChanged: (v) => setState(() => _searchQuery = v),
                 ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: AppColors.primary),
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: AppColors.border),
-                ),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               ),
-              onChanged: (v) => setState(() => _searchQuery = v),
-            ),
-          ),
-          // Thanh cuộn lọc nhóm hàng / danh mục
-          PosCategoryBar(
-            selectedCategoryId: _selectedCategoryId,
-            onCategorySelected: (catId, catName) {
-              setState(() {
-                _selectedCategoryId = catId;
-                _selectedCategoryName = catName;
-              });
-            },
-          ),
-          const SizedBox(height: 6),
-          // Danh sách sản phẩm
-          Expanded(
-            child: productsAsync.when(
-              data: (products) {
-                final queryTokens = SearchTextHelper.queryTokens(_searchQuery);
-                final filtered = products.where((p) {
-                  // Hide products that are disabled / stopped selling
-                  if (!p.allowSale) return false;
+              // Thanh cuộn lọc nhóm hàng / danh mục
+              PosCategoryBar(
+                selectedCategoryId: _selectedCategoryId,
+                onCategorySelected: (catId, catName) {
+                  setState(() {
+                    _selectedCategoryId = catId;
+                    _selectedCategoryName = catName;
+                  });
+                },
+              ),
+              const SizedBox(height: 6),
+              // Danh sách sản phẩm
+              Expanded(
+                child: productsAsync.when(
+                  data: (products) {
+                    final queryTokens =
+                        SearchTextHelper.queryTokens(_searchQuery);
+                    final filtered = products.where((p) {
+                      // Hide products that are disabled / stopped selling
+                      if (!p.allowSale) return false;
 
-                  // 1) Lọc theo danh mục
-                  if (_selectedCategoryId != 'all' &&
-                      _selectedCategoryId.isNotEmpty) {
-                    final catNameLower =
-                        _selectedCategoryName.trim().toLowerCase();
-                    final catIdLower = _selectedCategoryId.trim().toLowerCase();
-                    final pCatLower = p.category.trim().toLowerCase();
-                    final matchesCategory = pCatLower == catNameLower ||
-                        pCatLower == catIdLower ||
-                        pCatLower.contains(catNameLower) ||
-                        catNameLower.contains(pCatLower);
-                    if (!matchesCategory) return false;
-                  }
+                      // 1) Lọc theo danh mục
+                      if (_selectedCategoryId != 'all' &&
+                          _selectedCategoryId.isNotEmpty) {
+                        final catNameLower =
+                            _selectedCategoryName.trim().toLowerCase();
+                        final catIdLower =
+                            _selectedCategoryId.trim().toLowerCase();
+                        final pCatLower = p.category.trim().toLowerCase();
+                        final matchesCategory = pCatLower == catNameLower ||
+                            pCatLower == catIdLower ||
+                            pCatLower.contains(catNameLower) ||
+                            catNameLower.contains(pCatLower);
+                        if (!matchesCategory) return false;
+                      }
 
-                  // 2) Lọc theo từ khóa tìm kiếm (không dấu, nhiều từ, cả mã vạch)
-                  if (queryTokens.isNotEmpty) {
-                    final haystack = SearchTextHelper.haystackOf(
-                      p,
-                      () => [p.name, p.code, p.barcode, p.brand, p.category],
-                      namespace: 'pos',
-                    );
-                    if (!SearchTextHelper.matchesTokens(
-                        haystack, queryTokens)) {
-                      return false;
+                      // 2) Lọc theo từ khóa tìm kiếm (không dấu, nhiều từ, cả mã vạch)
+                      if (queryTokens.isNotEmpty) {
+                        final haystack = SearchTextHelper.haystackOf(
+                          p,
+                          () =>
+                              [p.name, p.code, p.barcode, p.brand, p.category],
+                          namespace: 'pos',
+                        );
+                        if (!SearchTextHelper.matchesTokens(
+                            haystack, queryTokens)) {
+                          return false;
+                        }
+                      }
+
+                      return true;
+                    }).toList();
+
+                    if (filtered.isEmpty) {
+                      final hasFilter = _searchQuery.trim().isNotEmpty ||
+                          (_selectedCategoryId != 'all' &&
+                              _selectedCategoryId.isNotEmpty);
+                      return EmptyStateView(
+                        icon: hasFilter
+                            ? Icons.search_off_rounded
+                            : Icons.inventory_2_outlined,
+                        title: l10n.noProductsFound,
+                        message: hasFilter
+                            ? 'Thử từ khoá khác (có thể gõ không dấu) hoặc bỏ lọc nhóm hàng.'
+                            : null,
+                        actionLabel: hasFilter ? 'Xoá tìm kiếm & bộ lọc' : null,
+                        onAction: hasFilter
+                            ? () {
+                                _searchController.clear();
+                                setState(() {
+                                  _searchQuery = '';
+                                  _selectedCategoryId = 'all';
+                                  _selectedCategoryName = 'Tất cả';
+                                });
+                              }
+                            : null,
+                      );
                     }
-                  }
 
-                  return true;
-                }).toList();
+                    return ListView.separated(
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 4),
+                      itemCount: filtered.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemBuilder: (context, index) {
+                        final product = filtered[index];
+                        final cartItem = cart[product.id];
+                        final quantityInCart = cartItem?.quantity ?? 0;
+                        final effectiveStock = ComboHelper.getAvailableStock(
+                          product: product,
+                          branchId: selectedBranch,
+                          allProducts: products,
+                        );
 
-                if (filtered.isEmpty) {
-                  final hasFilter = _searchQuery.trim().isNotEmpty ||
-                      (_selectedCategoryId != 'all' &&
-                          _selectedCategoryId.isNotEmpty);
-                  return EmptyStateView(
-                    icon: hasFilter
-                        ? Icons.search_off_rounded
-                        : Icons.inventory_2_outlined,
-                    title: l10n.noProductsFound,
-                    message: hasFilter
-                        ? 'Thử từ khoá khác (có thể gõ không dấu) hoặc bỏ lọc nhóm hàng.'
-                        : null,
-                    actionLabel: hasFilter ? 'Xoá tìm kiếm & bộ lọc' : null,
-                    onAction: hasFilter
-                        ? () {
-                            _searchController.clear();
-                            setState(() {
-                              _searchQuery = '';
-                              _selectedCategoryId = 'all';
-                              _selectedCategoryName = 'Tất cả';
-                            });
-                          }
-                        : null,
-                  );
-                }
+                        final branchStocksText =
+                            _formatBranchStocks(product.branchStocks);
 
-                return ListView.separated(
-                  keyboardDismissBehavior:
-                      ScrollViewKeyboardDismissBehavior.onDrag,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  itemCount: filtered.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (context, index) {
-                    final product = filtered[index];
-                    final cartItem = cart[product.id];
-                    final quantityInCart = cartItem?.quantity ?? 0;
-                    final effectiveStock = ComboHelper.getAvailableStock(
-                      product: product,
-                      branchId: selectedBranch,
-                      allProducts: products,
-                    );
-
-                    final branchStocksText =
-                        _formatBranchStocks(product.branchStocks);
-
-                    return Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.white,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      padding: const EdgeInsets.all(12),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Icon/Ảnh sản phẩm
-                          ProductImageThumbnail(
-                            imageUrl:
-                                product.primaryImageUrl ?? product.imageUrl,
-                            productName: product.name,
-                            categoryName: product.category,
-                            size: 52,
-                            borderRadius: 8,
+                        return Container(
+                          decoration: BoxDecoration(
+                            color: AppColors.white,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: AppColors.border),
                           ),
-                          const SizedBox(width: 12),
-                          // Thông tin chi tiết sản phẩm
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
+                          padding: const EdgeInsets.all(12),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Icon/Ảnh sản phẩm (bỏ trên màn hình < 300dp để
+                              // nhường chỗ cho tên + nút thêm/bớt)
+                              if (MediaQuery.sizeOf(context).width >= 300) ...[
+                                ProductImageThumbnail(
+                                  imageUrl: product.primaryImageUrl ??
+                                      product.imageUrl,
+                                  productName: product.name,
+                                  categoryName: product.category,
+                                  size: 52,
+                                  borderRadius: 8,
+                                ),
+                                const SizedBox(width: 12),
+                              ],
+                              // Thông tin chi tiết sản phẩm
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Expanded(
-                                      child: Text(
-                                        product.name,
-                                        style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 14,
-                                            color: AppColors.textPrimary),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                    if (product.isCombo) ...[
-                                      const SizedBox(width: 6),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 6, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: AppColors.primary
-                                              .withOpacity(0.1),
-                                          borderRadius:
-                                              BorderRadius.circular(4),
-                                        ),
-                                        child: const Text(
-                                          'COMBO',
-                                          style: TextStyle(
-                                            fontSize: 9,
-                                            fontWeight: FontWeight.bold,
-                                            color: AppColors.primary,
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            product.name,
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 14,
+                                                color: AppColors.textPrimary),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
                                           ),
                                         ),
+                                        if (product.isCombo) ...[
+                                          const SizedBox(width: 6),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.primary
+                                                  .withOpacity(0.1),
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                            ),
+                                            child: const Text(
+                                              'COMBO',
+                                              style: TextStyle(
+                                                fontSize: 9,
+                                                fontWeight: FontWeight.bold,
+                                                color: AppColors.primary,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      '${l10n.productCode}: ${product.code}',
+                                      style: const TextStyle(
+                                          color: AppColors.textSecondary,
+                                          fontSize: 11),
+                                    ),
+                                    if (product.isCombo &&
+                                        product.comboComponents.isNotEmpty) ...[
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'Gồm: ${product.comboComponents.map((c) => "${c.quantity}x ${c.productName}").join(", ")}',
+                                        style: const TextStyle(
+                                          color: AppColors.primary,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ],
+                                    if (branchStocksText.isNotEmpty) ...[
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        branchStocksText,
+                                        style: const TextStyle(
+                                          color: AppColors.textSecondary,
+                                          fontSize: 11,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                    const SizedBox(height: 4),
+                                    Wrap(
+                                      spacing: 8,
+                                      runSpacing: 2,
+                                      crossAxisAlignment:
+                                          WrapCrossAlignment.center,
+                                      children: [
+                                        Text(
+                                          '${currencyFormat.format(product.price)} đ',
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: AppColors.primary,
+                                              fontSize: 13),
+                                        ),
+                                        _buildStockBadge(
+                                            effectiveStock, product),
+                                      ],
+                                    )
                                   ],
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  '${l10n.productCode}: ${product.code}',
-                                  style: const TextStyle(
-                                      color: AppColors.textSecondary,
-                                      fontSize: 11),
-                                ),
-                                if (product.isCombo &&
-                                    product.comboComponents.isNotEmpty) ...[
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    'Gồm: ${product.comboComponents.map((c) => "${c.quantity}x ${c.productName}").join(", ")}',
-                                    style: const TextStyle(
-                                      color: AppColors.primary,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
-                                if (branchStocksText.isNotEmpty) ...[
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    branchStocksText,
-                                    style: const TextStyle(
-                                      color: AppColors.textSecondary,
-                                      fontSize: 11,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
-                                const SizedBox(height: 4),
-                                Row(
-                                  children: [
-                                    Text(
-                                      '${currencyFormat.format(product.price)} đ',
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: AppColors.primary,
-                                          fontSize: 13),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    _buildStockBadge(effectiveStock, product),
-                                  ],
-                                )
-                              ],
-                            ),
+                              ),
+                              const SizedBox(width: 8),
+                              // Nút thêm/bớt số lượng
+                              _buildCartControl(product, quantityInCart,
+                                  effectiveStock, l10n),
+                            ],
                           ),
-                          const SizedBox(width: 8),
-                          // Nút thêm/bớt số lượng
-                          _buildCartControl(
-                              product, quantityInCart, effectiveStock, l10n),
-                        ],
-                      ),
+                        );
+                      },
                     );
                   },
-                );
-              },
-              loading: () => const Center(child: LoadingIndicator()),
-              error: (e, _) => ErrorView(
-                e,
-                onRetry: () => ref.invalidate(productListProvider),
+                  loading: () => const Center(child: LoadingIndicator()),
+                  error: (e, _) => ErrorView(
+                    e,
+                    onRetry: () => ref.invalidate(productListProvider),
+                  ),
+                ),
               ),
-            ),
-          ),
-          // Thanh trạng thái giỏ hàng dưới cùng (nếu giỏ hàng không trống)
-          if (totalItems > 0)
-            _buildCartSummaryBar(
-                context, totalItems, totalAmount, currencyFormat, l10n),
-        ],
-      ),
+              // Thanh trạng thái giỏ hàng dưới cùng (nếu giỏ hàng không trống)
+              if (totalItems > 0)
+                _buildCartSummaryBar(
+                    context, totalItems, totalAmount, currencyFormat, l10n),
+            ],
+          )),
     );
   }
 
@@ -437,6 +454,7 @@ class _POSPageState extends ConsumerState<POSPage> {
 
     final isLimitReached = quantityInCart >= effectiveStock;
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         // Nút trừ
         GestureDetector(
@@ -454,12 +472,18 @@ class _POSPageState extends ConsumerState<POSPage> {
         ),
         const SizedBox(width: 10),
         // Số lượng
-        Text(
-          '$quantityInCart',
-          style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-              color: AppColors.textPrimary),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 56),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              '$quantityInCart',
+              style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: AppColors.textPrimary),
+            ),
+          ),
         ),
         const SizedBox(width: 10),
         // Nút cộng
@@ -514,25 +538,34 @@ class _POSPageState extends ConsumerState<POSPage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                l10n.cartSummaryTitle(totalItems),
-                style: const TextStyle(
-                    fontSize: 12, color: AppColors.textSecondary),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                '${format.format(totalAmount)} đ',
-                style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 16,
-                    color: AppColors.primary),
-              ),
-            ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  l10n.cartSummaryTitle(totalItems),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      fontSize: 12, color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: 2),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    '${format.format(totalAmount)} đ',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 16,
+                        color: AppColors.primary),
+                  ),
+                ),
+              ],
+            ),
           ),
+          const SizedBox(width: 8),
           ElevatedButton(
             onPressed: () {
               final activeTab = ref.read(multiCartProvider).activeTab;
@@ -653,7 +686,7 @@ class _POSPageState extends ConsumerState<POSPage> {
       ),
       builder: (ctx) {
         return SafeArea(
-          child: Column(
+          child: SingleChildScrollView(child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               const SizedBox(height: 12),
@@ -667,7 +700,8 @@ class _POSPageState extends ConsumerState<POSPage> {
               ),
               const SizedBox(height: 12),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Text(
                   l10n?.posSelectWorkingBranch ?? 'Chọn chi nhánh làm việc',
                   style: const TextStyle(
@@ -700,7 +734,7 @@ class _POSPageState extends ConsumerState<POSPage> {
                       : null,
                   onTap: () {
                     final newBranch = entry.key;
-                    Navigator.pop(ctx);
+                    if (!closeRoute(ctx)) return;
                     if (newBranch == currentBranch) return;
 
                     final user = ref.read(authProvider);
@@ -731,7 +765,7 @@ class _POSPageState extends ConsumerState<POSPage> {
               }),
               const SizedBox(height: 12),
             ],
-          ),
+          )),
         );
       },
     );

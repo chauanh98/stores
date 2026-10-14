@@ -64,7 +64,7 @@ void main() {
     });
 
     testWidgets(
-        '2. RBAC Guard: Completely hidden when user is staff (role: nhanvien)',
+        '2. Staff (role: nhanvien) also sees the bell',
         (tester) async {
       const staffUser = UserAccount(
         username: 'staff1',
@@ -75,12 +75,11 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('notification_bell_action_button')),
-          findsNothing);
-      expect(find.byIcon(Icons.notifications_outlined), findsNothing);
+          findsOneWidget);
     });
 
     testWidgets(
-        '3. RBAC Guard: Completely hidden when user is supervisor without admin',
+        '3. Supervisor without admin also sees the bell',
         (tester) async {
       const supervisorUser = UserAccount(
         username: 'sup1',
@@ -91,7 +90,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('notification_bell_action_button')),
-          findsNothing);
+          findsOneWidget);
     });
 
     testWidgets(

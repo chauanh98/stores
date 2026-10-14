@@ -157,6 +157,7 @@ class AttendanceRemoteDataSource {
     required String storeId,
     String? dateStr, // YYYY-MM-DD
     String? userId,
+    String? monthPrefix, // YYYY-MM: giới hạn theo tháng (băng thông)
   }) async {
     final ref = _attendancesRef;
     if (ref == null) return [];
@@ -164,6 +165,13 @@ class AttendanceRemoteDataSource {
     Query query = ref;
     if (dateStr != null && dateStr.isNotEmpty) {
       query = query.orderByChild('date').equalTo(dateStr);
+    } else if (monthPrefix != null && monthPrefix.isNotEmpty) {
+      // Chỉ tải bản ghi trong tháng thay vì TOÀN BỘ lịch sử chấm công của
+      // chi nhánh; lọc chi nhánh/nhân viên vẫn ở phía client bên dưới.
+      query = query
+          .orderByChild('date')
+          .startAt(monthPrefix)
+          .endAt('$monthPrefix\uf8ff');
     } else if (storeId.isNotEmpty) {
       query = query.orderByChild('storeId').equalTo(storeId);
     } else {
@@ -183,6 +191,11 @@ class AttendanceRemoteDataSource {
               id: key.toString());
           if (storeId.isNotEmpty && model.storeId != storeId) return;
           if (dateStr != null && model.date != dateStr) return;
+          if (monthPrefix != null &&
+              dateStr == null &&
+              !model.date.startsWith(monthPrefix)) {
+            return;
+          }
           if (userId != null && userId.isNotEmpty && model.userId != userId) {
             return;
           }
@@ -191,6 +204,17 @@ class AttendanceRemoteDataSource {
       });
     }
     return list;
+  }
+
+  /// Đọc đúng 1 bản ghi chấm công theo id (thay vì tải cả lịch sử chi nhánh).
+  Future<AttendanceRecordModel?> getAttendanceById(String id) async {
+    final ref = _attendancesRef;
+    if (ref == null || id.isEmpty) return null;
+    final snap = await ref.child(id).get();
+    final val = snap.value;
+    if (!snap.exists || val is! Map) return null;
+    return AttendanceRecordModel.fromMap(Map<dynamic, dynamic>.from(val),
+        id: id);
   }
 
   Future<void> saveAttendance(AttendanceRecordModel record) async {

@@ -6,6 +6,7 @@ import '../../domain/entities/customer.dart';
 import '../../domain/entities/order.dart';
 import '../../domain/entities/return_order.dart';
 import '../../domain/entities/stock_in_receipt.dart';
+import '../../domain/entities/stock_transfer.dart';
 import '../../data/datasources/firebase/server_clock.dart';
 import '../../domain/entities/user_account.dart';
 import 'notifications_providers.dart';
@@ -92,7 +93,8 @@ class NotificationDispatcher {
     return trimmed;
   }
 
-  static String _resolveCustomerName(String? rawName, String effectiveCustomerId) {
+  static String _resolveCustomerName(
+      String? rawName, String effectiveCustomerId) {
     final trimmedName = rawName?.trim();
     if (trimmedName != null && trimmedName.isNotEmpty) {
       final lower = trimmedName.toLowerCase();
@@ -148,7 +150,8 @@ class NotificationDispatcher {
     return trimmed;
   }
 
-  static String _resolveSupplierName(String? rawName, String effectiveSupplierId) {
+  static String _resolveSupplierName(
+      String? rawName, String effectiveSupplierId) {
     final trimmedName = rawName?.trim();
     if (trimmedName != null && trimmedName.isNotEmpty) {
       final lower = trimmedName.toLowerCase();
@@ -275,9 +278,8 @@ class NotificationDispatcher {
         order.createdByName,
         order.createdBy,
       );
-      final effectiveOriginalId = _isValidString(originalOrderId)
-          ? originalOrderId.trim()
-          : order.id;
+      final effectiveOriginalId =
+          _isValidString(originalOrderId) ? originalOrderId.trim() : order.id;
 
       final notif = NotificationItem(
         id: _generateId('NOTIF_VER'),
@@ -421,6 +423,109 @@ class NotificationDispatcher {
     }
   }
 
+  /// Thông báo phiếu chuyển kho cho CẢ chi nhánh gửi lẫn chi nhánh nhận.
+  ///
+  /// [received] = false: vừa tạo phiếu (Đang chuyển); true: chi nhánh nhận đã
+  /// xác nhận nhận hàng. Nội dung KHÔNG chứa giá trị để không lộ giá vốn cho
+  /// người không có quyền xem giá.
+  Future<void> notifyStockTransfer({
+    required StockTransfer transfer,
+    required bool received,
+    String? actorName,
+  }) async {
+    final actor = (actorName != null && actorName.trim().isNotEmpty)
+        ? actorName.trim()
+        : 'Nhân viên';
+    final from = transfer.sourceStoreName;
+    final to = transfer.targetStoreName;
+    final qty =
+        received ? transfer.totalReceivedQuantity : transfer.totalQuantity;
+    final title = received
+        ? 'Nhận chuyển hàng #${transfer.code}'
+        : 'Chuyển hàng #${transfer.code}';
+    final body = received
+        ? '$actor đã nhận $qty/${transfer.totalQuantity} sản phẩm '
+            '(${transfer.itemCount} mặt hàng) từ $from tại $to.'
+        : '$actor chuyển ${transfer.itemCount} mặt hàng '
+            '(SL: ${transfer.totalQuantity}) từ $from đến $to.';
+
+    for (final storeId in {transfer.sourceStoreId, transfer.targetStoreId}) {
+      if (storeId.isEmpty) continue;
+      try {
+        final notif = NotificationItem(
+          id: _generateId('NOTIF_TRF'),
+          storeId: storeId,
+          title: title,
+          body: body,
+          type: NotificationType.stockTransfer,
+          createdAt: _now(),
+          targetRoute: 'transfer_detail',
+          targetId: transfer.id,
+          metadata: {
+            'transferId': transfer.id,
+            'transferCode': transfer.code,
+            'sourceStoreId': transfer.sourceStoreId,
+            'targetStoreId': transfer.targetStoreId,
+            'status': transfer.status.value,
+            'createdBy': actor,
+          },
+        );
+        try {
+          await _repository.addNotification(notif);
+        } catch (repoErr, repoSt) {
+          debugPrint(
+              '[NotificationDispatcher] RTDB addNotification error on notifyStockTransfer: $repoErr\n$repoSt');
+        }
+        await _syncPushNotification(storeId, notif);
+      } catch (e, stackTrace) {
+        debugPrint(
+            '[NotificationDispatcher] Failed to dispatch notifyStockTransfer: $e\n$stackTrace');
+      }
+    }
+  }
+
+  /// Thông báo khi phiếu nhập kho bị hủy.
+  Future<void> notifyStockInCancelled({
+    required String storeId,
+    required StockInReceipt receipt,
+    required String reason,
+    required String cancelledBy,
+  }) async {
+    try {
+      final code = _isValidString(receipt.importCode)
+          ? receipt.importCode.trim()
+          : receipt.id;
+      final cleanReason = _isValidString(reason) ? reason.trim() : 'Không có';
+      final notif = NotificationItem(
+        id: _generateId('NOTIF_STK_CAN'),
+        storeId: storeId,
+        title: 'Hủy phiếu nhập kho #$code',
+        body: 'Lý do: $cleanReason (Hủy bởi: $cancelledBy)',
+        type: NotificationType.inventoryImported,
+        createdAt: _now(),
+        targetRoute: 'stock_in_detail',
+        targetId: code,
+        metadata: {
+          'receiptId': receipt.id,
+          'importCode': code,
+          'totalAmount': receipt.totalAmount,
+          'cancelReason': cleanReason,
+          'cancelledBy': cancelledBy,
+        },
+      );
+      try {
+        await _repository.addNotification(notif);
+      } catch (repoErr, repoSt) {
+        debugPrint(
+            '[NotificationDispatcher] RTDB addNotification error on notifyStockInCancelled: $repoErr\n$repoSt');
+      }
+      await _syncPushNotification(storeId, notif);
+    } catch (e, stackTrace) {
+      debugPrint(
+          '[NotificationDispatcher] Failed to dispatch notifyStockInCancelled: $e\n$stackTrace');
+    }
+  }
+
   /// Dispatches an event when a stock-in receipt is successfully completed.
   ///
   /// Safe against draft or cancelled receipts (skipped).
@@ -487,9 +592,8 @@ class NotificationDispatcher {
     try {
       final customerId = _resolveCustomerId(customer.id);
       final customerName = _resolveCustomerName(customer.name, customerId);
-      final phone = _isValidString(customer.phone)
-          ? customer.phone.trim()
-          : '---';
+      final phone =
+          _isValidString(customer.phone) ? customer.phone.trim() : '---';
       final createdBy = _resolveCreator(
         user,
         customer.createdBy,
@@ -499,8 +603,7 @@ class NotificationDispatcher {
         id: _generateId('NOTIF_CUST'),
         storeId: storeId,
         title: 'Khách hàng mới',
-        body:
-            '$customerName - SĐT: $phone (Tạo bởi: $createdBy)',
+        body: '$customerName - SĐT: $phone (Tạo bởi: $createdBy)',
         type: NotificationType.customerCreated,
         createdAt: _now(),
         targetRoute: 'customer_detail',
@@ -543,8 +646,7 @@ class NotificationDispatcher {
       final effectiveId = _resolveCustomerId(customerId);
       final effectiveName = _resolveCustomerName(customerName, effectiveId);
       final createdBy = _resolveCreator(user);
-      final effectiveOrderId =
-          _isValidString(orderId) ? orderId.trim() : '---';
+      final effectiveOrderId = _isValidString(orderId) ? orderId.trim() : '---';
 
       final notif = NotificationItem(
         id: _generateId('NOTIF_DEBT'),

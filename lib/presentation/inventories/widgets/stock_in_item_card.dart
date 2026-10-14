@@ -37,6 +37,7 @@ class StockInItemCard extends StatelessWidget {
     final result = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
+        scrollable: true,
         key: const Key('delete_confirmation_dialog'),
         title: const Text('Xác nhận xóa'),
         content: const Column(

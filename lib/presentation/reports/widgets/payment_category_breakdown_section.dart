@@ -167,7 +167,7 @@ class PaymentCategoryBreakdownSection extends ConsumerWidget {
     PaymentBreakdown payment,
     NumberFormat format,
   ) {
-    if (payment.totalAmount <= 0) {
+    if (!(payment.totalAmount > 0) || !payment.totalAmount.isFinite) {
       return const SizedBox(
         height: 120,
         child: Center(
@@ -330,12 +330,19 @@ class PaymentCategoryBreakdownSection extends ConsumerWidget {
             ),
           ),
           const SizedBox(width: 6),
-          Text(
-            '${format.format(amount)} đ',
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
+          Flexible(
+            flex: 2,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerRight,
+              child: Text(
+                '${format.format(amount)} đ',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
             ),
           ),
           const SizedBox(width: 4),
@@ -453,11 +460,15 @@ class PaymentCategoryBreakdownSection extends ConsumerWidget {
                             ),
                             if (cat.quantitySold > 0) ...[
                               const SizedBox(width: 4),
-                              Text(
-                                '(${cat.quantitySold} sp)',
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  color: AppColors.textTertiary,
+                              Flexible(
+                                child: Text(
+                                  '(${cat.quantitySold} sp)',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    color: AppColors.textTertiary,
+                                  ),
                                 ),
                               ),
                             ],
@@ -469,7 +480,7 @@ class PaymentCategoryBreakdownSection extends ConsumerWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            '${cat.percentage.toStringAsFixed(1)}%',
+                            '${(cat.percentage.isFinite ? cat.percentage : 0.0).toStringAsFixed(1)}%',
                             style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
@@ -490,7 +501,9 @@ class PaymentCategoryBreakdownSection extends ConsumerWidget {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(4),
                     child: LinearProgressIndicator(
-                      value: (cat.percentage / 100).clamp(0.0, 1.0),
+                      value: cat.percentage.isFinite
+                          ? (cat.percentage / 100).clamp(0.0, 1.0)
+                          : 0.0,
                       backgroundColor: AppColors.grey100,
                       valueColor: AlwaysStoppedAnimation<Color>(color),
                       minHeight: 6,

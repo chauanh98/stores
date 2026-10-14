@@ -1,3 +1,4 @@
+import '../../common/utils/number_parsing.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -56,7 +57,7 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
   @override
   void initState() {
     super.initState();
-    final initialAmount = widget.remainingDebt.toInt();
+    final initialAmount = (widget.remainingDebt.isFinite ? widget.remainingDebt.toInt() : 0);
     _amountController = TextEditingController(
       text: _currencyFormat.format(initialAmount),
     );
@@ -74,7 +75,7 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
 
   double get _parsedAmount {
     final digits = _amountController.text.replaceAll(RegExp(r'\D'), '');
-    return double.tryParse(digits) ?? 0.0;
+    return tryParseFinite(digits) ?? 0.0;
   }
 
   Future<void> _submit() async {
@@ -151,8 +152,8 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(l10n?.orderCollectDebtError(e.toString()) ??
-                'Lỗi thu nợ: $e'),
+            content: Text(
+                l10n?.orderCollectDebtError(e.toString()) ?? 'Lỗi thu nợ: $e'),
             backgroundColor: AppColors.danger,
           ),
         );
@@ -311,11 +312,12 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
                 // Quick buttons for full collection
                 Row(
                   children: [
-                    InkWell(
+                    Flexible(
+                        child: InkWell(
                       onTap: () {
                         setState(() {
                           _amountController.text = _currencyFormat
-                              .format(widget.remainingDebt.toInt());
+                              .format((widget.remainingDebt.isFinite ? widget.remainingDebt.toInt() : 0));
                         });
                       },
                       child: Container(
@@ -329,6 +331,8 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
                         ),
                         child: Text(
                           l10n?.orderCollectAllDebt ?? 'Thu toàn bộ nợ',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
@@ -336,7 +340,7 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
                           ),
                         ),
                       ),
-                    ),
+                    )),
                   ],
                 ),
                 const SizedBox(height: 14),
@@ -384,8 +388,11 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
                                     : AppColors.textSecondary,
                               ),
                               const SizedBox(width: 6),
-                              Text(
+                              Flexible(
+                                  child: Text(
                                 l10n?.cash ?? 'Tiền mặt',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: _paymentMethod == 'cash'
@@ -395,7 +402,7 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
                                       ? AppColors.primary
                                       : AppColors.textPrimary,
                                 ),
-                              ),
+                              )),
                             ],
                           ),
                         ),
@@ -433,8 +440,11 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
                                     : AppColors.textSecondary,
                               ),
                               const SizedBox(width: 6),
-                              Text(
+                              Flexible(
+                                  child: Text(
                                 l10n?.paymentMethodTransfer ?? 'Chuyển khoản',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: _paymentMethod == 'transfer'
@@ -444,7 +454,7 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
                                       ? AppColors.primary
                                       : AppColors.textPrimary,
                                 ),
-                              ),
+                              )),
                             ],
                           ),
                         ),
@@ -562,9 +572,12 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+        Flexible(
+          child: Text(
+            label,
+            style:
+                const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+          ),
         ),
         const SizedBox(width: 8),
         Flexible(
@@ -574,6 +587,8 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
               Flexible(
                 child: Text(
                   value,
+                  maxLines: 2,
+                  textAlign: TextAlign.end,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 13,
@@ -584,10 +599,14 @@ class _DebtCollectionDialogState extends ConsumerState<DebtCollectionDialog> {
               ),
               if (phone != null && phone.isNotEmpty) ...[
                 const SizedBox(width: 4),
-                Text(
-                  '($phone)',
-                  style: const TextStyle(
-                      fontSize: 12, color: AppColors.textTertiary),
+                Flexible(
+                  child: Text(
+                    '($phone)',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontSize: 12, color: AppColors.textTertiary),
+                  ),
                 ),
               ],
             ],

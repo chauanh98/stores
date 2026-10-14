@@ -367,7 +367,8 @@ class CustomersPageState extends ConsumerState<CustomersPage> {
                   ),
                 if (activeFilterCount > 0) ...[
                   const SizedBox(width: 8),
-                  InkWell(
+                  Flexible(
+                      child: InkWell(
                     key: const Key('reset_customer_filters_button'),
                     onTap: () {
                       ref.read(customerDebtFilterProvider.notifier).state =
@@ -399,18 +400,22 @@ class CustomersPageState extends ConsumerState<CustomersPage> {
                           const Icon(Icons.refresh,
                               size: 14, color: AppColors.primary),
                           const SizedBox(width: 4),
-                          Text(
-                            l10n.customerFilterResetWithCount(activeFilterCount),
+                          Flexible(
+                              child: Text(
+                            l10n.customerFilterResetWithCount(
+                                activeFilterCount),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
                               color: AppColors.primary,
                             ),
-                          ),
+                          )),
                         ],
                       ),
                     ),
-                  ),
+                  )),
                 ],
               ],
             ),
@@ -457,106 +462,125 @@ class CustomersPageState extends ConsumerState<CustomersPage> {
                 final displayItems =
                     activeListItems.take(_currentLimit).toList();
 
-                return Column(
-                  children: [
-                    _buildTotalSummaryCard(
-                      customersList,
-                      l10n,
-                      canViewDebtSummary: canViewDebtSummary,
-                      canViewTotalSales: canViewTotalSales,
-                    ),
-                    Expanded(
-                      child: activeListItems.isEmpty
-                          ? Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                      searchQuery.isNotEmpty
-                                          ? Icons.search_off
-                                          : Icons.people_outline,
-                                      size: 64,
-                                      color: AppColors.grey400),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    searchQuery.isNotEmpty
-                                        ? l10n.notFound
-                                        : l10n.noCustomersFound,
-                                    style: const TextStyle(
-                                        fontSize: 18, color: AppColors.grey400),
-                                  ),
-                                  if (searchQuery.isNotEmpty)
+                return LayoutBuilder(builder: (context, box) {
+                  return Column(
+                    children: [
+                      // Cap the card so tiny screens / huge text keep room for the list.
+                      ConstrainedBox(
+                        constraints:
+                            BoxConstraints(maxHeight: box.maxHeight * 0.5),
+                        child: SingleChildScrollView(
+                          child: _buildTotalSummaryCard(
+                            customersList,
+                            l10n,
+                            canViewDebtSummary: canViewDebtSummary,
+                            canViewTotalSales: canViewTotalSales,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: activeListItems.isEmpty
+                            ? Center(
+                                child: SingleChildScrollView(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                        searchQuery.isNotEmpty
+                                            ? Icons.search_off
+                                            : Icons.people_outline,
+                                        size: 64,
+                                        color: AppColors.grey400),
+                                    const SizedBox(height: 16),
                                     Text(
-                                      l10n.tryAdjustingSearch,
+                                      searchQuery.isNotEmpty
+                                          ? l10n.notFound
+                                          : l10n.noCustomersFound,
                                       style: const TextStyle(
+                                          fontSize: 18,
                                           color: AppColors.grey400),
                                     ),
-                                ],
-                              ),
-                            )
-                          : RefreshIndicator(
-                              onRefresh: () async {
-                                _locallyDeletedCustomerIds.clear();
-                                await ref
-                                    .read(customerListNotifierProvider.notifier)
-                                    .refresh();
-                              },
-                              child: ListView.builder(
-                                controller: _scrollController,
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 16),
-                                itemCount: displayItems.length,
-                                itemBuilder: (context, index) {
-                                  final item = displayItems[index];
-                                  if (item is String) {
-                                    return Padding(
-                                      padding: const EdgeInsets.only(
-                                          top: 16, bottom: 8),
-                                      child: Row(
-                                        children: [
-                                          Text(
-                                            item,
-                                            style: const TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.bold,
-                                              color: AppColors.textTertiary,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          const Expanded(
-                                            child: Divider(
-                                              color: AppColors.grey300,
-                                              thickness: 1,
-                                            ),
-                                          ),
-                                        ],
+                                    if (searchQuery.isNotEmpty)
+                                      Text(
+                                        l10n.tryAdjustingSearch,
+                                        style: const TextStyle(
+                                            color: AppColors.grey400),
                                       ),
-                                    );
-                                  }
-                                  final customer = item as Customer;
-                                  if (_locallyDeletedCustomerIds.contains(customer.id)) {
-                                    return const SizedBox.shrink();
-                                  }
-                                  return CustomerListTile(
-                                    key: ValueKey('customer_tile_${customer.id}'),
-                                    customer: customer,
-                                    onDeleted: () {
-                                      setState(() {
-                                        _locallyDeletedCustomerIds.add(customer.id);
-                                      });
-                                    },
-                                    onDeleteFailed: () {
-                                      setState(() {
-                                        _locallyDeletedCustomerIds.remove(customer.id);
-                                      });
-                                    },
-                                  );
+                                  ],
+                                ),
+                              ))
+                            : RefreshIndicator(
+                                onRefresh: () async {
+                                  _locallyDeletedCustomerIds.clear();
+                                  await ref
+                                      .read(
+                                          customerListNotifierProvider.notifier)
+                                      .refresh();
                                 },
+                                child: ListView.builder(
+                                  controller: _scrollController,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16),
+                                  itemCount: displayItems.length,
+                                  itemBuilder: (context, index) {
+                                    final item = displayItems[index];
+                                    if (item is String) {
+                                      return Padding(
+                                        padding: const EdgeInsets.only(
+                                            top: 16, bottom: 8),
+                                        child: Row(
+                                          children: [
+                                            Flexible(
+                                                child: Text(
+                                              item,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.bold,
+                                                color: AppColors.textTertiary,
+                                              ),
+                                            )),
+                                            const SizedBox(width: 8),
+                                            const Expanded(
+                                              child: Divider(
+                                                color: AppColors.grey300,
+                                                thickness: 1,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    }
+                                    final customer = item as Customer;
+                                    if (_locallyDeletedCustomerIds
+                                        .contains(customer.id)) {
+                                      return const SizedBox.shrink();
+                                    }
+                                    return CustomerListTile(
+                                      key: ValueKey(
+                                          'customer_tile_${customer.id}'),
+                                      customer: customer,
+                                      onDeleted: () {
+                                        setState(() {
+                                          _locallyDeletedCustomerIds
+                                              .add(customer.id);
+                                        });
+                                      },
+                                      onDeleteFailed: () {
+                                        setState(() {
+                                          _locallyDeletedCustomerIds
+                                              .remove(customer.id);
+                                        });
+                                      },
+                                    );
+                                  },
+                                ),
                               ),
-                            ),
-                    ),
-                  ],
-                );
+                      ),
+                    ],
+                  );
+                });
               },
               loading: () => const LoadingIndicator(),
               error: (error, stack) => ErrorView(error),
@@ -874,7 +898,8 @@ class CustomersPageState extends ConsumerState<CustomersPage> {
                   (c.totalSales! - c.netSales!).clamp(0.0, double.infinity);
               final remainingReturn = (returnedForCustomer - alreadyDeducted)
                   .clamp(0.0, double.infinity);
-              effSales = (rawSales - remainingReturn).clamp(0.0, double.infinity);
+              effSales =
+                  (rawSales - remainingReturn).clamp(0.0, double.infinity);
             } else {
               effSales =
                   (rawSales - returnedForCustomer).clamp(0.0, double.infinity);
@@ -935,21 +960,25 @@ class CustomersPageState extends ConsumerState<CustomersPage> {
                   ),
                 )
               else
-                Row(
+                Flexible(
+                    child: Row(
                   children: [
                     const Icon(Icons.people_alt_outlined,
                         size: 16, color: AppColors.primary),
                     const SizedBox(width: 6),
-                    Text(
+                    Flexible(
+                        child: Text(
                       l10n.customers,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 13,
                         color: AppColors.textPrimary,
                       ),
-                    ),
+                    )),
                   ],
-                ),
+                )),
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
@@ -1002,7 +1031,8 @@ class CustomersPageState extends ConsumerState<CustomersPage> {
                 ),
                 if (totalDebtSum > 0) ...[
                   const SizedBox(width: 8),
-                  Container(
+                  Flexible(
+                      child: Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 7, vertical: 2.5),
                     decoration: BoxDecoration(
@@ -1015,13 +1045,15 @@ class CustomersPageState extends ConsumerState<CustomersPage> {
                     ),
                     child: Text(
                       l10n.customerDebtNeedCollect,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
                         color: AppColors.danger,
                       ),
                     ),
-                  ),
+                  )),
                 ],
               ],
             ),
@@ -1117,6 +1149,7 @@ class CustomersPageState extends ConsumerState<CustomersPage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Flexible(
+                flex: 3,
                 child: Text(
                   label,
                   style: TextStyle(
@@ -1130,25 +1163,30 @@ class CustomersPageState extends ConsumerState<CustomersPage> {
                 ),
               ),
               const SizedBox(width: 4),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? selectedTextColor.withOpacity(0.15)
-                      : AppColors.grey200,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  count.toString(),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: isSelected
-                        ? selectedTextColor
-                        : AppColors.textSecondary,
-                  ),
-                ),
-              ),
+              Flexible(
+                  flex: 2,
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? selectedTextColor.withOpacity(0.15)
+                          : AppColors.grey200,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      count.toString(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: isSelected
+                            ? selectedTextColor
+                            : AppColors.textSecondary,
+                      ),
+                    ),
+                  )),
             ],
           ),
         ),

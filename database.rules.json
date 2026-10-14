@@ -2,6 +2,15 @@
   "rules": {
     ".read": true,
     ".write": true,
+    "stock_transfers": {
+      ".indexOn": [
+        "sourceStoreId",
+        "targetStoreId",
+        "createdAt",
+        "status",
+        "code"
+      ]
+    },
     "stores": {
       "$storeId": {
         "orders": {

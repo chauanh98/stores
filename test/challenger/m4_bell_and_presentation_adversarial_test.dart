@@ -140,7 +140,7 @@ void main() {
     // -------------------------------------------------------------------------
     // GROUP 1: MULTI-ROLE RBAC SUPPRESSION
     // -------------------------------------------------------------------------
-    group('1. Multi-role RBAC suppression', () {
+    group('1. Multi-role bell visibility (all authenticated roles)', () {
       final nonAdminRoles = [
         {'role': 'nhanvien', 'name': 'Staff'},
         {'role': 'thungan', 'name': 'Cashier'},
@@ -158,7 +158,7 @@ void main() {
         final name = item['name']!;
 
         testWidgets(
-            'RBAC suppression: role "$role" ($name) renders strictly as SizedBox.shrink (zero size, zero IconButton)',
+            'RBAC: role "$role" ($name) sees the bell with unread badge',
             (tester) async {
           final user = UserAccount(
             username: 'user_${role.isEmpty ? "empty" : role}',
@@ -179,35 +179,13 @@ void main() {
           );
           await tester.pumpAndSettle();
 
-          // 1. Zero IconButton found
-          expect(find.byType(IconButton), findsNothing,
-              reason: 'Role $role must not render any IconButton');
+          // Every authenticated role (staff included) now sees the bell;
+          // only unauthenticated sessions are suppressed.
           expect(find.byKey(const Key('notification_bell_action_button')),
-              findsNothing,
-              reason: 'Role $role bell action button key must not exist');
-
-          // 2. Zero notification icons or badges
-          expect(find.byIcon(Icons.notifications), findsNothing);
-          expect(find.byIcon(Icons.notifications_outlined), findsNothing);
-          expect(find.byType(Badge), findsNothing);
-
-          // 3. Rendered size must be strictly Size.zero
-          final bellFinder = find.byType(NotificationBellAction);
-          expect(bellFinder, findsOneWidget);
-          final size = tester.getSize(bellFinder);
-          expect(size, equals(Size.zero),
-              reason:
-                  'Role $role must render with zero dimensions (SizedBox.shrink)');
-
-          // 4. Verify descendants contain SizedBox with width 0 and height 0
-          final sizedBoxWidget = tester.widget<SizedBox>(
-            find.descendant(
-              of: bellFinder,
-              matching: find.byType(SizedBox),
-            ),
-          );
-          expect(sizedBoxWidget.width, equals(0.0));
-          expect(sizedBoxWidget.height, equals(0.0));
+              findsOneWidget,
+              reason: 'Role $role must see the bell');
+          expect(find.byType(Badge), findsOneWidget);
+          expect(find.text('10'), findsOneWidget);
         });
       }
 
@@ -400,10 +378,10 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        // 1. Initial State: Staff -> Bell hidden
+        // 1. Initial State: Staff -> Bell visible too
         expect(find.byKey(const Key('notification_bell_action_button')),
-            findsNothing);
-        expect(find.byType(IconButton), findsNothing);
+            findsOneWidget);
+        expect(find.text('5'), findsOneWidget);
 
         // 2. Promote to Admin -> Bell immediately appears with unread count 5
         authNotifier.setUser(const UserAccount(
@@ -440,7 +418,7 @@ void main() {
         expect(find.byKey(const Key('notification_bell_action_button')),
             findsOneWidget);
 
-        // 6. Demote to Cashier (thungan) -> Bell immediately vanishes
+        // 6. Demote to Cashier (thungan) -> Bell stays (all roles are notified)
         authNotifier.setUser(const UserAccount(
           username: 'cashier1',
           role: 'thungan',
@@ -448,8 +426,7 @@ void main() {
         ));
         await tester.pump();
         expect(find.byKey(const Key('notification_bell_action_button')),
-            findsNothing);
-        expect(find.byType(IconButton), findsNothing);
+            findsOneWidget);
 
         // 7. Demote to null (logout) -> Bell remains hidden
         authNotifier.setUser(null);

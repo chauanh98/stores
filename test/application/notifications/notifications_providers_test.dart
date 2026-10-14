@@ -171,7 +171,7 @@ void main() {
   });
 
   group('1. RBAC & Bandwidth Guard (notificationStreamProvider)', () {
-    test('Staff user receives empty stream and watchNotifications is NOT called',
+    test('Staff user listens to own store; amounts masked, debt hidden',
         () async {
       final container = ProviderContainer(
         overrides: [
@@ -182,14 +182,34 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      final emitted = await container.read(notificationStreamProvider.future);
+      final future = container.read(notificationStreamProvider.future);
+      await Future<void>.delayed(Duration.zero);
+      mockRepo.streamController.add([
+        NotificationItem(
+          id: '1',
+          storeId: 'store_001',
+          title: 'Phiếu nhập kho #A',
+          body: '1.250.000đ - NCC: Abc (Lập bởi: X)',
+          type: NotificationType.inventoryImported,
+          createdAt: DateTime(2026),
+        ),
+        NotificationItem(
+          id: '2',
+          storeId: 'store_001',
+          title: 'Ghi nhận nợ mới',
+          body: 'Ghi nợ 5.000đ',
+          type: NotificationType.customerDebtAdded,
+          createdAt: DateTime(2026),
+        ),
+      ]);
+      final emitted = await future;
 
-      expect(emitted, isEmpty);
-      expect(mockRepo.watchNotificationsCallCount, equals(0),
-          reason: 'Non-admin staff must not trigger any Firebase stream query');
+      expect(mockRepo.watchNotificationsCallCount, equals(1));
+      expect(emitted.length, 1);
+      expect(emitted.first.body, 'NCC: Abc (Lập bởi: X)');
     });
 
-    test('Supervisor user receives empty stream and watchNotifications is NOT called',
+    test('Supervisor user listens to own store and sees full content',
         () async {
       final container = ProviderContainer(
         overrides: [
@@ -200,13 +220,15 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      final emitted = await container.read(notificationStreamProvider.future);
-
-      expect(emitted, isEmpty);
-      expect(mockRepo.watchNotificationsCallCount, equals(0));
+      final future = container.read(notificationStreamProvider.future);
+      await Future<void>.delayed(Duration.zero);
+      mockRepo.streamController.add(const []);
+      expect(await future, isEmpty);
+      expect(mockRepo.watchNotificationsCallCount, equals(1));
     });
 
-    test('Unauthenticated user (null) receives empty stream without calling repository',
+    test(
+        'Unauthenticated user (null) receives empty stream without calling repository',
         () async {
       final container = ProviderContainer(
         overrides: [
@@ -536,7 +558,8 @@ void main() {
           equals(const AsyncData<void>(null)));
     });
 
-    test('deleteNotification calls repository with active storeId and target ID',
+    test(
+        'deleteNotification calls repository with active storeId and target ID',
         () async {
       final container = ProviderContainer(
         overrides: [
@@ -598,7 +621,8 @@ void main() {
   });
 
   group('5. Data Source & Repository Provider Construction', () {
-    test('notificationRemoteDataSourceProvider constructs safely with mock database',
+    test(
+        'notificationRemoteDataSourceProvider constructs safely with mock database',
         () {
       final mockDb = MockFirebaseDatabase();
       final container = ProviderContainer(

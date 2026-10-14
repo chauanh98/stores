@@ -1310,7 +1310,7 @@ void main() {
         expect(_supervisorUser.isStaff, isFalse);
         expect(_supervisorUser.isAdmin, isFalse);
         expect(_supervisorUser.isSupervisor, isTrue);
-        expect(_supervisorUser.canSwitchStore, isFalse);
+        expect(_supervisorUser.canSwitchStore, isTrue); // isAdmin || isSupervisor
         expect(_supervisorUser.canManageProducts, isTrue);
         expect(_supervisorUser.canViewCostPrice, isTrue); // Supervisor permission!
         expect(_supervisorUser.canViewDebtSummary, isTrue);

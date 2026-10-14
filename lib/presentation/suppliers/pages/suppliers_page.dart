@@ -98,6 +98,7 @@ class SuppliersPageState extends ConsumerState<SuppliersPage> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: null,
         onPressed: () {
           Navigator.of(context).push(
             MaterialPageRoute(
@@ -117,126 +118,149 @@ class SuppliersPageState extends ConsumerState<SuppliersPage> {
             ref.read(supplierListNotifierProvider.notifier).refresh(),
         child: Column(
           children: [
-            // KPI Summary Header
-            Container(
-              color: AppColors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _buildKpiCard(
-                      title: 'Tổng NCC',
-                      value: '${kpis.totalSuppliers}',
-                      color: AppColors.primary,
-                      icon: Icons.business,
+            // Fixed chrome (KPIs + search + chips): bounded & scrollable so tiny
+            // screens / huge text still leave room for the list.
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.5),
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    // KPI Summary Header
+                    Container(
+                      color: AppColors.white,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: _buildKpiCard(
+                              title: 'Tổng NCC',
+                              value: '${kpis.totalSuppliers}',
+                              color: AppColors.primary,
+                              icon: Icons.business,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _buildKpiCard(
+                              title: 'Tổng mua',
+                              value:
+                                  '${currencyFormat.format(kpis.totalPurchase)} đ',
+                              color: AppColors.textPrimary,
+                              icon: Icons.shopping_bag_outlined,
+                              isSmall: true,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _buildKpiCard(
+                              title: 'Tổng nợ NCC',
+                              value:
+                                  '${currencyFormat.format(kpis.totalDebt)} đ',
+                              color: AppColors.danger,
+                              icon: Icons.account_balance_wallet_outlined,
+                              isSmall: true,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _buildKpiCard(
-                      title: 'Tổng mua',
-                      value: '${currencyFormat.format(kpis.totalPurchase)} đ',
-                      color: AppColors.textPrimary,
-                      icon: Icons.shopping_bag_outlined,
-                      isSmall: true,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _buildKpiCard(
-                      title: 'Tổng nợ NCC',
-                      value: '${currencyFormat.format(kpis.totalDebt)} đ',
-                      color: AppColors.danger,
-                      icon: Icons.account_balance_wallet_outlined,
-                      isSmall: true,
-                    ),
-                  ),
-                ],
-              ),
-            ),
 
-            // Search Bar & Filter Chips
-            Container(
-              color: AppColors.white,
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-              child: Column(
-                children: [
-                  TextField(
-                    controller: _searchController,
-                    onChanged: (v) {
-                      ref.read(supplierSearchQueryProvider.notifier).state = v;
-                    },
-                    decoration: InputDecoration(
-                      hintText: 'Tìm theo tên, mã NCC, SĐT, địa chỉ...',
-                      prefixIcon: const Icon(Icons.search, size: 20),
-                      suffixIcon: _searchController.text.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear, size: 18),
-                              onPressed: () {
-                                _searchController.clear();
-                                ref
-                                    .read(supplierSearchQueryProvider.notifier)
-                                    .state = '';
-                              },
-                            )
-                          : null,
-                      filled: true,
-                      fillColor: AppColors.surface,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide:
-                            const BorderSide(color: AppColors.borderLight),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide:
-                            const BorderSide(color: AppColors.borderLight),
+                    // Search Bar & Filter Chips
+                    Container(
+                      color: AppColors.white,
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                      child: Column(
+                        children: [
+                          TextField(
+                            controller: _searchController,
+                            onChanged: (v) {
+                              ref
+                                  .read(supplierSearchQueryProvider.notifier)
+                                  .state = v;
+                            },
+                            decoration: InputDecoration(
+                              hintText: 'Tìm theo tên, mã NCC, SĐT, địa chỉ...',
+                              prefixIcon: const Icon(Icons.search, size: 20),
+                              suffixIcon: _searchController.text.isNotEmpty
+                                  ? IconButton(
+                                      icon: const Icon(Icons.clear, size: 18),
+                                      onPressed: () {
+                                        _searchController.clear();
+                                        ref
+                                            .read(supplierSearchQueryProvider
+                                                .notifier)
+                                            .state = '';
+                                      },
+                                    )
+                                  : null,
+                              filled: true,
+                              fillColor: AppColors.surface,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 10,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: const BorderSide(
+                                    color: AppColors.borderLight),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: const BorderSide(
+                                    color: AppColors.borderLight),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              _buildFilterChip(
+                                label: 'Tất cả',
+                                isSelected:
+                                    filterStatus == SupplierFilterStatus.all,
+                                onTap: () {
+                                  ref
+                                      .read(
+                                          supplierFilterStatusProvider.notifier)
+                                      .state = SupplierFilterStatus.all;
+                                },
+                              ),
+                              _buildFilterChip(
+                                label: 'Còn nợ',
+                                isSelected: filterStatus ==
+                                    SupplierFilterStatus.hasDebt,
+                                onTap: () {
+                                  ref
+                                      .read(
+                                          supplierFilterStatusProvider.notifier)
+                                      .state = SupplierFilterStatus.hasDebt;
+                                },
+                              ),
+                              _buildFilterChip(
+                                label: 'Hết nợ',
+                                isSelected:
+                                    filterStatus == SupplierFilterStatus.noDebt,
+                                onTap: () {
+                                  ref
+                                      .read(
+                                          supplierFilterStatusProvider.notifier)
+                                      .state = SupplierFilterStatus.noDebt;
+                                },
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      _buildFilterChip(
-                        label: 'Tất cả',
-                        isSelected: filterStatus == SupplierFilterStatus.all,
-                        onTap: () {
-                          ref
-                              .read(supplierFilterStatusProvider.notifier)
-                              .state = SupplierFilterStatus.all;
-                        },
-                      ),
-                      const SizedBox(width: 8),
-                      _buildFilterChip(
-                        label: 'Còn nợ',
-                        isSelected:
-                            filterStatus == SupplierFilterStatus.hasDebt,
-                        onTap: () {
-                          ref
-                              .read(supplierFilterStatusProvider.notifier)
-                              .state = SupplierFilterStatus.hasDebt;
-                        },
-                      ),
-                      const SizedBox(width: 8),
-                      _buildFilterChip(
-                        label: 'Hết nợ',
-                        isSelected: filterStatus == SupplierFilterStatus.noDebt,
-                        onTap: () {
-                          ref
-                              .read(supplierFilterStatusProvider.notifier)
-                              .state = SupplierFilterStatus.noDebt;
-                        },
-                      ),
-                    ],
-                  ),
-                ],
+                    const Divider(height: 1, color: AppColors.borderLight),
+                  ],
+                ),
               ),
             ),
-            const Divider(height: 1, color: AppColors.borderLight),
 
             // Supplier List
             Expanded(
@@ -251,7 +275,7 @@ class SuppliersPageState extends ConsumerState<SuppliersPage> {
                 data: (suppliers) {
                   if (suppliers.isEmpty) {
                     return Center(
-                      child: Padding(
+                      child: SingleChildScrollView(
                         padding: const EdgeInsets.all(24.0),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -338,26 +362,33 @@ class SuppliersPageState extends ConsumerState<SuppliersPage> {
             children: [
               Icon(icon, size: 14, color: AppColors.textSecondary),
               const SizedBox(width: 4),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w500,
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: isSmall ? 12 : 15,
-              fontWeight: FontWeight.bold,
-              color: color,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: isSmall ? 12 : 15,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+              maxLines: 1,
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),

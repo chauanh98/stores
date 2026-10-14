@@ -36,66 +36,87 @@ class StockInExitDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // On very short viewports (tiny phones / large text) the action buttons
+    // would be pinned below the scrollable area and overflow the dialog, so
+    // they are moved into the scrollable body instead.
+    final compact = MediaQuery.sizeOf(context).height < 520;
+    final actionWidgets = _actions(context);
     return AlertDialog(
+      scrollable: true,
       key: const Key('exit_receipt_dialog'),
       title: const Text(
         'Xác nhận thoát',
         style: TextStyle(fontWeight: FontWeight.bold),
       ),
-      content: const Text(
-        'Phiếu nhập kho chưa được hoàn thành. Bạn có muốn lưu tạm để tiếp tục sau không?',
-        style: TextStyle(fontSize: 14, height: 1.4),
-      ),
+      content: compact
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'Phiếu nhập kho chưa được hoàn thành. Bạn có muốn lưu tạm để tiếp tục sau không?',
+                  style: TextStyle(fontSize: 14, height: 1.4),
+                ),
+                const SizedBox(height: 8),
+                ...actionWidgets,
+              ],
+            )
+          : const Text(
+              'Phiếu nhập kho chưa được hoàn thành. Bạn có muốn lưu tạm để tiếp tục sau không?',
+              style: TextStyle(fontSize: 14, height: 1.4),
+            ),
       actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      actions: [
-        // Choice 3: "Ở lại"
-        TextButton(
-          key: const Key('dialog_choice_stay'),
-          onPressed: () {
-            if (onStay != null) {
-              onStay!();
-            } else {
-              Navigator.of(context).pop(StockInExitChoice.stay);
-            }
-          },
-          child: const Text('Ở lại'),
-        ),
-        // Choice 2: "Rời khỏi"
-        TextButton(
-          key: const Key('dialog_choice_exit'),
-          style: TextButton.styleFrom(foregroundColor: AppColors.danger),
-          onPressed: () {
-            if (onExitDiscard != null) {
-              onExitDiscard!();
-            } else {
-              Navigator.of(context).pop(StockInExitChoice.exit);
-            }
-          },
-          child: const Text('Rời khỏi'),
-        ),
-        // Choice 1: "Lưu tạm"
-        ElevatedButton(
-          key: const Key('dialog_choice_draft'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primaryAction,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          ),
-          onPressed: () {
-            if (onSaveDraft != null) {
-              onSaveDraft!();
-            } else {
-              Navigator.of(context).pop(StockInExitChoice.saveDraft);
-            }
-          },
-          child: const Text(
-            'Lưu tạm',
-            style:
-                TextStyle(color: AppColors.white, fontWeight: FontWeight.bold),
-          ),
-        ),
-      ],
+      actions: compact ? null : actionWidgets,
     );
+  }
+
+  List<Widget> _actions(BuildContext context) {
+    return [
+      // Choice 3: "Ở lại"
+      TextButton(
+        key: const Key('dialog_choice_stay'),
+        onPressed: () {
+          if (onStay != null) {
+            onStay!();
+          } else {
+            Navigator.of(context).pop(StockInExitChoice.stay);
+          }
+        },
+        child: const Text('Ở lại'),
+      ),
+      // Choice 2: "Rời khỏi"
+      TextButton(
+        key: const Key('dialog_choice_exit'),
+        style: TextButton.styleFrom(foregroundColor: AppColors.danger),
+        onPressed: () {
+          if (onExitDiscard != null) {
+            onExitDiscard!();
+          } else {
+            Navigator.of(context).pop(StockInExitChoice.exit);
+          }
+        },
+        child: const Text('Rời khỏi'),
+      ),
+      // Choice 1: "Lưu tạm"
+      ElevatedButton(
+        key: const Key('dialog_choice_draft'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primaryAction,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+        onPressed: () {
+          if (onSaveDraft != null) {
+            onSaveDraft!();
+          } else {
+            Navigator.of(context).pop(StockInExitChoice.saveDraft);
+          }
+        },
+        child: const Text(
+          'Lưu tạm',
+          style: TextStyle(color: AppColors.white, fontWeight: FontWeight.bold),
+        ),
+      ),
+    ];
   }
 }
 

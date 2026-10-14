@@ -126,43 +126,50 @@ class GpsStatusCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: isWithinRadius
-                        ? AppColors.successLight
-                        : AppColors.warningLight,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        isWithinRadius
-                            ? Icons.check_circle
-                            : Icons.warning_amber_rounded,
-                        size: 16,
+                ConstrainedBox(
+                    constraints: BoxConstraints(
+                        maxWidth: MediaQuery.sizeOf(context).width * 0.45),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
                         color: isWithinRadius
-                            ? AppColors.success
-                            : AppColors.warningDark,
+                            ? AppColors.successLight
+                            : AppColors.warningLight,
+                        borderRadius: BorderRadius.circular(20),
                       ),
-                      const SizedBox(width: 4),
-                      Text(
-                        isWithinRadius
-                            ? 'Hợp lệ (<= ${maxRadius.toInt()}m)'
-                            : 'Cảnh báo (> ${maxRadius.toInt()}m)',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: isWithinRadius
-                              ? AppColors.success
-                              : AppColors.warningDark,
-                        ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            isWithinRadius
+                                ? Icons.check_circle
+                                : Icons.warning_amber_rounded,
+                            size: 16,
+                            color: isWithinRadius
+                                ? AppColors.success
+                                : AppColors.warningDark,
+                          ),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              isWithinRadius
+                                  ? 'Hợp lệ (<= ${maxRadius.toInt()}m)'
+                                  : 'Cảnh báo (> ${maxRadius.toInt()}m)',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: isWithinRadius
+                                    ? AppColors.success
+                                    : AppColors.warningDark,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
+                    )),
               ],
             ),
 
@@ -218,7 +225,8 @@ class GpsStatusCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                PopupMenuButton<GeoPoint>(
+                Flexible(
+                    child: PopupMenuButton<GeoPoint>(
                   tooltip: 'Giả lập vị trí GPS (Hỗ trợ Test/Demo)',
                   onSelected: onSelectSimulatedLocation,
                   itemBuilder: (ctx) {
@@ -252,16 +260,19 @@ class GpsStatusCard extends StatelessWidget {
                       Icon(Icons.tune,
                           size: 14, color: AppColors.textSecondary),
                       SizedBox(width: 4),
-                      Text(
+                      Flexible(
+                          child: Text(
                         'Chế độ test tọa độ',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                             fontSize: 11,
                             color: AppColors.textSecondary,
                             decoration: TextDecoration.underline),
-                      ),
+                      )),
                     ],
                   ),
-                ),
+                )),
               ],
             ),
           ],

@@ -156,6 +156,21 @@ class _Challenger2SupplierDebtRepo
   }
 }
 
+/// Returns a skip reason (String) when any of [names] is absent, else `false`.
+/// The 21/09/2026 KiotViet exports are not checked into DATA_IMPORT.
+Object _skipIfMissing(List<String> names) {
+  for (final n in names) {
+    final exists = [
+      File(n),
+      File('../$n'),
+      File('../../$n'),
+      File('/Users/chauanh/FlutterProject/stores/$n'),
+    ].any((f) => f.existsSync());
+    if (!exists) return 'fixture file missing: $n';
+  }
+  return false;
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -422,7 +437,7 @@ void main() {
     });
   });
 
-  group('CHALLENGER 2: Per-Supplier Detailed Forensic Audit Across All 11 Real Suppliers', () {
+  group('CHALLENGER 2: Per-Supplier Detailed Forensic Audit Across All 11 Real Suppliers', skip: _skipIfMissing([receiptsFileName, suppliersFileName]), () {
     late Uint8List receiptsBytes;
     late Uint8List suppliersBytes;
     late List<StockInReceipt> realReceipts;

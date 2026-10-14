@@ -10,6 +10,7 @@ import '../../../data/repositories/order_repository_impl.dart';
 import '../../../domain/entities/customer.dart';
 import '../../customers/pages/customer_debt_page.dart';
 import '../../customers/pages/customer_detail_page.dart';
+import '../../inventories/pages/stock_transfer_detail_page.dart';
 import '../../inventories/widgets/stock_in_receipt_detail_bottom_sheet.dart';
 import '../../orders/widgets/invoice_detail_bottom_sheet.dart';
 import '../../orders/widgets/return_order_detail_bottom_sheet.dart';
@@ -68,17 +69,15 @@ class NotificationNavigationHandler {
         customerRepo = ref.read(customerRepositoryProvider);
       } catch (_) {}
       try {
-        inMemoryCustomers =
-            ref.read(customerListNotifierProvider).valueOrNull;
+        inMemoryCustomers = ref.read(customerListNotifierProvider).valueOrNull;
       } catch (_) {}
     }
 
     // 1. Mark as read immediately
     if (!notification.isRead && notifController != null) {
       try {
-        final effectiveStoreId = notification.storeId.isNotEmpty
-            ? notification.storeId
-            : storeId;
+        final effectiveStoreId =
+            notification.storeId.isNotEmpty ? notification.storeId : storeId;
         await notifController.markAsRead(
           notification.id,
           storeId: effectiveStoreId,
@@ -94,7 +93,12 @@ class NotificationNavigationHandler {
     if (targetId.isEmpty) return;
 
     // 2. Route by event category / target route
-    if (isOrder) {
+    if (targetRoute == 'transfer_detail' ||
+        notification.type == NotificationType.stockTransfer) {
+      await Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => StockTransferDetailPage(transferId: targetId),
+      ));
+    } else if (isOrder) {
       await _navigateToOrder(context, orderRepo, targetId);
     } else if (targetRoute == 'stock_in_detail' ||
         notification.category == NotificationCategory.inventory) {
@@ -172,9 +176,8 @@ class NotificationNavigationHandler {
   }) async {
     try {
       // Check in-memory cache first
-      Customer? customer = inMemoryCustomers
-          ?.where((c) => c.id == customerId)
-          .firstOrNull;
+      Customer? customer =
+          inMemoryCustomers?.where((c) => c.id == customerId).firstOrNull;
 
       if (customer == null && customerRepo != null) {
         customer = await customerRepo.fetchById(customerId);

@@ -112,6 +112,7 @@ class _SupplierDebtPaymentDialogState
     final currencyFormat = NumberFormat('#,###', 'vi_VN');
 
     return AlertDialog(
+      scrollable: true,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: Row(
         children: [
@@ -127,6 +128,8 @@ class _SupplierDebtPaymentDialogState
           const Expanded(
             child: Text(
               'Lập phiếu chi trả nợ NCC',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
           ),
@@ -152,6 +155,8 @@ class _SupplierDebtPaymentDialogState
                   children: [
                     Text(
                       widget.supplier.name,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
@@ -161,19 +166,29 @@ class _SupplierDebtPaymentDialogState
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          'Dư nợ hiện tại:',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: AppColors.textSecondary,
+                        const Flexible(
+                          child: Text(
+                            'Dư nợ hiện tại:',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textSecondary,
+                            ),
                           ),
                         ),
-                        Text(
-                          '${currencyFormat.format(widget.supplier.currentDebt)} đ',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.danger,
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              '${currencyFormat.format(widget.supplier.currentDebt)} đ',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.danger,
+                              ),
+                            ),
                           ),
                         ),
                       ],
@@ -270,7 +285,8 @@ class _SupplierDebtPaymentDialogState
                   ),
                 )
               : const Icon(Icons.check, size: 18),
-          label: const Text('Xác nhận trả nợ'),
+          label: const Text('Xác nhận trả nợ',
+              maxLines: 1, overflow: TextOverflow.ellipsis),
         ),
       ],
     );

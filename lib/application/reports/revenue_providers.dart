@@ -4,6 +4,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/services/fifo_calculator.dart';
 import '../../core/utils/store_resolver_helper.dart';
 import '../../data/datasources/firebase/inventory_remote_data_source.dart';
 import '../../data/datasources/firebase/order_remote_data_source.dart';
@@ -345,8 +346,9 @@ List<ProductRevenue> _mergeProductRevenues(
         revenue: newRevenue,
         cost: newCost,
         profit: newRevenue - newCost,
-        profitMargin:
-            ((newRevenue - newCost) / (newCost == 0 ? 1.0 : newCost)) * 100,
+        // Cùng công thức với RevenueRepositoryImpl: biên lợi nhuận trên DOANH THU
+        // (không phải trên giá vốn).
+        profitMargin: FifoCalculator.calculateProfitMargin(newRevenue, newCost),
       );
     } else {
       map[pr.productId] = pr;

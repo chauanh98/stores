@@ -67,7 +67,19 @@ class Product {
   bool get isActive => allowSale;
 
   // Tính tổng tồn của tất cả chi nhánh
-  int get stock => branchStocks.values.fold(0, (sum, val) => sum + val);
+  // `store_001`/`branch_1` và `store_002`/`branch_2` là CÙNG một chi nhánh (khoá
+  // cũ + khoá chuẩn được ghi song song): chỉ tính một lần, ưu tiên khoá chuẩn
+  // như ProductModel.fromMap, tránh cộng đôi tồn kho.
+  int get stock {
+    var sum = 0;
+    branchStocks.forEach((key, value) {
+      final k = key.trim().toLowerCase();
+      if (k == 'branch_1' && branchStocks.containsKey('store_001')) return;
+      if (k == 'branch_2' && branchStocks.containsKey('store_002')) return;
+      sum += value;
+    });
+    return sum;
+  }
 
   // Helper getters
   /// Trích xuất danh sách tất cả các URL ảnh từ chuỗi đầu vào.

@@ -1,6 +1,10 @@
+import '../../common/utils/number_parsing.dart';
 import 'package:stores/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+
+import '../../../application/inventories/stock_in_receipts_providers.dart';
 
 import '../../../domain/entities/stock_in_receipt.dart';
 import '../../../domain/entities/supplier.dart';
@@ -155,6 +159,57 @@ class _StockInPaymentConfirmationViewState
     );
   }
 
+  /// Thẻ thanh toán dành cho người KHÔNG có quyền xem giá: không hiện tổng
+  /// tiền, giảm giá, số tiền trả hay công nợ; chỉ chọn Trả đủ / Ghi nợ.
+  Widget _buildMaskedPaymentCard() {
+    final payingFull =
+        _paidAmount >= netPayable && netPayable > 0 || (netPayable <= 0);
+    return Card(
+      elevation: 0.8,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: const BorderSide(color: AppColors.grey200),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        child: Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            const Text('Tiền trả NCC:',
+                style: TextStyle(color: AppColors.textSlate600, fontSize: 14)),
+            ChoiceChip(
+              key: const Key('btn_pay_in_full'),
+              label: const Text('Trả đủ'),
+              selected: payingFull,
+              onSelected: (_) {
+                setState(() {
+                  _paidAmount = netPayable;
+                  _paidAmountController.text =
+                      _currencyFormat.format(_paidAmount);
+                });
+                _notifyParent();
+              },
+            ),
+            ChoiceChip(
+              key: const Key('btn_pay_zero'),
+              label: const Text('Ghi nợ NCC (100%)'),
+              selected: !payingFull,
+              onSelected: (_) {
+                setState(() {
+                  _paidAmount = 0.0;
+                  _paidAmountController.text = '0';
+                });
+                _notifyParent();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -279,272 +334,292 @@ class _StockInPaymentConfirmationViewState
             ),
             const SizedBox(height: 16),
 
-            // 3. Financial Summary Card
-            Card(
-              elevation: 0.8,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: const BorderSide(color: AppColors.grey200),
-              ),
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                child: Column(
-                  children: [
-                    // Tổng tiền hàng
-                    Row(
+            // 3. Financial Summary Card (đầy đủ số tiền chỉ cho vai trò có quyền
+            // xem giá; nhân viên chỉ chọn Trả đủ / Ghi nợ, không thấy số tiền)
+            Consumer(
+              builder: (context, ref, _) {
+                if (!ref.watch(canViewCostPriceProvider)) {
+                  return _buildMaskedPaymentCard();
+                }
+                return Card(
+                  elevation: 0.8,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: const BorderSide(color: AppColors.grey200),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 14),
+                    child: Column(
                       children: [
-                        const Flexible(
-                          child: Text(
-                            'Tổng tiền hàng:',
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                                color: AppColors.textSlate600, fontSize: 14),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            '${_currencyFormat.format(widget.receipt.totalAmount)} đ',
-                            key: const Key('text_total_goods_amount'),
-                            textAlign: TextAlign.end,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                              color: AppColors.textHeadline,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Giảm giá phiếu
-                    Row(
-                      children: [
-                        const Text(
-                          'Giảm giá:',
-                          style: TextStyle(
-                              color: AppColors.textSlate600, fontSize: 14),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: TextFormField(
-                            key: const Key('input_receipt_discount'),
-                            controller: _discountController,
-                            keyboardType: TextInputType.number,
-                            textAlign: TextAlign.end,
-                            decoration: InputDecoration(
-                              contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 10),
-                              border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8)),
-                              suffixText: 'đ',
-                              isDense: true,
-                            ),
-                            onChanged: (val) {
-                              final parsed = double.tryParse(val
-                                      .replaceAll('.', '')
-                                      .replaceAll(',', '')) ??
-                                  0.0;
-                              setState(() {
-                                final oldNet = netPayable;
-                                final wasFullPayment =
-                                    (_paidAmount - oldNet).abs() < 1.0;
-                                _discount = parsed;
-                                if (wasFullPayment) {
-                                  _paidAmount = netPayable;
-                                  _paidAmountController.text =
-                                      _currencyFormat.format(_paidAmount);
-                                }
-                              });
-                              _notifyParent();
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Cần trả NCC
-                    Row(
-                      children: [
-                        const Flexible(
-                          child: Text(
-                            'Cần trả NCC:',
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                              color: AppColors.textTitle,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            '${_currencyFormat.format(netPayable)} đ',
-                            key: const Key('text_net_payable'),
-                            textAlign: TextAlign.end,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.primaryAction,
-                              fontSize: 17,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const Divider(height: 24),
-
-                    // Tiền trả NCC
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Wrap(
-                          alignment: WrapAlignment.spaceBetween,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          spacing: 8,
-                          runSpacing: 6,
+                        // Tổng tiền hàng
+                        Row(
                           children: [
-                            const Text(
-                              'Tiền trả NCC:',
-                              style: TextStyle(
-                                  color: AppColors.textSlate600, fontSize: 14),
+                            const Flexible(
+                              child: Text(
+                                'Tổng tiền hàng:',
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                    color: AppColors.textSlate600,
+                                    fontSize: 14),
+                              ),
                             ),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                // Quick Action Button: Trả đủ
-                                InkWell(
-                                  key: const Key('btn_pay_in_full'),
-                                  onTap: () {
-                                    setState(() {
-                                      _paidAmount = netPayable;
-                                      _paidAmountController.text =
-                                          _currencyFormat.format(_paidAmount);
-                                    });
-                                    _notifyParent();
-                                  },
-                                  borderRadius: BorderRadius.circular(6),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 8, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.infoSubtle,
-                                      borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(
-                                          color: AppColors.infoBorder),
-                                    ),
-                                    child: const Text(
-                                      'Trả đủ',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.primaryAction,
-                                      ),
-                                    ),
-                                  ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '${_currencyFormat.format(widget.receipt.totalAmount)} đ',
+                                key: const Key('text_total_goods_amount'),
+                                textAlign: TextAlign.end,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                  color: AppColors.textHeadline,
                                 ),
-                                const SizedBox(width: 6),
-                                // Quick Action Button: Ghi nợ (0đ)
-                                InkWell(
-                                  key: const Key('btn_pay_zero'),
-                                  onTap: () {
-                                    setState(() {
-                                      _paidAmount = 0.0;
-                                      _paidAmountController.text = '0';
-                                    });
-                                    _notifyParent();
-                                  },
-                                  borderRadius: BorderRadius.circular(6),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 8, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.dangerSubtle,
-                                      borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(
-                                          color: AppColors.dangerBorder),
-                                    ),
-                                    child: const Text(
-                                      'Ghi nợ',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.dangerMedium,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
+                              ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 8),
-                        TextFormField(
-                          key: const Key('input_paid_amount'),
-                          controller: _paidAmountController,
-                          keyboardType: TextInputType.number,
-                          textAlign: TextAlign.end,
-                          decoration: InputDecoration(
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 10),
-                            border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8)),
-                            suffixText: 'đ',
-                            isDense: true,
-                          ),
-                          onChanged: (val) {
-                            final parsed = double.tryParse(val
-                                    .replaceAll('.', '')
-                                    .replaceAll(',', '')) ??
-                                0.0;
-                            setState(() {
-                              _paidAmount = parsed;
-                            });
-                            _notifyParent();
-                          },
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
+                        const SizedBox(height: 12),
 
-                    // Tính vào công nợ
-                    Row(
-                      children: [
-                        const Flexible(
-                          child: Text(
-                            'Tính vào công nợ:',
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: AppColors.dangerMedium,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
+                        // Giảm giá phiếu
+                        Row(
+                          children: [
+                            const Flexible(
+                              child: Text(
+                                'Giảm giá:',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                    color: AppColors.textSlate600,
+                                    fontSize: 14),
+                              ),
                             ),
-                          ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              flex: 2,
+                              child: TextFormField(
+                                key: const Key('input_receipt_discount'),
+                                controller: _discountController,
+                                keyboardType: TextInputType.number,
+                                textAlign: TextAlign.end,
+                                decoration: InputDecoration(
+                                  contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 10),
+                                  border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(8)),
+                                  suffixText: 'đ',
+                                  isDense: true,
+                                ),
+                                onChanged: (val) {
+                                  final parsed = tryParseFinite(val
+                                          .replaceAll('.', '')
+                                          .replaceAll(',', '')) ??
+                                      0.0;
+                                  setState(() {
+                                    final oldNet = netPayable;
+                                    final wasFullPayment =
+                                        (_paidAmount - oldNet).abs() < 1.0;
+                                    _discount = parsed;
+                                    if (wasFullPayment) {
+                                      _paidAmount = netPayable;
+                                      _paidAmountController.text =
+                                          _currencyFormat.format(_paidAmount);
+                                    }
+                                  });
+                                  _notifyParent();
+                                },
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            '${_currencyFormat.format(remainingDebt)} đ',
-                            key: const Key('text_remaining_debt'),
-                            textAlign: TextAlign.end,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.dangerMedium,
-                              fontSize: 16,
+                        const SizedBox(height: 12),
+
+                        // Cần trả NCC
+                        Row(
+                          children: [
+                            const Flexible(
+                              child: Text(
+                                'Cần trả NCC:',
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                  color: AppColors.textTitle,
+                                ),
+                              ),
                             ),
-                          ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '${_currencyFormat.format(netPayable)} đ',
+                                key: const Key('text_net_payable'),
+                                textAlign: TextAlign.end,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primaryAction,
+                                  fontSize: 17,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const Divider(height: 24),
+
+                        // Tiền trả NCC
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Wrap(
+                              alignment: WrapAlignment.spaceBetween,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: 8,
+                              runSpacing: 6,
+                              children: [
+                                const Text(
+                                  'Tiền trả NCC:',
+                                  style: TextStyle(
+                                      color: AppColors.textSlate600,
+                                      fontSize: 14),
+                                ),
+                                Wrap(
+                                  spacing: 6,
+                                  runSpacing: 6,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  children: [
+                                    // Quick Action Button: Trả đủ
+                                    InkWell(
+                                      key: const Key('btn_pay_in_full'),
+                                      onTap: () {
+                                        setState(() {
+                                          _paidAmount = netPayable;
+                                          _paidAmountController.text =
+                                              _currencyFormat
+                                                  .format(_paidAmount);
+                                        });
+                                        _notifyParent();
+                                      },
+                                      borderRadius: BorderRadius.circular(6),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.infoSubtle,
+                                          borderRadius:
+                                              BorderRadius.circular(6),
+                                          border: Border.all(
+                                              color: AppColors.infoBorder),
+                                        ),
+                                        child: const Text(
+                                          'Trả đủ',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            color: AppColors.primaryAction,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    // Quick Action Button: Ghi nợ (0đ)
+                                    InkWell(
+                                      key: const Key('btn_pay_zero'),
+                                      onTap: () {
+                                        setState(() {
+                                          _paidAmount = 0.0;
+                                          _paidAmountController.text = '0';
+                                        });
+                                        _notifyParent();
+                                      },
+                                      borderRadius: BorderRadius.circular(6),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.dangerSubtle,
+                                          borderRadius:
+                                              BorderRadius.circular(6),
+                                          border: Border.all(
+                                              color: AppColors.dangerBorder),
+                                        ),
+                                        child: const Text(
+                                          'Ghi nợ',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            color: AppColors.dangerMedium,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            TextFormField(
+                              key: const Key('input_paid_amount'),
+                              controller: _paidAmountController,
+                              keyboardType: TextInputType.number,
+                              textAlign: TextAlign.end,
+                              decoration: InputDecoration(
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 10),
+                                border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8)),
+                                suffixText: 'đ',
+                                isDense: true,
+                              ),
+                              onChanged: (val) {
+                                final parsed = tryParseFinite(val
+                                        .replaceAll('.', '')
+                                        .replaceAll(',', '')) ??
+                                    0.0;
+                                setState(() {
+                                  _paidAmount = parsed;
+                                });
+                                _notifyParent();
+                              },
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Tính vào công nợ
+                        Row(
+                          children: [
+                            const Flexible(
+                              child: Text(
+                                'Tính vào công nợ:',
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: AppColors.dangerMedium,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '${_currencyFormat.format(remainingDebt)} đ',
+                                key: const Key('text_remaining_debt'),
+                                textAlign: TextAlign.end,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.dangerMedium,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
-                ),
-              ),
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 16),
 

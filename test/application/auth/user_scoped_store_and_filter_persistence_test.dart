@@ -315,7 +315,7 @@ void main() {
     });
 
     test(
-        'Supervisor is locked to assigned storeId and cannot be affected by admin stored selection',
+        'Supervisor can switch store (canSwitchStore) but is not affected by admin stored selection',
         () async {
       SharedPreferences.setMockInitialValues({
         'selected_store_admin1': 'store_002',
@@ -331,9 +331,14 @@ void main() {
       // Supervisor primary store is store_001
       expect(container.read(currentStoreIdProvider), 'store_001');
 
-      // Attempting to change selectedStoreIdProvider does not affect supervisor operating store
+      // Admin's persisted selection ('selected_store_admin1') must not leak
+      // into the supervisor's operating store.
+      expect(container.read(selectedStoreIdProvider), isNull);
+
+      // Supervisors may switch stores (UserAccount.canSwitchStore ==
+      // isAdmin || isSupervisor): the operating store follows their selection.
       container.read(selectedStoreIdProvider.notifier).state = 'store_002';
-      expect(container.read(currentStoreIdProvider), 'store_001');
+      expect(container.read(currentStoreIdProvider), 'store_002');
     });
 
     test(

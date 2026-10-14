@@ -526,6 +526,7 @@ final cancelStockInReceiptUseCaseProvider =
     inventoryRepository: ref.watch(inventoryRepositoryProvider),
     supplierRepository: ref.watch(supplierRepositoryProvider),
     receiptRepository: ref.watch(stockInReceiptRepositoryProvider),
+    notificationDispatcher: ref.watch(notificationDispatcherProvider),
   );
 });
 
@@ -740,10 +741,10 @@ List<StockInReceipt> filterStockInReceipts(
     range = filter.customDateRange!;
   } else {
     var defaultRange = filter.timeRange.getRange();
-    if (filter.timeRange == OverviewTimeRange.thisMonth && receipts.isNotEmpty) {
-      final latestDate = receipts
-          .map((r) => r.date)
-          .reduce((a, b) => a.isAfter(b) ? a : b);
+    if (filter.timeRange == OverviewTimeRange.thisMonth &&
+        receipts.isNotEmpty) {
+      final latestDate =
+          receipts.map((r) => r.date).reduce((a, b) => a.isAfter(b) ? a : b);
       if (latestDate.isBefore(defaultRange.start)) {
         defaultRange = DateTimeRange(
           start: DateTime(latestDate.year, latestDate.month, 1),

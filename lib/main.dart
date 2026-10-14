@@ -157,8 +157,10 @@ class _AdaptiveScaffoldState extends ConsumerState<AdaptiveScaffold> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authProvider);
-    if (user != null && user.isAdmin) {
+    if (user != null) {
       ref.watch(notificationListenerServiceProvider);
+    }
+    if (user != null && user.isAdmin) {
       ref.watch(fcmTokenLifecycleManagerProvider);
     }
 

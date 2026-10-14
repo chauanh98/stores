@@ -25,7 +25,7 @@ import '../../../domain/entities/transaction_type.dart';
 import '../../common/widgets/loading_indicator.dart';
 import '../../common/widgets/product_image_thumbnail.dart';
 import '../../inventories/pages/import_inventory_page.dart';
-import '../../inventories/pages/inter_store_transfer_page.dart';
+import '../../inventories/pages/stock_transfer_create_page.dart';
 import '../../inventories/widgets/stock_in_receipt_detail_bottom_sheet.dart';
 import '../widgets/sample_image_picker_dialog.dart';
 import 'select_brand_page.dart';
@@ -313,7 +313,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                 onPressed: () {
                   Navigator.of(context).push(MaterialPageRoute(
                     builder: (context) =>
-                        InterStoreTransferPage(product: _currentProduct),
+                        StockTransferCreatePage(product: _currentProduct),
                   ));
                 },
                 tooltip: l10n.transferProduct,
@@ -694,7 +694,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
               onTap: () {
                 Navigator.of(context).push(MaterialPageRoute(
                   builder: (context) =>
-                      InterStoreTransferPage(product: _currentProduct),
+                      StockTransferCreatePage(product: _currentProduct),
                 ));
               },
             ),
@@ -822,12 +822,16 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
+          Flexible(
+              child: Row(
             children: [
-              const Text(
+              const Flexible(
+                  child: Text(
                 'Giá vốn',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
-              ),
+              )),
               const SizedBox(width: 4),
               IconButton(
                 padding: EdgeInsets.zero,
@@ -846,7 +850,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                 tooltip: 'Ẩn / Hiện giá vốn',
               ),
             ],
-          ),
+          )),
           const SizedBox(width: 8),
           Flexible(
             child: Text(
@@ -1254,11 +1258,16 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label,
-              style: const TextStyle(
-                  color: AppColors.textSecondary, fontSize: 13)),
+          Flexible(
+            child: Text(label,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                    color: AppColors.textSecondary, fontSize: 13)),
+          ),
           const SizedBox(width: 12),
           Expanded(
+            flex: 2,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.end,
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -1335,12 +1344,16 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                 ),
               ),
               const SizedBox(width: 8),
-              Text(
-                'Tổng: ${_currentProduct.stock}',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                  color: AppColors.primary,
+              Flexible(
+                child: Text(
+                  'Tổng: ${_currentProduct.stock}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: AppColors.primary,
+                  ),
                 ),
               ),
             ],
@@ -1385,7 +1398,8 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Container(
+                  Flexible(
+                      child: Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
                     decoration: BoxDecoration(
@@ -1396,6 +1410,8 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                     ),
                     child: Text(
                       '$branchStock',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 13,
@@ -1404,7 +1420,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                             : AppColors.grey600,
                       ),
                     ),
-                  ),
+                  )),
                 ],
               ),
             );
@@ -1426,12 +1442,16 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                 ),
               ),
               const SizedBox(width: 8),
-              Text(
-                '${_currentProduct.stock}',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
-                  color: AppColors.primary,
+              Flexible(
+                child: Text(
+                  '${_currentProduct.stock}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    color: AppColors.primary,
+                  ),
                 ),
               ),
             ],
@@ -1842,19 +1862,25 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
+          scrollable: true,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: const Row(
             children: [
               Icon(Icons.qr_code_2_rounded, color: AppColors.primary),
               SizedBox(width: 8),
-              Text(
-                'Mã vạch sản phẩm',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              Expanded(
+                child: Text(
+                  'Mã vạch sản phẩm',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
               ),
             ],
           ),
-          content: Column(
+          content: SingleChildScrollView(
+              child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -1922,7 +1948,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                 ),
               ),
             ],
-          ),
+          )),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
@@ -2502,23 +2528,25 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                     ),
                   ],
                 )
-              : const Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.add_photo_alternate_outlined,
-                        size: 36, color: AppColors.grey400),
-                    SizedBox(height: 6),
-                    Text('Thêm ảnh sản phẩm',
+              : const FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.add_photo_alternate_outlined,
+                          size: 36, color: AppColors.grey400),
+                      SizedBox(height: 6),
+                      Text('Thêm ảnh sản phẩm',
+                          style: TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.w600)),
+                      SizedBox(height: 2),
+                      Text(
+                        'Tự chọn ảnh hoặc lấy gợi ý ảnh mẫu thông minh',
                         style: TextStyle(
-                            fontSize: 13, fontWeight: FontWeight.w600)),
-                    SizedBox(height: 2),
-                    Text(
-                      'Tự chọn ảnh hoặc lấy gợi ý ảnh mẫu thông minh',
-                      style: TextStyle(
-                          fontSize: 11, color: AppColors.textTertiary),
-                    )
-                  ],
-                ),
+                            fontSize: 11, color: AppColors.textTertiary),
+                      )
+                    ],
+                  )),
         ),
       ),
     );
@@ -2551,7 +2579,8 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
         return SafeArea(
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: Column(
+            child: SingleChildScrollView(
+                child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 ListTile(
@@ -2634,7 +2663,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                   },
                 ),
               ],
-            ),
+            )),
           ),
         );
       },
@@ -2713,9 +2742,11 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
+          scrollable: true,
           title: const Text('Nhập Link Ảnh Online',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          content: Column(
+          content: SingleChildScrollView(
+              child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -2735,7 +2766,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                 keyboardType: TextInputType.url,
               ),
             ],
-          ),
+          )),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
@@ -3033,8 +3064,10 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
+          scrollable: true,
           title: const Text('Thêm thuộc tính'),
-          content: Column(
+          content: SingleChildScrollView(
+              child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
@@ -3051,7 +3084,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                     border: OutlineInputBorder()),
               ),
             ],
-          ),
+          )),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -3115,8 +3148,10 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
+          scrollable: true,
           title: const Text('Thêm đơn vị tính'),
-          content: Column(
+          content: SingleChildScrollView(
+              child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
@@ -3141,7 +3176,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                     labelText: 'Giá bán quy đổi', border: OutlineInputBorder()),
               ),
             ],
-          ),
+          )),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -3418,6 +3453,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        scrollable: true,
         title: Text(l10n.delete),
         content: Text('${l10n.wantToDelete} "${_currentProduct.name}"?'),
         actions: [

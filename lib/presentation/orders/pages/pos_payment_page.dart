@@ -1,4 +1,6 @@
+import '../../common/utils/number_parsing.dart';
 import 'package:flutter/material.dart';
+import '../../common/utils/route_utils.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -108,9 +110,8 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
     if (_paymentMethod == 'split') {
       actualPaid = _splitCashAmount + _splitTransferAmount;
     } else {
-      actualPaid = _paymentController.text.trim().isEmpty
-          ? 0.0
-          : _customerPayment;
+      actualPaid =
+          _paymentController.text.trim().isEmpty ? 0.0 : _customerPayment;
     }
 
     final remainingAmount = (netPay - actualPaid).clamp(0.0, double.infinity);
@@ -204,6 +205,8 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
             Expanded(
               child: Text(
                 _selectedCustomer?.name ?? (l10n?.retailCustomer ?? 'Khách lẻ'),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
@@ -213,10 +216,14 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
             ),
             if (_selectedCustomer != null &&
                 _selectedCustomer!.displayCurrentDebt > 0)
-              Padding(
+              Flexible(
+                  child: Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: Text(
-                  l10n?.orderRemainingDebtTag(currencyFormat.format(_selectedCustomer!.displayCurrentDebt)) ??
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  l10n?.orderRemainingDebtTag(currencyFormat
+                          .format(_selectedCustomer!.displayCurrentDebt)) ??
                       'Nợ: ${currencyFormat.format(_selectedCustomer!.displayCurrentDebt)}đ',
                   style: const TextStyle(
                     color: AppColors.danger,
@@ -224,7 +231,7 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-              ),
+              )),
             const Icon(Icons.chevron_right,
                 size: 18, color: AppColors.textSecondary),
           ],
@@ -238,6 +245,81 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
       Map<String, CartItem> cart, NumberFormat format) {
     final l10n = AppLocalizations.of(context);
     final totalQty = cart.values.fold<int>(0, (s, i) => s + i.quantity);
+    Widget buildCartRow(CartItem item) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    '${item.quantity}x ${item.product.name}',
+                    style: const TextStyle(
+                        fontSize: 13, color: AppColors.textPrimary),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Flexible(
+                  flex: 0,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                        maxWidth: MediaQuery.sizeOf(context).width * 0.45),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        '${format.format(item.total)} đ',
+                        style: const TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (item.discount > 0 ||
+                (item.note != null && item.note!.trim().isNotEmpty))
+              Padding(
+                padding: const EdgeInsets.only(top: 2, left: 14),
+                child: Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 4,
+                  runSpacing: 2,
+                  children: [
+                    if (item.discount > 0)
+                      Text(
+                        'Giảm: -${format.format(item.totalDiscount)}đ (${item.isDiscountPercent ? "${NumberFormat.compact().format(item.discount)}%" : "${format.format(item.discount)}đ/sp"})',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Colors.red,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    if (item.discount > 0 &&
+                        item.note != null &&
+                        item.note!.trim().isNotEmpty)
+                      const Text('•',
+                          style: TextStyle(
+                              fontSize: 11, color: AppColors.textMuted)),
+                    if (item.note != null && item.note!.trim().isNotEmpty)
+                      Text(
+                        '📝 ${item.note}',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      );
+    }
+
     return Container(
       decoration: BoxDecoration(
         color: AppColors.white,
@@ -249,7 +331,8 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
         child: ExpansionTile(
           tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
           title: Text(
-            l10n?.posViewCartItems(totalQty) ?? 'Xem hàng trong đơn ($totalQty)',
+            l10n?.posViewCartItems(totalQty) ??
+                'Xem hàng trong đơn ($totalQty)',
             style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w500,
@@ -258,71 +341,19 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
           ),
           childrenPadding:
               const EdgeInsets.only(left: 14, right: 14, bottom: 12),
-          children: cart.values.map((item) {
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          '${item.quantity}x ${item.product.name}',
-                          style: const TextStyle(
-                              fontSize: 13, color: AppColors.textPrimary),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '${format.format(item.total)} đ',
-                        style: const TextStyle(
-                            fontSize: 13, fontWeight: FontWeight.w600),
-                      ),
-                    ],
-                  ),
-                  if (item.discount > 0 ||
-                      (item.note != null && item.note!.trim().isNotEmpty))
-                    Padding(
-                      padding: const EdgeInsets.only(top: 2, left: 14),
-                      child: Wrap(
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        spacing: 4,
-                        runSpacing: 2,
-                        children: [
-                          if (item.discount > 0)
-                            Text(
-                              'Giảm: -${format.format(item.totalDiscount)}đ (${item.isDiscountPercent ? "${NumberFormat.compact().format(item.discount)}%" : "${format.format(item.discount)}đ/sp"})',
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: Colors.red,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          if (item.discount > 0 &&
-                              item.note != null &&
-                              item.note!.trim().isNotEmpty)
-                            const Text('•',
-                                style: TextStyle(
-                                    fontSize: 11, color: AppColors.textMuted)),
-                          if (item.note != null &&
-                              item.note!.trim().isNotEmpty)
-                            Text(
-                              '📝 ${item.note}',
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: AppColors.textSecondary,
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ),
-                        ],
-                      ),
+          // Big carts: bounded, lazily-built list instead of building every row.
+          children: cart.length <= 12
+              ? cart.values.map(buildCartRow).toList()
+              : [
+                  SizedBox(
+                    height: 320,
+                    child: ListView.builder(
+                      itemCount: cart.length,
+                      itemBuilder: (_, i) =>
+                          buildCartRow(cart.values.elementAt(i)),
                     ),
+                  ),
                 ],
-              ),
-            );
-          }).toList(),
         ),
       ),
     );
@@ -348,7 +379,8 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
             child: TextField(
               controller: _noteController,
               decoration: InputDecoration(
-                hintText: l10n?.posOrderNoteHint ?? 'Nhập ghi chú cho đơn hàng (nếu có)...',
+                hintText: l10n?.posOrderNoteHint ??
+                    'Nhập ghi chú cho đơn hàng (nếu có)...',
                 hintStyle:
                     const TextStyle(fontSize: 13, color: AppColors.textMuted),
                 filled: false,
@@ -397,7 +429,11 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
+              Flexible(
+                  child: Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 6,
+                runSpacing: 4,
                 children: [
                   Text(
                     l10n?.totalProductAmount ?? 'Tổng tiền hàng',
@@ -407,7 +443,6 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
                       color: AppColors.textPrimary,
                     ),
                   ),
-                  const SizedBox(width: 6),
                   Container(
                     width: 20,
                     height: 20,
@@ -426,15 +461,20 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
                     ),
                   ),
                 ],
-              ),
-              Text(
-                format.format(totalAmount),
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
+              )),
+              const SizedBox(width: 8),
+              Flexible(
+                  child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  format.format(totalAmount),
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
-              ),
+              )),
             ],
           ),
           const Divider(height: 20, color: AppColors.borderLight),
@@ -443,7 +483,11 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
+              Flexible(
+                  child: Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 6,
+                runSpacing: 4,
                 children: [
                   Text(
                     _isDiscountPercent
@@ -456,7 +500,6 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
                     ),
                   ),
                   if (user?.isAdmin == true) ...[
-                    const SizedBox(width: 6),
                     InkWell(
                       onTap: () {
                         setState(() {
@@ -486,7 +529,8 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
                     ),
                   ],
                 ],
-              ),
+              )),
+              const SizedBox(width: 8),
               SizedBox(
                 width: 100,
                 height: 32,
@@ -520,7 +564,7 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
                   ),
                   onChanged: (v) {
                     setState(() {
-                      _discount = double.tryParse(v) ?? 0.0;
+                      _discount = tryParseFinite(v) ?? 0.0;
                     });
                   },
                 ),
@@ -533,12 +577,16 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                l10n?.posOtherSurcharge ?? 'Thu khác',
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
+              Flexible(
+                child: Text(
+                  l10n?.posOtherSurcharge ?? 'Thu khác',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
               const Text(
@@ -557,20 +605,28 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                l10n?.amountToPay ?? 'Khách cần trả',
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
+              Flexible(
+                child: Text(
+                  l10n?.amountToPay ?? 'Khách cần trả',
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
-              Text(
-                format.format(netPay),
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
+              const SizedBox(width: 8),
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    format.format(netPay),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -581,16 +637,23 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                l10n?.posCustomerPaidAmount ?? 'Khách thanh toán',
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
+              Flexible(
+                child: Text(
+                  l10n?.posCustomerPaidAmount ?? 'Khách thanh toán',
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
+              const SizedBox(width: 8),
+              Flexible(
+                  child: Wrap(
+                alignment: WrapAlignment.end,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 6,
+                runSpacing: 4,
                 children: [
                   // Nút Trả đủ
                   InkWell(
@@ -622,7 +685,6 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 6),
                   // Nút Xóa
                   InkWell(
                     onTap: () {
@@ -649,7 +711,6 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
                   SizedBox(
                     width: 110,
                     height: 32,
@@ -688,16 +749,15 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
                         }
                       },
                       onChanged: (v) {
-                        final raw =
-                            v.replaceAll('.', '').replaceAll(',', '');
+                        final raw = v.replaceAll('.', '').replaceAll(',', '');
                         setState(() {
-                          _customerPayment = double.tryParse(raw) ?? 0.0;
+                          _customerPayment = tryParseFinite(raw) ?? 0.0;
                         });
                       },
                     ),
                   ),
                 ],
-              ),
+              )),
             ],
           ),
           const SizedBox(height: 14),
@@ -722,7 +782,8 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Text(
-                l10n?.posCardPaymentHint ?? 'Thanh toán qua máy POS quẹt thẻ ngân hàng',
+                l10n?.posCardPaymentHint ??
+                    'Thanh toán qua máy POS quẹt thẻ ngân hàng',
                 style: const TextStyle(
                     fontSize: 12,
                     color: AppColors.textSecondary,
@@ -733,7 +794,8 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Text(
-                l10n?.posEWalletPaymentHint ?? 'Thanh toán qua ví điện tử (MoMo, ZaloPay, ShopeePay)',
+                l10n?.posEWalletPaymentHint ??
+                    'Thanh toán qua ví điện tử (MoMo, ZaloPay, ShopeePay)',
                 style: const TextStyle(
                     fontSize: 12,
                     color: AppColors.textSecondary,
@@ -753,31 +815,39 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  l10n?.posRecordAsCustomerDebt ?? 'Tính vào công nợ',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
+                Flexible(
+                  child: Text(
+                    l10n?.posRecordAsCustomerDebt ?? 'Tính vào công nợ',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
                 ),
-                Text(
-                  remainingAmount > 0
-                      ? '-${format.format(remainingAmount)}'
-                      : (returnChange > 0
-                          ? (l10n?.posRemainingChangeDue(format.format(returnChange)) ??
-                              'Tiền còn lại: +${format.format(returnChange)} đ')
-                          : '0'),
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: remainingAmount > 0
-                        ? AppColors.textPrimary
+                const SizedBox(width: 8),
+                Flexible(
+                    child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    remainingAmount > 0
+                        ? '-${format.format(remainingAmount)}'
                         : (returnChange > 0
-                            ? AppColors.success
-                            : AppColors.textPrimary),
+                            ? (l10n?.posRemainingChangeDue(
+                                    format.format(returnChange)) ??
+                                'Tiền còn lại: +${format.format(returnChange)} đ')
+                            : '0'),
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: remainingAmount > 0
+                          ? AppColors.textPrimary
+                          : (returnChange > 0
+                              ? AppColors.success
+                              : AppColors.textPrimary),
+                    ),
                   ),
-                ),
+                )),
               ],
             ),
           ),
@@ -791,7 +861,10 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
     final l10n = AppLocalizations.of(context);
     final methods = [
       {'id': 'cash', 'label': l10n?.cash ?? 'Tiền mặt'},
-      {'id': 'transfer', 'label': l10n?.posMethodTransferShort ?? 'Chuyển\nkhoản'},
+      {
+        'id': 'transfer',
+        'label': l10n?.posMethodTransferShort ?? 'Chuyển\nkhoản'
+      },
       {'id': 'card', 'label': l10n?.posMethodCard ?? 'Thẻ'},
       {'id': 'wallet', 'label': l10n?.posMethodWallet ?? 'Ví'},
     ];
@@ -840,36 +913,38 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
                             : null,
                       ),
                       alignment: Alignment.center,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            m['label']!,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: isSelected
-                                  ? FontWeight.bold
-                                  : FontWeight.w500,
-                              color: isSelected
-                                  ? AppColors.primary
-                                  : AppColors.textSecondary,
-                              height: 1.1,
-                            ),
-                          ),
-                          if (isSelected) ...[
-                            const SizedBox(height: 2),
-                            Container(
-                              width: 14,
-                              height: 2.5,
-                              decoration: BoxDecoration(
-                                color: AppColors.primary,
-                                borderRadius: BorderRadius.circular(2),
+                      child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                m['label']!,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: isSelected
+                                      ? FontWeight.bold
+                                      : FontWeight.w500,
+                                  color: isSelected
+                                      ? AppColors.primary
+                                      : AppColors.textSecondary,
+                                  height: 1.1,
+                                ),
                               ),
-                            ),
-                          ],
-                        ],
-                      ),
+                              if (isSelected) ...[
+                                const SizedBox(height: 2),
+                                Container(
+                                  width: 14,
+                                  height: 2.5,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary,
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          )),
                     ),
                   ),
                 );
@@ -925,14 +1000,19 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                l10n?.posSplitPaymentTitle ?? 'Thanh toán kết hợp:',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                  color: AppColors.primary,
+              Flexible(
+                child: Text(
+                  l10n?.posSplitPaymentTitle ?? 'Thanh toán kết hợp:',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: AppColors.primary,
+                  ),
                 ),
               ),
+              const SizedBox(width: 8),
               InkWell(
                 onTap: () => _showSplitPaymentModal(context, netPay, format),
                 child: Text(
@@ -951,24 +1031,44 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(l10n?.posSplitCashLabel ?? '• Tiền mặt:',
-                    style: const TextStyle(
-                        fontSize: 12, color: AppColors.textSecondary)),
-                Text('${format.format(_splitCashAmount)} đ',
-                    style: const TextStyle(
-                        fontSize: 12, fontWeight: FontWeight.w600)),
+                Flexible(
+                  child: Text(l10n?.posSplitCashLabel ?? '• Tiền mặt:',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontSize: 12, color: AppColors.textSecondary)),
+                ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text('${format.format(_splitCashAmount)} đ',
+                        style: const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w600)),
+                  ),
+                ),
               ],
             ),
           if (_splitTransferAmount > 0)
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(l10n?.posSplitTransferLabel ?? '• Chuyển khoản:',
-                    style: const TextStyle(
-                        fontSize: 12, color: AppColors.textSecondary)),
-                Text('${format.format(_splitTransferAmount)} đ',
-                    style: const TextStyle(
-                        fontSize: 12, fontWeight: FontWeight.w600)),
+                Flexible(
+                  child: Text(l10n?.posSplitTransferLabel ?? '• Chuyển khoản:',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontSize: 12, color: AppColors.textSecondary)),
+                ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text('${format.format(_splitTransferAmount)} đ',
+                        style: const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w600)),
+                  ),
+                ),
               ],
             ),
         ],
@@ -1012,7 +1112,8 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
       builder: (modalCtx) {
         return StatefulBuilder(
           builder: (ctx, setModalState) {
-            final l10n = AppLocalizations.of(ctx) ?? AppLocalizations.of(context);
+            final l10n =
+                AppLocalizations.of(ctx) ?? AppLocalizations.of(context);
             final currentPaid = (useCash ? tempCash : 0.0) +
                 (useTransfer ? tempTransfer : 0.0) +
                 (useCard ? tempCard : 0.0) +
@@ -1028,8 +1129,8 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
                 children: [
                   // Header
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 12),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
                     decoration: const BoxDecoration(
                       color: AppColors.white,
                       borderRadius:
@@ -1039,14 +1140,18 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
                       children: [
                         IconButton(
                           icon: const Icon(Icons.arrow_back_ios_new, size: 18),
-                          onPressed: () => Navigator.pop(modalCtx),
+                          onPressed: () => closeRoute(modalCtx),
                         ),
-                        Text(
-                          l10n?.posSplitPaymentHeader ?? 'Thanh toán kết hợp',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary,
+                        Expanded(
+                          child: Text(
+                            l10n?.posSplitPaymentHeader ?? 'Thanh toán kết hợp',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textPrimary,
+                            ),
                           ),
                         ),
                       ],
@@ -1072,16 +1177,27 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
                                   mainAxisAlignment:
                                       MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Text(l10n?.amountToPay ?? 'Khách cần trả',
-                                        style: const TextStyle(
-                                            fontSize: 14,
-                                            color: AppColors.textSecondary)),
-                                    Text(
-                                      format.format(netPay),
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.primary,
+                                    Flexible(
+                                      child: Text(
+                                          l10n?.amountToPay ?? 'Khách cần trả',
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                              fontSize: 14,
+                                              color: AppColors.textSecondary)),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Flexible(
+                                      child: FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        child: Text(
+                                          format.format(netPay),
+                                          style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            color: AppColors.primary,
+                                          ),
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -1092,16 +1208,28 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
                                   mainAxisAlignment:
                                       MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Text(l10n?.posCustomerPaidAmount ?? 'Khách thanh toán',
-                                        style: const TextStyle(
-                                            fontSize: 14,
-                                            color: AppColors.textSecondary)),
-                                    Text(
-                                      format.format(currentPaid),
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.textPrimary,
+                                    Flexible(
+                                      child: Text(
+                                          l10n?.posCustomerPaidAmount ??
+                                              'Khách thanh toán',
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                              fontSize: 14,
+                                              color: AppColors.textSecondary)),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Flexible(
+                                      child: FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        child: Text(
+                                          format.format(currentPaid),
+                                          style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            color: AppColors.textPrimary,
+                                          ),
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -1136,7 +1264,8 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
 
                           // Phương thức: Chuyển khoản
                           _buildSplitMethodRow(
-                            title: l10n?.paymentMethodTransfer ?? 'Chuyển khoản',
+                            title:
+                                l10n?.paymentMethodTransfer ?? 'Chuyển khoản',
                             isChecked: useTransfer,
                             controller: transferCtrl,
                             format: format,
@@ -1230,8 +1359,7 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
                                 !useWallet) {
                               _paymentMethod = 'cash';
                               _customerPayment = tempCash;
-                              _paymentController.text =
-                                   format.format(tempCash);
+                              _paymentController.text = format.format(tempCash);
                             } else if (useTransfer &&
                                 !useCash &&
                                 !useCard &&
@@ -1244,7 +1372,7 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
                               _paymentMethod = 'split';
                             }
                           });
-                          Navigator.pop(modalCtx);
+                          closeRoute(modalCtx);
                         },
                         style: FilledButton.styleFrom(
                           backgroundColor: AppColors.primary,
@@ -1298,12 +1426,16 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
                 activeColor: AppColors.primary,
               ),
               const SizedBox(width: 4),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
+              Flexible(
+                child: Text(
+                  title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
               ),
             ],
@@ -1315,8 +1447,8 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
               child: Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                     decoration: BoxDecoration(
                       color: AppColors.grey400.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(4),
@@ -1359,9 +1491,8 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
                         ),
                       ),
                       onChanged: (v) {
-                        final raw =
-                            v.replaceAll('.', '').replaceAll(',', '');
-                        final amt = double.tryParse(raw) ?? 0.0;
+                        final raw = v.replaceAll('.', '').replaceAll(',', '');
+                        final amt = tryParseFinite(raw) ?? 0.0;
                         onAmountChanged(amt);
                       },
                     ),
@@ -1377,6 +1508,9 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
 
   Widget _buildQuickCashChips(double netPay, NumberFormat format) {
     final l10n = AppLocalizations.of(context);
+    // NaN / infinite totals (corrupt data, absurd input) must not reach the
+    // helper: `ceil()` on them throws.
+    if (!netPay.isFinite) return const SizedBox.shrink();
     final suggestions = SmartCashHelper.generateSmartCashSuggestions(netPay);
     if (suggestions.isEmpty) return const SizedBox.shrink();
 
@@ -1398,7 +1532,8 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
             children: suggestions.map((suggestedAmount) {
               final isExact = (suggestedAmount - netPay).abs() < 1;
               final label = isExact
-                  ? (l10n?.posExactCashSuggestion(format.format(suggestedAmount)) ??
+                  ? (l10n?.posExactCashSuggestion(
+                          format.format(suggestedAmount)) ??
                       '${format.format(suggestedAmount)} đ (Trả đủ)')
                   : '${format.format(suggestedAmount)} đ';
 
@@ -1470,34 +1605,46 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  const Icon(Icons.qr_code_2,
-                      color: AppColors.primary, size: 22),
-                  const SizedBox(width: 8),
-                  Text(
-                    l10n?.posVietQrTitle(format.format(amount)) ??
-                        'Mã VietQR (${format.format(amount)} đ)',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                      color: AppColors.primary,
+              Flexible(
+                child: Row(
+                  children: [
+                    const Icon(Icons.qr_code_2,
+                        color: AppColors.primary, size: 22),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        l10n?.posVietQrTitle(format.format(amount)) ??
+                            'Mã VietQR (${format.format(amount)} đ)',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          color: AppColors.primary,
+                        ),
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppColors.success.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(6),
+                  ],
                 ),
-                child: Text(
-                  l10n?.posVietQrAutoMatch ?? 'Tự động khớp',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.success,
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.success.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    l10n?.posVietQrAutoMatch ?? 'Tự động khớp',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.success,
+                    ),
                   ),
                 ),
               ),
@@ -1557,7 +1704,8 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            l10n?.posVietQrLoadError ?? 'Không thể nạp ảnh VietQR',
+                            l10n?.posVietQrLoadError ??
+                                'Không thể nạp ảnh VietQR',
                             style: const TextStyle(
                                 fontSize: 12, color: AppColors.textSecondary),
                           ),
@@ -1571,12 +1719,17 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
                         const Icon(Icons.zoom_in,
                             size: 15, color: AppColors.textSecondary),
                         const SizedBox(width: 4),
-                        Text(
-                          l10n?.posTapToEnlargeQr ?? 'Chạm để phóng to toàn màn hình',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: AppColors.textSecondary,
-                            fontWeight: FontWeight.w500,
+                        Flexible(
+                          child: Text(
+                            l10n?.posTapToEnlargeQr ??
+                                'Chạm để phóng to toàn màn hình',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
                       ],
@@ -1599,6 +1752,8 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
                 Text(
                   config.bankName,
                   textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 13,
@@ -1609,22 +1764,27 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
-                      'STK: ${config.accountNo}',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                        color: AppColors.primary,
+                    Flexible(
+                      child: Text(
+                        'STK: ${config.accountNo}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          color: AppColors.primary,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 6),
                     InkWell(
                       onTap: () {
-                        Clipboard.setData(ClipboardData(text: config.accountNo));
+                        Clipboard.setData(
+                            ClipboardData(text: config.accountNo));
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text(
-                                l10n?.posCopiedBankAccount ?? 'Đã sao chép số tài khoản!'),
+                            content: Text(l10n?.posCopiedBankAccount ??
+                                'Đã sao chép số tài khoản!'),
                             duration: const Duration(seconds: 1),
                           ),
                         );
@@ -1639,6 +1799,8 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
                   Text(
                     config.accountName.toUpperCase(),
                     textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 12,
@@ -1676,7 +1838,8 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
                 children: [
                   Text(
                     l10n?.posTransferQrDialogTitle ?? 'Mã QR Chuyển Khoản',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 16),
                   ),
                   IconButton(
                     icon: const Icon(Icons.close),
@@ -1715,8 +1878,8 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
                       width: 320,
                       height: 320,
                       child: Center(
-                        child: Text(
-                            l10n?.posQrLoadError ?? 'Không thể tải mã QR'),
+                        child:
+                            Text(l10n?.posQrLoadError ?? 'Không thể tải mã QR'),
                       ),
                     ),
                   ),
@@ -1822,7 +1985,8 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(l10n?.posCartIsEmptyWarning ?? 'Giỏ hàng đang trống!'),
+            content:
+                Text(l10n?.posCartIsEmptyWarning ?? 'Giỏ hàng đang trống!'),
             backgroundColor: AppColors.danger,
           ),
         );
@@ -2114,7 +2278,8 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
             );
           }
         } catch (notifErr) {
-          debugPrint('Warning: Could not dispatch order notification: $notifErr');
+          debugPrint(
+              'Warning: Could not dispatch order notification: $notifErr');
         }
       }
 
@@ -2187,7 +2352,8 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
                     user: currentUser,
                   );
             } catch (debtNotifErr) {
-              debugPrint('Warning: Could not dispatch debt notification: $debtNotifErr');
+              debugPrint(
+                  'Warning: Could not dispatch debt notification: $debtNotifErr');
             }
           }
         }
@@ -2202,8 +2368,9 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
           if (item.product.isCombo && item.product.comboComponents.isNotEmpty) {
             // Trừ kho từng linh kiện thành phần của Combo
             for (final comp in item.product.comboComponents) {
-              final childProduct = await productRepo.fetchById(comp.productId) ??
-                  freshCartProducts[comp.productId];
+              final childProduct =
+                  await productRepo.fetchById(comp.productId) ??
+                      freshCartProducts[comp.productId];
               if (childProduct != null) {
                 final childBranchStocks =
                     Map<String, int>.from(childProduct.branchStocks);
@@ -2258,10 +2425,9 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
             }
           } else {
             // Trừ stock sản phẩm đơn lẻ thông thường
-            final freshProduct =
-                await productRepo.fetchById(item.product.id) ??
-                    freshCartProducts[item.product.id] ??
-                    item.product;
+            final freshProduct = await productRepo.fetchById(item.product.id) ??
+                freshCartProducts[item.product.id] ??
+                item.product;
             final branchStocks =
                 Map<String, int>.from(freshProduct.branchStocks);
             String targetKey = selectedBranch;
@@ -2343,6 +2509,7 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
           context: context,
           barrierDismissible: false,
           builder: (dialogCtx) => AlertDialog(
+            scrollable: true,
             title: Row(
               children: [
                 const Icon(Icons.check_circle,
@@ -2350,7 +2517,8 @@ class _POSPaymentPageState extends ConsumerState<POSPaymentPage> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    l10n?.posPaymentSuccessDialogTitle ?? 'Thanh toán thành công',
+                    l10n?.posPaymentSuccessDialogTitle ??
+                        'Thanh toán thành công',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),

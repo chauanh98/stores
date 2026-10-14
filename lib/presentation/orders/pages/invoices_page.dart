@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import '../../common/utils/route_utils.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +12,7 @@ import 'package:intl/intl.dart';
 import 'package:stores/core/theme/app_colors.dart';
 import 'package:stores/presentation/common/widgets/empty_state_view.dart';
 import 'package:stores/presentation/common/widgets/error_view.dart';
+import 'package:stores/presentation/common/widgets/min_height_scroll.dart';
 import 'package:stores/presentation/common/widgets/loading_indicator.dart';
 import 'package:stores/presentation/common/widgets/product_image_thumbnail.dart';
 import '../../common/widgets/date_grouped_list_view.dart';
@@ -454,236 +456,249 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
             ),
         ],
       ),
-      body: Column(
-        children: [
-          // 1. Thanh tìm kiếm hoá đơn
-          Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: l10n.searchInvoicesHint,
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() => _searchQuery = '');
-                        },
-                      )
-                    : null,
-                fillColor: AppColors.white,
-                filled: true,
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: AppColors.border),
+      body: MinHeightScroll(
+          minHeight: 420,
+          child: Column(
+            children: [
+              // 1. Thanh tìm kiếm hoá đơn
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: l10n.searchInvoicesHint,
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() => _searchQuery = '');
+                            },
+                          )
+                        : null,
+                    fillColor: AppColors.white,
+                    filled: true,
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: AppColors.border),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: AppColors.primary),
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: AppColors.border),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
+                  ),
+                  onChanged: (v) => setState(() => _searchQuery = v),
                 ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: AppColors.primary),
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: AppColors.border),
-                ),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               ),
-              onChanged: (v) => setState(() => _searchQuery = v),
-            ),
-          ),
 
-          // 2. Thanh bộ lọc (Thời gian & Chi nhánh)
-          _buildFiltersBar(context, dateLabel, branchLabel),
+              // 2. Thanh bộ lọc (Thời gian & Chi nhánh)
+              _buildFiltersBar(context, dateLabel, branchLabel),
 
-          // 3. Multi-dimensional Filter Bar (Status, Payment Method, Debt Status, Staff)
-          _buildMultiDimensionalFilterBar(staffAccounts),
+              // 3. Multi-dimensional Filter Bar (Status, Payment Method, Debt Status, Staff)
+              _buildMultiDimensionalFilterBar(staffAccounts),
 
-          // 4. Nội dung danh sách hoá đơn & KPI Card
-          Expanded(
-            child: ordersAsync.when(
-              data: (orders) {
-                final searchFilteredOrders = _applyFilters(orders, customers);
+              // 4. Nội dung danh sách hoá đơn & KPI Card
+              Expanded(
+                child: ordersAsync.when(
+                  data: (orders) {
+                    final searchFilteredOrders =
+                        _applyFilters(orders, customers);
 
-                if (_selectedStatusFilter == 'returned') {
-                  final totalReturnCount = searchFilteredOrders.length;
-                  double totalRefundAmount = 0.0;
-                  double totalCashRefunded = 0.0;
-                  double totalDebtDeducted = 0.0;
+                    if (_selectedStatusFilter == 'returned') {
+                      final totalReturnCount = searchFilteredOrders.length;
+                      double totalRefundAmount = 0.0;
+                      double totalCashRefunded = 0.0;
+                      double totalDebtDeducted = 0.0;
 
-                  for (final o in searchFilteredOrders) {
-                    final returnedItems =
-                        o.items.where((i) => i.returnedQuantity > 0).toList();
-                    final orderReturnTotal = returnedItems.isNotEmpty
-                        ? returnedItems.fold<double>(0.0,
-                            (sum, i) => sum + (i.returnedQuantity * i.price))
-                        : (o.isReturned
-                            ? (o.total > 0
-                                ? o.total
-                                : o.items.fold<double>(0.0,
-                                    (sum, i) => sum + (i.quantity * i.price)))
-                            : 0.0);
-                    totalRefundAmount += orderReturnTotal;
-                    final debtPart = min(orderReturnTotal, o.remainingDebt);
-                    totalDebtDeducted += debtPart;
-                    totalCashRefunded += (orderReturnTotal - debtPart);
-                  }
+                      for (final o in searchFilteredOrders) {
+                        final returnedItems = o.items
+                            .where((i) => i.returnedQuantity > 0)
+                            .toList();
+                        final orderReturnTotal = returnedItems.isNotEmpty
+                            ? returnedItems.fold<double>(
+                                0.0,
+                                (sum, i) =>
+                                    sum + (i.returnedQuantity * i.price))
+                            : (o.isReturned
+                                ? (o.total > 0
+                                    ? o.total
+                                    : o.items.fold<double>(
+                                        0.0,
+                                        (sum, i) =>
+                                            sum + (i.quantity * i.price)))
+                                : 0.0);
+                        totalRefundAmount += orderReturnTotal;
+                        final debtPart = min(orderReturnTotal, o.remainingDebt);
+                        totalDebtDeducted += debtPart;
+                        totalCashRefunded += (orderReturnTotal - debtPart);
+                      }
 
-                  return Column(
-                    children: [
-                      // Dedicated Return KPI Summary Card
-                      _buildReturnSummaryCard(
-                        totalReturnCount: totalReturnCount,
-                        totalRefundAmount: totalRefundAmount,
-                        totalCashRefunded: totalCashRefunded,
-                        totalDebtDeducted: totalDebtDeducted,
-                        format: currencyFormat,
-                      ),
+                      return Column(
+                        children: [
+                          // Dedicated Return KPI Summary Card
+                          _buildReturnSummaryCard(
+                            totalReturnCount: totalReturnCount,
+                            totalRefundAmount: totalRefundAmount,
+                            totalCashRefunded: totalCashRefunded,
+                            totalDebtDeducted: totalDebtDeducted,
+                            format: currencyFormat,
+                          ),
 
-                      // List of invoices
-                      Expanded(
-                        child: searchFilteredOrders.isEmpty
-                            ? _buildInvoicesEmptyState(l10n.noInvoicesFound)
-                            : DateGroupedListView<Order>(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 8),
-                                items: searchFilteredOrders,
-                                dateSelector: (o) => o.createdAt,
-                                headerBuilder: (context, date, dayItems) {
-                                  int dayTotalQty = 0;
-                                  double dayAmount = 0.0;
-                                  for (final o in dayItems) {
-                                    final returnedItems = o.items
-                                        .where((i) => i.returnedQuantity > 0)
-                                        .toList();
-                                    for (final i in returnedItems) {
-                                      dayTotalQty += i.returnedQuantity;
-                                    }
-                                    dayAmount += (o.total > 0 ? o.total : 0.0);
-                                  }
-                                  return DateGroupHeader(
-                                    date: date,
-                                    itemCount: dayItems.length,
-                                    itemUnit: dayTotalQty > 0
-                                        ? l10n.orderReturnSummaryLabel(dayTotalQty)
-                                        : l10n.orderReturnUnit,
-                                    totalAmount: dayAmount,
+                          // List of invoices
+                          Expanded(
+                            child: searchFilteredOrders.isEmpty
+                                ? _buildInvoicesEmptyState(l10n.noInvoicesFound)
+                                : DateGroupedListView<Order>(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 8),
+                                    items: searchFilteredOrders,
+                                    dateSelector: (o) => o.createdAt,
+                                    headerBuilder: (context, date, dayItems) {
+                                      int dayTotalQty = 0;
+                                      double dayAmount = 0.0;
+                                      for (final o in dayItems) {
+                                        final returnedItems = o.items
+                                            .where(
+                                                (i) => i.returnedQuantity > 0)
+                                            .toList();
+                                        for (final i in returnedItems) {
+                                          dayTotalQty += i.returnedQuantity;
+                                        }
+                                        dayAmount +=
+                                            (o.total > 0 ? o.total : 0.0);
+                                      }
+                                      return DateGroupHeader(
+                                        date: date,
+                                        itemCount: dayItems.length,
+                                        itemUnit: dayTotalQty > 0
+                                            ? l10n.orderReturnSummaryLabel(
+                                                dayTotalQty)
+                                            : l10n.orderReturnUnit,
+                                        totalAmount: dayAmount,
+                                        currencyFormat: currencyFormat,
+                                      );
+                                    },
+                                    itemUnit: l10n.orderReturnUnit,
+                                    itemAmountSelector: (o) => o.total,
                                     currencyFormat: currencyFormat,
-                                  );
-                                },
-                                itemUnit: l10n.orderReturnUnit,
-                                itemAmountSelector: (o) => o.total,
-                                currencyFormat: currencyFormat,
-                                itemBuilder: (context, order) {
-                                  final customerName = _getCustomerName(
-                                      context, customers, order.customerId,
-                                      order: order);
+                                    itemBuilder: (context, order) {
+                                      final customerName = _getCustomerName(
+                                          context, customers, order.customerId,
+                                          order: order);
 
-                                  return _buildInvoiceTile(
-                                    context: context,
-                                    order: order,
-                                    customerName: customerName,
-                                    currencyFormat: currencyFormat,
-                                    l10n: l10n,
-                                  );
-                                },
-                              ),
-                      ),
-                    ],
-                  );
-                }
-
-                // List of invoices (khối tổng kết màu cam đã ẩn theo R3)
-                if (searchFilteredOrders.isEmpty) {
-                  return _buildInvoicesEmptyState(l10n.noInvoicesFound);
-                }
-
-                // Compute summary metrics for filtered orders
-                int totalProductQuantity = 0;
-                int totalProductLines = 0;
-                double totalGrossAmount = 0.0;
-
-                for (final o in searchFilteredOrders) {
-                  if (!o.isCancelled) {
-                    totalGrossAmount += o.total;
-                    totalProductLines += o.items.length;
-                    for (final i in o.items) {
-                      totalProductQuantity += (i.quantity - i.returnedQuantity);
+                                      return _buildInvoiceTile(
+                                        context: context,
+                                        order: order,
+                                        customerName: customerName,
+                                        currencyFormat: currencyFormat,
+                                        l10n: l10n,
+                                      );
+                                    },
+                                  ),
+                          ),
+                        ],
+                      );
                     }
-                  }
-                }
 
-                return Column(
-                  children: [
-                    _buildItemsSummaryHeader(
-                      totalInvoices: searchFilteredOrders.length,
-                      totalProductQuantity: totalProductQuantity,
-                      totalProductLines: totalProductLines,
-                      totalGrossAmount: totalGrossAmount,
-                      currencyFormat: currencyFormat,
-                    ),
-                    Expanded(
-                      child: DateGroupedListView<Order>(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 8),
-                        items: searchFilteredOrders,
-                        dateSelector: (o) => o.createdAt,
-                        headerBuilder: (context, date, dayItems) {
-                          int dayTotalQty = 0;
-                          double dayAmount = 0.0;
-                          for (final o in dayItems) {
-                            if (!o.isCancelled) {
-                              dayAmount += o.total;
-                              for (final i in o.items) {
-                                dayTotalQty +=
-                                    (i.quantity - i.returnedQuantity);
+                    // List of invoices (khối tổng kết màu cam đã ẩn theo R3)
+                    if (searchFilteredOrders.isEmpty) {
+                      return _buildInvoicesEmptyState(l10n.noInvoicesFound);
+                    }
+
+                    // Compute summary metrics for filtered orders
+                    int totalProductQuantity = 0;
+                    int totalProductLines = 0;
+                    double totalGrossAmount = 0.0;
+
+                    for (final o in searchFilteredOrders) {
+                      if (!o.isCancelled) {
+                        totalGrossAmount += o.total;
+                        totalProductLines += o.items.length;
+                        for (final i in o.items) {
+                          totalProductQuantity +=
+                              (i.quantity - i.returnedQuantity);
+                        }
+                      }
+                    }
+
+                    return Column(
+                      children: [
+                        _buildItemsSummaryHeader(
+                          totalInvoices: searchFilteredOrders.length,
+                          totalProductQuantity: totalProductQuantity,
+                          totalProductLines: totalProductLines,
+                          totalGrossAmount: totalGrossAmount,
+                          currencyFormat: currencyFormat,
+                        ),
+                        Expanded(
+                          child: DateGroupedListView<Order>(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
+                            items: searchFilteredOrders,
+                            dateSelector: (o) => o.createdAt,
+                            headerBuilder: (context, date, dayItems) {
+                              int dayTotalQty = 0;
+                              double dayAmount = 0.0;
+                              for (final o in dayItems) {
+                                if (!o.isCancelled) {
+                                  dayAmount += o.total;
+                                  for (final i in o.items) {
+                                    dayTotalQty +=
+                                        (i.quantity - i.returnedQuantity);
+                                  }
+                                }
                               }
-                            }
-                          }
-                          return DateGroupHeader(
-                            date: date,
-                            itemCount: dayItems.length,
-                            itemUnit: dayTotalQty > 0
-                                ? l10n.orderInvoicesSummaryLabel(dayTotalQty)
-                                : l10n.orderInvoiceUnit,
-                            totalAmount: dayAmount,
+                              return DateGroupHeader(
+                                date: date,
+                                itemCount: dayItems.length,
+                                itemUnit: dayTotalQty > 0
+                                    ? l10n
+                                        .orderInvoicesSummaryLabel(dayTotalQty)
+                                    : l10n.orderInvoiceUnit,
+                                totalAmount: dayAmount,
+                                currencyFormat: currencyFormat,
+                              );
+                            },
+                            itemUnit: l10n.orderInvoiceUnit,
+                            itemAmountSelector: (o) =>
+                                o.isCancelled ? 0.0 : o.total,
                             currencyFormat: currencyFormat,
-                          );
-                        },
-                        itemUnit: l10n.orderInvoiceUnit,
-                        itemAmountSelector: (o) =>
-                            o.isCancelled ? 0.0 : o.total,
-                        currencyFormat: currencyFormat,
-                        itemBuilder: (context, order) {
-                          final customerName = _getCustomerName(
-                              context, customers, order.customerId,
-                              order: order);
+                            itemBuilder: (context, order) {
+                              final customerName = _getCustomerName(
+                                  context, customers, order.customerId,
+                                  order: order);
 
-                          return _buildInvoiceTile(
-                            context: context,
-                            order: order,
-                            customerName: customerName,
-                            currencyFormat: currencyFormat,
-                            l10n: l10n,
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                );
-              },
-              loading: () => const Center(child: LoadingIndicator()),
-              error: (e, _) => ErrorView(
-                e,
-                onRetry: () => ref.invalidate(
-                    allBranchesOrdersByDateRangeProvider(activeRange)),
+                              return _buildInvoiceTile(
+                                context: context,
+                                order: order,
+                                customerName: customerName,
+                                currencyFormat: currencyFormat,
+                                l10n: l10n,
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                  loading: () => const Center(child: LoadingIndicator()),
+                  error: (e, _) => ErrorView(
+                    e,
+                    onRetry: () => ref.invalidate(
+                        allBranchesOrdersByDateRangeProvider(activeRange)),
+                  ),
+                ),
               ),
-            ),
-          ),
-        ],
-      ),
+            ],
+          )),
     );
   }
 
@@ -707,7 +722,31 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
     );
   }
 
+  // Bộ nhớ đệm kết quả lọc: tránh lọc + sắp xếp lại toàn bộ danh sách hoá đơn
+  // mỗi lần build chỉ vì đổi trạng thái mở rộng/thu gọn thẻ.
+  List<Order>? _filterCacheOrders;
+  List<Customer>? _filterCacheCustomers;
+  String? _filterCacheKey;
+  List<Order>? _filterCacheResult;
+
   List<Order> _applyFilters(List<Order> orders, List<Customer> customers) {
+    final key = '$_selectedStatusFilter|$_selectedPaymentMethodFilter|'
+        '$_selectedDebtStatusFilter|$_selectedStaffFilter|$_searchQuery';
+    if (identical(orders, _filterCacheOrders) &&
+        identical(customers, _filterCacheCustomers) &&
+        key == _filterCacheKey &&
+        _filterCacheResult != null) {
+      return _filterCacheResult!;
+    }
+    final result = _computeFilters(orders, customers);
+    _filterCacheOrders = orders;
+    _filterCacheCustomers = customers;
+    _filterCacheKey = key;
+    _filterCacheResult = result;
+    return result;
+  }
+
+  List<Order> _computeFilters(List<Order> orders, List<Customer> customers) {
     final customerMap = {for (final c in customers) c.id: c};
 
     final filtered = orders.where((order) {
@@ -795,8 +834,8 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
             ],
             namespace: 'invoices',
           );
-          final extra = VietnameseTextHelper.normalizeUnaccented(
-              '$cName $cPhone');
+          final extra =
+              VietnameseTextHelper.normalizeUnaccented('$cName $cPhone');
           if (!SearchTextHelper.matchesTokens(
               '$orderHaystack $extra', tokens)) {
             return false;
@@ -822,15 +861,19 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
         child: Row(
           children: [
             // Status Filters
-            _buildStatusChip('all', l10n?.orderAllStatuses ?? 'Tất cả trạng thái'),
+            _buildStatusChip(
+                'all', l10n?.orderAllStatuses ?? 'Tất cả trạng thái'),
             const SizedBox(width: 6),
-            _buildStatusChip('completed', l10n?.orderBadgeCompleted ?? 'Đã hoàn thành'),
+            _buildStatusChip(
+                'completed', l10n?.orderBadgeCompleted ?? 'Đã hoàn thành'),
             const SizedBox(width: 6),
-            _buildStatusChip('returned', l10n?.orderReturnOrders ?? 'Đơn trả hàng'),
+            _buildStatusChip(
+                'returned', l10n?.orderReturnOrders ?? 'Đơn trả hàng'),
             const SizedBox(width: 6),
             _buildStatusChip('draft', l10n?.draft ?? 'Lưu tạm'),
             const SizedBox(width: 6),
-            _buildStatusChip('cancelled', l10n?.orderBadgeCancelled ?? 'Đã hủy'),
+            _buildStatusChip(
+                'cancelled', l10n?.orderBadgeCancelled ?? 'Đã hủy'),
             if (_hasActiveFilters) ...[
               const SizedBox(width: 4),
               IconButton(
@@ -936,13 +979,10 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
       itemBuilder: (context) => [
         PopupMenuItem(
             value: 'all',
-            child: Text(
-                l10n?.orderAllPaymentMethods ?? 'Tất cả phương thức')),
+            child: Text(l10n?.orderAllPaymentMethods ?? 'Tất cả phương thức')),
+        PopupMenuItem(value: 'cash', child: Text(l10n?.cash ?? 'Tiền mặt')),
         PopupMenuItem(
-            value: 'cash', child: Text(l10n?.cash ?? 'Tiền mặt')),
-        PopupMenuItem(
-            value: 'transfer',
-            child: Text(l10n?.transfer ?? 'Chuyển khoản')),
+            value: 'transfer', child: Text(l10n?.transfer ?? 'Chuyển khoản')),
       ],
     );
   }
@@ -991,12 +1031,10 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
       ),
       itemBuilder: (context) => [
         PopupMenuItem(
-            value: 'all',
-            child: Text(l10n?.orderAllDebts ?? 'Tất cả công nợ')),
+            value: 'all', child: Text(l10n?.orderAllDebts ?? 'Tất cả công nợ')),
         PopupMenuItem(
             value: 'paid',
-            child: Text(
-                l10n?.orderDebtPaidInFull ?? 'Đã thanh toán đủ')),
+            child: Text(l10n?.orderDebtPaidInFull ?? 'Đã thanh toán đủ')),
         PopupMenuItem(
             value: 'debt',
             child: Text(l10n?.orderDebtRemaining ?? 'Còn ghi nợ')),
@@ -1056,7 +1094,9 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
         ),
       ),
       itemBuilder: (context) => [
-        PopupMenuItem(value: 'all', child: Text(l10n?.orderAllStaff ?? 'Tất cả nhân viên')),
+        PopupMenuItem(
+            value: 'all',
+            child: Text(l10n?.orderAllStaff ?? 'Tất cả nhân viên')),
         ...staffAccounts.map((account) {
           return PopupMenuItem(
             value: account.username,
@@ -1133,7 +1173,8 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
           ),
           if (filterState.hasActiveFilters) ...[
             const SizedBox(width: 10),
-            InkWell(
+            Flexible(
+                child: InkWell(
               key: const Key('invoices_reset_filter_badge_button'),
               onTap: () => ref.read(invoicesFilterProvider.notifier).reset(),
               borderRadius: BorderRadius.circular(16),
@@ -1150,13 +1191,18 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                     const Icon(Icons.filter_alt,
                         size: 14, color: AppColors.primary),
                     const SizedBox(width: 4),
-                    Text(
-                      l10n?.orderFilterActiveCount(filterState.activeFilterCount) ??
-                          'Lọc (${filterState.activeFilterCount})',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
+                    Flexible(
+                      child: Text(
+                        l10n?.orderFilterActiveCount(
+                                filterState.activeFilterCount) ??
+                            'Lọc (${filterState.activeFilterCount})',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 4),
@@ -1164,7 +1210,7 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                   ],
                 ),
               ),
-            ),
+            )),
           ],
         ],
       ),
@@ -1204,7 +1250,8 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
-                  l10n?.orderTotalRefundAmount(format.format(totalRefundAmount)) ??
+                  l10n?.orderTotalRefundAmount(
+                          format.format(totalRefundAmount)) ??
                       'Tổng hoàn trả: ${format.format(totalRefundAmount)} đ',
                   style: const TextStyle(
                     fontWeight: FontWeight.w800,
@@ -1223,7 +1270,8 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
             children: [
               Flexible(
                 child: Text(
-                  l10n?.orderCashRefundedAmount(format.format(totalCashRefunded)) ??
+                  l10n?.orderCashRefundedAmount(
+                          format.format(totalCashRefunded)) ??
                       'Tiền hoàn lại: ${format.format(totalCashRefunded)} đ',
                   style: const TextStyle(
                     fontWeight: FontWeight.w600,
@@ -1236,7 +1284,8 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
-                  l10n?.orderDebtDeductedAmount(format.format(totalDebtDeducted)) ??
+                  l10n?.orderDebtDeductedAmount(
+                          format.format(totalDebtDeducted)) ??
                       'Cấn trừ nợ: ${format.format(totalDebtDeducted)} đ',
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
@@ -1483,19 +1532,21 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                             ? AppColors.primary
                             : AppColors.textSecondary,
                       ),
-                      const SizedBox(width: 3),
-                      Text(
-                        _expandAll
-                            ? (l10n?.orderCollapseItems ?? 'Gọn')
-                            : (l10n?.orderExpandItems ?? 'Xem món'),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: _expandAll
-                              ? AppColors.primary
-                              : AppColors.textPrimary,
+                      if (constraints.maxWidth >= 280) ...[
+                        const SizedBox(width: 3),
+                        Text(
+                          _expandAll
+                              ? (l10n?.orderCollapseItems ?? 'Gọn')
+                              : (l10n?.orderExpandItems ?? 'Xem món'),
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: _expandAll
+                                ? AppColors.primary
+                                : AppColors.textPrimary,
+                          ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
                 ),
@@ -1667,7 +1718,8 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                               const SizedBox(width: 4),
                               Expanded(
                                 child: Text(
-                                  l10n.orderItemAndQtySummary(itemCount, totalQuantity),
+                                  l10n.orderItemAndQtySummary(
+                                      itemCount, totalQuantity),
                                   style: const TextStyle(
                                     fontSize: 11.5,
                                     fontWeight: FontWeight.bold,
@@ -1771,42 +1823,59 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 5, vertical: 1),
-                                decoration: BoxDecoration(
-                                  color: AppColors.white,
-                                  borderRadius: BorderRadius.circular(4),
-                                  border: Border.all(
-                                      color: AppColors.border, width: 0.6),
-                                ),
-                                child: Text(
-                                  'x${item.quantity}',
-                                  style: const TextStyle(
-                                    fontSize: 10.5,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.textPrimary,
+                              Flexible(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 5, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.white,
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(
+                                        color: AppColors.border, width: 0.6),
+                                  ),
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      'x${item.quantity}',
+                                      style: const TextStyle(
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
                               if (item.returnedQuantity > 0) ...[
                                 const SizedBox(width: 4),
-                                Text(
-                                  l10n.orderItemReturnedQty(item.returnedQuantity),
-                                  style: const TextStyle(
-                                    fontSize: 10,
-                                    color: AppColors.supervisorDark,
-                                    fontWeight: FontWeight.w600,
+                                Flexible(
+                                  child: Text(
+                                    l10n.orderItemReturnedQty(
+                                        item.returnedQuantity),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      color: AppColors.supervisorDark,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                 ),
                               ],
                               const SizedBox(width: 8),
-                              Text(
-                                '${currencyFormat.format(item.price * item.quantity)} đ',
-                                style: const TextStyle(
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.textPrimary,
+                              Flexible(
+                                flex: 2,
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerRight,
+                                  child: Text(
+                                    '${currencyFormat.format(item.price * item.quantity)} đ',
+                                    style: const TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.textPrimary,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ],
@@ -1885,7 +1954,8 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                             child: FittedBox(
                               fit: BoxFit.scaleDown,
                               child: Text(
-                                l10n.orderDiscountAmount(currencyFormat.format(order.discount)),
+                                l10n.orderDiscountAmount(
+                                    currencyFormat.format(order.discount)),
                                 style: const TextStyle(
                                   color: AppColors.warningDeep,
                                   fontSize: 10,
@@ -1911,7 +1981,8 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                             child: FittedBox(
                               fit: BoxFit.scaleDown,
                               child: Text(
-                                l10n.orderRemainingDebtTag(currencyFormat.format(order.remainingDebt)),
+                                l10n.orderRemainingDebtTag(
+                                    currencyFormat.format(order.remainingDebt)),
                                 style: const TextStyle(
                                   color: AppColors.dangerDeep,
                                   fontSize: 10,
@@ -2092,13 +2163,12 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
         return Consumer(
           builder: (context, ref, child) {
             final selectedBranchIds = ref.watch(selectedBranchesProvider);
-            final notifier = ref.read(selectedBranchesProvider.notifier);
             final currentStoreId = ref.watch(currentStoreIdProvider);
             final mockBranches = getMockBranches(currentStoreId);
 
             return Container(
               padding: const EdgeInsets.only(top: 16, bottom: 24),
-              child: Column(
+              child: SingleChildScrollView(child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -2108,21 +2178,28 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          l10n.selectBranch,
-                          style: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.bold),
-                        ),
-                        InkWell(
-                          onTap: () {
-                            notifier.selectAll();
-                          },
+                        Flexible(
                           child: Text(
-                            l10n.selectAll,
+                            l10n.selectBranch,
                             style: const TextStyle(
-                                color: AppColors.primary,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500),
+                                fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: InkWell(
+                            onTap: () {
+                              ref.read(selectedBranchesProvider.notifier).selectAll();
+                            },
+                            child: Text(
+                              l10n.selectAll,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  color: AppColors.primary,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500),
+                            ),
                           ),
                         )
                       ],
@@ -2136,7 +2213,7 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                       value: isChecked,
                       activeColor: AppColors.primary,
                       onChanged: (_) {
-                        notifier.toggleBranch(branch.id);
+                        ref.read(selectedBranchesProvider.notifier).toggleBranch(branch.id);
                       },
                     );
                   }),
@@ -2146,7 +2223,7 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                     child: SizedBox(
                       width: double.infinity,
                       child: FilledButton(
-                        onPressed: () => Navigator.pop(context),
+                        onPressed: () => closeRoute(context),
                         style: FilledButton.styleFrom(
                           backgroundColor: AppColors.primary,
                         ),
@@ -2155,7 +2232,7 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                     ),
                   )
                 ],
-              ),
+              )),
             );
           },
         );
@@ -2183,6 +2260,19 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
         ),
       ),
       builder: (sheetContext) {
+        // Closes THIS sheet only. Returns false when it is already closing /
+        // covered (rapid double tap): a second tap used to pop the page below
+        // the sheet and then use its dead BuildContext.
+        bool closeSheet() {
+          if (!sheetContext.mounted) return false;
+          final route = ModalRoute.of(sheetContext);
+          if (route == null || !route.isActive || !route.isCurrent) {
+            return false;
+          }
+          Navigator.of(sheetContext).pop();
+          return true;
+        }
+
         final customers =
             ref.read(customerListNotifierProvider).valueOrNull ?? <Customer>[];
         Customer? targetCustomer;
@@ -2207,7 +2297,8 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
             customerName != 'Khách lẻ' &&
             customerName != 'Walk-in Customer') {
           for (final c in customers) {
-            if (c.name.trim().toLowerCase() == customerName.trim().toLowerCase()) {
+            if (c.name.trim().toLowerCase() ==
+                customerName.trim().toLowerCase()) {
               targetCustomer = c;
               break;
             }
@@ -2224,14 +2315,18 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
 
         final products =
             ref.read(productListProvider).valueOrNull ?? <Product>[];
-        final productMap = {for (final p in products) p.id: p};
+        final orderProductIds = {for (final i in order.items) i.productId};
+        final productMap = {
+          for (final p in products)
+            if (orderProductIds.contains(p.id)) p.id: p
+        };
         final currentUser = ref.read(authProvider);
         final canDelete = currentUser?.canDeleteInvoice ?? false;
 
         return Container(
           padding: const EdgeInsets.all(16),
           constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.85),
+              maxHeight: MediaQuery.of(sheetContext).size.height * 0.85),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -2255,167 +2350,182 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                   const SizedBox(width: 8),
                   IconButton(
                     icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: closeSheet,
                   )
                 ],
               ),
               const Divider(color: AppColors.divider),
 
               Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Cancelled Banner if cancelled
-                      if (order.isCancelled) ...[
-                        Container(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: AppColors.danger.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                                color: AppColors.danger.withOpacity(0.3)),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
+                child: CustomScrollView(
+                  slivers: [
+                    SliverToBoxAdapter(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Cancelled Banner if cancelled
+                          if (order.isCancelled) ...[
+                            Container(
+                              margin: const EdgeInsets.only(bottom: 12),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: AppColors.danger.withOpacity(0.08),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                    color: AppColors.danger.withOpacity(0.3)),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Icon(Icons.cancel,
-                                      color: AppColors.danger, size: 18),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    l10n.orderCancelledBanner,
-                                    style: const TextStyle(
-                                      color: AppColors.danger,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 13,
-                                    ),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.cancel,
+                                          color: AppColors.danger, size: 18),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        l10n.orderCancelledBanner,
+                                        style: const TextStyle(
+                                          color: AppColors.danger,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ],
                                   ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    l10n.orderCancelReasonLabel(
+                                        order.cancelReason ?? '—'),
+                                    style: const TextStyle(
+                                        fontSize: 12.5,
+                                        color: AppColors.textPrimary),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    l10n.orderCancelledByLabel(
+                                        order.cancelledByName ??
+                                            order.cancelledBy ??
+                                            '—'),
+                                    style: const TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.textSecondary),
+                                  ),
+                                  if (order.cancelledAt != null) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      l10n.orderCancelledAtLabel(
+                                          DateFormat('dd/MM/yyyy HH:mm')
+                                              .format(order.cancelledAt!)),
+                                      style: const TextStyle(
+                                          fontSize: 12,
+                                          color: AppColors.textSecondary),
+                                    ),
+                                  ],
                                 ],
                               ),
-                              const SizedBox(height: 6),
-                              Text(
-                                l10n.orderCancelReasonLabel(order.cancelReason ?? '—'),
-                                style: const TextStyle(
-                                    fontSize: 12.5,
-                                    color: AppColors.textPrimary),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                l10n.orderCancelledByLabel(order.cancelledByName ?? order.cancelledBy ?? '—'),
-                                style: const TextStyle(
-                                    fontSize: 12,
-                                    color: AppColors.textSecondary),
-                              ),
-                              if (order.cancelledAt != null) ...[
-                                const SizedBox(height: 2),
-                                Text(
-                                  l10n.orderCancelledAtLabel(DateFormat('dd/MM/yyyy HH:mm').format(order.cancelledAt!)),
-                                  style: const TextStyle(
-                                      fontSize: 12,
-                                      color: AppColors.textSecondary),
-                                ),
-                              ],
-                            ],
+                            ),
+                          ],
+
+                          _buildDetailRow(l10n.invoiceId, order.id),
+                          if (targetCustomer != null)
+                            _buildClickableDetailRow(
+                              label: l10n.customers,
+                              value: customerName,
+                              onTap: () {
+                                if (!sheetContext.mounted) return;
+                                Navigator.push(
+                                  sheetContext,
+                                  MaterialPageRoute(
+                                    builder: (context) => CustomerDetailPage(
+                                        customer: targetCustomer!),
+                                  ),
+                                );
+                              },
+                            )
+                          else
+                            _buildDetailRow(l10n.customers, customerName),
+                          if (customerPhone.isNotEmpty)
+                            _buildCustomerPhoneRow(sheetContext, customerPhone),
+                          _buildDetailRow(
+                            l10n.createdTime,
+                            DateFormat('dd/MM/yyyy HH:mm')
+                                .format(order.createdAt),
                           ),
-                        ),
-                      ],
-
-                      _buildDetailRow(l10n.invoiceId, order.id),
-                      if (targetCustomer != null)
-                        _buildClickableDetailRow(
-                          label: l10n.customers,
-                          value: customerName,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => CustomerDetailPage(
-                                    customer: targetCustomer!),
-                              ),
-                            );
-                          },
-                        )
-                      else
-                        _buildDetailRow(l10n.customers, customerName),
-                      if (customerPhone.isNotEmpty)
-                        _buildCustomerPhoneRow(context, customerPhone),
-                      _buildDetailRow(
-                        l10n.createdTime,
-                        DateFormat('dd/MM/yyyy HH:mm').format(order.createdAt),
-                      ),
-                      _buildDetailRow(
-                        l10n.status,
-                        order.isCancelled
-                            ? l10n.orderBadgeCancelled
-                            : (order.isReturned
-                                ? l10n.orderBadgeReturned
-                                : (order.hasReturns
-                                    ? l10n.orderBadgePartiallyReturned
-                                    : (order.status == 'draft'
-                                        ? l10n.draft
-                                        : l10n.orderBadgeCompleted))),
-                        textColor: order.isCancelled
-                            ? AppColors.danger
-                            : (order.status == 'draft'
-                                ? AppColors.warning
+                          _buildDetailRow(
+                            l10n.status,
+                            order.isCancelled
+                                ? l10n.orderBadgeCancelled
                                 : (order.isReturned
-                                    ? AppColors.supervisor
-                                    : AppColors.success)),
-                      ),
-                      _buildDetailRow(
-                        l10n.payment,
-                        order.isCancelled
-                            ? l10n.orderPaymentNotApplicable
-                            : (order.remainingDebt <= 0.001
-                                ? l10n.orderPaymentPaidFull
-                                : (order.amountPaid > 0
-                                    ? l10n.orderPaymentPartial
-                                    : l10n.orderPaymentUnpaidDebt)),
-                        textColor: order.isCancelled
-                            ? AppColors.textSecondary
-                            : (order.remainingDebt <= 0.001
-                                ? AppColors.success
-                                : (order.amountPaid > 0
+                                    ? l10n.orderBadgeReturned
+                                    : (order.hasReturns
+                                        ? l10n.orderBadgePartiallyReturned
+                                        : (order.status == 'draft'
+                                            ? l10n.draft
+                                            : l10n.orderBadgeCompleted))),
+                            textColor: order.isCancelled
+                                ? AppColors.danger
+                                : (order.status == 'draft'
                                     ? AppColors.warning
-                                    : AppColors.danger)),
-                      ),
-                      _buildDetailRow(
-                        l10n.paymentMethod,
-                        order.paymentMethod == 'split'
-                            ? l10n.orderPaymentSplit
-                            : (order.paymentMethod == 'transfer'
-                                ? l10n.paymentMethodTransfer
-                                : l10n.cash),
-                      ),
-                      if (order.note != null &&
-                          order.note!.trim().isNotEmpty) ...[
-                        _buildDetailRow(
-                          l10n.note,
-                          order.note!.trim(),
-                        ),
-                      ],
-                      _buildDetailRow(
-                        l10n.orderCreatedBy,
-                        order.createdByName ?? order.createdBy ?? '—',
-                      ),
-                      const SizedBox(height: 16),
+                                    : (order.isReturned
+                                        ? AppColors.supervisor
+                                        : AppColors.success)),
+                          ),
+                          _buildDetailRow(
+                            l10n.payment,
+                            order.isCancelled
+                                ? l10n.orderPaymentNotApplicable
+                                : (order.remainingDebt <= 0.001
+                                    ? l10n.orderPaymentPaidFull
+                                    : (order.amountPaid > 0
+                                        ? l10n.orderPaymentPartial
+                                        : l10n.orderPaymentUnpaidDebt)),
+                            textColor: order.isCancelled
+                                ? AppColors.textSecondary
+                                : (order.remainingDebt <= 0.001
+                                    ? AppColors.success
+                                    : (order.amountPaid > 0
+                                        ? AppColors.warning
+                                        : AppColors.danger)),
+                          ),
+                          _buildDetailRow(
+                            l10n.paymentMethod,
+                            order.paymentMethod == 'split'
+                                ? l10n.orderPaymentSplit
+                                : (order.paymentMethod == 'transfer'
+                                    ? l10n.paymentMethodTransfer
+                                    : l10n.cash),
+                          ),
+                          if (order.note != null &&
+                              order.note!.trim().isNotEmpty) ...[
+                            _buildDetailRow(
+                              l10n.note,
+                              order.note!.trim(),
+                            ),
+                          ],
+                          _buildDetailRow(
+                            l10n.orderCreatedBy,
+                            order.createdByName ?? order.createdBy ?? '—',
+                          ),
+                          const SizedBox(height: 16),
 
-                      Text(
-                        l10n.productList,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                            color: AppColors.textPrimary),
+                          Text(
+                            l10n.productList,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: AppColors.textPrimary),
+                          ),
+                          const SizedBox(height: 8),
+                        ],
                       ),
-                      const SizedBox(height: 8),
-
-                      ...order.items.map((item) {
+                    ),
+                    SliverList.builder(
+                      itemCount: order.items.length,
+                      itemBuilder: (context, index) {
+                        final item = order.items[index];
                         final matchingProduct = productMap[item.productId];
-                        final hasDiscount =
-                            item.discount > 0 || item.originalPrice > item.price;
+                        final hasDiscount = item.discount > 0 ||
+                            item.originalPrice > item.price;
                         final origPrice = item.originalPrice > item.price
                             ? item.originalPrice
                             : (item.effectiveOriginalPrice > item.price
@@ -2423,26 +2533,31 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                                 : (item.discount > 0
                                     ? (item.isDiscountPercent
                                         ? (item.discount < 100
-                                            ? item.price / (1 - item.discount / 100)
-                                            : (matchingProduct?.price ?? item.price))
+                                            ? item.price /
+                                                (1 - item.discount / 100)
+                                            : (matchingProduct?.price ??
+                                                item.price))
                                         : (item.price + item.discount))
-                                    : (matchingProduct != null && matchingProduct.price > item.price
+                                    : (matchingProduct != null &&
+                                            matchingProduct.price > item.price
                                         ? matchingProduct.price
                                         : item.price)));
-                        final showStrikethrough = hasDiscount && origPrice > item.price;
+                        final showStrikethrough =
+                            hasDiscount && origPrice > item.price;
 
                         return InkWell(
                           onTap: () {
+                            if (!sheetContext.mounted) return;
                             if (matchingProduct != null) {
                               Navigator.push(
-                                context,
+                                sheetContext,
                                 MaterialPageRoute(
                                   builder: (context) => ProductDetailPage(
                                       product: matchingProduct),
                                 ),
                               );
                             } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
+                              ScaffoldMessenger.of(sheetContext).showSnackBar(
                                 SnackBar(
                                   content: Text(l10n.productNotFoundInSystem),
                                 ),
@@ -2553,7 +2668,8 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                                                     BorderRadius.circular(3),
                                               ),
                                               child: Text(
-                                                l10n.orderItemReturnedCount(item.returnedQuantity),
+                                                l10n.orderItemReturnedCount(
+                                                    item.returnedQuantity),
                                                 style: const TextStyle(
                                                   fontSize: 10,
                                                   color: AppColors.warning,
@@ -2585,91 +2701,99 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                             ),
                           ),
                         );
-                      }),
-                      const Divider(height: 24, color: AppColors.divider),
+                      },
+                    ),
+                    SliverToBoxAdapter(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Divider(height: 24, color: AppColors.divider),
+                          Builder(builder: (context) {
+                            final itemsSubtotal = order.items.fold(
+                                0.0,
+                                (sum, item) =>
+                                    sum + (item.price * item.quantity));
+                            final baseSubtotal =
+                                itemsSubtotal > 0 ? itemsSubtotal : order.total;
+                            final discount = order.discount > 0
+                                ? order.discount
+                                : ((baseSubtotal - order.netPayable) > 0.5
+                                    ? (baseSubtotal - order.netPayable)
+                                    : 0.0);
+                            final remainingDebt = order.remainingDebt;
 
-                      Builder(builder: (context) {
-                        final itemsSubtotal = order.items.fold(0.0,
-                            (sum, item) => sum + (item.price * item.quantity));
-                        final baseSubtotal =
-                            itemsSubtotal > 0 ? itemsSubtotal : order.total;
-                        final discount = order.discount > 0
-                            ? order.discount
-                            : ((baseSubtotal - order.netPayable) > 0.5
-                                ? (baseSubtotal - order.netPayable)
-                                : 0.0);
-                        final remainingDebt = order.remainingDebt;
-
-                        return Column(
-                          children: [
-                            if (discount > 0) ...[
-                              _buildDetailRow(l10n.totalProductAmount,
-                                  '${currencyFormat.format(baseSubtotal)} đ'),
-                              _buildDetailRow(l10n.inventoryDiscount,
-                                  '${currencyFormat.format(discount)} đ',
-                                  textColor: AppColors.danger),
-                              _buildDetailRow(
-                                l10n.amountToPay,
-                                '${currencyFormat.format(order.netPayable)} đ',
-                                textColor: AppColors.primary,
-                              ),
-                            ] else ...[
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Flexible(
-                                    child: Text(
-                                      l10n.totalPaymentAmount,
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 14),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
+                            return Column(
+                              children: [
+                                if (discount > 0) ...[
+                                  _buildDetailRow(l10n.totalProductAmount,
+                                      '${currencyFormat.format(baseSubtotal)} đ'),
+                                  _buildDetailRow(l10n.inventoryDiscount,
+                                      '${currencyFormat.format(discount)} đ',
+                                      textColor: AppColors.danger),
+                                  _buildDetailRow(
+                                    l10n.amountToPay,
+                                    '${currencyFormat.format(order.netPayable)} đ',
+                                    textColor: AppColors.primary,
                                   ),
-                                  const SizedBox(width: 8),
-                                  Flexible(
-                                    child: Text(
-                                      '${currencyFormat.format(order.total)} đ',
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                          color: AppColors.primary),
-                                      textAlign: TextAlign.end,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
+                                ] else ...[
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          l10n.totalPaymentAmount,
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 14),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Flexible(
+                                        child: Text(
+                                          '${currencyFormat.format(order.total)} đ',
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16,
+                                              color: AppColors.primary),
+                                          textAlign: TextAlign.end,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ],
-                              ),
-                            ],
-                            const SizedBox(height: 8),
-                            _buildDetailRow(l10n.paid,
-                                '${currencyFormat.format(order.amountPaid)} đ'),
-                            if (order.paymentMethod == 'split') ...[
-                              _buildDetailRow(l10n.orderCashBreakdown,
-                                  '${currencyFormat.format(order.cashAmount ?? 0.0)} đ'),
-                              _buildDetailRow(l10n.orderTransferBreakdown,
-                                  '${currencyFormat.format(order.transferAmount ?? 0.0)} đ'),
-                            ],
-                            const SizedBox(height: 4),
-                            _buildDetailRow(
-                              (remainingDebt > 0 || order.isCancelled)
-                                  ? l10n.orderRemainingDebtShort
-                                  : l10n.orderRemainingAmountShort,
-                              '${currencyFormat.format(order.isCancelled ? 0.0 : remainingDebt)} đ',
-                              textColor:
-                                  (remainingDebt > 0 && !order.isCancelled)
-                                      ? AppColors.danger
-                                      : (order.isCancelled
-                                          ? AppColors.textSecondary
-                                          : AppColors.success),
-                            ),
-                          ],
-                        );
-                      }),
-                      const SizedBox(height: 20),
-                    ],
-                  ),
+                                const SizedBox(height: 8),
+                                _buildDetailRow(l10n.paid,
+                                    '${currencyFormat.format(order.amountPaid)} đ'),
+                                if (order.paymentMethod == 'split') ...[
+                                  _buildDetailRow(l10n.orderCashBreakdown,
+                                      '${currencyFormat.format(order.cashAmount ?? 0.0)} đ'),
+                                  _buildDetailRow(l10n.orderTransferBreakdown,
+                                      '${currencyFormat.format(order.transferAmount ?? 0.0)} đ'),
+                                ],
+                                const SizedBox(height: 4),
+                                _buildDetailRow(
+                                  (remainingDebt > 0 || order.isCancelled)
+                                      ? l10n.orderRemainingDebtShort
+                                      : l10n.orderRemainingAmountShort,
+                                  '${currencyFormat.format(order.isCancelled ? 0.0 : remainingDebt)} đ',
+                                  textColor:
+                                      (remainingDebt > 0 && !order.isCancelled)
+                                          ? AppColors.danger
+                                          : (order.isCancelled
+                                              ? AppColors.textSecondary
+                                              : AppColors.success),
+                                ),
+                              ],
+                            );
+                          }),
+                          const SizedBox(height: 20),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
 
@@ -2705,7 +2829,8 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                         height: 44,
                         child: FilledButton(
                           onPressed: () async {
-                            Navigator.pop(context); // Đóng Bottom Sheet
+                            if (!closeSheet()) return; // Đóng Bottom Sheet
+                            if (!context.mounted) return;
 
                             // Nạp lại đơn hàng nháp vào giỏ hàng
                             var products =
@@ -2807,7 +2932,8 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                         child: FilledButton.icon(
                           key: const Key('view_return_order_action_button'),
                           onPressed: () {
-                            Navigator.pop(context);
+                            if (!closeSheet()) return;
+                            if (!context.mounted) return;
                             ReturnOrderDetailBottomSheet.show(
                               context,
                               order: order,
@@ -2864,8 +2990,10 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                               order,
                               customerName,
                               targetCustomer,
+                              closeSheet: closeSheet,
                             ),
-                            icon: const Icon(Icons.edit_note_outlined, size: 16),
+                            icon:
+                                const Icon(Icons.edit_note_outlined, size: 16),
                             label: Text(
                               l10n.orderActionEditInvoice,
                               style: const TextStyle(
@@ -2893,7 +3021,8 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                         child: OutlinedButton.icon(
                           key: const Key('return_order_action_button'),
                           onPressed: () async {
-                            Navigator.pop(context); // Close details sheet
+                            if (!closeSheet()) return; // Close details sheet
+                            if (!context.mounted) return;
                             await ReturnOrderBottomSheet.show(
                               context,
                               order: order,
@@ -2933,7 +3062,8 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                             child: FilledButton.icon(
                               key: const Key('collect_debt_action_button'),
                               onPressed: () async {
-                                Navigator.pop(context); // Close details sheet
+                                if (!closeSheet()) return; // Close details sheet
+                                if (!context.mounted) return;
                                 await DebtCollectionDialog.show(
                                   context,
                                   order: order,
@@ -2941,9 +3071,11 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                                   remainingDebt: order.remainingDebt,
                                 );
                               },
-                              icon: const Icon(Icons.payments_outlined, size: 16),
+                              icon:
+                                  const Icon(Icons.payments_outlined, size: 16),
                               label: Text(
-                                l10n.orderActionCollectDebt(currencyFormat.format(order.remainingDebt)),
+                                l10n.orderActionCollectDebt(
+                                    currencyFormat.format(order.remainingDebt)),
                                 style: const TextStyle(
                                   fontSize: 11.5,
                                   fontWeight: FontWeight.bold,
@@ -2969,7 +3101,8 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                             child: OutlinedButton.icon(
                               key: const Key('cancel_invoice_action_button'),
                               onPressed: () async {
-                                Navigator.pop(context); // Close details sheet
+                                if (!closeSheet()) return; // Close details sheet
+                                if (!context.mounted) return;
                                 await CancelInvoiceDialog.show(
                                   context,
                                   order: order,
@@ -3011,7 +3144,8 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                       child: SizedBox(
                         height: 42,
                         child: OutlinedButton.icon(
-                          key: const Key('recreate_cancelled_order_action_button'),
+                          key: const Key(
+                              'recreate_cancelled_order_action_button'),
                           onPressed: () => _handleEditInvoice(
                             context,
                             ref,
@@ -3019,6 +3153,7 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                             customerName,
                             targetCustomer,
                             isFromCancelled: true,
+                            closeSheet: closeSheet,
                           ),
                           icon: const Icon(Icons.refresh, size: 16),
                           label: Text(
@@ -3045,12 +3180,14 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                         child: SizedBox(
                           height: 42,
                           child: FilledButton.icon(
-                            key: const Key('restore_cancelled_order_action_button'),
+                            key: const Key(
+                                'restore_cancelled_order_action_button'),
                             onPressed: () => _showRestoreOrderDialog(
                               context,
                               ref,
                               order,
                               targetCustomer,
+                              closeSheet: closeSheet,
                             ),
                             icon: const Icon(Icons.restore, size: 16),
                             label: Text(
@@ -3081,9 +3218,12 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                 height: 44,
                 child: OutlinedButton.icon(
                   onPressed: () async {
+                    // The sheet may already be closing (double tap): its context
+                    // is not valid for showDialog then.
+                    if (!sheetContext.mounted) return;
                     final config = ref.read(storePaymentConfigProvider);
                     await InvoicePrintHelper.printInvoice(
-                      context,
+                      sheetContext,
                       order,
                       targetCustomer,
                       config,
@@ -3203,12 +3343,18 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            l10n.phone,
-            style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+          Flexible(
+            child: Text(
+              l10n.phone,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style:
+                  const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            ),
           ),
           const SizedBox(width: 8),
-          InkWell(
+          Flexible(
+              child: InkWell(
             key: const Key('copy_customer_phone_button'),
             borderRadius: BorderRadius.circular(4),
             onTap: () async {
@@ -3226,12 +3372,16 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    phone,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
+                  Flexible(
+                    child: Text(
+                      phone,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 6),
@@ -3243,7 +3393,7 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                 ],
               ),
             ),
-          ),
+          )),
         ],
       ),
     );
@@ -3256,8 +3406,11 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
     String customerName,
     Customer? targetCustomer, {
     bool isFromCancelled = false,
+    required bool Function() closeSheet,
   }) async {
-    Navigator.pop(context); // Đóng Bottom Sheet chi tiết
+    // Closes the details sheet only (a double tap used to pop the page too).
+    if (!closeSheet()) return;
+    if (!context.mounted) return;
 
     if (!isFromCancelled &&
         (order.isCancelled ||
@@ -3295,7 +3448,8 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
       if (!mounted) return;
       // `this.context`: context tham số thuộc bottom sheet vừa đóng ở đầu hàm.
       ScaffoldMessenger.of(this.context).showSnackBar(
-        SnackBar(content: Text(e.toString()), backgroundColor: AppColors.warning),
+        SnackBar(
+            content: Text(e.toString()), backgroundColor: AppColors.warning),
       );
       return;
     }
@@ -3317,8 +3471,7 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
     }
 
     // 4. Tìm kiếm thông tin khách hàng đầy đủ
-    final customers =
-        ref.read(customerListNotifierProvider).valueOrNull ?? [];
+    final customers = ref.read(customerListNotifierProvider).valueOrNull ?? [];
     Customer? customer = targetCustomer;
     if (customer == null &&
         order.customerId != 'khach_le' &&
@@ -3393,12 +3546,15 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
     BuildContext context,
     WidgetRef ref,
     Order order,
-    Customer? targetCustomer,
-  ) async {
+    Customer? targetCustomer, {
+    required bool Function() closeSheet,
+  }) async {
+    if (!context.mounted) return;
     final l10n = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogCtx) => AlertDialog(
+        scrollable: true,
         title: Text(l10n.orderRestoreInvoiceTitle),
         content: Text(
           l10n.orderRestoreInvoiceMsg(order.id),
@@ -3420,13 +3576,15 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
     if (confirmed != true) return;
     if (!context.mounted) return;
 
-    Navigator.pop(context); // Đóng Bottom Sheet chi tiết
+    if (!closeSheet()) return; // Đóng Bottom Sheet chi tiết
+    if (!context.mounted) return;
 
     try {
       final now = DateTime.now();
-      final String storeId = (order.storeId != null && order.storeId!.isNotEmpty)
-          ? order.storeId!
-          : (ref.read(selectedPOSBranchProvider) ?? 'store_001');
+      final String storeId =
+          (order.storeId != null && order.storeId!.isNotEmpty)
+              ? order.storeId!
+              : (ref.read(selectedPOSBranchProvider) ?? 'store_001');
       final currentUser = ref.read(authProvider);
       final productRepo = ref.read(productRepositoryProvider);
       final inventoryRepo = ref.read(inventoryRepositoryProvider);
@@ -3447,7 +3605,8 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
                 final compQtyToDeduct = qtyToDeduct * comp.quantity;
                 final updatedBranchStocks = _updateBranchStockHelper(
                     childProduct.branchStocks, storeId, -compQtyToDeduct);
-                await productRepo.upsert(childProduct.copyWith(branchStocks: updatedBranchStocks));
+                await productRepo.upsert(
+                    childProduct.copyWith(branchStocks: updatedBranchStocks));
 
                 final tx = InventoryTransaction(
                   id: 'restore_export_${now.millisecondsSinceEpoch}_${childProduct.id}',
@@ -3466,7 +3625,8 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
           } else {
             final updatedBranchStocks = _updateBranchStockHelper(
                 product.branchStocks, storeId, -qtyToDeduct);
-            await productRepo.upsert(product.copyWith(branchStocks: updatedBranchStocks));
+            await productRepo
+                .upsert(product.copyWith(branchStocks: updatedBranchStocks));
 
             final tx = InventoryTransaction(
               id: 'restore_export_${now.millisecondsSinceEpoch}_${product.id}',
@@ -3486,13 +3646,17 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
 
       // 2. Ghi nhận lại công nợ và doanh số khách hàng (nếu là khách hàng đăng ký)
       final customerId = order.customerId;
-      if (customerId.isNotEmpty && customerId != 'khach_le' && customerId != 'walk_in') {
+      if (customerId.isNotEmpty &&
+          customerId != 'khach_le' &&
+          customerId != 'walk_in') {
         final cust = await customerRepo.fetchById(customerId);
         if (cust != null) {
-          final debtToAdd = (order.total - order.amountPaid).clamp(0.0, double.infinity);
+          final debtToAdd =
+              (order.total - order.amountPaid).clamp(0.0, double.infinity);
           final updatedDebt = cust.displayCurrentDebt + debtToAdd;
           final updatedTotalSales = (cust.totalSales ?? 0.0) + order.total;
-          final updatedNetSales = (cust.netSales ?? cust.totalSales ?? 0.0) + order.netPayable;
+          final updatedNetSales =
+              (cust.netSales ?? cust.totalSales ?? 0.0) + order.netPayable;
 
           await customerRepo.upsert(cust.copyWith(
             currentDebt: updatedDebt,
@@ -3503,7 +3667,8 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
       }
 
       // 3. Cập nhật lại hóa đơn về trạng thái completed
-      final restoredDebtAmount = (order.total - order.amountPaid).clamp(0.0, double.infinity);
+      final restoredDebtAmount =
+          (order.total - order.amountPaid).clamp(0.0, double.infinity);
       final restoredOrder = order.copyWith(
         status: 'completed',
         debtAmount: restoredDebtAmount,
@@ -3557,10 +3722,13 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
 
   void _showCancelDraftDialog(
       BuildContext context, WidgetRef ref, String orderId) {
+    // Rapid double taps can call this after the originating sheet is gone.
+    if (!context.mounted) return;
     final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        scrollable: true,
         title: Text(l10n.cancelDraftOrder),
         content: Text(l10n.confirmCancelDraftOrder),
         actions: [
@@ -3572,6 +3740,9 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
             style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
             onPressed: () async {
               Navigator.pop(dialogContext); // pop dialog
+              // A double tap can open this dialog twice: the sheet may already
+              // be gone by the time the second confirmation runs.
+              if (!context.mounted) return;
               Navigator.pop(context); // pop bottom sheet
               try {
                 await ref.read(orderRepositoryProvider).delete(orderId);
@@ -3586,7 +3757,8 @@ class InvoicesPageState extends ConsumerState<InvoicesPage> {
               } catch (e) {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(l10n.orderCancelError(e.toString()))),
+                    SnackBar(
+                        content: Text(l10n.orderCancelError(e.toString()))),
                   );
                 }
               }

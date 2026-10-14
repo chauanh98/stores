@@ -72,6 +72,8 @@ Widget buildTestApp({
   return ProviderScope(
     overrides: [
       currentStoreIdProvider.overrideWith((ref) => 'store_001'),
+      // Giá nhập chỉ hiện cho vai trò có quyền xem giá (admin/giám sát).
+      canViewCostPriceProvider.overrideWithValue(true),
       ...overrides,
     ],
     child: MaterialApp(

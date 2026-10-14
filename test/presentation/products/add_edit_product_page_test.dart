@@ -296,7 +296,11 @@ void main() {
       expect(fieldWidget.controller?.text, equals('CUSTOM-SKU-999'));
     });
 
-    testWidgets('Opens Barcode Scanner Dialog and updates barcode',
+    // The scan button now opens the full-screen camera scanner
+    // (BarcodeScannerPage.open -> mobile_scanner), which needs a real camera
+    // plugin and cannot run in widget tests. We verify the scan entry point is
+    // exposed and that the manual barcode field still works.
+    testWidgets('Barcode field accepts manual entry and exposes camera scan button',
         (tester) async {
       tester.view.physicalSize = const Size(1000, 2000);
       tester.view.devicePixelRatio = 1.0;
@@ -311,27 +315,18 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final scanBtn = find.byIcon(Icons.qr_code_scanner);
+      // Camera scan entry point is present and enabled for supervisors.
+      final scanBtn = find.widgetWithIcon(IconButton, Icons.qr_code_scanner);
       expect(scanBtn, findsOneWidget);
+      expect(tester.widget<IconButton>(scanBtn).onPressed, isNotNull);
+      expect(tester.widget<IconButton>(scanBtn).tooltip, 'Quét mã vạch');
 
-      await tester.tap(scanBtn);
+      // Manual entry in the barcode field.
+      final barcodeFinder = find.widgetWithText(TextFormField, 'Mã vạch');
+      await tester.enterText(barcodeFinder, '893888888999');
       await tester.pumpAndSettle();
 
-      // Dialog appears
-      expect(find.text('Quét mã vạch'), findsOneWidget);
-
-      // Enter scanned barcode
-      final dialogBarcodeField =
-          find.widgetWithText(TextField, 'Mã vạch (Barcode)');
-      await tester.enterText(dialogBarcodeField, '893888888999');
-
-      // Confirm
-      await tester.tap(find.widgetWithText(FilledButton, 'Xác nhận'));
-      await tester.pumpAndSettle();
-
-      // Main field updated
-      final barcodeField = tester.widget<TextFormField>(
-          find.widgetWithText(TextFormField, 'Mã vạch'));
+      final barcodeField = tester.widget<TextFormField>(barcodeFinder);
       expect(barcodeField.controller?.text, equals('893888888999'));
     });
   });

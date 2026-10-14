@@ -1,3 +1,4 @@
+import '../../common/utils/number_parsing.dart';
 import 'package:stores/core/theme/app_colors.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -94,6 +95,10 @@ class _StockInProductEditSheetState
   @override
   void initState() {
     super.initState();
+    // Người không có quyền xem giá chỉ chỉnh số lượng (bàn phím số gõ vào SL).
+    if (!ref.read(canViewCostPriceProvider)) {
+      _activeField = ActiveEditField.quantity;
+    }
     _quantity = widget.existingItem?.quantity ?? 1;
     _discount = widget.existingItem?.discount ?? 0.0;
 
@@ -177,14 +182,14 @@ class _StockInProductEditSheetState
     final trimmed = val.trim();
     if (trimmed.isEmpty) return 0.0;
     if ('.'.allMatches(trimmed).length > 1) {
-      return double.tryParse(trimmed.replaceAll('.', '').replaceAll(',', '')) ??
+      return tryParseFinite(trimmed.replaceAll('.', '').replaceAll(',', '')) ??
           0.0;
     }
     if (RegExp(r'^\d{1,3}\.\d{3}$').hasMatch(trimmed)) {
-      return double.tryParse(trimmed.replaceAll('.', '').replaceAll(',', '')) ??
+      return tryParseFinite(trimmed.replaceAll('.', '').replaceAll(',', '')) ??
           0.0;
     }
-    return double.tryParse(trimmed.replaceAll(',', '')) ?? 0.0;
+    return tryParseFinite(trimmed.replaceAll(',', '')) ?? 0.0;
   }
 
   void _handleNumpadDigit(String digit) {
@@ -212,7 +217,7 @@ class _StockInProductEditSheetState
                 : _priceController.text.replaceAll('.', '').replaceAll(',', '');
             _isPriceFresh = false;
             String updated = '$current.';
-            final parsed = double.tryParse(updated) ?? 0.0;
+            final parsed = tryParseFinite(updated) ?? 0.0;
             _originalPrice = parsed;
             _priceController.text = updated;
             return;
@@ -221,7 +226,7 @@ class _StockInProductEditSheetState
             String current = _priceController.text;
             _isPriceFresh = false;
             String updated = current + digit;
-            final parsed = double.tryParse(updated) ?? 0.0;
+            final parsed = tryParseFinite(updated) ?? 0.0;
             _originalPrice = parsed;
             _priceController.text = updated;
           } else {
@@ -230,7 +235,7 @@ class _StockInProductEditSheetState
                 : _priceController.text.replaceAll('.', '').replaceAll(',', '');
             _isPriceFresh = false;
             String updated = current + digit;
-            final parsed = double.tryParse(updated) ?? 0.0;
+            final parsed = tryParseFinite(updated) ?? 0.0;
             _originalPrice = parsed;
             _priceController.text = _currencyFormat.format(_originalPrice);
           }
@@ -249,7 +254,7 @@ class _StockInProductEditSheetState
                     .replaceAll(',', '');
             _isDiscountFresh = false;
             String updated = '$current.';
-            final parsed = double.tryParse(updated) ?? 0.0;
+            final parsed = tryParseFinite(updated) ?? 0.0;
             _discount = parsed;
             _discountController.text = updated;
             return;
@@ -258,7 +263,7 @@ class _StockInProductEditSheetState
             String current = _discountController.text;
             _isDiscountFresh = false;
             String updated = current + digit;
-            final parsed = double.tryParse(updated) ?? 0.0;
+            final parsed = tryParseFinite(updated) ?? 0.0;
             _discount = parsed;
             _discountController.text = updated;
           } else {
@@ -269,7 +274,7 @@ class _StockInProductEditSheetState
                     .replaceAll(',', '');
             _isDiscountFresh = false;
             String updated = current + digit;
-            final parsed = double.tryParse(updated) ?? 0.0;
+            final parsed = tryParseFinite(updated) ?? 0.0;
             _discount = parsed;
             _discountController.text = _currencyFormat.format(_discount);
           }
@@ -302,7 +307,7 @@ class _StockInProductEditSheetState
             if (!text.contains('.')) {
               _priceHasDecimal = false;
             }
-            final parsed = double.tryParse(text) ?? 0.0;
+            final parsed = tryParseFinite(text) ?? 0.0;
             _originalPrice = parsed;
             _priceController.text = text.isEmpty ? '0' : text;
           } else {
@@ -311,7 +316,7 @@ class _StockInProductEditSheetState
             if (raw.isNotEmpty) {
               raw = raw.substring(0, raw.length - 1);
             }
-            final parsed = double.tryParse(raw) ?? 0.0;
+            final parsed = tryParseFinite(raw) ?? 0.0;
             _originalPrice = parsed;
             _priceController.text =
                 parsed > 0 ? _currencyFormat.format(parsed) : '0';
@@ -328,7 +333,7 @@ class _StockInProductEditSheetState
             if (!text.contains('.')) {
               _discountHasDecimal = false;
             }
-            final parsed = double.tryParse(text) ?? 0.0;
+            final parsed = tryParseFinite(text) ?? 0.0;
             _discount = parsed;
             _discountController.text = text.isEmpty ? '0' : text;
           } else {
@@ -338,7 +343,7 @@ class _StockInProductEditSheetState
             if (raw.isNotEmpty) {
               raw = raw.substring(0, raw.length - 1);
             }
-            final parsed = double.tryParse(raw) ?? 0.0;
+            final parsed = tryParseFinite(raw) ?? 0.0;
             _discount = parsed;
             _discountController.text =
                 parsed > 0 ? _currencyFormat.format(parsed) : '0';
@@ -418,6 +423,7 @@ class _StockInProductEditSheetState
   @override
   Widget build(BuildContext context) {
     final branchStock = _resolveBranchStock();
+    final canViewCost = ref.watch(canViewCostPriceProvider);
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return Container(
@@ -451,7 +457,7 @@ class _StockInProductEditSheetState
                 ),
                 Expanded(
                   child: Text(
-                    '< ${widget.product.code}',
+                    widget.product.code,
                     key: const Key('sheet_header_sku'),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -462,7 +468,8 @@ class _StockInProductEditSheetState
                   ),
                 ),
                 const SizedBox(width: 8),
-                Container(
+                Flexible(
+                    child: Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
@@ -473,13 +480,15 @@ class _StockInProductEditSheetState
                   child: Text(
                     'Tồn: $branchStock',
                     key: const Key('sheet_stock_badge'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: AppColors.primaryAction,
                       fontWeight: FontWeight.bold,
                       fontSize: 12,
                     ),
                   ),
-                ),
+                )),
               ],
             ),
             const SizedBox(height: 10),
@@ -515,27 +524,31 @@ class _StockInProductEditSheetState
                         children: [
                           if (widget.product.unit != null &&
                               widget.product.unit!.isNotEmpty) ...[
-                            Text(
+                            Flexible(
+                                child: Text(
                               'ĐVT: ${widget.product.unit}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                   fontSize: 12, color: AppColors.grey600),
-                            ),
+                            )),
                             const SizedBox(width: 8),
                             const Text('•',
                                 style: TextStyle(
                                     fontSize: 12, color: AppColors.grey400)),
                             const SizedBox(width: 8),
                           ],
-                          Flexible(
-                            child: Text(
-                              'Vốn hiện tại: ${_currencyFormat.format(widget.product.costPrice)} đ',
-                              style: const TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.textMuted,
-                                  fontWeight: FontWeight.w500),
-                              overflow: TextOverflow.ellipsis,
+                          if (canViewCost)
+                            Flexible(
+                              child: Text(
+                                'Vốn hiện tại: ${_currencyFormat.format(widget.product.costPrice)} đ',
+                                style: const TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.textMuted,
+                                    fontWeight: FontWeight.w500),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                          ),
                         ],
                       ),
                     ],
@@ -579,258 +592,269 @@ class _StockInProductEditSheetState
                       ),
                     ),
                   ),
-                  Row(
-                    children: [
-                      IconButton(
-                        key: const Key('sheet_stepper_dec'),
-                        icon: const Icon(Icons.remove_circle_outline,
-                            color: AppColors.primaryAction, size: 24),
-                        onPressed: _quantity > 1
-                            ? () {
-                                if (_quantity <= 1) return;
-                                setState(() {
-                                  final newQty = math.max(1, _quantity - 1);
-                                  _quantity = newQty;
-                                  _qtyController.text = '$_quantity';
-                                  _isQtyFresh = false;
-                                });
-                              }
-                            : null,
-                      ),
-                      GestureDetector(
-                        onTap: () => setState(() {
-                          _activeField = ActiveEditField.quantity;
-                          _isQtyFresh = true;
-                        }),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 4),
-                          child: Text(
-                            '$_quantity',
-                            key: const Key('sheet_qty_text'),
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 17,
-                                color: AppColors.textHeadline),
+                  Flexible(
+                      flex: 3,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            key: const Key('sheet_stepper_dec'),
+                            icon: const Icon(Icons.remove_circle_outline,
+                                color: AppColors.primaryAction, size: 24),
+                            onPressed: _quantity > 1
+                                ? () {
+                                    if (_quantity <= 1) return;
+                                    setState(() {
+                                      final newQty = math.max(1, _quantity - 1);
+                                      _quantity = newQty;
+                                      _qtyController.text = '$_quantity';
+                                      _isQtyFresh = false;
+                                    });
+                                  }
+                                : null,
                           ),
-                        ),
-                      ),
-                      IconButton(
-                        key: const Key('sheet_stepper_inc'),
-                        icon: const Icon(Icons.add_circle_outline,
-                            color: AppColors.primaryAction, size: 24),
-                        onPressed: () {
-                          setState(() {
-                            _quantity++;
-                            _qtyController.text = '$_quantity';
-                            _isQtyFresh = false;
-                          });
-                        },
-                      ),
-                    ],
-                  ),
+                          Flexible(
+                              child: GestureDetector(
+                            onTap: () => setState(() {
+                              _activeField = ActiveEditField.quantity;
+                              _isQtyFresh = true;
+                            }),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 4),
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  '$_quantity',
+                                  key: const Key('sheet_qty_text'),
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 17,
+                                      color: AppColors.textHeadline),
+                                ),
+                              ),
+                            ),
+                          )),
+                          IconButton(
+                            key: const Key('sheet_stepper_inc'),
+                            icon: const Icon(Icons.add_circle_outline,
+                                color: AppColors.primaryAction, size: 24),
+                            onPressed: () {
+                              setState(() {
+                                _quantity++;
+                                _qtyController.text = '$_quantity';
+                                _isQtyFresh = false;
+                              });
+                            },
+                          ),
+                        ],
+                      )),
                 ],
               ),
             ),
             const SizedBox(height: 10),
 
-            // 4. Unit Price & Discount Inputs
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Đơn giá nhập',
-                        style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.textMuted),
-                      ),
-                      const SizedBox(height: 4),
-                      TextFormField(
-                        key: const Key('sheet_input_price'),
-                        controller: _priceController,
-                        keyboardType: TextInputType.number,
-                        onTap: () => setState(() {
-                          _activeField = ActiveEditField.unitPrice;
-                          _isPriceFresh = true;
-                          _priceHasDecimal = false;
-                        }),
-                        onChanged: (val) {
-                          final parsed = _parseInputNumber(val);
-                          setState(() {
-                            _originalPrice = parsed;
-                            _isPriceFresh = false;
-                            _priceHasDecimal = val.contains('.') &&
-                                !RegExp(r'^\d{1,3}\.\d{3}$').hasMatch(val);
-                          });
-                        },
-                        decoration: InputDecoration(
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8)),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(
-                              color: _activeField == ActiveEditField.unitPrice
-                                  ? AppColors.primaryAction
-                                  : AppColors.grey300,
-                              width: _activeField == ActiveEditField.unitPrice
-                                  ? 1.8
-                                  : 1,
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: const BorderSide(
-                                color: AppColors.primaryAction, width: 2),
-                          ),
-                          isDense: true,
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 10),
+            // 4-5. Đơn giá / giảm giá / thành tiền: chỉ hiện cho vai trò có quyền
+            // xem giá nhập (nhân viên chỉ nhập số lượng).
+            if (canViewCost) ...[
+              // 4. Unit Price & Discount Inputs
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Đơn giá nhập',
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.textMuted),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Giảm giá',
-                        style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.textMuted),
-                      ),
-                      const SizedBox(height: 4),
-                      TextFormField(
-                        key: const Key('sheet_input_discount'),
-                        controller: _discountController,
-                        keyboardType: TextInputType.number,
-                        onTap: () => setState(() {
-                          _activeField = ActiveEditField.discount;
-                          _isDiscountFresh = true;
-                          _discountHasDecimal = false;
-                        }),
-                        onChanged: (val) {
-                          final parsed = _parseInputNumber(val);
-                          setState(() {
-                            _discount = parsed;
-                            _isDiscountFresh = false;
-                            _discountHasDecimal = val.contains('.') &&
-                                !RegExp(r'^\d{1,3}\.\d{3}$').hasMatch(val);
-                          });
-                        },
-                        decoration: InputDecoration(
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8)),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(
-                              color: _activeField == ActiveEditField.discount
-                                  ? AppColors.primaryAction
-                                  : AppColors.grey300,
-                              width: _activeField == ActiveEditField.discount
-                                  ? 1.8
-                                  : 1,
+                        const SizedBox(height: 4),
+                        TextFormField(
+                          key: const Key('sheet_input_price'),
+                          controller: _priceController,
+                          keyboardType: TextInputType.number,
+                          onTap: () => setState(() {
+                            _activeField = ActiveEditField.unitPrice;
+                            _isPriceFresh = true;
+                            _priceHasDecimal = false;
+                          }),
+                          onChanged: (val) {
+                            final parsed = _parseInputNumber(val);
+                            setState(() {
+                              _originalPrice = parsed;
+                              _isPriceFresh = false;
+                              _priceHasDecimal = val.contains('.') &&
+                                  !RegExp(r'^\d{1,3}\.\d{3}$').hasMatch(val);
+                            });
+                          },
+                          decoration: InputDecoration(
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8)),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(
+                                color: _activeField == ActiveEditField.unitPrice
+                                    ? AppColors.primaryAction
+                                    : AppColors.grey300,
+                                width: _activeField == ActiveEditField.unitPrice
+                                    ? 1.8
+                                    : 1,
+                              ),
                             ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: const BorderSide(
+                                  color: AppColors.primaryAction, width: 2),
+                            ),
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 10),
                           ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: const BorderSide(
-                                color: AppColors.primaryAction, width: 2),
-                          ),
-                          isDense: true,
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 10),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Giảm giá',
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.textMuted),
+                        ),
+                        const SizedBox(height: 4),
+                        TextFormField(
+                          key: const Key('sheet_input_discount'),
+                          controller: _discountController,
+                          keyboardType: TextInputType.number,
+                          onTap: () => setState(() {
+                            _activeField = ActiveEditField.discount;
+                            _isDiscountFresh = true;
+                            _discountHasDecimal = false;
+                          }),
+                          onChanged: (val) {
+                            final parsed = _parseInputNumber(val);
+                            setState(() {
+                              _discount = parsed;
+                              _isDiscountFresh = false;
+                              _discountHasDecimal = val.contains('.') &&
+                                  !RegExp(r'^\d{1,3}\.\d{3}$').hasMatch(val);
+                            });
+                          },
+                          decoration: InputDecoration(
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8)),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(
+                                color: _activeField == ActiveEditField.discount
+                                    ? AppColors.primaryAction
+                                    : AppColors.grey300,
+                                width: _activeField == ActiveEditField.discount
+                                    ? 1.8
+                                    : 1,
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: const BorderSide(
+                                  color: AppColors.primaryAction, width: 2),
+                            ),
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 10),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
 
-            // 5. Live Calculated Displays: "Giá nhập" & "Thành tiền"
-            InkWell(
-              onTap: () => setState(() {
-                _activeField = ActiveEditField.unitPrice;
-                _isPriceFresh = true;
-                _priceHasDecimal = false;
-              }),
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.borderLight),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Giá nhập (Đơn giá - Giảm)',
-                            style: TextStyle(
-                                fontSize: 11,
-                                color: AppColors.textMuted,
-                                fontWeight: FontWeight.w500),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '${_currencyFormat.format(netUnitPrice)} đ',
-                            key: const Key('sheet_calculated_net_price'),
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                                color: AppColors.textHeadline),
-                          ),
-                        ],
+              // 5. Live Calculated Displays: "Giá nhập" & "Thành tiền"
+              InkWell(
+                onTap: () => setState(() {
+                  _activeField = ActiveEditField.unitPrice;
+                  _isPriceFresh = true;
+                  _priceHasDecimal = false;
+                }),
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.borderLight),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Giá nhập (Đơn giá - Giảm)',
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.textMuted,
+                                  fontWeight: FontWeight.w500),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${_currencyFormat.format(netUnitPrice)} đ',
+                              key: const Key('sheet_calculated_net_price'),
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  color: AppColors.textHeadline),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          const Text(
-                            'Thành tiền',
-                            style: TextStyle(
-                                fontSize: 11,
-                                color: AppColors.textMuted,
-                                fontWeight: FontWeight.w500),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '${_currencyFormat.format(lineTotal)} đ',
-                            key: const Key('sheet_calculated_total'),
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: AppColors.primaryAction),
-                          ),
-                        ],
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            const Text(
+                              'Thành tiền',
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.textMuted,
+                                  fontWeight: FontWeight.w500),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${_currencyFormat.format(lineTotal)} đ',
+                              key: const Key('sheet_calculated_total'),
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  color: AppColors.primaryAction),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 10),
+              const SizedBox(height: 10),
+            ],
 
             // 6. Note Field
             TextFormField(

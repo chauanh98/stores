@@ -94,6 +94,7 @@ class _SupplierDebtAdjustmentDialogState
     final currencyFormat = NumberFormat('#,###', 'vi_VN');
 
     return AlertDialog(
+      scrollable: true,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: Row(
         children: [
@@ -109,6 +110,8 @@ class _SupplierDebtAdjustmentDialogState
           const Expanded(
             child: Text(
               'Điều chỉnh công nợ NCC',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
           ),
@@ -131,12 +134,20 @@ class _SupplierDebtAdjustmentDialogState
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Dư nợ hiện tại:'),
-                    Text(
-                      '${currencyFormat.format(widget.supplier.currentDebt)} đ',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.danger,
+                    const Flexible(
+                        child: Text('Dư nợ hiện tại:',
+                            maxLines: 1, overflow: TextOverflow.ellipsis)),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          '${currencyFormat.format(widget.supplier.currentDebt)} đ',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.danger,
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -192,7 +203,8 @@ class _SupplierDebtAdjustmentDialogState
                     color: AppColors.white,
                   ),
                 )
-              : const Text('Cập nhật nợ'),
+              : const Text('Cập nhật nợ',
+                  maxLines: 1, overflow: TextOverflow.ellipsis),
         ),
       ],
     );

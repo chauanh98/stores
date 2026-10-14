@@ -35,7 +35,8 @@ class DraftOrdersBottomSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final draftsAsync = ref.watch(posDraftOrdersProvider);
-    final availableStores = ref.watch(availableStoresProvider).valueOrNull ?? {};
+    final availableStores =
+        ref.watch(availableStoresProvider).valueOrNull ?? {};
     final currencyFormat = NumberFormat('#,###', 'vi_VN');
 
     return Container(
@@ -76,21 +77,22 @@ class DraftOrdersBottomSheet extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(width: 10),
-                Text(
+                Expanded(
+                    child: Text(
                   draftsAsync.maybeWhen(
                     data: (drafts) =>
                         l10n?.draftOrdersCountTitle(drafts.length) ??
                         'Đơn hàng tạm (${drafts.length})',
-                    orElse: () =>
-                        l10n?.draftOrdersTitle ?? 'Đơn hàng tạm',
+                    orElse: () => l10n?.draftOrdersTitle ?? 'Đơn hàng tạm',
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.bold,
                     color: AppColors.textPrimary,
                   ),
-                ),
-                const Spacer(),
+                )),
                 IconButton(
                   icon: const Icon(Icons.close),
                   tooltip: l10n?.close ?? 'Đóng',
@@ -106,18 +108,20 @@ class DraftOrdersBottomSheet extends ConsumerWidget {
             child: draftsAsync.when(
               loading: () => const Center(child: LoadingIndicator()),
               error: (err, _) => Center(
-                child: Padding(
+                child: SingleChildScrollView(
+                    child: Padding(
                   padding: const EdgeInsets.all(24),
                   child: Text(
                     l10n?.draftOrdersLoadError(err.toString()) ??
                         'Lỗi khi tải đơn tạm: $err',
                   ),
-                ),
+                )),
               ),
               data: (drafts) {
                 if (drafts.isEmpty) {
                   return Center(
-                    child: Padding(
+                    child: SingleChildScrollView(
+                        child: Padding(
                       padding: const EdgeInsets.symmetric(
                           vertical: 40, horizontal: 24),
                       child: Column(
@@ -137,7 +141,8 @@ class DraftOrdersBottomSheet extends ConsumerWidget {
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            l10n?.draftOrdersEmpty ?? 'Không có đơn hàng tạm nào',
+                            l10n?.draftOrdersEmpty ??
+                                'Không có đơn hàng tạm nào',
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -156,7 +161,7 @@ class DraftOrdersBottomSheet extends ConsumerWidget {
                           ),
                         ],
                       ),
-                    ),
+                    )),
                   );
                 }
 
@@ -192,18 +197,17 @@ class DraftOrdersBottomSheet extends ConsumerWidget {
     NumberFormat currencyFormat,
   ) {
     final l10n = AppLocalizations.of(context);
-    final customerName = (order.customerName != null &&
-            order.customerName!.trim().isNotEmpty)
-        ? order.customerName!
-        : (order.customerId.isNotEmpty &&
-                order.customerId != 'khach_le' &&
-                order.customerId != 'walk_in'
-            ? order.customerId
-            : (l10n?.retailCustomer ?? 'Khách lẻ'));
+    final customerName =
+        (order.customerName != null && order.customerName!.trim().isNotEmpty)
+            ? order.customerName!
+            : (order.customerId.isNotEmpty &&
+                    order.customerId != 'khach_le' &&
+                    order.customerId != 'walk_in'
+                ? order.customerId
+                : (l10n?.retailCustomer ?? 'Khách lẻ'));
 
-    final itemsSummary = order.items
-        .map((i) => '${i.productName} (x${i.quantity})')
-        .join(', ');
+    final itemsSummary =
+        order.items.map((i) => '${i.productName} (x${i.quantity})').join(', ');
 
     final branchName = availableStores[
             StoreResolverHelper.normalizeStoreId(order.storeId ?? '')] ??
@@ -240,7 +244,8 @@ class DraftOrdersBottomSheet extends ConsumerWidget {
                       ),
                       if (branchName.isNotEmpty) ...[
                         const SizedBox(width: 8),
-                        Container(
+                        Flexible(
+                            child: Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
@@ -251,25 +256,31 @@ class DraftOrdersBottomSheet extends ConsumerWidget {
                           ),
                           child: Text(
                             branchName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
                               color: AppColors.info,
                             ),
                           ),
-                        ),
+                        )),
                       ],
                     ],
                   ),
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  DateFormat('HH:mm · dd/MM/yyyy').format(order.createdAt),
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
+                Flexible(
+                    child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    DateFormat('HH:mm · dd/MM/yyyy').format(order.createdAt),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
-                ),
+                )),
               ],
             ),
             const SizedBox(height: 8),
@@ -294,10 +305,14 @@ class DraftOrdersBottomSheet extends ConsumerWidget {
                 ),
                 if (order.createdByName != null &&
                     order.createdByName!.isNotEmpty)
-                  Text(
-                    '${l10n?.staff ?? 'NV'}: ${order.createdByName}',
-                    style: const TextStyle(
-                        fontSize: 12, color: AppColors.textSecondary),
+                  Flexible(
+                    child: Text(
+                      '${l10n?.staff ?? 'NV'}: ${order.createdByName}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontSize: 12, color: AppColors.textSecondary),
+                    ),
                   ),
               ],
             ),
@@ -359,7 +374,8 @@ class DraftOrdersBottomSheet extends ConsumerWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
+                Flexible(
+                    child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
@@ -367,18 +383,27 @@ class DraftOrdersBottomSheet extends ConsumerWidget {
                       style: const TextStyle(
                           fontSize: 11, color: AppColors.textSecondary),
                     ),
-                    Text(
-                      '${currencyFormat.format(order.total)} đ',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        '${currencyFormat.format(order.total)} đ',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
                       ),
                     ),
                   ],
-                ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
+                )),
+                const SizedBox(width: 8),
+                Flexible(
+                    child: Wrap(
+                  alignment: WrapAlignment.end,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 8,
+                  runSpacing: 6,
                   children: [
                     OutlinedButton.icon(
                       onPressed: () => _confirmDeleteDraft(context, ref, order),
@@ -396,7 +421,6 @@ class DraftOrdersBottomSheet extends ConsumerWidget {
                           style: const TextStyle(
                               fontSize: 12, fontWeight: FontWeight.bold)),
                     ),
-                    const SizedBox(width: 8),
                     FilledButton.icon(
                       onPressed: () => _resumeDraftOrder(context, ref, order),
                       style: FilledButton.styleFrom(
@@ -413,7 +437,7 @@ class DraftOrdersBottomSheet extends ConsumerWidget {
                               fontSize: 12, fontWeight: FontWeight.bold)),
                     ),
                   ],
-                ),
+                )),
               ],
             ),
           ],
@@ -427,6 +451,7 @@ class DraftOrdersBottomSheet extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (dialogCtx) => AlertDialog(
+        scrollable: true,
         title: Text(l10n?.draftOrderCancelTitle ?? 'Hủy đơn hàng tạm'),
         content: Text(
           l10n?.draftOrderCancelConfirm(order.id) ??
@@ -442,9 +467,10 @@ class DraftOrdersBottomSheet extends ConsumerWidget {
             onPressed: () async {
               Navigator.of(dialogCtx).pop();
               try {
-                final storeId = (order.storeId != null && order.storeId!.isNotEmpty)
-                    ? order.storeId!
-                    : ref.read(currentStoreIdProvider);
+                final storeId =
+                    (order.storeId != null && order.storeId!.isNotEmpty)
+                        ? order.storeId!
+                        : ref.read(currentStoreIdProvider);
                 final ds = OrderRemoteDataSource(
                     ref.read(firebaseDatabaseProvider), storeId);
                 final repo = OrderRepositoryImpl(ds);

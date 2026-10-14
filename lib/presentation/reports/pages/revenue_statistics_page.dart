@@ -17,6 +17,9 @@ class RevenueStatisticsPage extends ConsumerStatefulWidget {
       _RevenueStatisticsPageState();
 }
 
+/// Hoisted: building a NumberFormat per list row is expensive.
+final NumberFormat _vnd = NumberFormat.currency(locale: 'vi_VN', symbol: 'đ');
+
 class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
   DateTime _selectedDate = DateTime.now();
   DateTimeRange? _selectedDateRange;
@@ -38,41 +41,46 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
       ),
       body: Column(
         children: [
-          // Date selector
-          Card(
-            margin: const EdgeInsets.all(16),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _isRangeMode ? l10n.selectDateRange : l10n.selectDate,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                  ),
-                  const SizedBox(height: 12),
-                  if (_isRangeMode) ...[
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildDateRangeButton(),
-                        ),
-                      ],
+          // Date selector (bounded + scrollable on tiny screens / huge text)
+          ConstrainedBox(
+            constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.4),
+            child: SingleChildScrollView(
+                child: Card(
+              margin: const EdgeInsets.all(16),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _isRangeMode ? l10n.selectDateRange : l10n.selectDate,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
                     ),
-                  ] else ...[
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildDateButton(),
-                        ),
-                      ],
-                    ),
+                    const SizedBox(height: 12),
+                    if (_isRangeMode) ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildDateRangeButton(),
+                          ),
+                        ],
+                      ),
+                    ] else ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildDateButton(),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
+            )),
           ),
 
           // Revenue data
@@ -99,9 +107,12 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
             Icon(Icons.calendar_today,
                 color: Theme.of(context).colorScheme.primary),
             const SizedBox(width: 8),
-            Text(
-              DateFormat('dd/MM/yyyy').format(_selectedDate),
-              style: Theme.of(context).textTheme.bodyLarge,
+            Flexible(
+              child: Text(
+                DateFormat('dd/MM/yyyy').format(_selectedDate),
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
             ),
           ],
         ),
@@ -125,11 +136,14 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
             Icon(Icons.date_range,
                 color: Theme.of(context).colorScheme.primary),
             const SizedBox(width: 8),
-            Text(
-              _selectedDateRange != null
-                  ? '${DateFormat('dd/MM/yyyy').format(_selectedDateRange!.start)} - ${DateFormat('dd/MM/yyyy').format(_selectedDateRange!.end)}'
-                  : l10n.selectDateRange,
-              style: Theme.of(context).textTheme.bodyLarge,
+            Flexible(
+              child: Text(
+                overflow: TextOverflow.ellipsis,
+                _selectedDateRange != null
+                    ? '${DateFormat('dd/MM/yyyy').format(_selectedDateRange!.start)} - ${DateFormat('dd/MM/yyyy').format(_selectedDateRange!.end)}'
+                    : l10n.selectDateRange,
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
             ),
           ],
         ),
@@ -145,20 +159,31 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
         final revenueAsync = ref.watch(revenueByDateProvider(_selectedDate));
 
         return revenueAsync.when(
-          data: (report) => SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildSummaryCard(report),
-                const SizedBox(height: 16),
-                _buildProductRevenueCard(report.productRevenues),
-              ],
-            ),
+          data: (report) => CustomScrollView(
+            slivers: [
+              SliverPadding(
+                padding: const EdgeInsets.all(16),
+                sliver: SliverMainAxisGroup(slivers: [
+                  SliverToBoxAdapter(child: _buildSummaryCard(report)),
+                  const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                  if (report.productRevenues.isEmpty)
+                    SliverToBoxAdapter(
+                        child: _buildProductRevenueCard(report.productRevenues))
+                  else
+                    _lazyCardSliver(
+                      title: l10n.revenueByProduct,
+                      count: report.productRevenues.length,
+                      itemBuilder: (i) =>
+                          _buildProductRevenueItem(report.productRevenues[i]),
+                    ),
+                ]),
+              ),
+            ],
           ),
           loading: () => const LoadingIndicator(),
           error: (error, stack) => Center(
-            child: Column(
+            child: SingleChildScrollView(
+                child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Icon(Icons.error, size: 64, color: AppColors.danger),
@@ -170,7 +195,7 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
                   child: Text(l10n.retry),
                 ),
               ],
-            ),
+            )),
           ),
         );
       },
@@ -192,20 +217,27 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
             ref.watch(revenueByDateRangeProvider(_selectedDateRange!));
 
         return summaryAsync.when(
-          data: (summary) => SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildSummaryOverviewCard(summary),
-                const SizedBox(height: 16),
-                _buildDailyReportsCard(summary.dailyReports),
-              ],
-            ),
+          data: (summary) => CustomScrollView(
+            slivers: [
+              SliverPadding(
+                padding: const EdgeInsets.all(16),
+                sliver: SliverMainAxisGroup(slivers: [
+                  SliverToBoxAdapter(child: _buildSummaryOverviewCard(summary)),
+                  const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                  _lazyCardSliver(
+                    title: l10n.dailyReport,
+                    count: summary.dailyReports.length,
+                    itemBuilder: (i) =>
+                        _buildDailyReportItem(summary.dailyReports[i]),
+                  ),
+                ]),
+              ),
+            ],
           ),
           loading: () => const LoadingIndicator(),
           error: (error, stack) => Center(
-            child: Column(
+            child: SingleChildScrollView(
+                child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Icon(Icons.error, size: 64, color: AppColors.danger),
@@ -217,7 +249,7 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
                   child: Text(l10n.retry),
                 ),
               ],
-            ),
+            )),
           ),
         );
       },
@@ -246,8 +278,7 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
                 Expanded(
                   child: _buildMetricCard(
                     l10n.revenue,
-                    NumberFormat.currency(locale: 'vi_VN', symbol: 'đ')
-                        .format(report.totalRevenue),
+                    _vnd.format(report.totalRevenue),
                     AppColors.success,
                     Icons.attach_money,
                   ),
@@ -257,8 +288,7 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
                   Expanded(
                     child: _buildMetricCard(
                       l10n.expense,
-                      NumberFormat.currency(locale: 'vi_VN', symbol: 'đ')
-                          .format(report.totalCost),
+                      _vnd.format(report.totalCost),
                       AppColors.danger,
                       Icons.shopping_cart,
                     ),
@@ -273,8 +303,7 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
                   Expanded(
                     child: _buildMetricCard(
                       l10n.profit,
-                      NumberFormat.currency(locale: 'vi_VN', symbol: 'đ')
-                          .format(report.profit),
+                      _vnd.format(report.profit),
                       report.profit >= 0
                           ? AppColors.primary
                           : AppColors.warning,
@@ -321,8 +350,7 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
                 Expanded(
                   child: _buildMetricCard(
                     l10n.totalRevenue,
-                    NumberFormat.currency(locale: 'vi_VN', symbol: 'đ')
-                        .format(summary.totalRevenue),
+                    _vnd.format(summary.totalRevenue),
                     AppColors.success,
                     Icons.attach_money,
                   ),
@@ -332,8 +360,7 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
                   Expanded(
                     child: _buildMetricCard(
                       l10n.totalExpense,
-                      NumberFormat.currency(locale: 'vi_VN', symbol: 'đ')
-                          .format(summary.totalCost),
+                      _vnd.format(summary.totalCost),
                       AppColors.danger,
                       Icons.shopping_cart,
                     ),
@@ -348,8 +375,7 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
                   Expanded(
                     child: _buildMetricCard(
                       l10n.totalProfit,
-                      NumberFormat.currency(locale: 'vi_VN', symbol: 'đ')
-                          .format(summary.totalProfit),
+                      _vnd.format(summary.totalProfit),
                       summary.totalProfit >= 0
                           ? AppColors.primary
                           : AppColors.warning,
@@ -405,6 +431,47 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
             textAlign: TextAlign.center,
           ),
         ],
+      ),
+    );
+  }
+
+  /// Card-looking sliver whose rows are built lazily (365-day ranges / big
+  /// product lists no longer build every row up-front).
+  Widget _lazyCardSliver({
+    required String title,
+    required int count,
+    required Widget Function(int index) itemBuilder,
+  }) {
+    final theme = Theme.of(context);
+    return DecoratedSliver(
+      decoration: BoxDecoration(
+        color: theme.cardTheme.color ?? theme.colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 3,
+              offset: const Offset(0, 1)),
+        ],
+      ),
+      sliver: SliverPadding(
+        padding: const EdgeInsets.all(16),
+        sliver: SliverMainAxisGroup(slivers: [
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Text(
+                title,
+                style: theme.textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+          SliverList.builder(
+            itemCount: count,
+            itemBuilder: (_, i) => itemBuilder(i),
+          ),
+        ]),
       ),
     );
   }
@@ -490,7 +557,7 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
               children: [
                 // Doanh thu theo sản phẩm
                 Text(
-                  '${l10n.revenue}: ${NumberFormat.currency(locale: 'vi_VN', symbol: 'đ').format(pr.revenue)}',
+                  '${l10n.revenue}: ${_vnd.format(pr.revenue)}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -499,13 +566,13 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
                 if (canViewCostPrice) ...[
                   // Giá vốn (FIFO) theo sản phẩm
                   Text(
-                    '${l10n.expense}: ${NumberFormat.currency(locale: 'vi_VN', symbol: 'đ').format(pr.cost)}',
+                    '${l10n.expense}: ${_vnd.format(pr.cost)}',
                     style: Theme.of(context).textTheme.bodySmall,
                     textAlign: TextAlign.right,
                   ),
                   // Lãi theo sản phẩm
                   Text(
-                    '${l10n.profit}: ${NumberFormat.currency(locale: 'vi_VN', symbol: 'đ').format(pr.profit)}',
+                    '${l10n.profit}: ${_vnd.format(pr.profit)}',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: pr.profit >= 0
                               ? AppColors.success
@@ -533,29 +600,6 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
     );
   }
 
-  Widget _buildDailyReportsCard(List<RevenueReport> dailyReports) {
-    final l10n = AppLocalizations.of(context)!;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              l10n.dailyReport,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            const SizedBox(height: 12),
-            ...dailyReports.map((report) => _buildDailyReportItem(report)),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildDailyReportItem(RevenueReport report) {
     final l10n = AppLocalizations.of(context)!;
     final canViewCostPrice = ref.watch(authProvider)?.canViewCostPrice ?? false;
@@ -571,29 +615,28 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
               .withOpacity(0.5),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Row(
+        child: Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 16,
+          runSpacing: 4,
           children: [
-            Expanded(
-              child: Text(
-                DateFormat('dd/MM/yyyy').format(report.date),
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-              ),
+            Text(
+              DateFormat('dd/MM/yyyy').format(report.date),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
             ),
             Text(
-              NumberFormat.currency(locale: 'vi_VN', symbol: 'đ')
-                  .format(report.totalRevenue),
+              _vnd.format(report.totalRevenue),
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: AppColors.success,
                     fontWeight: FontWeight.w600,
                   ),
             ),
             if (canViewCostPrice) ...[
-              const SizedBox(width: 16),
               Text(
-                NumberFormat.currency(locale: 'vi_VN', symbol: 'đ')
-                    .format(report.profit),
+                _vnd.format(report.profit),
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: report.profit >= 0
                           ? AppColors.primary
@@ -602,7 +645,6 @@ class _RevenueStatisticsPageState extends ConsumerState<RevenueStatisticsPage> {
                     ),
               ),
             ],
-            const SizedBox(width: 16),
             Text(
               '${report.totalOrders} ${l10n.orders}',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(

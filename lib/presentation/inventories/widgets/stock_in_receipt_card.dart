@@ -119,6 +119,8 @@ class StockInReceiptStatusBadge extends StatelessWidget {
       ),
       child: Text(
         label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(
           color: fg,
           fontWeight: FontWeight.bold,
@@ -211,7 +213,9 @@ class StockInReceiptCard extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(width: 6),
-                  StockInReceiptStatusBadge(status: receipt.status),
+                  Flexible(
+                    child: StockInReceiptStatusBadge(status: receipt.status),
+                  ),
                   const SizedBox(width: 6),
                   Flexible(
                     child: StoreBadge(storeId: receipt.storeId),
@@ -370,13 +374,17 @@ class StockInReceiptCard extends ConsumerWidget {
                             ),
                           )
                         else
-                          const Text(
-                            '••••••',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.textSecondary,
-                              letterSpacing: 2,
+                          const Flexible(
+                            child: Text(
+                              '••••••',
+                              maxLines: 1,
+                              overflow: TextOverflow.clip,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textSecondary,
+                                letterSpacing: 2,
+                              ),
                             ),
                           ),
                         const SizedBox(width: 4),

@@ -261,6 +261,7 @@ class _StorePaymentSettingsPageState
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
+                isExpanded: true,
                 value: VietQRHelper.supportedBanks.containsKey(_selectedBankId)
                     ? _selectedBankId
                     : 'vietinbank',
@@ -272,7 +273,7 @@ class _StorePaymentSettingsPageState
                 items: VietQRHelper.supportedBanks.entries.map((e) {
                   return DropdownMenuItem(
                     value: e.key,
-                    child: Text(e.value),
+                    child: Text(e.value, overflow: TextOverflow.ellipsis),
                   );
                 }).toList(),
                 onChanged: (v) {

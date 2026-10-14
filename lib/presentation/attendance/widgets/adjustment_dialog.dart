@@ -54,12 +54,17 @@ class _RequestAdjustmentDialogState extends State<RequestAdjustmentDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      scrollable: true,
       title: const Row(
         children: [
           Icon(Icons.edit_calendar, color: AppColors.primary),
           SizedBox(width: 8),
-          Text('Yêu cầu điều chỉnh công',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          Expanded(
+            child: Text('Yêu cầu điều chỉnh công',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          ),
         ],
       ),
       content: SingleChildScrollView(
@@ -244,12 +249,17 @@ class _ReviewAdjustmentDialogState extends State<ReviewAdjustmentDialog> {
         '${adj.requestedCheckOut.hour.toString().padLeft(2, '0')}:${adj.requestedCheckOut.minute.toString().padLeft(2, '0')}';
 
     return AlertDialog(
+      scrollable: true,
       title: const Row(
         children: [
           Icon(Icons.approval, color: AppColors.primary),
           SizedBox(width: 8),
-          Text('Xét duyệt giải trình công',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          Expanded(
+            child: Text('Xét duyệt giải trình công',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          ),
         ],
       ),
       content: SingleChildScrollView(

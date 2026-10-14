@@ -68,7 +68,7 @@ class Order {
   bool get isReturned => status == 'returned';
   bool get hasReturns => items.any((i) => i.returnedQuantity > 0);
   double get netPayable => (total - discount).clamp(0.0, double.infinity);
-  double get remainingDebt => isCancelled
+  double get remainingDebt => (isCancelled || isDraft)
       ? 0.0
       : (debtAmount > 0
           ? debtAmount

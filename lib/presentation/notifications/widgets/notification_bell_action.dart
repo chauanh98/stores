@@ -37,9 +37,9 @@ class NotificationBellAction extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 1. RBAC Guard: Only Admin and Owner can view the notification center.
+    // 1. Mọi vai trò đăng nhập đều có chuông (nội dung lọc theo quyền).
     final user = ref.watch(authProvider);
-    if (user == null || !user.isAdmin) {
+    if (user == null) {
       return const SizedBox.shrink();
     }
 
@@ -62,9 +62,7 @@ class NotificationBellAction extends ConsumerWidget {
           ),
         ),
         child: Icon(
-          unreadCount > 0
-              ? Icons.notifications
-              : Icons.notifications_outlined,
+          unreadCount > 0 ? Icons.notifications : Icons.notifications_outlined,
           color: iconColor ?? AppColors.textPrimary,
           size: 24,
         ),

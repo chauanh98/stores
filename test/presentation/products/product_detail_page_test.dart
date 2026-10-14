@@ -15,7 +15,7 @@ import 'package:stores/domain/entities/user_account.dart';
 import 'package:stores/domain/repositories/inventory_repository.dart';
 import 'package:stores/domain/repositories/product_repository.dart';
 import 'package:stores/presentation/inventories/pages/import_inventory_page.dart';
-import 'package:stores/presentation/inventories/pages/inter_store_transfer_page.dart';
+import 'package:stores/presentation/inventories/pages/stock_transfer_create_page.dart';
 import 'package:stores/presentation/products/pages/product_detail_page.dart';
 
 class _FakeProductRepository extends Fake implements ProductRepository {
@@ -693,7 +693,7 @@ void main() {
           expect(find.byType(ImportInventoryPage), findsOneWidget);
         });
 
-    testWidgets('Tapping [Chuyển kho] navigates to InterStoreTransferPage',
+    testWidgets('Tapping [Chuyển kho] navigates to StockTransferCreatePage',
             (tester) async {
           tester.view.physicalSize = const Size(1000, 2400);
           tester.view.devicePixelRatio = 1.0;
@@ -718,7 +718,7 @@ void main() {
           await tester.tap(find.byIcon(Icons.swap_horiz_rounded));
           await tester.pumpAndSettle();
 
-          expect(find.byType(InterStoreTransferPage), findsOneWidget);
+          expect(find.byType(StockTransferCreatePage), findsOneWidget);
         });
 
     testWidgets('Tapping [In mã vạch] opens barcode print modal dialog',

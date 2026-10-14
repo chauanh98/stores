@@ -1,3 +1,4 @@
+import 'package:stores/core/utils/initials.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -206,9 +207,7 @@ class _AttendanceCheckInPageState extends ConsumerState<AttendanceCheckInPage> {
                               backgroundColor:
                                   AppColors.primary.withOpacity(0.15),
                               child: Text(
-                                (user?.name.isNotEmpty == true)
-                                    ? user!.name[0].toUpperCase()
-                                    : 'NV',
+                                initialOf(user?.name, 'NV'),
                                 style: const TextStyle(
                                   color: AppColors.primary,
                                   fontWeight: FontWeight.bold,
@@ -353,13 +352,15 @@ class _AttendanceCheckInPageState extends ConsumerState<AttendanceCheckInPage> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                AttendanceStatusBadge(
-                  status: record.status,
-                  lateMinutes: record.lateMinutes,
-                  earlyLeaveMinutes: record.earlyLeaveMinutes,
-                  overtimeMinutes: record.overtimeMinutes,
-                  isGpsValid: record.isGpsValid,
-                  isWorking: record.isWorking,
+                Flexible(
+                  child: AttendanceStatusBadge(
+                    status: record.status,
+                    lateMinutes: record.lateMinutes,
+                    earlyLeaveMinutes: record.earlyLeaveMinutes,
+                    overtimeMinutes: record.overtimeMinutes,
+                    isGpsValid: record.isGpsValid,
+                    isWorking: record.isWorking,
+                  ),
                 ),
               ],
             ),
@@ -598,7 +599,8 @@ class _AttendanceCheckInPageState extends ConsumerState<AttendanceCheckInPage> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                TextButton(
+                Flexible(
+                    child: TextButton(
                   style: TextButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 4),
                     minimumSize: Size.zero,
@@ -613,8 +615,9 @@ class _AttendanceCheckInPageState extends ConsumerState<AttendanceCheckInPage> {
                       ),
                     );
                   },
-                  child: const Text('Xem chi tiết >'),
-                ),
+                  child: const Text('Xem chi tiết >',
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                )),
               ],
             ),
             const SizedBox(height: 12),

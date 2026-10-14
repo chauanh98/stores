@@ -56,6 +56,15 @@ class ProcessReturnOrderUseCase {
     String? reason,
     String refundPaymentMethod = 'cash',
   }) async {
+    // Đối chiếu bản lưu trên máy chủ để SL khả dụng (activeQuantity) luôn mới:
+    // trả hàng 2 lần từ cùng một bản cũ sẽ hoàn kho & hoàn tiền 2 lần.
+    try {
+      final fresh = await orderRepository.fetchById(originalOrder.id);
+      if (fresh != null) originalOrder = fresh;
+    } catch (_) {
+      // offline => dùng bản đang có
+    }
+
     // 1. Validation
     if (originalOrder.isCancelled) {
       throw const ValidationException('Không thể trả hàng cho hóa đơn đã hủy.');
@@ -70,7 +79,12 @@ class ProcessReturnOrderUseCase {
     }
 
     // Validate quantities against available in original order
+    final requestedByProduct = <String, int>{};
     for (final returnItem in returnItems) {
+      if (!returnItem.price.isFinite || returnItem.price < 0) {
+        throw ValidationException(
+            'Đơn giá trả của sản phẩm "${returnItem.productName}" không hợp lệ.');
+      }
       if (returnItem.quantity <= 0) {
         throw ValidationException(
             'Số lượng trả của sản phẩm "${returnItem.productName}" phải lớn hơn 0.');
@@ -80,9 +94,18 @@ class ProcessReturnOrderUseCase {
         orElse: () => throw ValidationException(
             'Sản phẩm "${returnItem.productName}" không tồn tại trong hóa đơn gốc.'),
       );
-      if (returnItem.quantity > orderItem.activeQuantity) {
+      // Tổng SL còn trả được của MỌI dòng cùng sản phẩm.
+      final available = originalOrder.items
+          .where((i) => i.productId == returnItem.productId)
+          .fold<int>(0, (sum, i) => sum + i.activeQuantity);
+      // Cùng một sản phẩm có thể xuất hiện nhiều lần trong yêu cầu: so sánh
+      // với TỔNG SL đã yêu cầu, không chỉ từng dòng riêng lẻ.
+      final requested = (requestedByProduct[returnItem.productId] ?? 0) +
+          returnItem.quantity;
+      requestedByProduct[returnItem.productId] = requested;
+      if (requested > available) {
         throw ValidationException(
-            'Số lượng trả (${returnItem.quantity}) vượt quá số lượng khả dụng (${orderItem.activeQuantity}) của sản phẩm "${orderItem.productName}".');
+            'Số lượng trả ($requested) vượt quá số lượng khả dụng ($available) của sản phẩm "${orderItem.productName}".');
       }
     }
 
@@ -111,6 +134,19 @@ class ProcessReturnOrderUseCase {
     );
 
     // 3. Product Inventory Stock Restoration & Logging
+    // Id giao dịch phải duy nhất: cùng 1 sản phẩm có thể xuất hiện ở nhiều dòng
+    // (hoặc là thành phần của nhiều combo) => thêm hậu tố khi trùng để không ghi đè.
+    final usedTxIds = <String>{};
+    String uniqueTxId(String productId) {
+      final base = 'return_import_${now.millisecondsSinceEpoch}_$productId';
+      var id = base;
+      var n = 2;
+      while (!usedTxIds.add(id)) {
+        id = '${base}_${n++}';
+      }
+      return id;
+    }
+
     for (final returnItem in returnItems) {
       final product = await productRepository.fetchById(returnItem.productId);
       if (product != null) {
@@ -126,7 +162,7 @@ class ProcessReturnOrderUseCase {
                   .upsert(childProduct.copyWith(branchStocks: updatedStocks));
 
               final tx = InventoryTransaction(
-                id: 'return_import_${now.millisecondsSinceEpoch}_${childProduct.id}',
+                id: uniqueTxId(childProduct.id),
                 productId: childProduct.id,
                 type: TransactionType.import,
                 quantity: qtyToRestore,
@@ -148,7 +184,7 @@ class ProcessReturnOrderUseCase {
               .upsert(product.copyWith(branchStocks: updatedStocks));
 
           final tx = InventoryTransaction(
-            id: 'return_import_${now.millisecondsSinceEpoch}_${product.id}',
+            id: uniqueTxId(product.id),
             productId: product.id,
             type: TransactionType.import,
             quantity: qtyToRestore,
@@ -229,17 +265,22 @@ class ProcessReturnOrderUseCase {
     }
 
     // 5. Update Original Order Items and Financials
-    final returnQtyMap = {
-      for (final r in returnItems) r.productId: r.quantity,
-    };
+    // Hóa đơn có thể có nhiều dòng cùng một sản phẩm: phân bổ SL trả lần lượt
+    // vào từng dòng (tối đa SL còn trả được của dòng), không cộng cho mọi dòng.
+    final remainingToReturn = <String, int>{};
+    for (final r in returnItems) {
+      remainingToReturn[r.productId] =
+          (remainingToReturn[r.productId] ?? 0) + r.quantity;
+    }
     final updatedItems = originalOrder.items.map((item) {
-      final additionalReturned = returnQtyMap[item.productId] ?? 0;
-      if (additionalReturned > 0) {
-        return item.copyWith(
-          returnedQuantity: item.returnedQuantity + additionalReturned,
-        );
-      }
-      return item;
+      final pending = remainingToReturn[item.productId] ?? 0;
+      if (pending <= 0 || item.activeQuantity <= 0) return item;
+      final allocated =
+          pending < item.activeQuantity ? pending : item.activeQuantity;
+      remainingToReturn[item.productId] = pending - allocated;
+      return item.copyWith(
+        returnedQuantity: item.returnedQuantity + allocated,
+      );
     }).toList();
 
     final allItemsFullyReturned =

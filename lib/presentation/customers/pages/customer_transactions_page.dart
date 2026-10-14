@@ -59,33 +59,39 @@ class StoreBadge extends StatelessWidget {
       iconData = Icons.storefront_outlined;
     }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: borderColor, width: 0.8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Icon(iconData, size: 13, color: textColor),
-          const SizedBox(width: 3.5),
-          Flexible(
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: textColor,
+    return LayoutBuilder(builder: (context, box) {
+      // Extremely narrow slot: drop the icon so the Row cannot overflow.
+      final tiny = box.maxWidth < 48;
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: borderColor, width: 0.8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            if (!tiny) ...[
+              Icon(iconData, size: 13, color: textColor),
+              const SizedBox(width: 3.5),
+            ],
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: textColor,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
-              overflow: TextOverflow.ellipsis,
             ),
-          ),
-        ],
-      ),
-    );
+          ],
+        ),
+      );
+    });
   }
 }
 
@@ -103,7 +109,8 @@ class _CustomerTransactionsPageState
     extends ConsumerState<CustomerTransactionsPage> {
   String? _selectedStoreId;
 
-  String _getStoreName(String sId, Map<String, String> availableStores, AppLocalizations l10n) {
+  String _getStoreName(
+      String sId, Map<String, String> availableStores, AppLocalizations l10n) {
     final norm = StoreResolverHelper.normalizeStoreId(sId);
     if (availableStores.containsKey(norm)) return availableStores[norm]!;
     if (availableStores.containsKey(sId)) return availableStores[sId]!;
@@ -215,118 +222,136 @@ class _CustomerTransactionsPageState
 
           return Column(
             children: [
-              // Summary Header Bar
-              Container(
-                color: AppColors.white,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Flexible(
-                            child: Text(
-                              l10n.totalSalesAndReturns,
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.textPrimary,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          const Icon(Icons.arrow_drop_down,
-                              color: AppColors.textSecondary),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      currencyFormat.format(displayTotal),
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Local Store Filter Bar
-              Container(
-                color: AppColors.white,
-                width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              // Header chrome: bounded + scrollable so tiny screens / huge text
+              // always leave room for the list.
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                    maxHeight: MediaQuery.sizeOf(context).height * 0.5),
                 child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: filterOptions.map((opt) {
-                      final filterKey = opt.key;
-                      final filterName = opt.value;
-                      final count = counts[filterKey] ?? 0;
-                      final isSelected = activeFilter == filterKey;
-
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: ChoiceChip(
-                          key: ValueKey('store_filter_$filterKey'),
-                          visualDensity: VisualDensity.compact,
-                          materialTapTargetSize:
-                              MaterialTapTargetSize.shrinkWrap,
-                          showCheckmark: false,
-                          label: Text('$filterName ($count)'),
-                          labelStyle: TextStyle(
-                            fontSize: 13,
-                            fontWeight:
-                                isSelected ? FontWeight.bold : FontWeight.w500,
-                            color: isSelected
-                                ? AppColors.white
-                                : AppColors.textPrimary,
-                          ),
-                          selected: isSelected,
-                          selectedColor: AppColors.primary,
-                          backgroundColor: AppColors.grey100,
-                          side: BorderSide(
-                            color: isSelected
-                                ? AppColors.primary
-                                : AppColors.border,
-                            width: 1.0,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          onSelected: isAdmin
-                              ? (selected) {
-                                  if (selected) {
-                                    setState(() {
-                                      _selectedStoreId = filterKey;
-                                    });
-                                  }
-                                }
-                              : null,
+                  child: Column(
+                    children: [
+                      // Summary Header Bar
+                      Container(
+                        color: AppColors.white,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 14),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      l10n.totalSalesAndReturns,
+                                      style: const TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.textPrimary,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const Icon(Icons.arrow_drop_down,
+                                      color: AppColors.textSecondary),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  currencyFormat.format(displayTotal),
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-              ),
+                      ),
 
-              // Transaction Count Subheader
-              Container(
-                width: double.infinity,
-                color: AppColors.background,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Text(
-                  '${displayedOrders.length} ${l10n.transactions.toLowerCase()}',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: AppColors.textSecondary,
+                      // Local Store Filter Bar
+                      Container(
+                        color: AppColors.white,
+                        width: double.infinity,
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: filterOptions.map((opt) {
+                              final filterKey = opt.key;
+                              final filterName = opt.value;
+                              final count = counts[filterKey] ?? 0;
+                              final isSelected = activeFilter == filterKey;
+
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: ChoiceChip(
+                                  key: ValueKey('store_filter_$filterKey'),
+                                  visualDensity: VisualDensity.compact,
+                                  materialTapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                  showCheckmark: false,
+                                  label: Text('$filterName ($count)'),
+                                  labelStyle: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: isSelected
+                                        ? FontWeight.bold
+                                        : FontWeight.w500,
+                                    color: isSelected
+                                        ? AppColors.white
+                                        : AppColors.textPrimary,
+                                  ),
+                                  selected: isSelected,
+                                  selectedColor: AppColors.primary,
+                                  backgroundColor: AppColors.grey100,
+                                  side: BorderSide(
+                                    color: isSelected
+                                        ? AppColors.primary
+                                        : AppColors.border,
+                                    width: 1.0,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  onSelected: isAdmin
+                                      ? (selected) {
+                                          if (selected) {
+                                            setState(() {
+                                              _selectedStoreId = filterKey;
+                                            });
+                                          }
+                                        }
+                                      : null,
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ),
+
+                      // Transaction Count Subheader
+                      Container(
+                        width: double.infinity,
+                        color: AppColors.background,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        child: Text(
+                          '${displayedOrders.length} ${l10n.transactions.toLowerCase()}',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -416,7 +441,8 @@ class _CustomerTransactionsPageState
                                   Row(
                                     mainAxisAlignment:
                                         MainAxisAlignment.spaceBetween,
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Flexible(
                                         child: Row(
@@ -473,7 +499,8 @@ class _CustomerTransactionsPageState
                                                         horizontal: 6,
                                                         vertical: 2),
                                                 decoration: BoxDecoration(
-                                                  color: AppColors.dangerLightest,
+                                                  color:
+                                                      AppColors.dangerLightest,
                                                   borderRadius:
                                                       BorderRadius.circular(4),
                                                 ),
@@ -493,14 +520,16 @@ class _CustomerTransactionsPageState
                                                         horizontal: 6,
                                                         vertical: 2),
                                                 decoration: BoxDecoration(
-                                                  color: AppColors.supervisorLight,
+                                                  color:
+                                                      AppColors.supervisorLight,
                                                   borderRadius:
                                                       BorderRadius.circular(4),
                                                 ),
                                                 child: Text(
                                                   l10n.orderBadgeReturned,
                                                   style: const TextStyle(
-                                                    color: AppColors.supervisorDark,
+                                                    color: AppColors
+                                                        .supervisorDark,
                                                     fontSize: 10,
                                                     fontWeight: FontWeight.bold,
                                                   ),
@@ -513,14 +542,16 @@ class _CustomerTransactionsPageState
                                                         horizontal: 6,
                                                         vertical: 2),
                                                 decoration: BoxDecoration(
-                                                  color: AppColors.supervisorLight,
+                                                  color:
+                                                      AppColors.supervisorLight,
                                                   borderRadius:
                                                       BorderRadius.circular(4),
                                                 ),
                                                 child: Text(
                                                   l10n.orderBadgePartiallyReturned,
                                                   style: const TextStyle(
-                                                    color: AppColors.supervisorDark,
+                                                    color: AppColors
+                                                        .supervisorDark,
                                                     fontSize: 10,
                                                     fontWeight: FontWeight.bold,
                                                   ),
@@ -545,10 +576,12 @@ class _CustomerTransactionsPageState
                                                   child: FittedBox(
                                                     fit: BoxFit.scaleDown,
                                                     child: Text(
-                                                      l10n.orderDiscountAmount(currencyFormat.format(order.discount)),
+                                                      l10n.orderDiscountAmount(
+                                                          currencyFormat.format(
+                                                              order.discount)),
                                                       style: const TextStyle(
-                                                        color:
-                                                            AppColors.warningDeep,
+                                                        color: AppColors
+                                                            .warningDeep,
                                                         fontSize: 10,
                                                         fontWeight:
                                                             FontWeight.bold,
@@ -592,8 +625,12 @@ class _CustomerTransactionsPageState
                                       ),
                                       const SizedBox(width: 8),
                                       ConstrainedBox(
-                                        constraints:
-                                            const BoxConstraints(maxWidth: 130),
+                                        constraints: BoxConstraints(
+                                            maxWidth:
+                                                (MediaQuery.sizeOf(context)
+                                                            .width *
+                                                        0.3)
+                                                    .clamp(56.0, 130.0)),
                                         child: FittedBox(
                                           fit: BoxFit.scaleDown,
                                           alignment: Alignment.centerRight,
@@ -617,40 +654,44 @@ class _CustomerTransactionsPageState
                                     ],
                                   ),
 
-                                // Row 3: Items summary + Payment Method
-                                const SizedBox(height: 6),
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        itemsSummary.isNotEmpty
-                                            ? itemsSummary
-                                            : l10n.noTransactionsYet,
-                                        style: const TextStyle(
-                                          fontSize: 13,
-                                          color: AppColors.textPrimary,
+                                  // Row 3: Items summary + Payment Method
+                                  const SizedBox(height: 6),
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          itemsSummary.isNotEmpty
+                                              ? itemsSummary
+                                              : l10n.noTransactionsYet,
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            color: AppColors.textPrimary,
+                                          ),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
                                       ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      paymentMethod,
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        color: AppColors.textSecondary,
+                                      const SizedBox(width: 8),
+                                      Flexible(
+                                        child: Text(
+                                          paymentMethod,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            color: AppColors.textSecondary,
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                              ],
+                                    ],
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        );
-                      },
+                          );
+                        },
                       ),
               ),
             ],

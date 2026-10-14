@@ -1,3 +1,4 @@
+import 'package:stores/core/utils/initials.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -50,6 +51,7 @@ class _SupplierDetailPageState extends ConsumerState<SupplierDetailPage>
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
+        scrollable: true,
         title: const Text('Xác nhận xóa nhà cung cấp'),
         content: Text(
           'Bạn có chắc chắn muốn xóa nhà cung cấp "${current.name}"? Thao tác này không thể hoàn tác.',
@@ -129,230 +131,251 @@ class _SupplierDetailPageState extends ConsumerState<SupplierDetailPage>
       ),
       body: Column(
         children: [
-          // Top Summary Header Card
-          Container(
-            color: AppColors.white,
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                Row(
+          // Top Summary Header Card (scrolls when text is huge so the tabs stay visible)
+          Flexible(
+            child: SingleChildScrollView(
+              child: Container(
+                color: AppColors.white,
+                padding: const EdgeInsets.all(16),
+                child: Column(
                   children: [
-                    CircleAvatar(
-                      radius: 28,
-                      backgroundColor: AppColors.primary.withOpacity(0.12),
-                      child: Text(
-                        current.name.isNotEmpty
-                            ? current.name[0].toUpperCase()
-                            : 'N',
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            current.name,
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 28,
+                          backgroundColor: AppColors.primary.withOpacity(0.12),
+                          child: Text(
+                            initialOf(current.name, 'N'),
                             style: const TextStyle(
-                              fontSize: 16,
+                              fontSize: 22,
                               fontWeight: FontWeight.bold,
-                              color: AppColors.textPrimary,
+                              color: AppColors.primary,
                             ),
                           ),
-                          const SizedBox(height: 2),
-                          Row(
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: AppColors.surfaceLight,
-                                  borderRadius: BorderRadius.circular(4),
-                                  border:
-                                      Border.all(color: AppColors.borderLight),
-                                ),
-                                child: Text(
-                                  current.code,
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.textSecondary,
-                                  ),
+                              Text(
+                                current.name,
+                                maxLines: 3,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textPrimary,
                                 ),
                               ),
-                              if (current.taxCode != null &&
-                                  current.taxCode!.isNotEmpty) ...[
-                                const SizedBox(width: 6),
-                                Text(
-                                  'MST: ${current.taxCode}',
-                                  style: const TextStyle(
+                              const SizedBox(height: 2),
+                              Wrap(
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                spacing: 6,
+                                runSpacing: 2,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.surfaceLight,
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(
+                                          color: AppColors.borderLight),
+                                    ),
+                                    child: Text(
+                                      current.code,
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ),
+                                  if (current.taxCode != null &&
+                                      current.taxCode!.isNotEmpty) ...[
+                                    Text(
+                                      'MST: ${current.taxCode}',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              if (current.phone.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4.0),
+                                  child: InkWell(
+                                    onTap: () => _copyToClipboard(
+                                        current.phone, 'số điện thoại'),
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.phone,
+                                            size: 13, color: AppColors.primary),
+                                        const SizedBox(width: 4),
+                                        Flexible(
+                                          child: Text(
+                                            current.phone,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                              color: AppColors.primary,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        const Icon(Icons.copy,
+                                            size: 11, color: AppColors.grey400),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // KPI Overview Numbers
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppColors.surface,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: AppColors.borderLight),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Tổng mua hàng',
+                                  style: TextStyle(
                                     fontSize: 12,
                                     color: AppColors.textSecondary,
                                   ),
                                 ),
-                              ],
-                            ],
-                          ),
-                          if (current.phone.isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 4.0),
-                              child: InkWell(
-                                onTap: () => _copyToClipboard(
-                                    current.phone, 'số điện thoại'),
-                                child: Row(
-                                  children: [
-                                    const Icon(Icons.phone,
-                                        size: 13, color: AppColors.primary),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      current.phone,
-                                      style: const TextStyle(
-                                        fontSize: 13,
-                                        color: AppColors.primary,
-                                        fontWeight: FontWeight.w500,
-                                      ),
+                                const SizedBox(height: 4),
+                                FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    '${currencyFormat.format(current.totalPurchase)} đ',
+                                    style: const TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.textPrimary,
                                     ),
-                                    const SizedBox(width: 4),
-                                    const Icon(Icons.copy,
-                                        size: 11, color: AppColors.grey400),
-                                  ],
+                                  ),
                                 ),
-                              ),
+                              ],
                             ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                // KPI Overview Numbers
-                Row(
-                  children: [
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: AppColors.surface,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: AppColors.borderLight),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Tổng mua hàng',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '${currencyFormat.format(current.totalPurchase)} đ',
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: current.currentDebt > 0
-                              ? AppColors.dangerLight.withOpacity(0.5)
-                              : AppColors.successLight.withOpacity(0.5),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: current.currentDebt > 0
-                                ? AppColors.danger.withOpacity(0.3)
-                                : AppColors.success.withOpacity(0.3),
                           ),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Nợ cần trả NCC',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '${currencyFormat.format(current.currentDebt)} đ',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: current.currentDebt > 0
+                                  ? AppColors.dangerLight.withOpacity(0.5)
+                                  : AppColors.successLight.withOpacity(0.5),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
                                 color: current.currentDebt > 0
-                                    ? AppColors.danger
-                                    : AppColors.success,
+                                    ? AppColors.danger.withOpacity(0.3)
+                                    : AppColors.success.withOpacity(0.3),
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-
-                // Action Buttons Bar
-                Row(
-                  children: [
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (_) =>
-                                SupplierDebtPaymentDialog(supplier: current),
-                          );
-                        },
-                        style: FilledButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Nợ cần trả NCC',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    '${currencyFormat.format(current.currentDebt)} đ',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                      color: current.currentDebt > 0
+                                          ? AppColors.danger
+                                          : AppColors.success,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                        icon: const Icon(Icons.payment, size: 18),
-                        label: const Text('Trả nợ NCC'),
-                      ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    OutlinedButton.icon(
-                      onPressed: () {
-                        showDialog(
-                          context: context,
-                          builder: (_) =>
-                              SupplierDebtAdjustmentDialog(supplier: current),
-                        );
-                      },
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.warning,
-                        side: const BorderSide(color: AppColors.warning),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                    const SizedBox(height: 12),
+
+                    // Action Buttons Bar
+                    Row(
+                      children: [
+                        Expanded(
+                          child: FilledButton.icon(
+                            onPressed: () {
+                              showDialog(
+                                context: context,
+                                builder: (_) => SupplierDebtPaymentDialog(
+                                    supplier: current),
+                              );
+                            },
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            icon: const Icon(Icons.payment, size: 18),
+                            label: const Text('Trả nợ NCC',
+                                maxLines: 1, overflow: TextOverflow.ellipsis),
+                          ),
                         ),
-                      ),
-                      icon: const Icon(Icons.tune, size: 18),
-                      label: const Text('Điều chỉnh nợ'),
+                        const SizedBox(width: 8),
+                        Expanded(
+                            child: OutlinedButton.icon(
+                          onPressed: () {
+                            showDialog(
+                              context: context,
+                              builder: (_) => SupplierDebtAdjustmentDialog(
+                                  supplier: current),
+                            );
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.warning,
+                            side: const BorderSide(color: AppColors.warning),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          icon: const Icon(Icons.tune, size: 18),
+                          label: const Text('Điều chỉnh nợ',
+                              maxLines: 1, overflow: TextOverflow.ellipsis),
+                        )),
+                      ],
                     ),
                   ],
                 ),
-              ],
+              ),
             ),
           ),
 
@@ -509,7 +532,8 @@ class _SupplierDetailPageState extends ConsumerState<SupplierDetailPage>
         children: [
           Row(
             children: [
-              Container(
+              Flexible(
+                  child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: badgeColor,
@@ -520,31 +544,45 @@ class _SupplierDetailPageState extends ConsumerState<SupplierDetailPage>
                   children: [
                     Icon(icon, size: 14, color: badgeTextColor),
                     const SizedBox(width: 4),
-                    Text(
+                    Flexible(
+                        child: Text(
                       tx.type.displayName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
                         color: badgeTextColor,
                       ),
-                    ),
+                    )),
                   ],
                 ),
-              ),
-              const Spacer(),
-              Text(
-                '${isIncrease ? '+' : ''}${currencyFormat.format(tx.amount)} đ',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: isIncrease ? AppColors.danger : AppColors.success,
+              )),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      '${isIncrease ? '+' : ''}${currencyFormat.format(tx.amount)} đ',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color:
+                            isIncrease ? AppColors.danger : AppColors.success,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            runSpacing: 4,
+            spacing: 8,
             children: [
               Text(
                 dateFormat.format(tx.date),

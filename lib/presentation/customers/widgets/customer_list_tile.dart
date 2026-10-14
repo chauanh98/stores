@@ -1,3 +1,4 @@
+import 'package:stores/core/utils/initials.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -100,7 +101,7 @@ class _CustomerListTileState extends ConsumerState<CustomerListTile> {
           radius: 20,
           backgroundColor: AppColors.primary.withOpacity(0.08),
           child: Text(
-            customer.name.isNotEmpty ? customer.name[0].toUpperCase() : '?',
+            initialOf(customer.name),
             style: const TextStyle(
               color: AppColors.primary,
               fontWeight: FontWeight.bold,
@@ -129,69 +130,73 @@ class _CustomerListTileState extends ConsumerState<CustomerListTile> {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        trailing: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 150),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              if (canViewTotalSales)
-                Text(
-                  currencyFormat.format(displayTotalSales),
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                    color: AppColors.textPrimary,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              if (debtToDisplay > 0)
-                Container(
-                  key: Key('debt_badge_${customer.id}'),
-                  margin: EdgeInsets.only(top: canViewTotalSales ? 4.0 : 0.0),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
-                  decoration: BoxDecoration(
-                    color: AppColors.dangerLight,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                      color: AppColors.danger.withOpacity(0.3),
-                      width: 1,
+        trailing: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerRight,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 150),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                if (canViewTotalSales)
+                  Text(
+                    currencyFormat.format(displayTotalSales),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: AppColors.textPrimary,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.warning_amber_rounded,
-                        size: 12,
-                        color: AppColors.danger,
+                if (debtToDisplay > 0)
+                  Container(
+                    key: Key('debt_badge_${customer.id}'),
+                    margin: EdgeInsets.only(top: canViewTotalSales ? 4.0 : 0.0),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 7, vertical: 2.5),
+                    decoration: BoxDecoration(
+                      color: AppColors.dangerLight,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: AppColors.danger.withOpacity(0.3),
+                        width: 1,
                       ),
-                      const SizedBox(width: 4),
-                      Flexible(
-                        child: Text(
-                          '${l10n.customerDebt}: ${currencyFormat.format(debtToDisplay)}',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.danger,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.warning_amber_rounded,
+                          size: 12,
+                          color: AppColors.danger,
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            '${l10n.customerDebt}: ${currencyFormat.format(debtToDisplay)}',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.danger,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else if (!canViewTotalSales)
+                  const Icon(
+                    Icons.chevron_right,
+                    size: 20,
+                    color: AppColors.textDisabled,
                   ),
-                )
-              else if (!canViewTotalSales)
-                const Icon(
-                  Icons.chevron_right,
-                  size: 20,
-                  color: AppColors.textDisabled,
-                ),
-            ],
+              ],
+            ),
           ),
         ),
         onTap: () => Navigator.of(context).push(
@@ -240,7 +245,8 @@ class _CustomerListTileState extends ConsumerState<CustomerListTile> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                l10n.customerCannotDeleteHasDebtWarning(currencyFormat.format(debt)),
+                l10n.customerCannotDeleteHasDebtWarning(
+                    currencyFormat.format(debt)),
               ),
               backgroundColor: AppColors.danger,
             ),
@@ -251,6 +257,7 @@ class _CustomerListTileState extends ConsumerState<CustomerListTile> {
         final confirmed = await showDialog<bool>(
           context: context,
           builder: (dialogCtx) => AlertDialog(
+            scrollable: true,
             title: Text(l10n.deleteCustomerTitle),
             content: Text(l10n.deleteCustomerConfirm(customer.name)),
             actions: [

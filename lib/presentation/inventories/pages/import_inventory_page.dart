@@ -1,3 +1,5 @@
+import 'package:stores/core/utils/initials.dart';
+import '../../common/widgets/capped_scroll.dart';
 import 'package:stores/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +9,7 @@ import '../../../application/auth/auth_providers.dart';
 import '../../../application/inventories/stock_in_receipts_providers.dart';
 import '../../../application/products/products_providers.dart';
 import '../../../application/suppliers/suppliers_providers.dart';
+import '../../../core/utils/vietnamese_text_helper.dart';
 import '../../../domain/entities/product.dart';
 import '../../../domain/entities/supplier.dart';
 import '../../suppliers/pages/add_edit_supplier_page.dart';
@@ -351,8 +354,12 @@ class _ImportInventoryPageState extends ConsumerState<ImportInventoryPage> {
                       : 'Phiếu nhập hàng mới',
                 ),
               ),
-              body: Column(
-                children: [
+              body: LayoutBuilder(builder: (context, bodyConstraints) {
+                // Short viewports (landscape phones, tiny screens, 2x text
+                // scale, soft keyboard): the header scrolls together with the
+                // cart lines instead of overflowing the Column.
+                final compact = bodyConstraints.maxHeight < 560;
+                final headerWidgets = <Widget>[
                   // 1. Branch Store Locked Badge
                   Container(
                     margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
@@ -426,80 +433,111 @@ class _ImportInventoryPageState extends ConsumerState<ImportInventoryPage> {
 
                   // Category Filter Chips
                   _buildCategoryChips(allProducts),
+                ];
+                Widget buildCartLine(BuildContext ctx, int index) {
+                  final item = _items[index];
+                  final product = allProducts.firstWhere(
+                    (p) => p.id == item.productId,
+                    orElse: () => Product(
+                      id: item.productId,
+                      name: item.productName ?? 'Sản phẩm',
+                      code: item.productCode ?? '',
+                      price: 0,
+                      costPrice: item.unitPrice,
+                      branchStocks: const {},
+                      category: '',
+                    ),
+                  );
+                  final currentStock = product.stockInBranch(currentStoreId);
 
-                  // 4. Cart Items or Empty State Illustration
-                  Expanded(
-                    child: _items.isEmpty
-                        ? _buildEmptyState(context)
-                        : ListView.builder(
-                            padding: const EdgeInsets.symmetric(vertical: 4),
-                            itemCount: _items.length,
-                            itemBuilder: (ctx, index) {
-                              final item = _items[index];
-                              final product = allProducts.firstWhere(
-                                (p) => p.id == item.productId,
-                                orElse: () => Product(
-                                  id: item.productId,
-                                  name: item.productName ?? 'Sản phẩm',
-                                  code: item.productCode ?? '',
-                                  price: 0,
-                                  costPrice: item.unitPrice,
-                                  branchStocks: const {},
-                                  category: '',
-                                ),
-                              );
-                              final currentStock =
-                                  product.stockInBranch(currentStoreId);
-
-                              return StockInItemCard(
-                                item: item,
-                                currentStock: currentStock,
-                                isMasked: !canViewCostPrice,
-                                onQuantityChanged: (newQty) {
-                                  setState(() {
-                                    _items[index] =
-                                        item.copyWith(quantity: newQty);
-                                    if (!_hasUserEditedPaidAmount) {
-                                      _paidAmount =
-                                          (totalGoodsAmount - _discount)
-                                              .clamp(0.0, double.infinity);
-                                    }
-                                  });
-                                },
-                                onDelete: () {
-                                  setState(() {
-                                    _items.removeAt(index);
-                                    if (!_hasUserEditedPaidAmount) {
-                                      _paidAmount =
-                                          (totalGoodsAmount - _discount)
-                                              .clamp(0.0, double.infinity);
-                                    }
-                                  });
-                                },
-                                onTap: () => _openProductEditSheet(
-                                    product, currentStoreId),
-                              );
-                            },
-                          ),
-                  ),
-
-                  // 5. Pinned StickyBottomSummaryBar
-                  StickyBottomSummaryBar(
-                    totalAmount: totalGoodsAmount,
-                    itemCount: _items.length,
-                    totalQuantity: totalQuantity,
-                    isEnabled: _items.isNotEmpty,
-                    onSaveDraft: _saveDraft,
-                    onContinue: () {
-                      if (!_hasUserEditedPaidAmount) {
-                        _paidAmount = (totalGoodsAmount - _discount)
-                            .clamp(0.0, double.infinity);
-                      }
-                      setState(() => _currentStep = 1);
+                  return StockInItemCard(
+                    item: item,
+                    currentStock: currentStock,
+                    isMasked: !canViewCostPrice,
+                    onQuantityChanged: (newQty) {
+                      setState(() {
+                        _items[index] = item.copyWith(quantity: newQty);
+                        if (!_hasUserEditedPaidAmount) {
+                          _paidAmount = (totalGoodsAmount - _discount)
+                              .clamp(0.0, double.infinity);
+                        }
+                      });
                     },
-                  ),
-                ],
-              ),
+                    onDelete: () {
+                      setState(() {
+                        _items.removeAt(index);
+                        if (!_hasUserEditedPaidAmount) {
+                          _paidAmount = (totalGoodsAmount - _discount)
+                              .clamp(0.0, double.infinity);
+                        }
+                      });
+                    },
+                    onTap: () => _openProductEditSheet(product, currentStoreId),
+                  );
+                }
+
+                final summaryBar = StickyBottomSummaryBar(
+                  totalAmount: totalGoodsAmount,
+                  itemCount: _items.length,
+                  totalQuantity: totalQuantity,
+                  isEnabled: _items.isNotEmpty,
+                  showAmount: canViewCostPrice,
+                  onSaveDraft: _saveDraft,
+                  onContinue: () {
+                    if (!_hasUserEditedPaidAmount) {
+                      _paidAmount = (totalGoodsAmount - _discount)
+                          .clamp(0.0, double.infinity);
+                    }
+                    setState(() => _currentStep = 1);
+                  },
+                );
+                if (!compact) {
+                  return Column(
+                    children: [
+                      ...headerWidgets,
+                      Expanded(
+                        child: _items.isEmpty
+                            ? _buildEmptyState(context)
+                            : ListView.builder(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 4),
+                                itemCount: _items.length,
+                                itemBuilder: buildCartLine,
+                              ),
+                      ),
+                      summaryBar,
+                    ],
+                  );
+                }
+                return Column(
+                  children: [
+                    Expanded(
+                      child: CustomScrollView(
+                        slivers: [
+                          SliverToBoxAdapter(
+                            child: Column(children: headerWidgets),
+                          ),
+                          if (_items.isEmpty)
+                            SliverToBoxAdapter(
+                              child: SizedBox(
+                                  height: 260,
+                                  child: _buildEmptyState(context)),
+                            )
+                          else
+                            SliverPadding(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              sliver: SliverList.builder(
+                                itemCount: _items.length,
+                                itemBuilder: buildCartLine,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    CappedScroll(maxFraction: 0.4, child: summaryBar),
+                  ],
+                );
+              }),
             ),
     );
   }
@@ -528,27 +566,34 @@ class _ImportInventoryPageState extends ConsumerState<ImportInventoryPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.business,
-                        size: 16,
-                        color: theme.colorScheme.primary,
-                      ),
-                      const SizedBox(width: 6),
-                      const Text(
-                        'Nhà cung cấp',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.grey600,
-                          fontWeight: FontWeight.w500,
+                  Flexible(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.business,
+                          size: 16,
+                          color: theme.colorScheme.primary,
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 6),
+                        const Flexible(
+                          child: Text(
+                            'Nhà cung cấp',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.grey600,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   if (hasSupplier)
-                    InkWell(
+                    Flexible(
+                        child: InkWell(
                       borderRadius: BorderRadius.circular(4),
                       onTap: () {
                         setState(() => _selectedSupplier = null);
@@ -558,6 +603,8 @@ class _ImportInventoryPageState extends ConsumerState<ImportInventoryPage> {
                             EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                         child: Text(
                           'Bỏ chọn',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: AppColors.danger,
                             fontSize: 12,
@@ -565,7 +612,7 @@ class _ImportInventoryPageState extends ConsumerState<ImportInventoryPage> {
                           ),
                         ),
                       ),
-                    )
+                    ))
                   else
                     const Icon(Icons.chevron_right,
                         color: AppColors.grey400, size: 18),
@@ -576,6 +623,8 @@ class _ImportInventoryPageState extends ConsumerState<ImportInventoryPage> {
               if (!hasSupplier)
                 const Text(
                   'Chưa chọn Nhà Cung Cấp (Bấm để chọn)',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 13,
                     color: AppColors.grey400,
@@ -586,7 +635,8 @@ class _ImportInventoryPageState extends ConsumerState<ImportInventoryPage> {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Expanded(
+                    Flexible(
+                      flex: 3,
                       child: Text(
                         _selectedSupplier!.name,
                         style: const TextStyle(
@@ -600,7 +650,8 @@ class _ImportInventoryPageState extends ConsumerState<ImportInventoryPage> {
                     ),
                     const SizedBox(width: 8),
                     if (_selectedSupplier!.code.isNotEmpty) ...[
-                      Container(
+                      Flexible(
+                          child: Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
@@ -609,16 +660,19 @@ class _ImportInventoryPageState extends ConsumerState<ImportInventoryPage> {
                         ),
                         child: Text(
                           _selectedSupplier!.code,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 11,
                             color: theme.colorScheme.primary,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                      ),
+                      )),
                       const SizedBox(width: 6),
                     ],
-                    Container(
+                    Flexible(
+                        child: Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
@@ -631,6 +685,8 @@ class _ImportInventoryPageState extends ConsumerState<ImportInventoryPage> {
                         _selectedSupplier!.currentDebt > 0
                             ? 'Nợ: ${NumberFormat('#,###', 'vi_VN').format(_selectedSupplier!.currentDebt)} đ'
                             : 'Không có nợ',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 11,
                           color: _selectedSupplier!.currentDebt > 0
@@ -639,7 +695,7 @@ class _ImportInventoryPageState extends ConsumerState<ImportInventoryPage> {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                    ),
+                    )),
                   ],
                 ),
             ],
@@ -888,16 +944,21 @@ class _SupplierSelectSheetState extends ConsumerState<_SupplierSelectSheet> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
+                  Flexible(
+                      child: Text(
                     'Chọn Nhà Cung Cấp',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
-                  ),
-                  TextButton.icon(
+                  )),
+                  Flexible(
+                      child: TextButton.icon(
                     key: const Key('quick_add_supplier_btn'),
                     icon: const Icon(Icons.add, size: 18),
-                    label: const Text('Thêm mới NCC'),
+                    label: const Text('Thêm mới NCC',
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
                     style: TextButton.styleFrom(
                       visualDensity: VisualDensity.compact,
                       padding: const EdgeInsets.symmetric(
@@ -916,7 +977,7 @@ class _SupplierSelectSheetState extends ConsumerState<_SupplierSelectSheet> {
                         navigator.pop();
                       }
                     },
-                  ),
+                  )),
                 ],
               ),
               const SizedBox(height: 8),
@@ -942,8 +1003,8 @@ class _SupplierSelectSheetState extends ConsumerState<_SupplierSelectSheet> {
                   contentPadding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 ),
-                onChanged: (val) =>
-                    setState(() => _searchQuery = val.trim().toLowerCase()),
+                onChanged: (val) => setState(() => _searchQuery =
+                    VietnameseTextHelper.normalizeUnaccented(val)),
               ),
               const SizedBox(height: 8),
               // Suppliers list
@@ -952,9 +1013,10 @@ class _SupplierSelectSheetState extends ConsumerState<_SupplierSelectSheet> {
                   data: (suppliers) {
                     final filtered = suppliers.where((s) {
                       if (_searchQuery.isEmpty) return true;
-                      return s.name.toLowerCase().contains(_searchQuery) ||
-                          s.code.toLowerCase().contains(_searchQuery) ||
-                          s.phone.toLowerCase().contains(_searchQuery);
+                      bool hit(String v) =>
+                          VietnameseTextHelper.normalizeUnaccented(v)
+                              .contains(_searchQuery);
+                      return hit(s.name) || hit(s.code) || hit(s.phone);
                     }).toList();
 
                     if (filtered.isEmpty) {
@@ -979,9 +1041,7 @@ class _SupplierSelectSheetState extends ConsumerState<_SupplierSelectSheet> {
                             backgroundColor:
                                 theme.colorScheme.primary.withOpacity(0.1),
                             child: Text(
-                              supplier.name.isNotEmpty
-                                  ? supplier.name[0].toUpperCase()
-                                  : 'N',
+                              initialOf(supplier.name, 'N'),
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: theme.colorScheme.primary,

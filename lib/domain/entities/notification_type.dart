@@ -29,6 +29,7 @@ enum NotificationType {
   orderCancelled('order_cancelled', NotificationCategory.orders),
   orderReturn('order_return', NotificationCategory.orders),
   inventoryImported('inventory_imported', NotificationCategory.inventory),
+  stockTransfer('stock_transfer', NotificationCategory.inventory),
   customerCreated('customer_created', NotificationCategory.customers),
   customerDebtAdded('customer_debt_added', NotificationCategory.customers),
   customerDebtPaid('customer_debt_paid', NotificationCategory.customers);
@@ -51,6 +52,7 @@ enum NotificationType {
     }
 
     // Tolerant keyword matching
+    if (normalized.contains('transfer')) return NotificationType.stockTransfer;
     if (normalized.contains('cancel')) return NotificationType.orderCancelled;
     if (normalized.contains('return')) return NotificationType.orderReturn;
     if (normalized.contains('update') || normalized.contains('edit')) {
@@ -66,7 +68,8 @@ enum NotificationType {
       return NotificationType.customerDebtPaid;
     }
     if (normalized.contains('debt')) return NotificationType.customerDebtAdded;
-    if (normalized.contains('customer')) return NotificationType.customerCreated;
+    if (normalized.contains('customer'))
+      return NotificationType.customerCreated;
     return NotificationType.orderCreated;
   }
 }

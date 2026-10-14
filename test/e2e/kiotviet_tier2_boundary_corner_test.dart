@@ -524,14 +524,15 @@ void main() {
         expect(ot.overtimeMinutes, equals(1));
       });
 
-      test('B4.8: Role permissions boundary: Staff cannot switch store or approve adjustments; Supervisor scoped; Admin global', () {
+      test('B4.8: Role permissions boundary: Staff cannot switch store or approve adjustments; Supervisor and Admin can switch', () {
         expect(staffUser.isStaff, isTrue);
         expect(staffUser.canSwitchStore, isFalse);
         expect(staffUser.isAdmin, isFalse);
 
         expect(supervisorUser.isSupervisor, isTrue);
         expect(supervisorUser.isAdmin, isFalse);
-        expect(supervisorUser.canSwitchStore, isFalse);
+        // canSwitchStore == isAdmin || isSupervisor (commit ec87e74)
+        expect(supervisorUser.canSwitchStore, isTrue);
 
         expect(adminUser.isAdmin, isTrue);
         expect(adminUser.isStaff, isFalse);

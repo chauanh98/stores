@@ -347,7 +347,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Nhân viên'), findsOneWidget);
-      expect(find.text('Chi nhánh Đông Thắng'), findsNWidgets(2));
+      // Header (currentStoreNameProvider) + badge 'Chi nhánh: <assigned branch>'
+      expect(find.text('Chi nhánh Đông Thắng'), findsOneWidget);
+      expect(find.text('Chi nhánh: Chi nhánh Đông Thắng'), findsOneWidget);
       expect(find.text('Toàn bộ chi nhánh'), findsNothing);
       expect(find.text('👑 Quản trị viên (Toàn hệ thống)'), findsNothing);
     });
@@ -392,7 +394,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Giám sát'), findsOneWidget);
-      expect(find.text('Chi nhánh Thới Bình'), findsNWidgets(2));
+      expect(find.text('Chi nhánh Thới Bình'), findsOneWidget);
+      expect(find.text('Chi nhánh: Chi nhánh Thới Bình'), findsOneWidget);
       expect(find.text('Toàn bộ chi nhánh'), findsNothing);
       expect(find.text('👑 Quản trị viên (Toàn hệ thống)'), findsNothing);
     });
@@ -446,25 +449,24 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Initial active store: store_001
-      expect(
-        find.text('Đang làm việc: Chi nhánh Đông Thắng'),
-        findsOneWidget,
-      );
+      // The old 'Đang làm việc: <branch>' label no longer exists. The active
+      // branch is now shown by the store-switcher dropdown, which follows
+      // selectedStoreIdProvider.
+      final dropdown = find.byType(DropdownButtonFormField<String>);
+      Finder branchInDropdown(String name) =>
+          find.descendant(of: dropdown, matching: find.text(name));
+
+      // Initial active store: store_001 (admin storeId 'all' falls back to first)
+      expect(branchInDropdown('Chi nhánh Đông Thắng'), findsOneWidget);
+      expect(container.read(currentStoreIdProvider), 'store_001');
 
       // Now change selected store to store_002
       container.read(selectedStoreIdProvider.notifier).state = 'store_002';
       await tester.pumpAndSettle();
 
-      // Working branch label must update to Chi nhánh Thới Bình
-      expect(
-        find.text('Đang làm việc: Chi nhánh Thới Bình'),
-        findsOneWidget,
-      );
-      expect(
-        find.text('Đang làm việc: Chi nhánh Đông Thắng'),
-        findsNothing,
-      );
+      expect(container.read(currentStoreIdProvider), 'store_002');
+      expect(branchInDropdown('Chi nhánh Thới Bình'), findsOneWidget);
+      expect(branchInDropdown('Chi nhánh Đông Thắng'), findsNothing);
     });
   });
 

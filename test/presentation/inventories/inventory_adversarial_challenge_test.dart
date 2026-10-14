@@ -5,16 +5,26 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:stores/application/auth/auth_providers.dart';
 import 'package:stores/application/inventory/inter_store_transfer_service.dart';
 import 'package:stores/application/inventory/inventory_providers.dart';
+import 'package:stores/application/inventories/stock_in_receipts_providers.dart';
+import 'package:stores/application/inventories/usecases/complete_stock_in_receipt_use_case.dart';
 import 'package:stores/application/products/products_providers.dart';
+import 'package:stores/application/suppliers/suppliers_providers.dart';
 import 'package:stores/domain/entities/inventory_transaction.dart';
 import 'package:stores/domain/entities/product.dart';
+import 'package:stores/domain/entities/stock_in_receipt.dart';
+import 'package:stores/domain/entities/supplier.dart';
+import 'package:stores/domain/entities/supplier_debt_transaction.dart';
 import 'package:stores/domain/entities/transaction_type.dart';
 import 'package:stores/domain/entities/user_account.dart';
 import 'package:stores/domain/repositories/inventory_repository.dart';
 import 'package:stores/domain/repositories/product_repository.dart';
+import 'package:stores/domain/repositories/stock_in_receipt_repository.dart';
+import 'package:stores/domain/repositories/supplier_repository.dart';
 import 'package:stores/presentation/inventories/pages/import_detail_page.dart';
 import 'package:stores/presentation/inventories/pages/import_inventory_page.dart';
 import 'package:stores/presentation/inventories/pages/inter_store_transfer_page.dart';
+
+import '../../support/import_flow_helpers.dart';
 
 // --- Fakes & Mocks ---
 
@@ -76,6 +86,121 @@ class _MockInventoryRepository implements InventoryRepository {
   Stream<List<InventoryTransaction>> watchImportsByDateRange(
           DateTime startDate, DateTime endDate) =>
       Stream.value([]);
+}
+
+class _FakeSupplierRepository implements SupplierRepository {
+  @override
+  Stream<List<Supplier>> watchAll({String? storeId}) => Stream.value([]);
+
+  @override
+  Future<Supplier?> fetchById(String id, {String? storeId}) async => null;
+
+  @override
+  Future<void> upsert(Supplier supplier, {String? storeId}) async {}
+
+  @override
+  Future<void> delete(String id, {String? storeId}) async {}
+
+  @override
+  Future<void> recordDebtTransaction(SupplierDebtTransaction transaction,
+      {String? storeId}) async {}
+
+  @override
+  Stream<List<SupplierDebtTransaction>> watchDebtTransactions(String supplierId,
+          {String? storeId}) =>
+      Stream.value([]);
+
+  @override
+  Future<List<SupplierDebtTransaction>> fetchDebtTransactions(String supplierId,
+          {String? storeId}) async =>
+      [];
+}
+
+class _FakeStockInReceiptRepository implements StockInReceiptRepository {
+  StockInReceipt? lastSaved;
+
+  @override
+  Future<String> saveDraft(StockInReceipt receipt) async => receipt.id;
+
+  @override
+  Future<void> updateDraft(StockInReceipt receipt) async {}
+
+  @override
+  Future<void> deleteDraft(
+      {required String storeId, required String receiptId}) async {}
+
+  @override
+  Future<void> cancelReceipt({
+    required String storeId,
+    required StockInReceipt receipt,
+    required String reason,
+    required String cancelledBy,
+  }) async {}
+
+  @override
+  Stream<List<StockInReceipt>> watchReceipts(String storeId) =>
+      Stream.value([]);
+
+  @override
+  Future<List<StockInReceipt>> fetchReceipts(String storeId) async => [];
+
+  @override
+  Future<StockInReceipt?> getReceiptById(
+          {required String storeId, required String receiptId}) async =>
+      null;
+
+  @override
+  Future<void> saveReceipt(StockInReceipt receipt) async {
+    lastSaved = receipt;
+  }
+
+  @override
+  Future<void> deleteReceipt(
+      {required String storeId, required String receiptId}) async {}
+
+  @override
+  Future<double?> getLatestImportPrice(
+          {required String storeId, required String productId}) async =>
+      null;
+}
+
+/// Pumps ImportInventoryPage (2-step wizard) for [user] with in-memory repos.
+Future<void> _pumpWizard(
+  WidgetTester tester, {
+  required UserAccount? user,
+  required String storeId,
+  required List<Product> products,
+  required Map<String, String> stores,
+  _MockProductRepository? productRepo,
+  _MockInventoryRepository? inventoryRepo,
+}) async {
+  final prodRepo = productRepo ?? _MockProductRepository(products);
+  final invRepo = inventoryRepo ?? _MockInventoryRepository();
+  final receiptRepo = _FakeStockInReceiptRepository();
+  final supplierRepo = _FakeSupplierRepository();
+  await tester.pumpWidget(
+    _buildTestApp(
+      child: const ImportInventoryPage(),
+      overrides: [
+        authProvider.overrideWith((ref) => _FakeAuthNotifier(user)),
+        currentStoreIdProvider.overrideWith((ref) => storeId),
+        productListProvider.overrideWith((ref) => Stream.value(products)),
+        availableStoresProvider.overrideWith((ref) async => stores),
+        productRepositoryProvider.overrideWithValue(prodRepo),
+        inventoryRepositoryProvider.overrideWithValue(invRepo),
+        supplierRepositoryProvider.overrideWithValue(supplierRepo),
+        stockInReceiptRepositoryProvider.overrideWithValue(receiptRepo),
+        completeStockInReceiptUseCaseProvider
+            .overrideWith((ref) => CompleteStockInReceiptUseCase(
+                  productRepository: prodRepo,
+                  inventoryRepository: invRepo,
+                  supplierRepository: supplierRepo,
+                  receiptRepository: receiptRepo,
+                )),
+      ],
+    ),
+  );
+  await tester.pumpAndSettle();
 }
 
 Widget _buildTestApp({
@@ -146,90 +271,85 @@ void main() {
     testWidgets(
         '[Adversarial M1-1] Staff: Locked store badge and masked cost price in ImportInventoryPage',
         (tester) async {
-      await tester.pumpWidget(
-        _buildTestApp(
-          child: const ImportInventoryPage(),
-          overrides: [
-            authProvider.overrideWith((ref) => _FakeAuthNotifier(staffUserBranch2)),
-            currentStoreIdProvider.overrideWith((ref) => 'store_002'),
-            productListProvider.overrideWith((ref) => Stream.value([sampleProduct])),
-            availableStoresProvider.overrideWith((ref) async => storesMapFixture),
-          ],
-        ),
-      );
-      await tester.pumpAndSettle();
+      await _pumpWizard(tester,
+          user: staffUserBranch2,
+          storeId: 'store_002',
+          products: [sampleProduct],
+          stores: storesMapFixture);
 
       // 1. Locked Store Badge
-      expect(
-          find.text('Chi nhánh nhập: Chi nhánh Đông Thắng (Cố định)'),
+      expect(find.text('Chi nhánh nhập: Chi nhánh Đông Thắng (Cố định)'),
           findsOneWidget);
       expect(find.byIcon(Icons.lock_outline), findsOneWidget);
+      expect(find.byIcon(Icons.storefront), findsNothing);
 
-      // 2. Cost Price Input and Total Value are STRICTLY HIDDEN
+      // 2. Page itself never exposes cost price / total value labels to staff
       expect(find.textContaining('Giá nhập'), findsNothing);
       expect(find.textContaining('Tổng giá trị'), findsNothing);
 
-      // 3. Quantity input and stock indicators are visible
-      expect(find.text('Số lượng'), findsOneWidget);
-      expect(find.text('Tồn kho hiện tại'), findsOneWidget);
-      expect(find.text('Tồn kho sau nhập'), findsOneWidget);
+      // 3. Cost price input must NOT be rendered for staff in the edit sheet
+      await openProductSheet(tester,
+          search: 'Sản phẩm Test Adv', productText: 'Sản phẩm Test Adv');
+      expect(find.byKey(const Key('product_edit_sheet')), findsOneWidget);
+      expect(find.byKey(const Key('sheet_input_price')), findsNothing);
+      // Quantity control remains available
+      expect(find.byKey(const Key('sheet_stepper_inc')), findsOneWidget);
+      expect(find.byKey(const Key('sheet_qty_text')), findsOneWidget);
     });
 
     testWidgets(
         '[Adversarial M1-2] Admin: Unlocked store badge and can view cost price',
         (tester) async {
-      await tester.pumpWidget(
-        _buildTestApp(
-          child: const ImportInventoryPage(),
-          overrides: [
-            authProvider.overrideWith((ref) => _FakeAuthNotifier(adminUser)),
-            currentStoreIdProvider.overrideWith((ref) => 'store_001'),
-            productListProvider.overrideWith((ref) => Stream.value([sampleProduct])),
-            availableStoresProvider.overrideWith((ref) async => storesMapFixture),
-          ],
-        ),
-      );
-      await tester.pumpAndSettle();
+      await _pumpWizard(tester,
+          user: adminUser,
+          storeId: 'store_001',
+          products: [sampleProduct],
+          stores: storesMapFixture);
 
       // 1. Unlocked Store Badge (Admin can switch store)
-      expect(
-          find.text('Chi nhánh nhập: Chi nhánh Thới Bình'),
-          findsOneWidget);
+      expect(find.text('Chi nhánh nhập: Chi nhánh Thới Bình'), findsOneWidget);
       expect(find.textContaining('(Cố định)'), findsNothing);
       expect(find.byIcon(Icons.storefront), findsOneWidget);
+      expect(find.byIcon(Icons.lock_outline), findsNothing);
 
-      // 2. Cost Price Input and Total Value are VISIBLE for Admin
-      expect(find.textContaining('Giá nhập'), findsOneWidget);
-      expect(find.textContaining('Tổng giá trị'), findsOneWidget);
+      // 2. Cost price input is VISIBLE for Admin in the edit sheet
+      await openProductSheet(tester,
+          search: 'Sản phẩm Test Adv', productText: 'Sản phẩm Test Adv');
+      expect(find.byKey(const Key('product_edit_sheet')), findsOneWidget);
+      expect(find.byKey(const Key('sheet_input_price')), findsOneWidget);
+      expect(find.textContaining('Giá nhập'), findsWidgets);
     });
 
     testWidgets(
         '[Adversarial M1-3] Supervisor: Full access with editable cost price and total value summary',
         (tester) async {
-      await tester.pumpWidget(
-        _buildTestApp(
-          child: const ImportInventoryPage(),
-          overrides: [
-            authProvider.overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
-            currentStoreIdProvider.overrideWith((ref) => 'store_001'),
-            productListProvider.overrideWith((ref) => Stream.value([sampleProduct])),
-            availableStoresProvider.overrideWith((ref) async => storesMapFixture),
-          ],
-        ),
-      );
-      await tester.pumpAndSettle();
+      await _pumpWizard(tester,
+          user: supervisorUser,
+          storeId: 'store_001',
+          products: [sampleProduct],
+          stores: storesMapFixture);
 
       // 1. Locked badge for supervisor per R2
-      expect(
-          find.text('Chi nhánh nhập: Chi nhánh Thới Bình (Cố định)'),
+      expect(find.text('Chi nhánh nhập: Chi nhánh Thới Bình (Cố định)'),
           findsOneWidget);
       expect(find.byIcon(Icons.lock_outline), findsOneWidget);
 
-      // 2. Cost Price Input is VISIBLE
-      expect(find.textContaining('Giá nhập'), findsOneWidget);
+      // 2. Cost price input is VISIBLE and editable
+      await addProductViaSheet(tester,
+          search: 'Sản phẩm Test Adv',
+          productText: 'Sản phẩm Test Adv',
+          quantity: 2,
+          unitPrice: '250000');
 
-      // 3. Total Value Summary Card is VISIBLE
-      expect(find.textContaining('Tổng giá trị'), findsOneWidget);
+      // 3. Total value summary reflects 2 x 250,000 = 500,000 and is unmasked
+      expect(find.byKey(const Key('bottom_bar_total_amount')), findsOneWidget);
+      expect(
+          tester
+              .widget<Text>(find.byKey(const Key('bottom_bar_total_amount')))
+              .data,
+          '500.000 đ');
+      expect(find.text('1 mặt hàng • Số lượng: 2'), findsOneWidget);
+      expect(find.text('***'), findsNothing);
     });
 
     testWidgets(
@@ -241,16 +361,17 @@ void main() {
           overrides: [
             authProvider.overrideWith((ref) => _FakeAuthNotifier(null)),
             currentStoreIdProvider.overrideWith((ref) => 'store_001'),
-            productListProvider.overrideWith((ref) => Stream.value([sampleProduct])),
-            availableStoresProvider.overrideWith((ref) async => storesMapFixture),
+            productListProvider
+                .overrideWith((ref) => Stream.value([sampleProduct])),
+            availableStoresProvider
+                .overrideWith((ref) async => storesMapFixture),
           ],
         ),
       );
       await tester.pumpAndSettle();
 
       // Should default to locked badge and hidden cost price safely
-      expect(
-          find.text('Chi nhánh nhập: Chi nhánh Thới Bình (Cố định)'),
+      expect(find.text('Chi nhánh nhập: Chi nhánh Thới Bình (Cố định)'),
           findsOneWidget);
       expect(find.byIcon(Icons.lock_outline), findsOneWidget);
       expect(find.textContaining('Giá nhập'), findsNothing);
@@ -263,49 +384,30 @@ void main() {
       final mockProdRepo = _MockProductRepository([sampleProduct]);
       final mockInvRepo = _MockInventoryRepository();
 
-      await tester.pumpWidget(
-        _buildTestApp(
-          child: const ImportInventoryPage(),
-          overrides: [
-            authProvider.overrideWith((ref) => _FakeAuthNotifier(staffUserBranch1)),
-            currentStoreIdProvider.overrideWith((ref) => 'store_001'),
-            productListProvider.overrideWith((ref) => Stream.value([sampleProduct])),
-            availableStoresProvider.overrideWith((ref) async => storesMapFixture),
-            productRepositoryProvider.overrideWithValue(mockProdRepo),
-            inventoryRepositoryProvider.overrideWithValue(mockInvRepo),
-          ],
-        ),
-      );
-      await tester.pumpAndSettle();
+      await _pumpWizard(tester,
+          user: staffUserBranch1,
+          storeId: 'store_001',
+          products: [sampleProduct],
+          stores: storesMapFixture,
+          productRepo: mockProdRepo,
+          inventoryRepo: mockInvRepo);
 
-      // Select product via autocomplete
-      final searchField = find.byType(TextFormField).first;
-      await tester.tap(searchField);
-      await tester.enterText(searchField, 'Sản phẩm Test Adv');
-      await tester.pumpAndSettle();
+      // Staff cannot set a price: add with default quantity (1)
+      await addProductViaSheet(tester,
+          search: 'Sản phẩm Test Adv', productText: 'Sản phẩm Test Adv');
+      await goToPaymentStep(tester);
+      await completeReceiptOnPaymentStep(tester);
 
-      // Tap the matching autocomplete option
-      final option = find.textContaining('Sản phẩm Test Adv').last;
-      await tester.tap(option);
-      await tester.pumpAndSettle();
-
-      // Find save icon button in AppBar
-      final saveButton = find.byIcon(Icons.save);
-      expect(saveButton, findsOneWidget);
-
-      // Tap save
-      await tester.tap(saveButton);
-      await tester.pumpAndSettle();
-
-      // Verify transaction was recorded with product's default costPrice (200000)
+      // Transaction recorded with product's default costPrice (200000)
       expect(mockInvRepo.lastRecordedTx, isNotNull);
       expect(mockInvRepo.lastRecordedTx!.importPrice, equals(200000.0));
       expect(mockInvRepo.lastRecordedTx!.quantity, equals(1));
       expect(mockInvRepo.lastRecordedTx!.createdBy, equals('staff_b1'));
 
-      // Verify product upsert was called with updated stock
+      // Weighted average with same price is unchanged; stock increased by 1
       expect(mockProdRepo.lastUpsertedProduct, isNotNull);
       expect(mockProdRepo.lastUpsertedProduct!.costPrice, equals(200000.0));
+      expect(mockProdRepo.lastUpsertedProduct!.stock, equals(16));
     });
 
     testWidgets(
@@ -314,46 +416,24 @@ void main() {
       final mockProdRepo = _MockProductRepository([sampleProduct]);
       final mockInvRepo = _MockInventoryRepository();
 
-      await tester.pumpWidget(
-        _buildTestApp(
-          child: const ImportInventoryPage(),
-          overrides: [
-            authProvider.overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
-            currentStoreIdProvider.overrideWith((ref) => 'store_001'),
-            productListProvider.overrideWith((ref) => Stream.value([sampleProduct])),
-            availableStoresProvider.overrideWith((ref) async => storesMapFixture),
-            productRepositoryProvider.overrideWithValue(mockProdRepo),
-            inventoryRepositoryProvider.overrideWithValue(mockInvRepo),
-          ],
-        ),
-      );
-      await tester.pumpAndSettle();
+      await _pumpWizard(tester,
+          user: supervisorUser,
+          storeId: 'store_001',
+          products: [sampleProduct],
+          stores: storesMapFixture,
+          productRepo: mockProdRepo,
+          inventoryRepo: mockInvRepo);
 
-      // Select product via autocomplete
-      final searchField = find.byType(TextFormField).first;
-      await tester.tap(searchField);
-      await tester.enterText(searchField, 'Sản phẩm Test Adv');
-      await tester.pumpAndSettle();
-
-      final option = find.textContaining('Sản phẩm Test Adv').last;
-      await tester.tap(option);
-      await tester.pumpAndSettle();
-
-      // Supervisor modifies import price to 260000 and quantity to 5
       // Initial stock: 15 (10+5), initial cost: 200,000.
-      // Import 5 at 260,000.
-      // New total stock = 20.
-      // Expected new cost = (15 * 200,000 + 5 * 260,000) / 20 = (3,000,000 + 1,300,000) / 20 = 4,300,000 / 20 = 215,000.
-
-      final textFields = find.byType(TextFormField);
-      // textFields[0]: search/autocomplete, textFields[1]: quantity, textFields[2]: importPrice
-      await tester.enterText(textFields.at(1), '5');
-      await tester.enterText(textFields.at(2), '260000');
-      await tester.pumpAndSettle();
-
-      // Tap save
-      await tester.tap(find.byIcon(Icons.save));
-      await tester.pumpAndSettle();
+      // Import 5 at 260,000 -> new total stock 20.
+      // Expected new cost = (15*200,000 + 5*260,000) / 20 = 215,000.
+      await addProductViaSheet(tester,
+          search: 'Sản phẩm Test Adv',
+          productText: 'Sản phẩm Test Adv',
+          quantity: 5,
+          unitPrice: '260000');
+      await goToPaymentStep(tester);
+      await completeReceiptOnPaymentStep(tester);
 
       expect(mockInvRepo.lastRecordedTx, isNotNull);
       expect(mockInvRepo.lastRecordedTx!.importPrice, equals(260000.0));
@@ -361,6 +441,7 @@ void main() {
 
       expect(mockProdRepo.lastUpsertedProduct, isNotNull);
       expect(mockProdRepo.lastUpsertedProduct!.costPrice, equals(215000.0));
+      expect(mockProdRepo.lastUpsertedProduct!.stock, equals(20));
     });
 
     test(
@@ -484,7 +565,8 @@ void main() {
           key: const ValueKey('scope_staff'),
           child: ImportDetailPage(tx: sampleTx, product: sampleProduct),
           overrides: [
-            authProvider.overrideWith((ref) => _FakeAuthNotifier(staffUserBranch1)),
+            authProvider
+                .overrideWith((ref) => _FakeAuthNotifier(staffUserBranch1)),
           ],
         ),
       );
@@ -512,7 +594,8 @@ void main() {
           key: const ValueKey('scope_supervisor'),
           child: ImportDetailPage(tx: sampleTx, product: sampleProduct),
           overrides: [
-            authProvider.overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
+            authProvider
+                .overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
           ],
         ),
       );
@@ -535,7 +618,8 @@ void main() {
           key: const ValueKey('scope_null_price'),
           child: ImportDetailPage(tx: nullPriceTx, product: sampleProduct),
           overrides: [
-            authProvider.overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
+            authProvider
+                .overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
           ],
         ),
       );
@@ -556,10 +640,12 @@ void main() {
         _buildTestApp(
           child: const InterStoreTransferPage(product: sampleProduct),
           overrides: [
-            authProvider.overrideWith((ref) => _FakeAuthNotifier(staffUserBranch2)),
+            authProvider
+                .overrideWith((ref) => _FakeAuthNotifier(staffUserBranch2)),
             // Deliberately set currentStoreIdProvider to store_001 (adversarial spoof attempt)
             currentStoreIdProvider.overrideWith((ref) => 'store_001'),
-            availableStoresProvider.overrideWith((ref) async => storesMapFixture),
+            availableStoresProvider
+                .overrideWith((ref) async => storesMapFixture),
           ],
         ),
       );
@@ -577,9 +663,11 @@ void main() {
         _buildTestApp(
           child: const InterStoreTransferPage(product: sampleProduct),
           overrides: [
-            authProvider.overrideWith((ref) => _FakeAuthNotifier(staffUserBranch1)),
+            authProvider
+                .overrideWith((ref) => _FakeAuthNotifier(staffUserBranch1)),
             currentStoreIdProvider.overrideWith((ref) => 'store_001'),
-            availableStoresProvider.overrideWith((ref) async => storesMapFixture),
+            availableStoresProvider
+                .overrideWith((ref) async => storesMapFixture),
           ],
         ),
       );
@@ -605,7 +693,8 @@ void main() {
           overrides: [
             authProvider.overrideWith((ref) => _FakeAuthNotifier(adminUser)),
             currentStoreIdProvider.overrideWith((ref) => 'store_001'),
-            availableStoresProvider.overrideWith((ref) async => storesMapFixture),
+            availableStoresProvider
+                .overrideWith((ref) async => storesMapFixture),
           ],
         ),
       );
@@ -623,7 +712,8 @@ void main() {
         _buildTestApp(
           child: const InterStoreTransferPage(product: sampleProduct),
           overrides: [
-            authProvider.overrideWith((ref) => _FakeAuthNotifier(staffUserBranch1)),
+            authProvider
+                .overrideWith((ref) => _FakeAuthNotifier(staffUserBranch1)),
             currentStoreIdProvider.overrideWith((ref) => 'store_001'),
             // Only 1 store in chain
             availableStoresProvider.overrideWith((ref) async => {
@@ -754,9 +844,11 @@ void main() {
         _buildTestApp(
           child: const InterStoreTransferPage(product: sampleProduct),
           overrides: [
-            authProvider.overrideWith((ref) => _FakeAuthNotifier(staffUserBranch1)),
+            authProvider
+                .overrideWith((ref) => _FakeAuthNotifier(staffUserBranch1)),
             currentStoreIdProvider.overrideWith((ref) => 'store_001'),
-            availableStoresProvider.overrideWith((ref) async => storesMapFixture),
+            availableStoresProvider
+                .overrideWith((ref) async => storesMapFixture),
           ],
         ),
       );
@@ -794,80 +886,80 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
-      await tester.pumpWidget(
-        _buildTestApp(
-          child: const ImportInventoryPage(),
-          overrides: [
-            authProvider.overrideWith((ref) => _FakeAuthNotifier(staffUserBranch1)),
-            currentStoreIdProvider.overrideWith((ref) => 'store_001'),
-            productListProvider.overrideWith((ref) => Stream.value([sampleProduct])),
-            availableStoresProvider.overrideWith((ref) async => storesMapFixture),
-          ],
-        ),
+      const secondProduct = Product(
+        id: 'prod_200',
+        name: 'Mặt hàng Thứ Hai',
+        code: 'SP200',
+        price: 50000,
+        costPrice: 30000,
+        branchStocks: {'branch_1': 3},
+        category: 'Vật tư',
       );
+
+      await _pumpWizard(tester,
+          user: staffUserBranch1,
+          storeId: 'store_001',
+          products: [sampleProduct, secondProduct],
+          stores: storesMapFixture);
+
+      // Initially no items: empty summary
+      expect(find.text('0 mặt hàng • Số lượng: 0'), findsOneWidget);
+
+      await addProductViaSheet(tester,
+          search: 'Sản phẩm Test Adv',
+          productText: 'Sản phẩm Test Adv',
+          quantity: 2);
+      expect(find.text('1 mặt hàng • Số lượng: 2'), findsOneWidget);
+
+      await addProductViaSheet(tester,
+          search: 'Mặt hàng Thứ Hai',
+          productText: 'Mặt hàng Thứ Hai',
+          quantity: 3);
+      expect(find.text('2 mặt hàng • Số lượng: 5'), findsOneWidget);
+
+      // Remove the second row (swipe + confirm)
+      await tester.drag(
+          find.byKey(const Key('item_card_prod_200')), const Offset(-600, 0));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('btn_confirm_delete')));
       await tester.pumpAndSettle();
 
-      // Initially 1 product row
-      expect(find.text('Số sản phẩm'), findsOneWidget);
-      expect(find.text('1'), findsWidgets);
-
-      // Tap "Thêm Sản Phẩm" to add a second row
-      final addRowButton = find.text('Thêm Sản Phẩm');
-      expect(addRowButton, findsOneWidget);
-      await tester.tap(addRowButton);
-      await tester.pumpAndSettle();
-
-      // Summary should show 2 products
-      expect(find.text('2'), findsWidgets);
-
-      // Delete icon should appear for all items when items > 1
-      final deleteButtons = find.text('Xóa');
-      expect(deleteButtons, findsNWidgets(2));
-
-      // Delete the second row
-      await tester.tap(deleteButtons.last);
-      await tester.pumpAndSettle();
-
-      // Summary should revert to 1 product and delete buttons disappear
-      expect(find.text('Xóa'), findsNothing);
+      expect(find.byKey(const Key('item_card_prod_200')), findsNothing);
+      expect(find.byKey(const Key('item_card_prod_100')), findsOneWidget);
+      expect(find.text('1 mặt hàng • Số lượng: 2'), findsOneWidget);
     });
 
     testWidgets(
-        '[Adversarial M1-10] Supervisor validation fails with snackbar when import price is 0 or negative',
+        '[Adversarial M1-10] Import price 0 is allowed (promotional stock) and a negative price never produces a negative total',
         (tester) async {
-      await tester.pumpWidget(
-        _buildTestApp(
-          child: const ImportInventoryPage(),
-          overrides: [
-            authProvider.overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
-            currentStoreIdProvider.overrideWith((ref) => 'store_001'),
-            productListProvider.overrideWith((ref) => Stream.value([sampleProduct])),
-            availableStoresProvider.overrideWith((ref) async => storesMapFixture),
-          ],
-        ),
-      );
-      await tester.pumpAndSettle();
+      await _pumpWizard(tester,
+          user: supervisorUser,
+          storeId: 'store_001',
+          products: [sampleProduct],
+          stores: storesMapFixture);
 
-      // Select product
-      final searchField = find.byType(TextFormField).first;
-      await tester.tap(searchField);
-      await tester.enterText(searchField, 'Sản phẩm Test Adv');
-      await tester.pumpAndSettle();
-      await tester.tap(find.textContaining('Sản phẩm Test Adv').last);
-      await tester.pumpAndSettle();
+      // Price 0 = bonus / promotional stock: allowed, total stays 0 đ.
+      await addProductViaSheet(tester,
+          search: 'Sản phẩm Test Adv',
+          productText: 'Sản phẩm Test Adv',
+          unitPrice: '0');
+      expect(find.byKey(const Key('item_card_prod_100')), findsOneWidget);
+      expect(find.text('1 mặt hàng • Số lượng: 1'), findsOneWidget);
+      expect(
+          tester
+              .widget<Text>(find.byKey(const Key('bottom_bar_total_amount')))
+              .data,
+          '0 đ');
 
-      // Set import price to 0
-      final priceField = find.byType(TextFormField).at(2);
-      await tester.enterText(priceField, '0');
-      await tester.pumpAndSettle();
-
-      // Tap save
-      await tester.tap(find.byIcon(Icons.save));
-      await tester.pumpAndSettle();
-
-      // Validation snackbar should be displayed
-      expect(find.text('Kiểm tra sản phẩm và số lượng'), findsOneWidget);
+      // A negative price typed into the field must be clamped, never negative.
+      await addProductViaSheet(tester,
+          search: 'Sản phẩm Test Adv',
+          productText: 'Sản phẩm Test Adv',
+          unitPrice: '-5000');
+      final total = tester
+          .widget<Text>(find.byKey(const Key('bottom_bar_total_amount')))
+          .data!;
+      expect(total.contains('-'), isFalse, reason: 'total must not be negative');
     });
   });
 }
-

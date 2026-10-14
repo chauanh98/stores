@@ -13,12 +13,15 @@ import '../../../domain/repositories/inventory_repository.dart';
 import '../../../domain/repositories/product_repository.dart';
 import '../../../domain/repositories/stock_in_receipt_repository.dart';
 import '../../../domain/repositories/supplier_repository.dart';
+import '../../../core/utils/store_resolver_helper.dart';
+import '../../notifications/notification_dispatcher.dart';
+import 'stock_in_store_sync.dart';
 
 /// Use case that rolls back a completed stock-in receipt atomically.
 ///
 /// Multi-path rollback operations:
 /// 1. Updates receipt status to 'cancelled' with cancelReason, cancelledAt, cancelledBy.
-/// 2. Rolls back branch stocks: `branchStocks[storeId] = (currentStock - qty).clamp(0, 999999)`
+/// 2. Rolls back branch stocks: `branchStocks[storeId] = max(0, currentStock - qty)`
 ///    with branch alias synchronization (`store_001` <-> `branch_1`, `store_002` <-> `branch_2`).
 /// 3. Records reversal inventory transactions for each cancelled item line.
 /// 4. Rolls back supplier debt (`currentDebt -= remainingDebt`) and total purchase
@@ -29,6 +32,7 @@ class CancelStockInReceiptUseCase {
   final InventoryRepository _inventoryRepo;
   final SupplierRepository _supplierRepo;
   final StockInReceiptRepository _receiptRepo;
+  final NotificationDispatcher? _notificationDispatcher;
 
   CancelStockInReceiptUseCase({
     FirebaseDatabase? db,
@@ -36,7 +40,9 @@ class CancelStockInReceiptUseCase {
     required InventoryRepository inventoryRepository,
     required SupplierRepository supplierRepository,
     required StockInReceiptRepository receiptRepository,
-  })  : _db = db,
+    NotificationDispatcher? notificationDispatcher,
+  })  : _notificationDispatcher = notificationDispatcher,
+        _db = db,
         _productRepo = productRepository,
         _inventoryRepo = inventoryRepository,
         _supplierRepo = supplierRepository,
@@ -81,6 +87,7 @@ class CancelStockInReceiptUseCase {
     final List<InventoryTransaction> reversalTransactions = [];
     final Map<String, Product> productCache = {};
     final Map<String, int> productQuantityMap = {};
+    final Map<String, double> productCostMap = {};
 
     for (int i = 0; i < receipt.items.length; i++) {
       final item = receipt.items[i];
@@ -110,6 +117,8 @@ class CancelStockInReceiptUseCase {
       if (product != null) {
         productQuantityMap[product.id] =
             (productQuantityMap[product.id] ?? 0) + item.quantity;
+        productCostMap[product.id] = (productCostMap[product.id] ?? 0.0) +
+            (item.quantity * item.unitPrice);
       }
 
       // Reversal inventory transaction
@@ -143,7 +152,9 @@ class CancelStockInReceiptUseCase {
       final product = productCache[productId]!;
 
       final currentStock = product.stockInBranch(storeId);
-      final rolledBackStock = (currentStock - totalQuantity).clamp(0, 999999);
+      final rolledBackStock = currentStock > totalQuantity
+          ? currentStock - totalQuantity
+          : 0; // không âm, KHÔNG chặn trên (tồn có thể > 999.999)
       final branchStocks = Map<String, int>.from(product.branchStocks);
       branchStocks[storeId] = rolledBackStock;
 
@@ -156,20 +167,40 @@ class CancelStockInReceiptUseCase {
         branchStocks['branch_2'] = rolledBackStock;
       }
 
-      final updatedProduct = product.copyWith(branchStocks: branchStocks);
+      // Hoàn lại giá vốn bình quân: bỏ phần của phiếu bị hủy khỏi bình quân
+      // gia quyền hiện tại, (avg*T - giáPhiếu) / (T - SLphiếu).
+      final totalBefore = product.stock;
+      final totalAfter = totalBefore - totalQuantity;
+      var revertedCost = product.costPrice;
+      if (totalAfter > 0) {
+        final candidate = (product.costPrice * totalBefore -
+                (productCostMap[productId] ?? 0.0)) /
+            totalAfter;
+        // Sai số làm tròn (vd. -1e-13 khi giá vốn gốc = 0) không được khiến
+        // giá vốn kẹt lại ở giá của phiếu đã hủy.
+        final tolerance = 1e-9 *
+            (((productCostMap[productId] ?? 0.0) / totalAfter).abs() + 1.0);
+        if (candidate.isFinite && candidate >= -tolerance) {
+          revertedCost = candidate < 0 ? 0.0 : candidate;
+        }
+      }
+
+      final updatedProduct = product.copyWith(
+        branchStocks: branchStocks,
+        costPrice: revertedCost,
+      );
       rolledBackProducts.add(updatedProduct);
 
-      final targetStoreIds = <String>{
-        storeId,
-        'store_001',
-        'branch_1',
-        'store_002',
-        'branch_2',
-      };
-      for (final sId in targetStoreIds) {
-        updates['stores/$sId/products/${product.id}/branchStocks'] =
-            branchStocks;
-      }
+      final targets = await storesToSyncProduct(_db, storeId, product.id);
+      writeProductStockUpdates(
+        updates,
+        targets: targets,
+        productId: product.id,
+        storeId: storeId,
+        newStock: rolledBackStock,
+        fullBranchStocks: branchStocks,
+        costPrice: revertedCost,
+      );
     }
 
     // 3. Supplier debt & total purchase rollback
@@ -221,7 +252,23 @@ class CancelStockInReceiptUseCase {
 
     // 4. Commit atomic update
     if (_db != null) {
-      await _db.ref().update(updates);
+      // Chặn 2 thiết bị cùng hủy một phiếu (bản sao cũ vẫn là "completed")
+      // làm hoàn kho / công nợ 2 lần.
+      final claim = await ReceiptStatusClaim.acquire(
+        _db,
+        'stores/$storeId/stock_in_receipts/${receipt.id}/status',
+        to: 'cancelled',
+        blocked: const {'cancelled', 'Đã hủy'},
+      );
+      if (claim == null) {
+        throw StateError('Receipt is already cancelled');
+      }
+      try {
+        await _db.ref().update(updates);
+      } catch (_) {
+        await claim.release();
+        rethrow;
+      }
     }
 
     // 5. Update repository state
@@ -248,6 +295,19 @@ class CancelStockInReceiptUseCase {
               storeId: storeId);
         } catch (_) {}
       }
+    }
+
+    // Thông báo hủy phiếu (lỗi thông báo không ảnh hưởng nghiệp vụ kho).
+    final dispatcher = _notificationDispatcher;
+    if (dispatcher != null) {
+      try {
+        await dispatcher.notifyStockInCancelled(
+          storeId: StoreResolverHelper.normalizeStoreId(storeId),
+          receipt: receipt,
+          reason: reason,
+          cancelledBy: cancelledBy,
+        );
+      } catch (_) {}
     }
   }
 }

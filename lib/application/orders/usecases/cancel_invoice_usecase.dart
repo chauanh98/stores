@@ -3,6 +3,7 @@ import '../../../data/datasources/firebase/customer_remote_data_source.dart';
 import '../../../domain/entities/customer_debt_transaction.dart';
 import '../../../domain/entities/inventory_transaction.dart';
 import '../../../domain/entities/order.dart';
+import '../../../domain/entities/order_item.dart';
 import '../../../domain/entities/transaction_type.dart';
 import '../../../domain/entities/user_account.dart';
 import '../../../domain/repositories/customer_repository.dart';
@@ -47,10 +48,41 @@ class CancelInvoiceUseCase {
       throw const ValidationException('Hóa đơn này đã được hủy trước đó.');
     }
 
+    // Luôn đối chiếu bản lưu trên máy chủ: bản `order` của người gọi có thể đã
+    // cũ (bấm đúp / 2 thiết bị) => hoàn kho & hoàn nợ 2 lần.
+    try {
+      final fresh = await orderRepository.fetchById(order.id);
+      if (fresh != null) {
+        if (fresh.isCancelled) {
+          throw const ValidationException('Hóa đơn này đã được hủy trước đó.');
+        }
+        order = fresh;
+      }
+    } on ValidationException {
+      rethrow;
+    } catch (_) {
+      // Không đọc được bản mới nhất (offline) => dùng bản đang có.
+    }
+
     final now = DateTime.now();
+    // Đơn nháp chưa từng trừ kho / ghi nợ: chỉ đánh dấu hủy, không hoàn kho.
+    final isDraftOrder = order.isDraft;
 
     // 2. Product Inventory Stock Restoration & Audit Logging
-    for (final item in order.items) {
+    // Id giao dịch phải duy nhất: cùng 1 sản phẩm có thể xuất hiện ở nhiều dòng
+    // (hoặc là thành phần của nhiều combo) => thêm hậu tố khi trùng để không ghi đè.
+    final usedTxIds = <String>{};
+    String uniqueTxId(String productId) {
+      final base = 'cancel_import_${now.millisecondsSinceEpoch}_$productId';
+      var id = base;
+      var n = 2;
+      while (!usedTxIds.add(id)) {
+        id = '${base}_${n++}';
+      }
+      return id;
+    }
+
+    for (final item in isDraftOrder ? const <OrderItem>[] : order.items) {
       final qtyToRestore = item.activeQuantity;
       if (qtyToRestore <= 0) continue;
 
@@ -68,7 +100,7 @@ class CancelInvoiceUseCase {
                   .upsert(childProduct.copyWith(branchStocks: updatedStocks));
 
               final tx = InventoryTransaction(
-                id: 'cancel_import_${now.millisecondsSinceEpoch}_${childProduct.id}',
+                id: uniqueTxId(childProduct.id),
                 productId: childProduct.id,
                 type: TransactionType.import,
                 quantity: compQtyToRestore,
@@ -89,7 +121,7 @@ class CancelInvoiceUseCase {
               .upsert(product.copyWith(branchStocks: updatedStocks));
 
           final tx = InventoryTransaction(
-            id: 'cancel_import_${now.millisecondsSinceEpoch}_${product.id}',
+            id: uniqueTxId(product.id),
             productId: product.id,
             type: TransactionType.import,
             quantity: qtyToRestore,
@@ -106,7 +138,8 @@ class CancelInvoiceUseCase {
 
     // 3. Customer Debt & Sales Reversal (if registered customer)
     final customerId = order.customerId;
-    if (customerId.isNotEmpty &&
+    if (!isDraftOrder &&
+        customerId.isNotEmpty &&
         customerId != 'khach_le' &&
         customerId != 'walk_in') {
       final customer = await customerRepository.fetchById(customerId);

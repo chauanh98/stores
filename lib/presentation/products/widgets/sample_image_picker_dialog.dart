@@ -155,124 +155,102 @@ class _SampleImagePickerDialogState extends State<SampleImagePickerDialog> {
     final industries = _getIndustries();
     final filteredCategories = _getFilteredCategories();
 
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.85,
-      decoration: const BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Drag handle
-          Center(
-            child: Container(
-              margin: const EdgeInsets.only(top: 10, bottom: 6),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.grey300,
-                borderRadius: BorderRadius.circular(2),
-              ),
+    // Very short screens (tiny phones / landscape + big text): the fixed
+    // header/search/chips would overflow, so the whole sheet scrolls instead.
+    final screenH = MediaQuery.of(context).size.height;
+    final compact = screenH < 420;
+    final column = Column(
+      mainAxisSize: compact ? MainAxisSize.min : MainAxisSize.max,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Drag handle
+        Center(
+          child: Container(
+            margin: const EdgeInsets.only(top: 10, bottom: 6),
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: AppColors.grey300,
+              borderRadius: BorderRadius.circular(2),
             ),
           ),
+        ),
 
-          // Header
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              children: [
-                const Icon(Icons.auto_awesome,
-                    color: AppColors.primary, size: 22),
-                const SizedBox(width: 8),
-                const Expanded(
-                  child: Text(
-                    'Gợi ý & Chọn Ảnh Mẫu Thông Minh',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                    ),
+        // Header
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            children: [
+              const Icon(Icons.auto_awesome,
+                  color: AppColors.primary, size: 22),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Gợi ý & Chọn Ảnh Mẫu Thông Minh',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.close, color: AppColors.textSecondary),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-              ],
-            ),
-          ),
-
-          // Search Field
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Tìm kiếm nội thất (sofa, nệm, bàn ăn, tủ thờ...)',
-                prefixIcon: const Icon(Icons.search, size: 20),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear, size: 18),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() => _searchQuery = '');
-                        },
-                      )
-                    : null,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                filled: true,
-                fillColor: AppColors.thumbnailSlateBg,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: AppColors.borderLight),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: AppColors.borderLight),
-                ),
               ),
-              onChanged: (val) => setState(() => _searchQuery = val),
-            ),
+              IconButton(
+                icon: const Icon(Icons.close, color: AppColors.textSecondary),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ],
           ),
+        ),
 
-          // Quick Filter Chips by Room Space
-          SizedBox(
-            height: 44,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              itemCount: industries.length + 1,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
-              itemBuilder: (ctx, idx) {
-                if (idx == 0) {
-                  final isSelected = _selectedIndustry == null;
-                  return ChoiceChip(
-                    label: const Text('Tất cả nội thất'),
-                    selected: isSelected,
-                    onSelected: (_) => setState(() => _selectedIndustry = null),
-                    selectedColor: AppColors.primary.withOpacity(0.15),
-                    labelStyle: TextStyle(
-                      fontSize: 12,
-                      color: isSelected
-                          ? AppColors.primary
-                          : AppColors.textPrimary,
-                      fontWeight:
-                          isSelected ? FontWeight.bold : FontWeight.normal,
-                    ),
-                  );
-                }
-                final ind = industries[idx - 1];
-                final isSelected = _selectedIndustry == ind;
+        // Search Field
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Tìm kiếm nội thất (sofa, nệm, bàn ăn, tủ thờ...)',
+              prefixIcon: const Icon(Icons.search, size: 20),
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, size: 18),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() => _searchQuery = '');
+                      },
+                    )
+                  : null,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              filled: true,
+              fillColor: AppColors.thumbnailSlateBg,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: AppColors.borderLight),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: AppColors.borderLight),
+              ),
+            ),
+            onChanged: (val) => setState(() => _searchQuery = val),
+          ),
+        ),
+
+        // Quick Filter Chips by Room Space
+        SizedBox(
+          height: 44,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            itemCount: industries.length + 1,
+            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            itemBuilder: (ctx, idx) {
+              if (idx == 0) {
+                final isSelected = _selectedIndustry == null;
                 return ChoiceChip(
-                  label: Text(ind),
+                  label: const Text('Tất cả nội thất'),
                   selected: isSelected,
-                  onSelected: (_) => setState(
-                      () => _selectedIndustry = isSelected ? null : ind),
+                  onSelected: (_) => setState(() => _selectedIndustry = null),
                   selectedColor: AppColors.primary.withOpacity(0.15),
                   labelStyle: TextStyle(
                     fontSize: 12,
@@ -282,129 +260,162 @@ class _SampleImagePickerDialogState extends State<SampleImagePickerDialog> {
                         isSelected ? FontWeight.bold : FontWeight.normal,
                   ),
                 );
-              },
-            ),
+              }
+              final ind = industries[idx - 1];
+              final isSelected = _selectedIndustry == ind;
+              return ChoiceChip(
+                label: Text(ind),
+                selected: isSelected,
+                onSelected: (_) =>
+                    setState(() => _selectedIndustry = isSelected ? null : ind),
+                selectedColor: AppColors.primary.withOpacity(0.15),
+                labelStyle: TextStyle(
+                  fontSize: 12,
+                  color: isSelected ? AppColors.primary : AppColors.textPrimary,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                ),
+              );
+            },
           ),
+        ),
 
-          const Divider(height: 1, color: AppColors.borderLight),
+        const Divider(height: 1, color: AppColors.borderLight),
 
-          // Content List / Grid
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                // Top Smart Suggestions Section (if not searching with text)
-                if (_searchQuery.isEmpty &&
-                    _selectedIndustry == null &&
-                    _suggestedMatches.isNotEmpty) ...[
-                  Row(
-                    children: [
-                      const Icon(Icons.stars,
-                          color: AppColors.warning, size: 18),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          'Ảnh gợi ý phù hợp nhất cho "${widget.productName.isNotEmpty ? widget.productName : "sản phẩm"}"',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 10,
-                      mainAxisSpacing: 10,
-                      childAspectRatio: 0.9,
-                    ),
-                    itemCount: _suggestedMatches.length,
-                    itemBuilder: (ctx, index) {
-                      final match = _suggestedMatches[index];
-                      return _buildImageCard(
-                        category: match.category,
-                        isBestMatch: index == 0,
-                        score: match.score,
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                  const Divider(color: AppColors.borderLight),
-                  const SizedBox(height: 10),
-                ],
-
-                // All Categories Section
+        // Content List / Grid
+        _contentArea(
+          compact: compact,
+          child: ListView(
+            shrinkWrap: compact,
+            physics: compact ? const NeverScrollableScrollPhysics() : null,
+            padding: const EdgeInsets.all(16),
+            children: [
+              // Top Smart Suggestions Section (if not searching with text)
+              if (_searchQuery.isEmpty &&
+                  _selectedIndustry == null &&
+                  _suggestedMatches.isNotEmpty) ...[
                 Row(
                   children: [
-                    const Icon(Icons.grid_view_rounded,
-                        color: AppColors.primary, size: 18),
+                    const Icon(Icons.stars, color: AppColors.warning, size: 18),
                     const SizedBox(width: 6),
-                    Text(
+                    Expanded(
+                      child: Text(
+                        'Ảnh gợi ý phù hợp nhất cho "${widget.productName.isNotEmpty ? widget.productName : "sản phẩm"}"',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    childAspectRatio: 0.9,
+                  ),
+                  itemCount: _suggestedMatches.length,
+                  itemBuilder: (ctx, index) {
+                    final match = _suggestedMatches[index];
+                    return _buildImageCard(
+                      category: match.category,
+                      isBestMatch: index == 0,
+                      score: match.score,
+                    );
+                  },
+                ),
+                const SizedBox(height: 20),
+                const Divider(color: AppColors.borderLight),
+                const SizedBox(height: 10),
+              ],
+
+              // All Categories Section
+              Row(
+                children: [
+                  const Icon(Icons.grid_view_rounded,
+                      color: AppColors.primary, size: 18),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
                       _searchQuery.isNotEmpty
                           ? 'Kết quả tìm kiếm (${filteredCategories.length})'
                           : (_selectedIndustry != null
                               ? '$_selectedIndustry (${filteredCategories.length})'
                               : 'Tất cả nội thất & đồ gỗ (${filteredCategories.length})'),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.bold,
                         color: AppColors.textPrimary,
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-
-                if (filteredCategories.isEmpty)
-                  Container(
-                    padding: const EdgeInsets.symmetric(vertical: 40),
-                    alignment: Alignment.center,
-                    child: const Column(
-                      children: [
-                        Icon(Icons.image_not_supported_outlined,
-                            size: 48, color: AppColors.grey400),
-                        SizedBox(height: 8),
-                        Text(
-                          'Không tìm thấy ảnh mẫu phù hợp',
-                          style:
-                              TextStyle(fontSize: 13, color: AppColors.grey600),
-                        ),
-                      ],
-                    ),
-                  )
-                else
-                  GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 10,
-                      mainAxisSpacing: 10,
-                      childAspectRatio: 0.9,
-                    ),
-                    itemCount: filteredCategories.length,
-                    itemBuilder: (ctx, index) {
-                      final cat = filteredCategories[index];
-                      return _buildImageCard(category: cat);
-                    },
                   ),
-              ],
-            ),
+                ],
+              ),
+              const SizedBox(height: 10),
+
+              if (filteredCategories.isEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 40),
+                  alignment: Alignment.center,
+                  child: const Column(
+                    children: [
+                      Icon(Icons.image_not_supported_outlined,
+                          size: 48, color: AppColors.grey400),
+                      SizedBox(height: 8),
+                      Text(
+                        'Không tìm thấy ảnh mẫu phù hợp',
+                        style:
+                            TextStyle(fontSize: 13, color: AppColors.grey600),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    childAspectRatio: 0.9,
+                  ),
+                  itemCount: filteredCategories.length,
+                  itemBuilder: (ctx, index) {
+                    final cat = filteredCategories[index];
+                    return _buildImageCard(category: cat);
+                  },
+                ),
+            ],
           ),
-        ],
+        ),
+      ],
+    );
+    return Container(
+      height: compact ? null : screenH * 0.85,
+      constraints: compact ? BoxConstraints(maxHeight: screenH) : null,
+      decoration: const BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+        ),
       ),
+      child: compact ? SingleChildScrollView(child: column) : column,
     );
   }
+
+  Widget _contentArea({required bool compact, required Widget child}) =>
+      compact ? child : Expanded(child: child);
 
   Widget _buildImageCard({
     required SampleImageCategory category,

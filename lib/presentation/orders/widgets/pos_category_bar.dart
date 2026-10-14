@@ -23,8 +23,8 @@ class PosCategoryBar extends ConsumerWidget {
     final categoriesAsync = ref.watch(categoryListProvider);
     final productsAsync = ref.watch(productListProvider);
 
-    final products = productsAsync.value ?? [];
-    final categories = categoriesAsync.value ?? [];
+    final products = productsAsync.valueOrNull ?? [];
+    final categories = categoriesAsync.valueOrNull ?? [];
 
     // Danh sách danh mục gồm 'Tất cả' ở đầu và các danh mục lấy từ Firebase
     const allCategory = Category(id: 'all', name: 'Tất cả');

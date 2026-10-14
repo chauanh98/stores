@@ -17,6 +17,7 @@ import '../../domain/entities/user_account.dart';
 import '../auth/auth_providers.dart';
 import 'fcm_service.dart';
 import 'local_notification_service.dart';
+import 'notification_visibility.dart';
 
 export '../../data/datasources/firebase/fcm_remote_data_source.dart';
 export '../../data/datasources/firebase/notification_remote_data_source.dart';
@@ -118,10 +119,12 @@ final fcmTokenLifecycleManagerProvider = Provider<void>((ref) {
         if (currentStore.isNotEmpty && currentStore != 'all') currentStore,
       };
       for (final sId in storesToClean) {
-        unawaited(pushService.unregisterAdminToken(
+        unawaited(pushService
+            .unregisterAdminToken(
           storeId: sId,
           userId: previous.username,
-        ).catchError((e) {
+        )
+            .catchError((e) {
           debugPrint('[FCM] unregisterAdminToken error: $e');
         }));
       }
@@ -130,19 +133,20 @@ final fcmTokenLifecycleManagerProvider = Provider<void>((ref) {
 
     // If an admin user logged in or switched
     if (next != null && next.isAdmin) {
-      final nextStoreId =
-          (next.storeId.isNotEmpty && next.storeId != 'all')
-              ? next.storeId
-              : currentStore;
+      final nextStoreId = (next.storeId.isNotEmpty && next.storeId != 'all')
+          ? next.storeId
+          : currentStore;
       final targetStores = (nextStoreId == 'all')
           ? const ['store_001', 'store_002']
           : [nextStoreId.isNotEmpty ? nextStoreId : 'store_001'];
       for (final sId in targetStores) {
         registeredStoresForSession.add(sId);
-        unawaited(pushService.registerAdminToken(
+        unawaited(pushService
+            .registerAdminToken(
           storeId: sId,
           userId: next.username,
-        ).catchError((e) {
+        )
+            .catchError((e) {
           debugPrint('[FCM] registerAdminToken error: $e');
         }));
       }
@@ -152,20 +156,18 @@ final fcmTokenLifecycleManagerProvider = Provider<void>((ref) {
   // Monitor store branch switching for logged-in Admin
   ref.listen<String>(currentStoreIdProvider, (previous, next) {
     final user = ref.read(authProvider);
-    if (user != null &&
-        user.isAdmin &&
-        next.isNotEmpty &&
-        next != previous) {
-      final targetBranches = (next == 'all')
-          ? const ['store_001', 'store_002']
-          : [next];
+    if (user != null && user.isAdmin && next.isNotEmpty && next != previous) {
+      final targetBranches =
+          (next == 'all') ? const ['store_001', 'store_002'] : [next];
       final pushService = ref.read(pushNotificationServiceProvider);
       for (final b in targetBranches) {
         registeredStoresForSession.add(b);
-        unawaited(pushService.registerAdminToken(
+        unawaited(pushService
+            .registerAdminToken(
           storeId: b,
           userId: user.username,
-        ).catchError((e) {
+        )
+            .catchError((e) {
           debugPrint('[FCM] registerAdminToken on branch switch error: $e');
         }));
       }
@@ -186,8 +188,9 @@ final notificationStreamProvider =
   final user = ref.watch(authProvider);
   final storeId = ref.watch(currentStoreIdProvider);
 
-  // RBAC Guard: non-admins and logged-out users receive an empty stream with 0 Firebase queries.
-  if (user == null || !user.isAdmin) {
+  // Chưa đăng nhập: không mở listener. Mọi vai trò đăng nhập đều nhận thông báo
+  // của chi nhánh mình; nội dung được lọc theo quyền (xem notificationsForViewer).
+  if (user == null) {
     return Stream.value(<NotificationItem>[]);
   }
 
@@ -197,7 +200,9 @@ final notificationStreamProvider =
   }
 
   final repository = ref.watch(notificationRepositoryProvider);
-  return repository.watchNotifications(storeId, limit: 50);
+  return repository
+      .watchNotifications(storeId, limit: 50)
+      .map((items) => notificationsForViewer(items, user));
 });
 
 /// Các chi nhánh KHÁC chi nhánh đang xem mà Admin/Owner cần nhận pop-up
@@ -235,7 +240,8 @@ final popupNotificationStreamProvider =
 
   void emit() {
     if (controller.isClosed) return;
-    controller.add(byStore.values.expand((e) => e).toList());
+    controller.add(dedupeCrossStoreNotifications(
+        byStore.values.expand((e) => e).toList()));
   }
 
   // Bản ghi cũ có thể thiếu storeId: gắn chi nhánh nguồn để đánh dấu đã đọc /
@@ -285,9 +291,7 @@ final popupNotificationStreamProvider =
 /// Derived reactively from [notificationStreamProvider].
 final unreadNotificationCountProvider = Provider.autoDispose<int>((ref) {
   final notificationsAsync = ref.watch(notificationStreamProvider);
-  return notificationsAsync.valueOrNull
-          ?.where((item) => !item.isRead)
-          .length ??
+  return notificationsAsync.valueOrNull?.where((item) => !item.isRead).length ??
       0;
 });
 
@@ -384,7 +388,8 @@ class NotificationController extends StateNotifier<AsyncValue<void>> {
 }
 
 /// Auto-disposed provider for [NotificationController].
-final notificationControllerProvider = StateNotifierProvider.autoDispose<
-    NotificationController, AsyncValue<void>>((ref) {
+final notificationControllerProvider =
+    StateNotifierProvider.autoDispose<NotificationController, AsyncValue<void>>(
+        (ref) {
   return NotificationController(ref);
 });

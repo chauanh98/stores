@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:stores/application/auth/auth_providers.dart';
 import 'package:stores/application/inventory/inventory_providers.dart';
+import 'package:stores/application/notifications/notification_dispatcher.dart';
+import 'package:stores/application/notifications/notifications_providers.dart';
 import 'package:stores/application/products/products_providers.dart';
 import 'package:stores/application/suppliers/suppliers_providers.dart';
 import 'package:stores/domain/entities/inventory_transaction.dart';
@@ -14,6 +16,11 @@ import 'package:stores/domain/entities/transaction_type.dart';
 import 'package:stores/domain/entities/user_account.dart';
 import 'package:stores/domain/repositories/inventory_repository.dart';
 import 'package:stores/domain/repositories/product_repository.dart';
+import 'package:stores/domain/repositories/stock_in_receipt_repository.dart';
+import 'package:stores/domain/repositories/supplier_repository.dart';
+import 'package:stores/domain/entities/stock_in_receipt.dart';
+import 'package:stores/application/inventories/stock_in_receipts_providers.dart';
+import '../../support/import_flow_helpers.dart';
 import 'package:stores/data/models/inventory_transaction_model.dart';
 import 'package:stores/presentation/inventories/pages/import_detail_page.dart';
 import 'package:stores/presentation/inventories/pages/import_inventory_page.dart';
@@ -32,8 +39,7 @@ class _FakeAuthNotifier extends StateNotifier<UserAccount?>
   }
 }
 
-class _TestSupplierListNotifier
-    extends AutoDisposeAsyncNotifier<List<Supplier>>
+class _TestSupplierListNotifier extends AutoDisposeAsyncNotifier<List<Supplier>>
     implements SupplierListNotifier {
   final List<Supplier> initialData;
   final List<Map<String, dynamic>> recordedImportDebts;
@@ -110,6 +116,16 @@ class _FakeInventoryRepository implements InventoryRepository {
       Stream.value([]);
 }
 
+const _fixtureProduct = Product(
+  id: 'prod_01',
+  name: 'Sản phẩm Test A',
+  code: 'SPA',
+  price: 200000,
+  costPrice: 150000,
+  branchStocks: {'branch_1': 10, 'branch_2': 5},
+  category: 'Mỹ phẩm',
+);
+
 class _FakeProductRepository implements ProductRepository {
   final List<Product> upsertedProducts = [];
 
@@ -122,7 +138,8 @@ class _FakeProductRepository implements ProductRepository {
   Future<void> delete(String id) async {}
 
   @override
-  Future<Product?> fetchById(String id) async => null;
+  Future<Product?> fetchById(String id) async =>
+      id == 'prod_01' || id == 'SPA' ? _fixtureProduct : null;
 
   @override
   Future<List<Product>> fetchAll() async => [];
@@ -132,6 +149,52 @@ class _FakeProductRepository implements ProductRepository {
 
   @override
   Stream<List<Product>> watchAll() => Stream.value([]);
+}
+
+/// Supplier repository used by CompleteStockInReceiptUseCase (debt recording
+/// now happens inside the use case via upsert + recordDebtTransaction).
+class _FakeSupplierRepository implements SupplierRepository {
+  final Map<String, Supplier> suppliers;
+  final List<Supplier> upserted = [];
+  final List<SupplierDebtTransaction> debtTransactions = [];
+  _FakeSupplierRepository(List<Supplier> list)
+      : suppliers = {for (final s in list) s.id: s};
+
+  @override
+  Future<Supplier?> fetchById(String id, {String? storeId}) async =>
+      suppliers[id];
+
+  @override
+  Future<void> upsert(Supplier supplier, {String? storeId}) async {
+    upserted.add(supplier);
+  }
+
+  @override
+  Future<void> recordDebtTransaction(SupplierDebtTransaction transaction,
+      {String? storeId}) async {
+    debtTransactions.add(transaction);
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// Inert notification repository so no Firebase access happens on completion.
+class _FakeNotificationRepository implements NotificationRepository {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => Future<void>.value();
+}
+
+class _FakeReceiptRepository implements StockInReceiptRepository {
+  final List<StockInReceipt> saved = [];
+
+  @override
+  Future<void> saveReceipt(StockInReceipt receipt) async {
+    saved.add(receipt);
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 Widget _buildTestApp({
@@ -214,7 +277,9 @@ void main() {
           SupplierDebtType.payment);
     });
 
-    test('InventoryTransaction entity holds supplierId, supplierName, and importCode', () {
+    test(
+        'InventoryTransaction entity holds supplierId, supplierName, and importCode',
+        () {
       final tx = InventoryTransaction(
         id: 'tx_001',
         productId: 'prod_01',
@@ -242,7 +307,9 @@ void main() {
       expect(copied.quantity, 20);
     });
 
-    test('InventoryTransactionModel serializes and deserializes supplier fields', () {
+    test(
+        'InventoryTransactionModel serializes and deserializes supplier fields',
+        () {
       final tx = InventoryTransaction(
         id: 'tx_002',
         productId: 'prod_02',
@@ -288,8 +355,10 @@ void main() {
         _buildTestApp(
           child: const ImportInventoryPage(),
           overrides: [
-            authProvider.overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
-            productListProvider.overrideWith((ref) => Stream.value([sampleProduct])),
+            authProvider
+                .overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
+            productListProvider
+                .overrideWith((ref) => Stream.value([sampleProduct])),
             supplierListNotifierProvider.overrideWith(() => supplierNotifier),
             availableStoresProvider.overrideWith((ref) async => {
                   'store_001': 'Chi nhánh Thới Bình',
@@ -341,7 +410,8 @@ void main() {
     });
   });
 
-  group('ImportInventoryPage Payment Option & Live Debt Preview Tests (R2)', () {
+  group('ImportInventoryPage Payment Option & Live Debt Preview Tests (R2)',
+      () {
     testWidgets(
         'Supervisor sees payment options, partial payment input, and live debt increase preview',
         (tester) async {
@@ -352,8 +422,10 @@ void main() {
         _buildTestApp(
           child: const ImportInventoryPage(),
           overrides: [
-            authProvider.overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
-            productListProvider.overrideWith((ref) => Stream.value([sampleProduct])),
+            authProvider
+                .overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
+            productListProvider
+                .overrideWith((ref) => Stream.value([sampleProduct])),
             supplierListNotifierProvider.overrideWith(() => supplierNotifier),
             availableStoresProvider.overrideWith((ref) async => {
                   'store_001': 'Chi nhánh Thới Bình',
@@ -363,49 +435,73 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Select product
-      final searchField = find.widgetWithText(TextFormField, 'Tìm kiếm sản phẩm');
-      await tester.tap(searchField);
-      await tester.enterText(searchField, 'Test');
-      await tester.pumpAndSettle();
-      await tester.tap(find.textContaining('Sản phẩm Test A').last);
-      await tester.pumpAndSettle();
-
-      // Payment options exist
-      expect(find.text('Hình thức thanh toán'), findsOneWidget);
-      expect(find.text('Thanh toán toàn bộ'), findsOneWidget);
-      expect(find.text('Ghi nợ NCC'), findsOneWidget);
-
-      // Select supplier 1 (Digiworld - current debt 25M)
+      // Step 0: supplier + product (via modal sheet), then continue.
       await tester.tap(find.byKey(const Key('select_supplier_btn')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Công ty Cổ phần Digiworld'));
       await tester.pumpAndSettle();
+      await addProductViaSheet(tester,
+          search: 'Test', productText: 'Sản phẩm Test A');
+      await goToPaymentStep(tester);
 
-      // Switch to 'Ghi nợ NCC'
-      await tester.ensureVisible(find.text('Ghi nợ NCC'));
-      await tester.tap(find.text('Ghi nợ NCC'));
+      // Payment options exist
+      expect(find.text('Hình thức thanh toán'), findsOneWidget);
+      expect(find.byKey(const Key('payment_cash')), findsOneWidget);
+      expect(find.byKey(const Key('payment_transfer')), findsOneWidget);
+      expect(find.byKey(const Key('payment_card')), findsOneWidget);
+      expect(find.byKey(const Key('btn_pay_in_full')), findsOneWidget);
+      expect(find.byKey(const Key('btn_pay_zero')), findsOneWidget);
+      expect(find.byKey(const Key('toggle_debt_accounting')), findsOneWidget);
+      expect(find.byKey(const Key('input_paid_amount')), findsOneWidget);
+      expect(find.text('Tính vào công nợ:'), findsOneWidget);
+
+      // Supplier selected on step 0 is carried into the dropdown
+      expect(find.textContaining('Công ty Cổ phần Digiworld (NCC000001)'),
+          findsWidgets);
+
+      // costPrice 150000 x 1 -> net payable 150.000 đ, default full payment -> no debt
+      expect(find.text('150.000 đ'), findsWidgets);
+      expect(
+          tester.widget<Text>(find.byKey(const Key('text_net_payable'))).data,
+          '150.000 đ');
+      expect(
+          tester
+              .widget<Text>(find.byKey(const Key('text_remaining_debt')))
+              .data,
+          '0 đ');
+
+      // 'Ghi nợ' (pay zero) -> whole amount becomes debt
+      await tester.ensureVisible(find.byKey(const Key('btn_pay_zero')));
+      await tester.tap(find.byKey(const Key('btn_pay_zero')));
       await tester.pumpAndSettle();
+      expect(
+          tester
+              .widget<Text>(find.byKey(const Key('text_remaining_debt')))
+              .data,
+          '150.000 đ');
 
-      // Verify paid amount field and live preview appear
-      await tester.ensureVisible(find.byKey(const Key('paid_amount_field')));
-      expect(find.byKey(const Key('paid_amount_field')), findsOneWidget);
-      expect(find.text('Chi tiết công nợ phát sinh:'), findsOneWidget);
-      expect(find.text('Ghi nhận nợ NCC:'), findsOneWidget);
-      expect(find.text('Nợ cũ NCC:'), findsOneWidget);
-      expect(find.text('Dư nợ mới sau nhập:'), findsOneWidget);
-
-      // Product has costPrice 150000, quantity 1 -> total is 150.000 đ
-      // Initially paid amount is 0, so debt increase is 150.000 đ
-      expect(find.textContaining('150.000'), findsWidgets);
-
-      // Enter partial payment of 50000 đ
+      // Enter partial payment of 50000 đ -> live debt = 100.000 đ
+      await tester.ensureVisible(find.byKey(const Key('input_paid_amount')));
       await tester.enterText(
-          find.byKey(const Key('paid_amount_field')), '50000');
+          find.byKey(const Key('input_paid_amount')), '50000');
       await tester.pumpAndSettle();
+      expect(
+          tester
+              .widget<Text>(find.byKey(const Key('text_remaining_debt')))
+              .data,
+          '100.000 đ');
+      expect(
+          tester.widget<Text>(find.byKey(const Key('text_net_payable'))).data,
+          '150.000 đ');
 
-      // Live debt preview updates: 150000 - 50000 = 100000 đ debt increase
-      expect(find.textContaining('100.000'), findsWidgets);
+      // 'Trả đủ' restores zero debt
+      await tester.tap(find.byKey(const Key('btn_pay_in_full')));
+      await tester.pumpAndSettle();
+      expect(
+          tester
+              .widget<Text>(find.byKey(const Key('text_remaining_debt')))
+              .data,
+          '0 đ');
     });
 
     testWidgets('Staff sees masked payment options without cost prices',
@@ -418,7 +514,8 @@ void main() {
           child: const ImportInventoryPage(),
           overrides: [
             authProvider.overrideWith((ref) => _FakeAuthNotifier(staffUser)),
-            productListProvider.overrideWith((ref) => Stream.value([sampleProduct])),
+            productListProvider
+                .overrideWith((ref) => Stream.value([sampleProduct])),
             supplierListNotifierProvider.overrideWith(() => supplierNotifier),
             availableStoresProvider.overrideWith((ref) async => {
                   'store_001': 'Chi nhánh Thới Bình',
@@ -428,209 +525,199 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Staff sees 100% debt label and automatic background calculation subtext
-      expect(find.text('Thanh toán toàn bộ'), findsOneWidget);
-      expect(find.text('Ghi nợ NCC (100%)'), findsOneWidget);
-      expect(
-          find.text('Đơn vị tính giá vốn tự động theo định mức hệ thống'),
-          findsOneWidget);
-
-      // Switch to 'Ghi nợ NCC (100%)'
-      await tester.ensureVisible(find.text('Ghi nợ NCC (100%)'));
-      await tester.tap(find.text('Ghi nợ NCC (100%)'));
-      await tester.pumpAndSettle();
-
-      // Paid amount field must NOT be visible for staff
-      expect(find.byKey(const Key('paid_amount_field')), findsNothing);
-      expect(find.text('Chi tiết công nợ phát sinh:'), findsNothing);
-      // Sensitive price figures must NOT be displayed
-      expect(find.textContaining('Giá nhập'), findsNothing);
-      expect(find.textContaining('Tổng giá trị'), findsNothing);
-    });
-  });
-
-  group('ImportInventoryPage Save & recordImportDebt Execution Tests (R2)', () {
-    testWidgets(
-        'Supervisor saves with debt payment triggers recordImportDebt and tags InventoryTransaction',
-        (tester) async {
-      final recordedImportDebts = <Map<String, dynamic>>[];
-      final fakeInventoryRepo = _FakeInventoryRepository();
-      final fakeProductRepo = _FakeProductRepository();
-
-      await tester.pumpWidget(
-        _buildTestApp(
-          child: const ImportInventoryPage(),
-          overrides: [
-            authProvider.overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
-            productListProvider.overrideWith((ref) => Stream.value([sampleProduct])),
-            supplierListNotifierProvider.overrideWith(
-              () => _TestSupplierListNotifier(
-                  [sampleSupplier1, sampleSupplier2], recordedImportDebts),
-            ),
-            inventoryRepositoryProvider.overrideWithValue(fakeInventoryRepo),
-            productRepositoryProvider.overrideWithValue(fakeProductRepo),
-            availableStoresProvider.overrideWith((ref) async => {
-                  'store_001': 'Chi nhánh Thới Bình',
-                }),
-          ],
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      // Select product
-      final searchField = find.widgetWithText(TextFormField, 'Tìm kiếm sản phẩm');
-      await tester.tap(searchField);
-      await tester.enterText(searchField, 'Test');
-      await tester.pumpAndSettle();
-      await tester.tap(find.textContaining('Sản phẩm Test A').last);
-      await tester.pumpAndSettle();
-
-      // Select supplier Digiworld
       await tester.tap(find.byKey(const Key('select_supplier_btn')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Công ty Cổ phần Digiworld'));
       await tester.pumpAndSettle();
 
-      // Choose debt payment and set partial payment
-      await tester.ensureVisible(find.text('Ghi nợ NCC'));
-      await tester.tap(find.text('Ghi nợ NCC'));
+      // Staff: sheet has no unit-price input (cost price hidden)
+      await openProductSheet(tester,
+          search: 'Test', productText: 'Sản phẩm Test A');
+      expect(find.byKey(const Key('product_edit_sheet')), findsOneWidget);
+      expect(find.byKey(const Key('sheet_input_price')), findsNothing);
+      expect(find.textContaining('150.000'), findsNothing);
+      await tester.ensureVisible(find.byKey(const Key('btn_sheet_done')));
+      await tester.tap(find.byKey(const Key('btn_sheet_done')));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.byKey(const Key('paid_amount_field')));
+
+      // Step 0 for staff must not leak cost figures
+      expect(find.textContaining('150.000'), findsNothing);
+      expect(find.textContaining('Giá nhập'), findsNothing);
+
+      await goToPaymentStep(tester);
+
+      // Step 1 for staff: no cost price / totals / paid amount leaked
+      expect(find.byKey(const Key('input_paid_amount')), findsNothing);
+      expect(find.byKey(const Key('text_total_goods_amount')), findsNothing);
+      expect(find.textContaining('150.000'), findsNothing);
+      expect(find.textContaining('Giá nhập'), findsNothing);
+    });
+  });
+
+  group('ImportInventoryPage Save & recordImportDebt Execution Tests (R2)', () {
+    late _FakeInventoryRepository fakeInventoryRepo;
+    late _FakeProductRepository fakeProductRepo;
+    late _FakeReceiptRepository fakeReceiptRepo;
+    late _FakeSupplierRepository fakeSupplierRepo;
+
+    List<Override> overridesFor(UserAccount user) => [
+          authProvider.overrideWith((ref) => _FakeAuthNotifier(user)),
+          productListProvider
+              .overrideWith((ref) => Stream.value([sampleProduct])),
+          supplierListNotifierProvider.overrideWith(() =>
+              _TestSupplierListNotifier([sampleSupplier1, sampleSupplier2])),
+          inventoryRepositoryProvider.overrideWithValue(fakeInventoryRepo),
+          productRepositoryProvider.overrideWithValue(fakeProductRepo),
+          supplierRepositoryProvider.overrideWithValue(fakeSupplierRepo),
+          stockInReceiptRepositoryProvider.overrideWithValue(fakeReceiptRepo),
+          notificationRepositoryProvider
+              .overrideWithValue(_FakeNotificationRepository()),
+          notificationDispatcherProvider.overrideWith(
+              (ref) => NotificationDispatcher(_FakeNotificationRepository())),
+          availableStoresProvider.overrideWith((ref) async => {
+                'store_001': 'Chi nhánh Thới Bình',
+              }),
+        ];
+
+    setUp(() {
+      fakeInventoryRepo = _FakeInventoryRepository();
+      fakeProductRepo = _FakeProductRepository();
+      fakeReceiptRepo = _FakeReceiptRepository();
+      fakeSupplierRepo =
+          _FakeSupplierRepository([sampleSupplier1, sampleSupplier2]);
+    });
+
+    testWidgets(
+        'Supervisor saves with debt payment triggers recordImportDebt and tags InventoryTransaction',
+        (tester) async {
+      await tester.pumpWidget(_buildTestApp(
+        child: const ImportInventoryPage(),
+        overrides: overridesFor(supervisorUser),
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('select_supplier_btn')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Công ty Cổ phần Digiworld'));
+      await tester.pumpAndSettle();
+      await addProductViaSheet(tester,
+          search: 'Test', productText: 'Sản phẩm Test A');
+      await goToPaymentStep(tester);
+
+      await tester.ensureVisible(find.byKey(const Key('input_paid_amount')));
       await tester.enterText(
-          find.byKey(const Key('paid_amount_field')), '50000');
+          find.byKey(const Key('input_paid_amount')), '50000');
       await tester.pumpAndSettle();
 
-      // Tap Save in AppBar
-      await tester.tap(find.byIcon(Icons.save));
-      await tester.pumpAndSettle();
+      await completeReceiptOnPaymentStep(tester);
 
-      // Verify recordImportDebt was invoked
-      expect(recordedImportDebts.length, 1);
-      final debtRecord = recordedImportDebts.first;
-      expect(debtRecord['supplierId'], 'NCC000001');
-      expect(debtRecord['totalAmount'], 150000.0);
-      expect(debtRecord['paidAmount'], 50000.0);
-      expect(debtRecord['importCode'], isNotNull);
-      expect(debtRecord['importCode'].toString(), startsWith('PN_'));
+      // Debt recorded through the supplier repository (importBill, 100k)
+      expect(fakeSupplierRepo.debtTransactions.length, 1);
+      final debtTx = fakeSupplierRepo.debtTransactions.first;
+      expect(debtTx.supplierId, 'NCC000001');
+      expect(debtTx.type, SupplierDebtType.importBill);
+      expect(debtTx.amount, 100000.0); // 150000 total - 50000 paid
+      expect(debtTx.remainingDebt, 25000000 + 100000.0);
+      expect(debtTx.referenceCode, isNotNull);
+      expect(debtTx.referenceCode.toString(), startsWith('PN_'));
 
-      // Verify InventoryTransaction was recorded with supplier info
+      // Supplier balance updated: debt + remaining, totalPurchase + net payable
+      expect(fakeSupplierRepo.upserted.length, 1);
+      expect(fakeSupplierRepo.upserted.first.currentDebt, 25100000.0);
+      expect(fakeSupplierRepo.upserted.first.totalPurchase, 100150000.0);
+
+      // InventoryTransaction tagged with supplier info
       expect(fakeInventoryRepo.recordedTransactions.length, 1);
       final invTx = fakeInventoryRepo.recordedTransactions.first;
       expect(invTx.supplierId, 'NCC000001');
       expect(invTx.supplierName, 'Công ty Cổ phần Digiworld');
-      expect(invTx.importCode, debtRecord['importCode']);
+      expect(invTx.importCode, debtTx.referenceCode);
       expect(invTx.quantity, 1);
       expect(invTx.importPrice, 150000.0);
 
-      // Verify product stock and cost price updated
+      // Receipt persisted as completed with paid amount
+      expect(fakeReceiptRepo.saved.length, 1);
+      expect(fakeReceiptRepo.saved.first.status, 'completed');
+      expect(fakeReceiptRepo.saved.first.paidAmount, 50000.0);
+
+      // Product stock updated
       expect(fakeProductRepo.upsertedProducts.length, 1);
-      expect(fakeProductRepo.upsertedProducts.first.branchStocks['branch_1'], 11);
+      expect(
+          fakeProductRepo.upsertedProducts.first.branchStocks['branch_1'], 11);
     });
 
-    testWidgets('Staff saves with Ghi nợ NCC (100%) computes debt from costPrice',
+    testWidgets(
+        'Staff saves with Ghi nợ NCC (100%) computes debt from costPrice',
         (tester) async {
-      final recordedImportDebts = <Map<String, dynamic>>[];
-      final fakeInventoryRepo = _FakeInventoryRepository();
-      final fakeProductRepo = _FakeProductRepository();
-
-      await tester.pumpWidget(
-        _buildTestApp(
-          child: const ImportInventoryPage(),
-          overrides: [
-            authProvider.overrideWith((ref) => _FakeAuthNotifier(staffUser)),
-            productListProvider.overrideWith((ref) => Stream.value([sampleProduct])),
-            supplierListNotifierProvider.overrideWith(
-              () => _TestSupplierListNotifier(
-                  [sampleSupplier1, sampleSupplier2], recordedImportDebts),
-            ),
-            inventoryRepositoryProvider.overrideWithValue(fakeInventoryRepo),
-            productRepositoryProvider.overrideWithValue(fakeProductRepo),
-            availableStoresProvider.overrideWith((ref) async => {
-                  'store_001': 'Chi nhánh Thới Bình',
-                }),
-          ],
-        ),
-      );
+      await tester.pumpWidget(_buildTestApp(
+        child: const ImportInventoryPage(),
+        overrides: overridesFor(staffUser),
+      ));
       await tester.pumpAndSettle();
 
-      // Select product
-      final searchField = find.widgetWithText(TextFormField, 'Tìm kiếm sản phẩm');
-      await tester.tap(searchField);
-      await tester.enterText(searchField, 'Test');
-      await tester.pumpAndSettle();
-      await tester.tap(find.textContaining('Sản phẩm Test A').last);
-      await tester.pumpAndSettle();
-
-      // Select Synnex FPT
       await tester.tap(find.byKey(const Key('select_supplier_btn')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Công ty TNHH Synnex FPT'));
       await tester.pumpAndSettle();
+      await addProductViaSheet(tester,
+          search: 'Test', productText: 'Sản phẩm Test A');
+      await goToPaymentStep(tester);
 
-      // Select 'Ghi nợ NCC (100%)'
-      await tester.ensureVisible(find.text('Ghi nợ NCC (100%)'));
-      await tester.tap(find.text('Ghi nợ NCC (100%)'));
+      // Staff cannot type amounts: the 'Ghi nợ' (100% debt) quick action is the
+      // only way to record full debt.
+      await tester.ensureVisible(find.byKey(const Key('btn_pay_zero')));
+      await tester.tap(find.byKey(const Key('btn_pay_zero')));
       await tester.pumpAndSettle();
 
-      // Tap Save
-      await tester.tap(find.byIcon(Icons.save));
-      await tester.pumpAndSettle();
+      await completeReceiptOnPaymentStep(tester);
 
-      // Verify recordImportDebt: totalAmount computed from costPrice (150000), paidAmount is 0
-      expect(recordedImportDebts.length, 1);
-      final debtRecord = recordedImportDebts.first;
-      expect(debtRecord['supplierId'], 'NCC000002');
-      expect(debtRecord['totalAmount'], 150000.0);
-      expect(debtRecord['paidAmount'], 0.0);
+      // Debt computed from costPrice (150000), nothing paid
+      expect(fakeSupplierRepo.debtTransactions.length, 1);
+      final debtTx = fakeSupplierRepo.debtTransactions.first;
+      expect(debtTx.supplierId, 'NCC000002');
+      expect(debtTx.amount, 150000.0);
+      expect(fakeSupplierRepo.upserted.first.currentDebt, 150000.0);
+      expect(fakeReceiptRepo.saved.first.paidAmount, 0.0);
 
-      // InventoryTransaction includes supplierId & supplierName
       expect(fakeInventoryRepo.recordedTransactions.length, 1);
       final invTx = fakeInventoryRepo.recordedTransactions.first;
       expect(invTx.supplierId, 'NCC000002');
       expect(invTx.supplierName, 'Công ty TNHH Synnex FPT');
+      expect(invTx.importPrice, 150000.0);
     });
 
     testWidgets(
         'Blocks save and shows warning if Ghi nợ NCC is selected without a supplier',
         (tester) async {
-      final supplierNotifier =
-          _TestSupplierListNotifier([sampleSupplier1, sampleSupplier2]);
-      final fakeInventoryRepo = _FakeInventoryRepository();
-
-      await tester.pumpWidget(
-        _buildTestApp(
-          child: const ImportInventoryPage(),
-          overrides: [
-            authProvider.overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
-            productListProvider.overrideWith((ref) => Stream.value([sampleProduct])),
-            supplierListNotifierProvider.overrideWith(() => supplierNotifier),
-            inventoryRepositoryProvider.overrideWithValue(fakeInventoryRepo),
-            availableStoresProvider.overrideWith((ref) async => {
-                  'store_001': 'Chi nhánh Thới Bình',
-                }),
-          ],
-        ),
-      );
+      await tester.pumpWidget(_buildTestApp(
+        child: const ImportInventoryPage(),
+        overrides: overridesFor(supervisorUser),
+      ));
       await tester.pumpAndSettle();
 
-      // Select 'Ghi nợ NCC' WITHOUT selecting supplier
-      await tester.ensureVisible(find.text('Ghi nợ NCC'));
-      await tester.tap(find.text('Ghi nợ NCC'));
+      // Product but NO supplier
+      await addProductViaSheet(tester,
+          search: 'Test', productText: 'Sản phẩm Test A');
+      await goToPaymentStep(tester);
+
+      // Choose debt (pay zero) without supplier
+      await tester.ensureVisible(find.byKey(const Key('btn_pay_zero')));
+      await tester.tap(find.byKey(const Key('btn_pay_zero')));
       await tester.pumpAndSettle();
 
-      // Warning banner displayed
-      expect(find.textContaining('Vui lòng chọn NCC để ghi nợ'), findsOneWidget);
-
-      // Tap Save
-      await tester.tap(find.byIcon(Icons.save));
-      await tester.pumpAndSettle();
+      await completeReceiptOnPaymentStep(tester);
 
       // SnackBar displayed
+      expect(
+          find.byKey(const Key('snackbar_supplier_required')), findsOneWidget);
       expect(find.text('Vui lòng chọn Nhà Cung Cấp để ghi nợ'), findsOneWidget);
 
-      // No inventory transactions or debt records committed
+      // Still on payment step; nothing committed
+      expect(find.byKey(const Key('btn_payment_complete')), findsOneWidget);
       expect(fakeInventoryRepo.recordedTransactions, isEmpty);
-      expect(supplierNotifier.recordedImportDebts, isEmpty);
+      expect(fakeSupplierRepo.debtTransactions, isEmpty);
+      expect(fakeSupplierRepo.upserted, isEmpty);
+      expect(fakeReceiptRepo.saved, isEmpty);
     });
   });
 
@@ -659,7 +746,8 @@ void main() {
             product: sampleProduct,
           ),
           overrides: [
-            authProvider.overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
+            authProvider
+                .overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
           ],
         ),
       );
@@ -667,7 +755,8 @@ void main() {
 
       // Check supplier and import code rows
       expect(find.text('Nhà cung cấp'), findsOneWidget);
-      expect(find.text('Công ty Cổ phần Digiworld (NCC000001)'), findsOneWidget);
+      expect(
+          find.text('Công ty Cổ phần Digiworld (NCC000001)'), findsOneWidget);
       expect(find.text('Mã lô nhập'), findsOneWidget);
       expect(find.text('PN_1726200000'), findsOneWidget);
     });
@@ -691,9 +780,12 @@ void main() {
         _buildTestApp(
           child: const ImportsPage(),
           overrides: [
-            authProvider.overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
-            productListProvider.overrideWith((ref) => Stream.value([sampleProduct])),
-            importsFilteredProvider.overrideWith((ref) => Stream.value([txWithSupplier])),
+            authProvider
+                .overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
+            productListProvider
+                .overrideWith((ref) => Stream.value([sampleProduct])),
+            importsFilteredProvider
+                .overrideWith((ref) => Stream.value([txWithSupplier])),
             inventoryRepositoryProvider.overrideWithValue(fakeInventoryRepo),
           ],
         ),
@@ -702,7 +794,8 @@ void main() {
 
       // Check tile displays product name and supplier info
       expect(find.text('Sản phẩm Test A'), findsOneWidget);
-      expect(find.textContaining('NCC: Synnex FPT (NCC000002)'), findsOneWidget);
+      expect(
+          find.textContaining('NCC: Synnex FPT (NCC000002)'), findsOneWidget);
     });
   });
 }

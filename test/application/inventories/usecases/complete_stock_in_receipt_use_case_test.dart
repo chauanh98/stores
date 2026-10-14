@@ -225,9 +225,10 @@ void main() {
       expect(updatedProduct.branchStocks['store_002'], 5);
 
       // Weighted average cost:
-      // total current stock was 25 (10 store_001 + 10 branch_1 + 5 store_002) with cost 100,000
-      // ((25 * 100,000) + (15 * 120,000)) / (25 + 15) = (2,500,000 + 1,800,000) / 40 = 107,500
-      expect(updatedProduct.costPrice, 107500.0);
+      // store_001 and branch_1 are the SAME branch (aliases), so the current
+      // total stock was 15 (10 store_001 + 5 store_002) with cost 100,000
+      // ((15 * 100,000) + (15 * 120,000)) / (15 + 15) = 3,300,000 / 30 = 110,000
+      expect(updatedProduct.costPrice, 110000.0);
 
       // Verify inventory transaction was recorded
       expect(mockInventoryRepo.transactions.length, 1);
@@ -361,8 +362,9 @@ void main() {
       expect(updatedProduct.branchStocks['branch_1'], 40);
 
       // Weighted average cost:
-      // (40 initial total stock * 100,000 + 1,000,000 + 1,600,000) / 60 total stock = 110,000
-      expect(updatedProduct.costPrice, 110000.0);
+      // Aliases count once: 20 initial units * 100,000 + 1,000,000 + 1,600,000 = 4,600,000
+      // over 40 total units = 115,000
+      expect(updatedProduct.costPrice, 115000.0);
 
       // Both line items recorded separate transactions
       expect(mockInventoryRepo.transactions.length, 2);

@@ -227,17 +227,11 @@ class MockDatabaseReference extends MockQuery implements DatabaseReference {
     );
   }
 
+  // Order/Inventory data sources now call `_ref.limitToLast(n)` and listen to
+  // onChildAdded/Changed/Removed on the resulting query, so the bounded query
+  // must share this reference's child event streams.
   @override
-  Query limitToLast(int limit) {
-    return MockQuery(
-      path: path,
-      storeData: storeData,
-      orderedByChildKey: orderedByChildKey,
-      startRange: startRange,
-      endRange: endRange,
-      queryValueStream: valueStream,
-    );
-  }
+  Query limitToLast(int limit) => this;
 
   @override
   DatabaseReference child(String childPath) {
@@ -337,7 +331,7 @@ void main() {
       await sub.cancel();
     });
 
-    test('Debounce timer resets on continuous arrivals before 50ms window elapses', () async {
+    test('Debounce timer resets on continuous arrivals before the 250ms window elapses', () async {
       final ds = OrderRemoteDataSource(mockDb, 'store_001');
       final ref = mockDb.getOrCreateRef('stores/store_001/orders');
 
@@ -350,28 +344,28 @@ void main() {
         value: {'id': 'order_1', 'total': 100000.0, 'items': []},
       )));
 
-      // Item 2 at t=25ms (resets timer)
-      await Future.delayed(const Duration(milliseconds: 25));
+      // Item 2 at t=100ms (resets timer)
+      await Future.delayed(const Duration(milliseconds: 100));
       expect(emissions, isEmpty);
       ref.childAddedStream.emit(MockDatabaseEvent(MockDataSnapshot(
         key: 'order_2',
         value: {'id': 'order_2', 'total': 200000.0, 'items': []},
       )));
 
-      // Item 3 at t=50ms (resets timer again)
-      await Future.delayed(const Duration(milliseconds: 25));
+      // Item 3 at t=200ms (resets timer again)
+      await Future.delayed(const Duration(milliseconds: 100));
       expect(emissions, isEmpty);
       ref.childAddedStream.emit(MockDatabaseEvent(MockDataSnapshot(
         key: 'order_3',
         value: {'id': 'order_3', 'total': 300000.0, 'items': []},
       )));
 
-      // At t=75ms (25ms after item 3): still has not emitted
-      await Future.delayed(const Duration(milliseconds: 25));
+      // 100ms after item 3: still has not emitted (window is 250ms)
+      await Future.delayed(const Duration(milliseconds: 100));
       expect(emissions, isEmpty);
 
-      // At t=115ms (65ms after item 3): emits exactly once with all 3 orders
-      await Future.delayed(const Duration(milliseconds: 40));
+      // 300ms after item 3: emits exactly once with all 3 orders
+      await Future.delayed(const Duration(milliseconds: 200));
       expect(emissions.length, equals(1));
       expect(emissions.first.length, equals(3));
       expect(emissions.first.map((o) => o['id']), containsAll(['order_1', 'order_2', 'order_3']));
@@ -393,7 +387,7 @@ void main() {
         )));
       }
 
-      await Future.delayed(const Duration(milliseconds: 70));
+      await Future.delayed(const Duration(milliseconds: 300));
       expect(emissions.length, equals(1));
       expect(emissions.first.length, equals(25));
 
@@ -631,7 +625,7 @@ void main() {
         value: {'id': 'order_2', 'total': 75000.0},
       )));
 
-      await Future.delayed(const Duration(milliseconds: 60));
+      await Future.delayed(const Duration(milliseconds: 300));
       expect(emissions.length, equals(1));
       expect(emissions.first.length, equals(2));
 
@@ -662,7 +656,7 @@ void main() {
         value: {'id': 'inv_100', 'quantity': 10},
       )));
 
-      await Future.delayed(const Duration(milliseconds: 60));
+      await Future.delayed(const Duration(milliseconds: 300));
       expect(emissions.length, equals(1));
 
       ref.childRemovedStream.emit(MockDatabaseEvent(MockDataSnapshot(

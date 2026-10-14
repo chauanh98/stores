@@ -12,7 +12,14 @@ import 'package:stores/domain/entities/supplier.dart';
 import 'package:stores/domain/entities/user_account.dart';
 import 'package:stores/domain/repositories/inventory_repository.dart';
 import 'package:stores/domain/repositories/product_repository.dart';
+import 'package:stores/domain/repositories/supplier_repository.dart';
+import 'package:stores/domain/entities/supplier_debt_transaction.dart';
+import 'package:stores/application/inventories/stock_in_receipts_providers.dart';
 import 'package:stores/presentation/inventories/pages/import_inventory_page.dart';
+
+import 'package:stores/presentation/inventories/widgets/stock_in_item_card.dart';
+
+import '../../support/import_flow_helpers.dart';
 
 class _FakeAuthNotifier extends StateNotifier<UserAccount?>
     implements AuthNotifier {
@@ -27,8 +34,7 @@ class _FakeAuthNotifier extends StateNotifier<UserAccount?>
   }
 }
 
-class _TestSupplierListNotifier
-    extends AutoDisposeAsyncNotifier<List<Supplier>>
+class _TestSupplierListNotifier extends AutoDisposeAsyncNotifier<List<Supplier>>
     implements SupplierListNotifier {
   final List<Supplier> initialData;
   final List<Map<String, dynamic>> recordedImportDebts;
@@ -106,8 +112,41 @@ class _FakeInventoryRepository implements InventoryRepository {
       Stream.value([]);
 }
 
+class _FakeSupplierRepository extends Fake implements SupplierRepository {
+  final List<Supplier> suppliers;
+  final List<Supplier> upserted = [];
+  final List<SupplierDebtTransaction> debtTxs = [];
+  _FakeSupplierRepository(this.suppliers);
+
+  @override
+  Future<Supplier?> fetchById(String id, {String? storeId}) async =>
+      suppliers.where((s) => s.id == id).firstOrNull;
+
+  @override
+  Future<void> upsert(Supplier supplier, {String? storeId}) async {
+    upserted.add(supplier);
+  }
+
+  @override
+  Future<void> recordDebtTransaction(SupplierDebtTransaction transaction,
+      {String? storeId}) async {
+    debtTxs.add(transaction);
+  }
+}
+
+class _FakeReceiptRepository extends Fake implements StockInReceiptRepository {
+  final List<StockInReceipt> saved = [];
+
+  @override
+  Future<void> saveReceipt(StockInReceipt receipt) async {
+    saved.add(receipt);
+  }
+}
+
 class _FakeProductRepository implements ProductRepository {
   final List<Product> upsertedProducts = [];
+  final List<Product> catalog;
+  _FakeProductRepository([this.catalog = const []]);
 
   @override
   Future<void> upsert(Product product) async {
@@ -118,7 +157,8 @@ class _FakeProductRepository implements ProductRepository {
   Future<void> delete(String id) async {}
 
   @override
-  Future<Product?> fetchById(String id) async => null;
+  Future<Product?> fetchById(String id) async =>
+      catalog.where((p) => p.id == id).firstOrNull;
 
   @override
   Future<List<Product>> fetchAll() async => [];
@@ -143,6 +183,105 @@ Widget _buildTestApp({
       home: child,
     ),
   );
+}
+
+class _Env {
+  final inv = _FakeInventoryRepository();
+  late final _FakeProductRepository prod;
+  late final _FakeSupplierRepository supplierRepo;
+  final receipts = _FakeReceiptRepository();
+  _Env(List<Product> products, List<Supplier> suppliers) {
+    prod = _FakeProductRepository(products);
+    supplierRepo = _FakeSupplierRepository(suppliers);
+  }
+}
+
+Future<_Env> _pump(
+  WidgetTester tester, {
+  required UserAccount user,
+  required List<Product> products,
+  required List<Supplier> suppliers,
+}) async {
+  final env = _Env(products, suppliers);
+  await tester.pumpWidget(
+    _buildTestApp(
+      child: const ImportInventoryPage(),
+      overrides: [
+        authProvider.overrideWith((ref) => _FakeAuthNotifier(user)),
+        productListProvider.overrideWith((ref) => Stream.value(products)),
+        supplierListNotifierProvider.overrideWith(
+          () => _TestSupplierListNotifier(suppliers),
+        ),
+        inventoryRepositoryProvider.overrideWithValue(env.inv),
+        productRepositoryProvider.overrideWithValue(env.prod),
+        completeStockInReceiptUseCaseProvider.overrideWithValue(
+          CompleteStockInReceiptUseCase(
+            productRepository: env.prod,
+            inventoryRepository: env.inv,
+            supplierRepository: env.supplierRepo,
+            receiptRepository: env.receipts,
+          ),
+        ),
+        availableStoresProvider.overrideWith((ref) async => {
+              'store_001': 'Chi nhánh Đông Thắng',
+            }),
+      ],
+    ),
+  );
+  await tester.pumpAndSettle();
+  return env;
+}
+
+/// Asserts the completed receipt: stock-in tx recorded, supplier debt
+/// increased by [debt] (HN starts at 5.000.000) and totalPurchase += 300.000.
+void _expectCompleted(_Env env,
+    {required double paid, required double debt, bool checkPaid = true}) {
+  expect(env.inv.recordedTransactions.length, 1);
+  expect(env.inv.recordedTransactions.first.productId, 'prod_stress_01');
+  expect(env.inv.recordedTransactions.first.quantity, 1);
+  expect(env.inv.recordedTransactions.first.importPrice, 300000.0);
+  expect(env.receipts.saved.length, 1);
+  expect(env.receipts.saved.first.totalAmount, 300000.0);
+  if (checkPaid) expect(env.receipts.saved.first.paidAmount, paid);
+  expect(env.supplierRepo.upserted.length, 1);
+  expect(env.supplierRepo.upserted.first.id, 'NCC_HN');
+  expect(env.supplierRepo.upserted.first.currentDebt, 5000000.0 + debt);
+  expect(env.supplierRepo.upserted.first.totalPurchase, 10300000.0);
+  if (debt > 0) {
+    expect(env.supplierRepo.debtTxs.length, 1);
+    expect(env.supplierRepo.debtTxs.first.supplierId, 'NCC_HN');
+    expect(env.supplierRepo.debtTxs.first.amount, debt);
+    expect(env.supplierRepo.debtTxs.first.remainingDebt, 5000000.0 + debt);
+  } else {
+    expect(env.supplierRepo.debtTxs, isEmpty);
+  }
+}
+
+Future<void> _selectSupplier(WidgetTester tester, String name) async {
+  await tester.tap(find.byKey(const Key('select_supplier_btn')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(name));
+  await tester.pumpAndSettle();
+}
+
+Future<void> _addProductA(WidgetTester tester) => addProductViaSheet(
+      tester,
+      search: 'Cấu hình Cao',
+      productText: 'Sản phẩm Cấu hình Cao',
+    );
+
+Future<void> _setPaid(WidgetTester tester, String text) async {
+  final f = find.byKey(const Key('input_paid_amount'));
+  await tester.ensureVisible(f);
+  await tester.enterText(f, text);
+  await tester.pumpAndSettle();
+}
+
+/// Supplier + product(1 x 300.000) -> payment step.
+Future<void> _toPayment(WidgetTester tester) async {
+  await _selectSupplier(tester, 'Nhà Phân Phối Hà Nội');
+  await _addProductA(tester);
+  await goToPaymentStep(tester);
 }
 
 void main() {
@@ -171,7 +310,6 @@ void main() {
     branchStocks: {'store_001': 5},
     category: 'Thiết bị điện tử',
   );
-
 
   const supplierHaNoi = Supplier(
     id: 'NCC_HN',
@@ -217,418 +355,209 @@ void main() {
   group('Milestone 2 Stress: Debt Calculation Boundaries', () {
     testWidgets('Boundary 1: 0 Paid (100% Debt) results in full debt recorded',
         (tester) async {
-      final recordedDebts = <Map<String, dynamic>>[];
-      final fakeInvRepo = _FakeInventoryRepository();
-      final fakeProdRepo = _FakeProductRepository();
+      final env = await _pump(tester,
+          user: supervisorUser, products: [productA], suppliers: testSuppliers);
+      await _toPayment(tester);
+      await tester.tap(find.byKey(const Key('btn_pay_zero')));
+      await tester.pumpAndSettle();
+      expect(
+          tester
+              .widget<Text>(find.byKey(const Key('text_remaining_debt')))
+              .data,
+          '300.000 đ');
+      await completeReceiptOnPaymentStep(tester);
 
-      await tester.pumpWidget(
-        _buildTestApp(
-          child: const ImportInventoryPage(),
-          overrides: [
-            authProvider.overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
-            productListProvider.overrideWith((ref) => Stream.value([productA])),
-            supplierListNotifierProvider.overrideWith(
-              () => _TestSupplierListNotifier(testSuppliers, recordedDebts),
-            ),
-            inventoryRepositoryProvider.overrideWithValue(fakeInvRepo),
-            productRepositoryProvider.overrideWithValue(fakeProdRepo),
-            availableStoresProvider.overrideWith((ref) async => {
-                  'store_001': 'Chi nhánh Đông Thắng',
-                }),
-          ],
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      // Select productA
-      final searchField = find.widgetWithText(TextFormField, 'Tìm kiếm sản phẩm');
-      await tester.tap(searchField);
-      await tester.enterText(searchField, 'Cấu hình Cao');
-      await tester.pumpAndSettle();
-      await tester.tap(find.textContaining('Sản phẩm Cấu hình Cao').last);
-      await tester.pumpAndSettle();
-
-      // Select supplier
-      await tester.tap(find.byKey(const Key('select_supplier_btn')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Nhà Phân Phối Hà Nội'));
-      await tester.pumpAndSettle();
-
-      // Switch to Ghi nợ NCC
-      await tester.ensureVisible(find.text('Ghi nợ NCC'));
-      await tester.tap(find.text('Ghi nợ NCC'));
-      await tester.pumpAndSettle();
-
-      // Set paid amount to '0'
-      await tester.ensureVisible(find.byKey(const Key('paid_amount_field')));
-      await tester.enterText(find.byKey(const Key('paid_amount_field')), '0');
-      await tester.pumpAndSettle();
-
-      // Save
-      await tester.tap(find.byIcon(Icons.save));
-      await tester.pumpAndSettle();
-
-      expect(recordedDebts.length, 1);
-      expect(recordedDebts.first['supplierId'], 'NCC_HN');
-      expect(recordedDebts.first['totalAmount'], 300000.0);
-      expect(recordedDebts.first['paidAmount'], 0.0);
+      _expectCompleted(env, paid: 0.0, debt: 300000.0);
     });
 
-    testWidgets('Boundary 2: Full Paid (0 Debt) results in paidAmount == totalAmount',
+    testWidgets(
+        'Boundary 2: Full Paid (0 Debt) results in paidAmount == totalAmount',
         (tester) async {
-      final recordedDebts = <Map<String, dynamic>>[];
-      final fakeInvRepo = _FakeInventoryRepository();
-      final fakeProdRepo = _FakeProductRepository();
+      final env = await _pump(tester,
+          user: supervisorUser, products: [productA], suppliers: testSuppliers);
+      await _toPayment(tester);
+      // Default: pay in full
+      expect(
+          tester
+              .widget<Text>(find.byKey(const Key('text_remaining_debt')))
+              .data,
+          '0 đ');
+      await completeReceiptOnPaymentStep(tester);
 
-      await tester.pumpWidget(
-        _buildTestApp(
-          child: const ImportInventoryPage(),
-          overrides: [
-            authProvider.overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
-            productListProvider.overrideWith((ref) => Stream.value([productA])),
-            supplierListNotifierProvider.overrideWith(
-              () => _TestSupplierListNotifier(testSuppliers, recordedDebts),
-            ),
-            inventoryRepositoryProvider.overrideWithValue(fakeInvRepo),
-            productRepositoryProvider.overrideWithValue(fakeProdRepo),
-            availableStoresProvider.overrideWith((ref) async => {
-                  'store_001': 'Chi nhánh Đông Thắng',
-                }),
-          ],
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      // Select productA
-      final searchField = find.widgetWithText(TextFormField, 'Tìm kiếm sản phẩm');
-      await tester.tap(searchField);
-      await tester.enterText(searchField, 'Cấu hình Cao');
-      await tester.pumpAndSettle();
-      await tester.tap(find.textContaining('Sản phẩm Cấu hình Cao').last);
-      await tester.pumpAndSettle();
-
-      // Select supplier
-      await tester.tap(find.byKey(const Key('select_supplier_btn')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Nhà Phân Phối Hà Nội'));
-      await tester.pumpAndSettle();
-
-      // Keep default 'Thanh toán toàn bộ'
-      await tester.tap(find.byIcon(Icons.save));
-      await tester.pumpAndSettle();
-
-      expect(recordedDebts.length, 1);
-      expect(recordedDebts.first['totalAmount'], 300000.0);
-      expect(recordedDebts.first['paidAmount'], 300000.0);
+      _expectCompleted(env, paid: 300000.0, debt: 0.0);
     });
 
     testWidgets('Boundary 3: Partial payment calculates exact debt difference',
         (tester) async {
-      final recordedDebts = <Map<String, dynamic>>[];
-      final fakeInvRepo = _FakeInventoryRepository();
-      final fakeProdRepo = _FakeProductRepository();
-
-      await tester.pumpWidget(
-        _buildTestApp(
-          child: const ImportInventoryPage(),
-          overrides: [
-            authProvider.overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
-            productListProvider.overrideWith((ref) => Stream.value([productA])),
-            supplierListNotifierProvider.overrideWith(
-              () => _TestSupplierListNotifier(testSuppliers, recordedDebts),
-            ),
-            inventoryRepositoryProvider.overrideWithValue(fakeInvRepo),
-            productRepositoryProvider.overrideWithValue(fakeProdRepo),
-            availableStoresProvider.overrideWith((ref) async => {
-                  'store_001': 'Chi nhánh Đông Thắng',
-                }),
-          ],
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      // Select productA
-      final searchField = find.widgetWithText(TextFormField, 'Tìm kiếm sản phẩm');
-      await tester.tap(searchField);
-      await tester.enterText(searchField, 'Cấu hình Cao');
-      await tester.pumpAndSettle();
-      await tester.tap(find.textContaining('Sản phẩm Cấu hình Cao').last);
-      await tester.pumpAndSettle();
-
-      // Select supplier
-      await tester.tap(find.byKey(const Key('select_supplier_btn')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Nhà Phân Phối Hà Nội'));
-      await tester.pumpAndSettle();
-
-      // Ghi nợ NCC
-      await tester.ensureVisible(find.text('Ghi nợ NCC'));
-      await tester.tap(find.text('Ghi nợ NCC'));
-      await tester.pumpAndSettle();
-
-      // Partial payment of 120,000 đ
-      await tester.ensureVisible(find.byKey(const Key('paid_amount_field')));
-      await tester.enterText(find.byKey(const Key('paid_amount_field')), '120000');
-      await tester.pumpAndSettle();
-
+      final env = await _pump(tester,
+          user: supervisorUser, products: [productA], suppliers: testSuppliers);
+      await _toPayment(tester);
+      await _setPaid(tester, '120000');
       // Preview displays debt increase 180,000 đ
-      expect(find.textContaining('180.000'), findsWidgets);
+      expect(
+          tester
+              .widget<Text>(find.byKey(const Key('text_remaining_debt')))
+              .data,
+          '180.000 đ');
+      await completeReceiptOnPaymentStep(tester);
 
-      await tester.tap(find.byIcon(Icons.save));
-      await tester.pumpAndSettle();
-
-      expect(recordedDebts.length, 1);
-      expect(recordedDebts.first['totalAmount'], 300000.0);
-      expect(recordedDebts.first['paidAmount'], 120000.0);
+      _expectCompleted(env, paid: 120000.0, debt: 180000.0);
     });
 
-    testWidgets('Boundary 4: Overpayment is clamped to totalAmount without generating negative debt',
+    testWidgets(
+        'Boundary 4: Overpayment is clamped to totalAmount without generating negative debt',
         (tester) async {
-      final recordedDebts = <Map<String, dynamic>>[];
-      final fakeInvRepo = _FakeInventoryRepository();
-      final fakeProdRepo = _FakeProductRepository();
+      final env = await _pump(tester,
+          user: supervisorUser, products: [productA], suppliers: testSuppliers);
+      await _toPayment(tester);
+      await _setPaid(tester, '999999999');
+      // Debt never negative
+      expect(
+          tester
+              .widget<Text>(find.byKey(const Key('text_remaining_debt')))
+              .data,
+          '0 đ');
+      await completeReceiptOnPaymentStep(tester);
 
-      await tester.pumpWidget(
-        _buildTestApp(
-          child: const ImportInventoryPage(),
-          overrides: [
-            authProvider.overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
-            productListProvider.overrideWith((ref) => Stream.value([productA])),
-            supplierListNotifierProvider.overrideWith(
-              () => _TestSupplierListNotifier(testSuppliers, recordedDebts),
-            ),
-            inventoryRepositoryProvider.overrideWithValue(fakeInvRepo),
-            productRepositoryProvider.overrideWithValue(fakeProdRepo),
-            availableStoresProvider.overrideWith((ref) async => {
-                  'store_001': 'Chi nhánh Đông Thắng',
-                }),
-          ],
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      // Select productA
-      final searchField = find.widgetWithText(TextFormField, 'Tìm kiếm sản phẩm');
-      await tester.tap(searchField);
-      await tester.enterText(searchField, 'Cấu hình Cao');
-      await tester.pumpAndSettle();
-      await tester.tap(find.textContaining('Sản phẩm Cấu hình Cao').last);
-      await tester.pumpAndSettle();
-
-      // Select supplier
-      await tester.tap(find.byKey(const Key('select_supplier_btn')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Nhà Phân Phối Hà Nội'));
-      await tester.pumpAndSettle();
-
-      // Switch to Ghi nợ NCC
-      await tester.ensureVisible(find.text('Ghi nợ NCC'));
-      await tester.tap(find.text('Ghi nợ NCC'));
-      await tester.pumpAndSettle();
-
-      // Enter overpayment 999,999,999 đ (far exceeding 300,000 đ)
-      await tester.ensureVisible(find.byKey(const Key('paid_amount_field')));
-      await tester.enterText(
-          find.byKey(const Key('paid_amount_field')), '999999999');
-      await tester.pumpAndSettle();
-
-      // Save
-      await tester.tap(find.byIcon(Icons.save));
-      await tester.pumpAndSettle();
-
-      expect(recordedDebts.length, 1);
       // Clamped to 300000.0
-      expect(recordedDebts.first['paidAmount'], 300000.0);
-      expect(recordedDebts.first['totalAmount'], 300000.0);
+      _expectCompleted(env, paid: 300000.0, debt: 0.0);
+    },);
+
+    testWidgets(
+        'Boundary 4b: Overpayment never reduces the supplier\'s pre-existing debt',
+        (tester) async {
+      final env = await _pump(tester,
+          user: supervisorUser, products: [productA], suppliers: testSuppliers);
+      await _toPayment(tester);
+      await _setPaid(tester, '999999999');
+      await completeReceiptOnPaymentStep(tester);
+
+      // Supplier debt stays at 5.000.000, no debt transaction
+      _expectCompleted(env, paid: 300000.0, debt: 0.0, checkPaid: false);
+    },);
+
+    testWidgets(
+        'Boundary 4c: Overpayment keeps debt non-negative and stock-in is recorded',
+        (tester) async {
+      final env = await _pump(tester,
+          user: supervisorUser, products: [productA], suppliers: testSuppliers);
+      await _toPayment(tester);
+      await _setPaid(tester, '999999999');
+      await completeReceiptOnPaymentStep(tester);
+
+      expect(env.inv.recordedTransactions.length, 1);
+      expect(env.inv.recordedTransactions.first.importPrice, 300000.0);
+      expect(
+          env.supplierRepo.upserted.first.currentDebt, greaterThanOrEqualTo(0));
+      expect(env.supplierRepo.debtTxs, isEmpty);
     });
 
     testWidgets('Boundary 5: Formatted inputs (periods/commas) parse cleanly',
         (tester) async {
-      final recordedDebts = <Map<String, dynamic>>[];
-      final fakeInvRepo = _FakeInventoryRepository();
-      final fakeProdRepo = _FakeProductRepository();
+      final env = await _pump(tester,
+          user: supervisorUser, products: [productA], suppliers: testSuppliers);
+      await _toPayment(tester);
+      await _setPaid(tester, '150.000');
+      expect(
+          tester
+              .widget<Text>(find.byKey(const Key('text_remaining_debt')))
+              .data,
+          '150.000 đ');
+      await completeReceiptOnPaymentStep(tester);
 
-      await tester.pumpWidget(
-        _buildTestApp(
-          child: const ImportInventoryPage(),
-          overrides: [
-            authProvider.overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
-            productListProvider.overrideWith((ref) => Stream.value([productA])),
-            supplierListNotifierProvider.overrideWith(
-              () => _TestSupplierListNotifier(testSuppliers, recordedDebts),
-            ),
-            inventoryRepositoryProvider.overrideWithValue(fakeInvRepo),
-            productRepositoryProvider.overrideWithValue(fakeProdRepo),
-            availableStoresProvider.overrideWith((ref) async => {
-                  'store_001': 'Chi nhánh Đông Thắng',
-                }),
-          ],
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      // Select productA
-      final searchField = find.widgetWithText(TextFormField, 'Tìm kiếm sản phẩm');
-      await tester.tap(searchField);
-      await tester.enterText(searchField, 'Cấu hình Cao');
-      await tester.pumpAndSettle();
-      await tester.tap(find.textContaining('Sản phẩm Cấu hình Cao').last);
-      await tester.pumpAndSettle();
-
-      // Select supplier
-      await tester.tap(find.byKey(const Key('select_supplier_btn')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Nhà Phân Phối Hà Nội'));
-      await tester.pumpAndSettle();
-
-      // Ghi nợ NCC
-      await tester.ensureVisible(find.text('Ghi nợ NCC'));
-      await tester.tap(find.text('Ghi nợ NCC'));
-      await tester.pumpAndSettle();
-
-      // Input with thousands separators: "150.000"
-      await tester.ensureVisible(find.byKey(const Key('paid_amount_field')));
-      await tester.enterText(
-          find.byKey(const Key('paid_amount_field')), '150.000');
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.byIcon(Icons.save));
-      await tester.pumpAndSettle();
-
-      expect(recordedDebts.length, 1);
-      expect(recordedDebts.first['paidAmount'], 150000.0);
+      _expectCompleted(env, paid: 150000.0, debt: 150000.0);
     });
   });
 
   group('Milestone 2 Stress: Validation Guards', () {
     testWidgets(
-        'Validation: Attempting to save with Ghi nợ NCC without supplier is strictly blocked',
+        'Validation: Attempting to complete with debt (Ghi nợ) without supplier is strictly blocked',
         (tester) async {
-      final fakeInvRepo = _FakeInventoryRepository();
-      final recordedDebts = <Map<String, dynamic>>[];
+      final env = await _pump(tester,
+          user: supervisorUser, products: [productA], suppliers: testSuppliers);
 
-      await tester.pumpWidget(
-        _buildTestApp(
-          child: const ImportInventoryPage(),
-          overrides: [
-            authProvider.overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
-            productListProvider.overrideWith((ref) => Stream.value([productA])),
-            supplierListNotifierProvider.overrideWith(
-              () => _TestSupplierListNotifier(testSuppliers, recordedDebts),
-            ),
-            inventoryRepositoryProvider.overrideWithValue(fakeInvRepo),
-            availableStoresProvider.overrideWith((ref) async => {
-                  'store_001': 'Chi nhánh Đông Thắng',
-                }),
-          ],
-        ),
-      );
-      await tester.pumpAndSettle();
+      // Walk-in: product only, no supplier
+      await _addProductA(tester);
+      await goToPaymentStep(tester);
 
-      // Select product
-      final searchField = find.widgetWithText(TextFormField, 'Tìm kiếm sản phẩm');
-      await tester.tap(searchField);
-      await tester.enterText(searchField, 'Cấu hình Cao');
+      // Pay nothing -> debt without supplier
+      await tester.tap(find.byKey(const Key('btn_pay_zero')));
       await tester.pumpAndSettle();
-      await tester.tap(find.textContaining('Sản phẩm Cấu hình Cao').last);
-      await tester.pumpAndSettle();
+      expect(
+          tester
+              .widget<Text>(find.byKey(const Key('text_remaining_debt')))
+              .data,
+          '300.000 đ');
 
-      // Select Ghi nợ NCC without selecting a supplier
-      await tester.ensureVisible(find.text('Ghi nợ NCC'));
-      await tester.tap(find.text('Ghi nợ NCC'));
-      await tester.pumpAndSettle();
-
-      // Warning message should be visible on screen
-      expect(find.text('Chưa chọn Nhà Cung Cấp. Vui lòng chọn NCC để ghi nợ.'),
-          findsOneWidget);
-
-      // Attempt to save
-      await tester.tap(find.byIcon(Icons.save));
-      await tester.pumpAndSettle();
+      await completeReceiptOnPaymentStep(tester);
 
       // Blocked with SnackBar
+      expect(
+          find.byKey(const Key('snackbar_supplier_required')), findsOneWidget);
       expect(find.text('Vui lòng chọn Nhà Cung Cấp để ghi nợ'), findsOneWidget);
       // Zero transactions recorded
-      expect(fakeInvRepo.recordedTransactions, isEmpty);
-      expect(recordedDebts, isEmpty);
+      expect(env.inv.recordedTransactions, isEmpty);
+      expect(env.receipts.saved, isEmpty);
+      expect(env.supplierRepo.upserted, isEmpty);
+      expect(env.supplierRepo.debtTxs, isEmpty);
     });
   });
 
   group('Milestone 2 Stress: Staff Role Masking', () {
     testWidgets(
-        'Staff user cannot view unit prices, total values, or debt preview breakdown',
+        'Staff user cannot view unit prices or total values while adding stock',
         (tester) async {
-      await tester.pumpWidget(
-        _buildTestApp(
-          child: const ImportInventoryPage(),
-          overrides: [
-            authProvider.overrideWith((ref) => _FakeAuthNotifier(staffUser)),
-            productListProvider.overrideWith((ref) => Stream.value([productA])),
-            supplierListNotifierProvider.overrideWith(
-              () => _TestSupplierListNotifier(testSuppliers),
-            ),
-            availableStoresProvider.overrideWith((ref) async => {
-                  'store_001': 'Chi nhánh Đông Thắng',
-                }),
-          ],
-        ),
-      );
-      await tester.pumpAndSettle();
+      await _pump(tester,
+          user: staffUser, products: [productA], suppliers: testSuppliers);
 
-      // 1. Check unit price field is masked
       expect(find.text('Giá nhập'), findsNothing);
       expect(find.text('Tổng giá trị'), findsNothing);
 
-      // 2. Select product
-      final searchField = find.widgetWithText(TextFormField, 'Tìm kiếm sản phẩm');
-      await tester.tap(searchField);
-      await tester.enterText(searchField, 'Cấu hình Cao');
-      await tester.pumpAndSettle();
-      await tester.tap(find.textContaining('Sản phẩm Cấu hình Cao').last);
+      await openProductSheet(tester,
+          search: 'Cấu hình Cao', productText: 'Sản phẩm Cấu hình Cao');
+      expect(find.byKey(const Key('product_edit_sheet')), findsOneWidget);
+      await tester.ensureVisible(find.byKey(const Key('btn_sheet_done')));
+      await tester.tap(find.byKey(const Key('btn_sheet_done')));
       await tester.pumpAndSettle();
 
-      // Price still not visible
-      expect(find.text('Giá nhập'), findsNothing);
-      expect(find.text('300.000 đ'), findsNothing);
-
-      // 3. Payment options
-      expect(find.text('Ghi nợ NCC (100%)'), findsOneWidget);
+      // Item card shows masked values, never the real cost
+      expect(find.text('***'), findsWidgets);
       expect(
-        find.text('Đơn vị tính giá vốn tự động theo định mức hệ thống'),
-        findsOneWidget,
+        find.descendant(
+            of: find.byType(StockInItemCard),
+            matching: find.textContaining('300.000')),
+        findsNothing,
       );
-
-      // Select 'Ghi nợ NCC (100%)'
-      await tester.ensureVisible(find.text('Ghi nợ NCC (100%)'));
-      await tester.tap(find.text('Ghi nợ NCC (100%)'));
-      await tester.pumpAndSettle();
-
-      // Paid amount field and breakdown are hidden
-      expect(find.byKey(const Key('paid_amount_field')), findsNothing);
-      expect(find.text('Chi tiết công nợ phát sinh:'), findsNothing);
-      expect(find.text('Ghi nhận nợ NCC:'), findsNothing);
     });
+
+    testWidgets('Staff cannot see the cost total in the bottom summary bar',
+        (tester) async {
+      await _pump(tester,
+          user: staffUser, products: [productA], suppliers: testSuppliers);
+      await _addProductA(tester);
+      expect(find.byKey(const Key('bottom_bar_total_amount')), findsNothing);
+    },);
+  });
+
+  group('Milestone 2 Stress: Staff Sheet Masking', () {
+    testWidgets(
+        'Staff cost-price input is hidden inside the product edit sheet',
+        (tester) async {
+      await _pump(tester,
+          user: staffUser, products: [productA], suppliers: testSuppliers);
+      await openProductSheet(tester,
+          search: 'Cấu hình Cao', productText: 'Sản phẩm Cấu hình Cao');
+      expect(find.byKey(const Key('sheet_input_price')), findsNothing);
+      expect(find.textContaining('300.000'), findsNothing);
+    },);
   });
 
   group('Milestone 2 Stress: Diacritic-Free Search in Supplier Selector', () {
-    testWidgets('Search matches with unaccented, mixed case, and partial phone/code',
+    testWidgets(
+        'Search matches with unaccented, mixed case, and partial phone/code',
         (tester) async {
-      await tester.pumpWidget(
-        _buildTestApp(
-          child: const ImportInventoryPage(),
-          overrides: [
-            authProvider.overrideWith((ref) => _FakeAuthNotifier(supervisorUser)),
-            productListProvider.overrideWith((ref) => Stream.value([productA])),
-            supplierListNotifierProvider.overrideWith(
-              () => _TestSupplierListNotifier(testSuppliers),
-            ),
-            availableStoresProvider.overrideWith((ref) async => {
-                  'store_001': 'Chi nhánh Đông Thắng',
-                }),
-          ],
-        ),
-      );
-      await tester.pumpAndSettle();
+      await _pump(tester,
+          user: supervisorUser, products: [productA], suppliers: testSuppliers);
 
       // Open bottom sheet
       await tester.tap(find.byKey(const Key('select_supplier_btn')));
@@ -675,7 +604,7 @@ void main() {
       // Test 7: Non-existent query shows empty state
       await tester.enterText(searchBox, 'khong_ton_tai_xyz');
       await tester.pumpAndSettle();
-      expect(find.text('Không tìm thấy nhà cung cấp'), findsOneWidget);
-    });
+      expect(find.text('Không tìm thấy Nhà Cung Cấp'), findsOneWidget);
+    },);
   });
 }

@@ -108,20 +108,30 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  l10n.debtToCollect,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
+                Flexible(
+                  child: Text(
+                    l10n.debtToCollect,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
                 ),
-                Text(
-                  '${currencyFormat.format(displayCurrentDebt)} đ',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
+                const SizedBox(width: 8),
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      '${currencyFormat.format(displayCurrentDebt)} đ',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -181,7 +191,8 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
                           isPayment: false,
                           isAdjustment: false,
                           isInvoice: true,
-                          note: (order.note != null && order.note!.trim().isNotEmpty)
+                          note: (order.note != null &&
+                                  order.note!.trim().isNotEmpty)
                               ? order.note
                               : null,
                         ),
@@ -200,7 +211,10 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
                               horizontal: 16, vertical: 8),
                           color: AppColors.background,
                           child: Text(
-                            l10n.customerTransactionsCountLabel(ledgerItems.length),
+                            l10n.customerTransactionsCountLabel(
+                                ledgerItems.length),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                                 fontSize: 13, color: AppColors.textSecondary),
                           ),
@@ -244,24 +258,32 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
                                         ? '-${currencyFormat.format(item.amount.abs())}'
                                         : (item.isPayment
                                             ? '-${currencyFormat.format(item.amount.abs())}'
-                                            : (item.isInvoice || (item.isAdjustment && item.amount > 0)
+                                            : (item.isInvoice ||
+                                                    (item.isAdjustment &&
+                                                        item.amount > 0)
                                                 ? '+${currencyFormat.format(item.amount)}'
-                                                : currencyFormat.format(item.amount)));
+                                                : currencyFormat
+                                                    .format(item.amount)));
 
-                                    final Color amountColor = item.isPayment || (item.isAdjustment && item.amount < 0)
+                                    final Color amountColor = item.isPayment ||
+                                            (item.isAdjustment &&
+                                                item.amount < 0)
                                         ? AppColors.success
                                         : AppColors.textPrimary;
 
                                     final Color badgeBgColor;
                                     final Color badgeTextColor;
                                     if (item.isPayment) {
-                                      badgeBgColor = AppColors.success.withOpacity(0.08);
+                                      badgeBgColor =
+                                          AppColors.success.withOpacity(0.08);
                                       badgeTextColor = AppColors.success;
                                     } else if (item.isInvoice) {
-                                      badgeBgColor = AppColors.primary.withOpacity(0.08);
+                                      badgeBgColor =
+                                          AppColors.primary.withOpacity(0.08);
                                       badgeTextColor = AppColors.primary;
                                     } else {
-                                      badgeBgColor = AppColors.warning.withOpacity(0.12);
+                                      badgeBgColor =
+                                          AppColors.warning.withOpacity(0.12);
                                       badgeTextColor = AppColors.warning;
                                     }
 
@@ -282,10 +304,16 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
                                             mainAxisAlignment:
                                                 MainAxisAlignment.spaceBetween,
                                             children: [
-                                              Row(
+                                              Flexible(
+                                                  child: Row(
+                                                mainAxisSize: MainAxisSize.min,
                                                 children: [
-                                                  Text(
+                                                  Flexible(
+                                                      child: Text(
                                                     item.code,
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
                                                     style: const TextStyle(
                                                       fontWeight:
                                                           FontWeight.bold,
@@ -293,7 +321,7 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
                                                       color:
                                                           AppColors.textPrimary,
                                                     ),
-                                                  ),
+                                                  )),
                                                   const SizedBox(width: 4),
                                                   InkWell(
                                                     onTap: () {
@@ -320,21 +348,29 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
                                                     ),
                                                   ),
                                                 ],
-                                              ),
-                                              Text(
-                                                amountText,
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 15,
-                                                  color: amountColor,
-                                                ),
-                                              ),
+                                              )),
+                                              const SizedBox(width: 8),
+                                              Flexible(
+                                                  child: FittedBox(
+                                                      fit: BoxFit.scaleDown,
+                                                      child: Text(
+                                                        amountText,
+                                                        style: TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          fontSize: 15,
+                                                          color: amountColor,
+                                                        ),
+                                                      ))),
                                             ],
                                           ),
                                           const SizedBox(height: 6),
-                                          Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.spaceBetween,
+                                          Wrap(
+                                            alignment:
+                                                WrapAlignment.spaceBetween,
+                                            crossAxisAlignment:
+                                                WrapCrossAlignment.center,
+                                            runSpacing: 4,
                                             children: [
                                               Text(
                                                 dateStr,
@@ -345,17 +381,22 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
                                                 ),
                                               ),
                                               Row(
+                                                mainAxisSize: MainAxisSize.min,
                                                 children: [
-                                                  Text(
+                                                  Flexible(
+                                                      child: Text(
                                                     l10n.remainingDebtLabel(
                                                         currencyFormat.format(
                                                             item.remainingDebt)),
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
                                                     style: const TextStyle(
                                                       fontSize: 12,
                                                       color: AppColors
                                                           .textSecondary,
                                                     ),
-                                                  ),
+                                                  )),
                                                   const SizedBox(width: 8),
                                                   Container(
                                                     padding: const EdgeInsets
@@ -365,8 +406,8 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
                                                     decoration: BoxDecoration(
                                                       color: badgeBgColor,
                                                       borderRadius:
-                                                          BorderRadius
-                                                              .circular(4),
+                                                          BorderRadius.circular(
+                                                              4),
                                                     ),
                                                     child: Text(
                                                       item.typeLabel,
@@ -439,12 +480,16 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  child: Text(
-                    l10n.adjustment,
-                    style: const TextStyle(
-                      color: AppColors.primary,
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      l10n.adjustment,
+                      maxLines: 1,
+                      style: const TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
@@ -463,11 +508,15 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  child: Text(
-                    l10n.payment,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      l10n.payment,
+                      maxLines: 1,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
@@ -493,7 +542,8 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
       builder: (sheetContext) {
         return Container(
           padding: const EdgeInsets.symmetric(vertical: 20),
-          child: Column(
+          child: SingleChildScrollView(
+              child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
@@ -536,7 +586,7 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
                 },
               ),
             ],
-          ),
+          )),
         );
       },
     );
@@ -548,8 +598,10 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
+        scrollable: true,
         title: Text(l10n.qrTitle),
-        content: Column(
+        content: SingleChildScrollView(
+            child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
@@ -577,7 +629,7 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
                   color: AppColors.primary, fontWeight: FontWeight.bold),
             ),
           ],
-        ),
+        )),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -597,8 +649,10 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        scrollable: true,
         title: Text(l10n.createReceiptTitle),
-        content: Column(
+        content: SingleChildScrollView(
+            child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -630,7 +684,7 @@ class _CustomerDebtPageState extends ConsumerState<CustomerDebtPage> {
               ),
             ),
           ],
-        ),
+        )),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),

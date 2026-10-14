@@ -3,6 +3,7 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:stores/application/auth/auth_providers.dart';
+import 'package:stores/application/inventories/stock_transfer_providers.dart';
 import 'package:stores/application/customers/customer_list_notifier.dart';
 import 'package:stores/application/customers/customers_providers.dart';
 import 'package:stores/application/orders/orders_providers.dart';
@@ -14,7 +15,7 @@ import 'package:stores/domain/entities/product.dart';
 import 'package:stores/domain/entities/supplier.dart';
 import 'package:stores/domain/entities/user_account.dart';
 import 'package:stores/presentation/customers/pages/customers_page.dart';
-import 'package:stores/presentation/inventories/pages/inter_store_transfer_page.dart';
+import 'package:stores/presentation/inventories/pages/stock_transfers_page.dart';
 import 'package:stores/presentation/inventories/pages/stock_in_receipts_page.dart';
 import 'package:stores/application/inventories/stock_in_receipts_providers.dart';
 import 'package:stores/domain/entities/inventory_transaction.dart';
@@ -258,7 +259,7 @@ void main() {
       expect(find.byType(StockInReceiptsPage), findsOneWidget);
     });
 
-    testWidgets('Navigation to InterStoreTransferPage', (tester) async {
+    testWidgets('Navigation to StockTransfersPage', (tester) async {
       tester.view.physicalSize = const Size(800, 1600);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -278,7 +279,41 @@ void main() {
       await tester.ensureVisible(find.text('Chuyển kho'));
       await tester.tap(find.text('Chuyển kho'));
       await tester.pumpAndSettle();
-      expect(find.byType(InterStoreTransferPage), findsOneWidget);
+      expect(find.byType(StockTransfersPage), findsOneWidget);
+    });
+
+    testWidgets('Chuyển kho tile shows pending-receive badge (and hides at 0)',
+        (tester) async {
+      tester.view.physicalSize = const Size(800, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      for (final entry in {3: '3', 120: '99+', 0: null}.entries) {
+        await tester.pumpWidget(const SizedBox()); // fresh ProviderScope each time
+        await tester.pumpWidget(
+          _buildTestApp(
+            overrides: [
+              ...commonOverrides,
+              authProvider
+                  .overrideWith((ref) => _DynamicAuthNotifier(mockAdminUser)),
+              pendingIncomingTransferCountProvider
+                  .overrideWith((ref) => Stream.value(entry.key)),
+            ],
+            child: const MorePage(),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(find.text('Chuyển kho'));
+        final badge = find.byKey(const Key('more_transfer_pending_badge'));
+        if (entry.value == null) {
+          expect(badge, findsNothing);
+        } else {
+          expect(find.descendant(of: badge, matching: find.text(entry.value!)),
+              findsNothing); // badge itself is the Text
+          expect(tester.widget<Text>(badge).data, entry.value);
+        }
+      }
     });
 
     testWidgets('Navigation to InvoicesPage', (tester) async {

@@ -27,6 +27,15 @@ class CollectInvoiceDebtUseCase {
     required UserAccount currentUser,
     String? note,
   }) async {
+    // Luôn đối chiếu bản lưu trên máy chủ: bản `order` của người gọi có thể đã
+    // cũ (bấm đúp / 2 thiết bị) => trừ nợ khách 2 lần nhưng đơn chỉ ghi 1 lần.
+    try {
+      final fresh = await orderRepository.fetchById(order.id);
+      if (fresh != null) order = fresh;
+    } catch (_) {
+      // offline => dùng bản đang có
+    }
+
     // 1. Validation
     if (order.isCancelled) {
       throw const ValidationException('Không thể thu nợ cho hóa đơn đã hủy.');
@@ -35,7 +44,7 @@ class CollectInvoiceDebtUseCase {
       throw const ValidationException(
           'Chỉ có thể thu nợ cho hóa đơn đã hoàn thành.');
     }
-    if (amount <= 0) {
+    if (amount.isNaN || amount <= 0 || amount.isInfinite) {
       throw const ValidationException('Số tiền thu nợ phải lớn hơn 0.');
     }
 

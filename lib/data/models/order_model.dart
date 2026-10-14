@@ -1,5 +1,8 @@
 import 'order_item_model.dart';
 
+double _fin(double v) => v.isFinite ? v : 0.0;
+double? _finOrNull(double? v) => v == null ? null : _fin(v);
+
 class OrderModel {
   final String id;
   final String customerId;
@@ -65,6 +68,7 @@ class OrderModel {
     final s = status.trim().toLowerCase();
     return s == 'returned' || s.contains('trả') || s.contains('tra');
   }
+
   bool get hasReturns => items.any((i) => i.returnedQuantity > 0);
   bool get allItemsReturned =>
       items.isNotEmpty && items.every((i) => i.activeQuantity <= 0);
@@ -78,7 +82,8 @@ class OrderModel {
         'createdAt': createdAt.toIso8601String(),
         'orderDate': createdAt.toIso8601String(),
         'total': total,
-        if (discount > 0) 'discount': discount,
+        // Luôn ghi: update() của RTDB là merge, bỏ khóa này sẽ để lại discount cũ.
+        'discount': discount,
         'items': items.map((e) => e.toMap()).toList(),
         'status': status,
         'amountPaid': amountPaid,
@@ -98,15 +103,15 @@ class OrderModel {
 
   factory OrderModel.fromMap(Map<dynamic, dynamic> map) {
     final rawTotalVal = map['total'];
-    final parsedTotal = rawTotalVal is num
+    final parsedTotal = _fin(rawTotalVal is num
         ? rawTotalVal.toDouble()
-        : (double.tryParse(rawTotalVal?.toString() ?? '') ?? 0.0);
+        : (double.tryParse(rawTotalVal?.toString() ?? '') ?? 0.0));
     final rawTotal = parsedTotal < 0 ? 0.0 : parsedTotal;
 
     final rawDiscountVal = map['discount'];
-    final parsedDiscount = rawDiscountVal is num
+    final parsedDiscount = _fin(rawDiscountVal is num
         ? rawDiscountVal.toDouble()
-        : (double.tryParse(rawDiscountVal?.toString() ?? '') ?? 0.0);
+        : (double.tryParse(rawDiscountVal?.toString() ?? '') ?? 0.0));
     var discount = parsedDiscount < 0 ? 0.0 : parsedDiscount;
 
     final rawItems = map['items'];
@@ -130,9 +135,9 @@ class OrderModel {
     }
 
     final rawSubtotalVal = map['subtotal'];
-    final parsedSubtotal = rawSubtotalVal is num
+    final parsedSubtotal = _fin(rawSubtotalVal is num
         ? rawSubtotalVal.toDouble()
-        : (double.tryParse(rawSubtotalVal?.toString() ?? '') ?? 0.0);
+        : (double.tryParse(rawSubtotalVal?.toString() ?? '') ?? 0.0));
     final rawSubtotal = parsedSubtotal < 0 ? 0.0 : parsedSubtotal;
 
     var total = rawTotal;
@@ -141,7 +146,11 @@ class OrderModel {
             0.0, (sum, item) => sum + (item.price * item.quantity))
         : 0.0;
     final gross = itemsSum > 0 ? itemsSum : rawSubtotal;
-    if (gross > rawTotal + 0.01) {
+    // Sau khi trả hàng, ProcessReturnOrderUseCase đã trừ total/discount theo
+    // phần trả: số đã lưu là chuẩn. Đối chiếu lại với tổng đầy đủ các dòng sẽ
+    // đẩy total về giá gốc và làm doanh thu/nợ còn lại phình lên.
+    final hasReturns = items.any((i) => i.returnedQuantity > 0);
+    if (!hasReturns && gross > rawTotal + 0.01) {
       total = gross;
       if (discount <= 0.01) {
         discount = gross - rawTotal;
@@ -176,20 +185,25 @@ class OrderModel {
     }
 
     final rawPaid = map['amountPaid'];
+    // Thiếu amountPaid (bản ghi cũ) => coi như đã trả đủ SỐ PHẢI THU (sau giảm
+    // giá), không phải tổng trước giảm giá: nếu không, bảng cơ cấu thanh toán
+    // vượt doanh thu thuần đúng bằng số giảm giá.
+    final fallbackPaid = status == 'cancelled'
+        ? 0.0
+        : (total - discount).clamp(0.0, double.infinity);
     final parsedPaid = rawPaid != null
         ? (rawPaid is num
             ? rawPaid.toDouble()
-            : (double.tryParse(rawPaid.toString()) ??
-                (status == 'cancelled' ? 0.0 : rawTotal)))
-        : (status == 'cancelled' ? 0.0 : rawTotal);
-    final amountPaid = parsedPaid < 0 ? 0.0 : parsedPaid;
+            : (double.tryParse(rawPaid.toString()) ?? fallbackPaid))
+        : fallbackPaid;
+    final amountPaid = !parsedPaid.isFinite || parsedPaid < 0 ? 0.0 : parsedPaid;
 
     final rawDebt = map['debtAmount'];
-    final parsedDebt = rawDebt != null
+    final parsedDebt = _fin(rawDebt != null
         ? (rawDebt is num
             ? rawDebt.toDouble()
             : (double.tryParse(rawDebt.toString()) ?? 0.0))
-        : 0.0;
+        : 0.0);
     final debtAmount =
         status == 'cancelled' ? 0.0 : (parsedDebt < 0 ? 0.0 : parsedDebt);
 
@@ -200,34 +214,49 @@ class OrderModel {
         rawMethodStr.contains('kết hợp') ||
         rawMethodStr.contains('ket hop')) {
       paymentMethod = 'split';
+    } else if (rawMethodStr == 'card' ||
+        rawMethodStr.contains('thẻ') ||
+        rawMethodStr.contains('visa') ||
+        rawMethodStr.contains('pos_card')) {
+      paymentMethod = 'card';
+    } else if (rawMethodStr == 'wallet' ||
+        rawMethodStr.contains('ví') ||
+        rawMethodStr.contains('momo') ||
+        rawMethodStr.contains('zalopay')) {
+      paymentMethod = 'wallet';
+    } else if (rawMethodStr.contains('qr')) {
+      paymentMethod = 'qr';
     } else if (rawMethodStr == 'transfer' ||
         rawMethodStr == 'ck' ||
+        rawMethodStr.contains('transfer') ||
         rawMethodStr.contains('chuyển khoản') ||
         rawMethodStr.contains('chuyen khoan') ||
-        rawMethodStr.contains('banking')) {
+        rawMethodStr.contains('bank')) {
       paymentMethod = 'transfer';
     } else {
       paymentMethod = 'cash';
     }
 
     final rawCash = map['cashAmount'];
-    final cashAmount = rawCash is num
+    final cashAmount = _finOrNull(rawCash is num
         ? rawCash.toDouble()
-        : double.tryParse(rawCash?.toString() ?? '');
+        : double.tryParse(rawCash?.toString() ?? ''));
 
     final rawTransfer = map['transferAmount'];
-    final transferAmount = rawTransfer is num
+    final transferAmount = _finOrNull(rawTransfer is num
         ? rawTransfer.toDouble()
-        : double.tryParse(rawTransfer?.toString() ?? '');
+        : double.tryParse(rawTransfer?.toString() ?? ''));
 
     return OrderModel(
       id: map['id']?.toString() ?? '',
       customerId: map['customerId']?.toString() ?? '',
       customerName: map['customerName']?.toString(),
-      customerPhone: map['customerPhone']?.toString() ?? map['phone']?.toString(),
-      createdAt: DateTime.tryParse(map['orderDate']?.toString() ?? '') ??
-          DateTime.tryParse(map['createdAt']?.toString() ?? '') ??
-          DateTime.now(),
+      customerPhone:
+          map['customerPhone']?.toString() ?? map['phone']?.toString(),
+      createdAt: _toLocal(
+          DateTime.tryParse(map['orderDate']?.toString() ?? '') ??
+              DateTime.tryParse(map['createdAt']?.toString() ?? '') ??
+              DateTime.now()),
       total: total,
       discount: discount,
       items: items,
@@ -250,3 +279,7 @@ class OrderModel {
     );
   }
 }
+
+/// Mốc UTC ('Z' / có offset) => giờ máy, để giờ/ngày hiển thị & gom báo cáo khớp
+/// với bộ lọc khoảng ngày của OrderRemoteDataSource.
+DateTime _toLocal(DateTime d) => d.isUtc ? d.toLocal() : d;

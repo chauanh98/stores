@@ -131,6 +131,64 @@ class InventoryRemoteDataSource {
     }
   }
 
+  /// Lấy các lô nhập (và kiểm kê/xuất kho) đến [endDate] để tính giá vốn FIFO mà
+  /// KHÔNG cắt cụt lô cũ như `limitToLast(100)` một lần.
+  ///
+  /// Phân trang LÙI theo `date` (mỗi trang tối đa [pageSize] bản ghi, tối đa
+  /// [maxPages] trang => tối đa pageSize*maxPages bản ghi, luôn bị chặn) và DỪNG SỚM
+  /// khi mọi sản phẩm trong [neededQty] đã có đủ số lượng nhập tích luỹ (lô cũ hơn
+  /// chắc chắn đã bị bán hết nên không ảnh hưởng FIFO). [neededQty] rỗng => chỉ 1
+  /// trang (hành vi cũ). Trang kế tiếp dùng `endAt(ngày cũ nhất của trang trước)` và
+  /// khử trùng theo id.
+  Future<List<Map>> fetchLotTransactionsUpToDate(
+    DateTime endDate, {
+    Map<String, int> neededQty = const {},
+    int pageSize = 100,
+    int maxPages = 5,
+  }) async {
+    final result = <String, Map>{};
+    final covered = <String, int>{};
+    var cursor = endDate.toIso8601String();
+    final pages = neededQty.isEmpty ? 1 : maxPages;
+    for (var page = 0; page < pages; page++) {
+      final snap = await _ref
+          .orderByChild('date')
+          .endAt(cursor)
+          .limitToLast(pageSize)
+          .get();
+      final data = snap.value as Map? ?? {};
+      final batch = data.entries
+          .where((e) => e.value is Map)
+          .map((e) => MapEntry(e.key.toString(), Map.from(e.value as Map)))
+          .toList();
+      var added = 0;
+      String? oldest;
+      for (final e in batch) {
+        final m = e.value;
+        final d = m['date']?.toString();
+        if (d != null && (oldest == null || d.compareTo(oldest) < 0)) {
+          oldest = d;
+        }
+        final key = m['id']?.toString() ?? e.key;
+        if (result.containsKey(key)) continue;
+        result[key] = m;
+        added++;
+        if (m['type']?.toString().toLowerCase() == 'import') {
+          final pid = m['productId']?.toString();
+          final q = (m['quantity'] as num?)?.toInt() ?? 0;
+          if (pid != null && q > 0) covered[pid] = (covered[pid] ?? 0) + q;
+        }
+      }
+      if (batch.length < pageSize || added == 0 || oldest == null) break;
+      if (neededQty.isNotEmpty &&
+          neededQty.entries.every((e) => (covered[e.key] ?? 0) >= e.value)) {
+        break;
+      }
+      cursor = oldest;
+    }
+    return result.values.toList();
+  }
+
   // Lấy import transactions theo khoảng thời gian
   Stream<List<Map>> watchImportsByDateRange(
       DateTime startDate, DateTime endDate) {

@@ -6,8 +6,8 @@ Comprehensive Independent Live Reconciliation Suite.
 Directly reads raw OpenXML (.xlsx) files from DATA_IMPORT/ and performs live REST
 queries against Firebase Realtime Database (RTDB), asserting 100% zero-delta
 parity across:
-  1. Store 001 & Store 002 order counts (130 vs 1,877)
-  2. Net revenue calculations (all-time and September 2026)
+  1. Store 001 & Store 002 order counts (132 vs 1,943)
+  2. Net revenue calculations (all-time, September 2026, October 2026)
   3. Store 001 & Store 002 product catalog & branch stocks
   4. Shared customers & total receivables debt
   5. Shared suppliers & total payables debt
@@ -138,7 +138,7 @@ class LiveReconciliationAuditor:
         # STEP 1: PARSE RAW EXCEL INVOICES FROM FIRST PRINCIPLES
         # -------------------------------------------------------------
         print("\n--- 1. PARSING RAW OPENXML INVOICE DATA ---")
-        invoices_file = os.path.join(DATA_IMPORT_DIR, 'DanhSachChiTietHoaDon_KV26092026-210027-980.xlsx')
+        invoices_file = os.path.join(DATA_IMPORT_DIR, 'DanhSachChiTietHoaDon_KV09102026-211131-415.xlsx')
         assert os.path.isfile(invoices_file), f"Missing {invoices_file}"
 
         rows_iter = raw_rows_generator(invoices_file)
@@ -201,14 +201,14 @@ class LiveReconciliationAuditor:
         print(f"  Raw OpenXML System Net Rev:    {raw_system_net_rev:,.2f} VNĐ (Sep: {raw_system_sep_rev:,.2f} VNĐ)")
 
         # Verify raw OpenXML against KiotViet known targets
-        self.assert_equal("Raw Excel Store 001 Orders Count", 130, raw_s001_count)
-        self.assert_equal("Raw Excel Store 002 Orders Count", 1877, raw_s002_count)
-        self.assert_close("Raw Excel Store 001 Net Revenue", 637735000.0, float(raw_s001_net_rev), unit=" VNĐ")
+        self.assert_equal("Raw Excel Store 001 Orders Count", 132, raw_s001_count)
+        self.assert_equal("Raw Excel Store 002 Orders Count", 1943, raw_s002_count)
+        self.assert_close("Raw Excel Store 001 Net Revenue", 639515000.0, float(raw_s001_net_rev), unit=" VNĐ")
         self.assert_close("Raw Excel Store 001 Sep Revenue", 19000000.0, float(raw_s001_sep_rev), unit=" VNĐ")
-        self.assert_close("Raw Excel Store 002 Net Revenue", 9712514200.0, float(raw_s002_net_rev), unit=" VNĐ")
-        self.assert_close("Raw Excel Store 002 Sep Revenue", 694385000.0, float(raw_s002_sep_rev), unit=" VNĐ")
-        self.assert_close("Raw Excel System Net Revenue", 10350249200.0, float(raw_system_net_rev), unit=" VNĐ")
-        self.assert_close("Raw Excel System Sep Revenue", 713385000.0, float(raw_system_sep_rev), unit=" VNĐ")
+        self.assert_close("Raw Excel Store 002 Net Revenue", 9931034200.0, float(raw_s002_net_rev), unit=" VNĐ")
+        self.assert_close("Raw Excel Store 002 Sep Revenue", 732735000.0, float(raw_s002_sep_rev), unit=" VNĐ")
+        self.assert_close("Raw Excel System Net Revenue", 10570549200.0, float(raw_system_net_rev), unit=" VNĐ")
+        self.assert_close("Raw Excel System Sep Revenue", 751735000.0, float(raw_system_sep_rev), unit=" VNĐ")
 
         # -------------------------------------------------------------
         # STEP 2: QUERY LIVE RTDB ORDERS & RECONCILE
@@ -250,8 +250,8 @@ class LiveReconciliationAuditor:
         # STEP 3: PARSE RAW EXCEL PRODUCTS & RECONCILE STOCKS
         # -------------------------------------------------------------
         print("\n--- 3. RECONCILING RAW EXCEL PRODUCTS & LIVE STOCKS ---")
-        p_dt_file = os.path.join(DATA_IMPORT_DIR, 'DanhSachSanPham_KV26092026-210308-937.xlsx')
-        p_tb_file = os.path.join(DATA_IMPORT_DIR, 'DanhSachSanPham_KV26092026-205802-806.xlsx')
+        p_dt_file = os.path.join(DATA_IMPORT_DIR, 'DanhSachSanPham_KV09102026-210142-227.xlsx')
+        p_tb_file = os.path.join(DATA_IMPORT_DIR, 'DanhSachSanPham_KV09102026-210851-400.xlsx')
 
         dt_p_rows = list(raw_rows_generator(p_dt_file))
         tb_p_rows = list(raw_rows_generator(p_tb_file))
@@ -280,17 +280,18 @@ class LiveReconciliationAuditor:
         raw_tb_items_gt0 = sum(1 for s in raw_tb_stock_map.values() if s > 0)
         raw_tb_stock_sum = sum(raw_tb_stock_map.values())
 
-        self.assert_equal("Raw Excel Store 001 Items with Stock > 0", 225, raw_dt_items_gt0)
-        self.assert_equal("Raw Excel Store 001 Total Stock Units", 396, raw_dt_stock_sum, unit=" units")
-        self.assert_equal("Raw Excel Store 002 Items with Stock > 0", 888, raw_tb_items_gt0)
-        self.assert_equal("Raw Excel Store 002 Total Stock Units", 118157, raw_tb_stock_sum, unit=" units")
+        self.assert_equal("Raw Excel Store 001 Items with Stock > 0", 227, raw_dt_items_gt0)
+        self.assert_equal("Raw Excel Store 001 Total Stock Units", 395, raw_dt_stock_sum, unit=" units")
+        self.assert_equal("Raw Excel Store 002 Items with Stock > 0", 882, raw_tb_items_gt0)
+        self.assert_equal("Raw Excel Store 002 Total Stock Units", 118037, raw_tb_stock_sum, unit=" units")
 
         # Fetch Live RTDB Products
         live_s001_prods = get_rtdb_node('stores/store_001/products')
         live_s002_prods = get_rtdb_node('stores/store_002/products')
 
-        self.assert_equal("Live RTDB Store 001 Product Catalog Count", 1832, len(live_s001_prods))
-        self.assert_equal("Live RTDB Store 002 Product Catalog Count", 1832, len(live_s002_prods))
+        expected_catalog_count = 1829
+        self.assert_equal("Live RTDB Store 001 Product Catalog Count", expected_catalog_count, len(live_s001_prods))
+        self.assert_equal("Live RTDB Store 002 Product Catalog Count", expected_catalog_count, len(live_s002_prods))
 
         live_dt_active = [p for p in live_s001_prods.values() if (p.get('branchStocks') or {}).get('store_001', 0) > 0]
         live_dt_stock = sum((p.get('branchStocks') or {}).get('store_001', 0) for p in live_s001_prods.values())
@@ -307,7 +308,7 @@ class LiveReconciliationAuditor:
         # STEP 4: RECONCILE CUSTOMERS & DEBT
         # -------------------------------------------------------------
         print("\n--- 4. RECONCILING CUSTOMERS & RECEIVABLES DEBT ---")
-        cust_file = os.path.join(DATA_IMPORT_DIR, 'DanhSachKhachHang_KV26092026-211128-685.xlsx')
+        cust_file = os.path.join(DATA_IMPORT_DIR, 'DanhSachKhachHang_KV09102026-211724-899.xlsx')
         c_rows = list(raw_rows_generator(cust_file))
         raw_cust_count = 0
         raw_cust_debt = Decimal(0)
@@ -319,22 +320,22 @@ class LiveReconciliationAuditor:
             debt = Decimal(r.get(30, '0') or '0')
             raw_cust_debt += debt
 
-        self.assert_equal("Raw Excel Customers Count", 6965, raw_cust_count)
-        self.assert_close("Raw Excel Customer Debt", 33518997744.0, float(raw_cust_debt), unit=" VNĐ")
+        self.assert_equal("Raw Excel Customers Count", 7007, raw_cust_count)
+        self.assert_close("Raw Excel Customer Debt", 33684023744.0, float(raw_cust_debt), unit=" VNĐ")
 
         live_customers = get_rtdb_node('shared_customers')
         live_c_count = len(live_customers)
         live_c_debt = sum(float(c.get('currentDebt', 0.0)) for c in live_customers.values())
 
         # Including synthetic walk-in stub (+1)
-        self.assert_equal("Live RTDB Shared Customers Count (+1 stub)", 6966, live_c_count)
+        self.assert_equal("Live RTDB Shared Customers Count (+1 stub)", 7008, live_c_count)
         self.assert_close("Live RTDB Total Customer Debt", float(raw_cust_debt), live_c_debt, unit=" VNĐ")
 
         # -------------------------------------------------------------
         # STEP 5: RECONCILE SUPPLIERS & DEBT
         # -------------------------------------------------------------
         print("\n--- 5. RECONCILING SUPPLIERS & PAYABLES DEBT ---")
-        supp_file = os.path.join(DATA_IMPORT_DIR, 'DanhSachNhaCungCap_KV26092026-205910-385.xlsx')
+        supp_file = os.path.join(DATA_IMPORT_DIR, 'DanhSachNhaCungCap_KV09102026-210945-177.xlsx')
         s_rows = list(raw_rows_generator(supp_file))
         raw_supp_count = 0
         raw_supp_debt = Decimal(0)
@@ -347,7 +348,7 @@ class LiveReconciliationAuditor:
             raw_supp_debt += debt
 
         self.assert_equal("Raw Excel Suppliers Count", 50, raw_supp_count)
-        self.assert_close("Raw Excel Supplier Debt", 23137736240.0, float(raw_supp_debt), unit=" VNĐ")
+        self.assert_close("Raw Excel Supplier Debt", 23259824240.0, float(raw_supp_debt), unit=" VNĐ")
 
         live_suppliers = get_rtdb_node('shared_suppliers')
         live_s_count = len(live_suppliers)
@@ -358,9 +359,57 @@ class LiveReconciliationAuditor:
         self.assert_close("Live RTDB Total Supplier Debt", float(raw_supp_debt), live_s_debt, unit=" VNĐ")
 
         # -------------------------------------------------------------
-        # STEP 6: VERIFY SYSTEM ACCOUNTS & STORE METADATA
+        # STEP 6: RECONCILE CUSTOMER RETURNS & REFUNDS
         # -------------------------------------------------------------
-        print("\n--- 6. VERIFYING SYSTEM ACCOUNTS & METADATA ---")
+        print("\n--- 6. RECONCILING CUSTOMER RETURNS & REFUNDS ---")
+        ret_file = os.path.join(DATA_IMPORT_DIR, 'DanhSachChiTietTraHang_KV09102026-211147-871.xlsx')
+        r_rows = list(raw_rows_generator(ret_file))
+        raw_ret_slips = {}
+        for r in r_rows[1:]:
+            code = r.get(1, '').strip()
+            if not code:
+                continue
+            if code not in raw_ret_slips:
+                raw_ret_slips[code] = {
+                    'code': code,
+                    'customerId': r.get(8, '').strip(),
+                    'customerName': r.get(9, '').strip(),
+                    'total': Decimal(r.get(16, '0') or r.get(14, '0') or '0'),
+                    'items': []
+                }
+            raw_ret_slips[code]['items'].append({
+                'productId': r.get(27, '').strip(),
+                'productName': r.get(29, '').strip(),
+                'quantity': int(float(r.get(33, '1') or '1')),
+                'price': Decimal(r.get(37, '0') or r.get(34, '0') or '0'),
+            })
+
+        raw_ret_count = len(raw_ret_slips)
+        raw_ret_total = sum(s['total'] for s in raw_ret_slips.values())
+        raw_ret_items_count = sum(len(s['items']) for s in raw_ret_slips.values())
+
+        self.assert_equal("Raw Excel Customer Return Slips Count", 2, raw_ret_count)
+        self.assert_equal("Raw Excel Customer Return Line Items Count", 2, raw_ret_items_count)
+        self.assert_close("Raw Excel Customer Returns Total Amount", 5300000.0, float(raw_ret_total), unit=" VNĐ")
+
+        # Fetch Live RTDB Customer Returns
+        live_returns = get_rtdb_node('stores/store_002/return_orders')
+        live_ret_count = len(live_returns) if isinstance(live_returns, dict) else 0
+        live_ret_total = sum(float(r.get('total', r.get('totalReturnAmount', 0.0))) for r in live_returns.values()) if isinstance(live_returns, dict) else 0.0
+
+        self.assert_equal("Live RTDB Store 002 Return Orders Count", raw_ret_count, live_ret_count)
+        self.assert_close("Live RTDB Store 002 Return Orders Total", float(raw_ret_total), live_ret_total, unit=" VNĐ")
+
+        if isinstance(live_returns, dict):
+            live_ret_prods = {item.get('productId') for r in live_returns.values() for item in r.get('items', [])}
+            live_ret_custs = {r.get('customerId') for r in live_returns.values()}
+            self.assert_equal("Live RTDB Customer Return Products Match Raw Excel", {'GD5', 'NDL24'}, live_ret_prods)
+            self.assert_equal("Live RTDB Customer Return Customers Match Raw Excel", {'KH004685', 'KH006010'}, live_ret_custs)
+
+        # -------------------------------------------------------------
+        # STEP 7: VERIFY SYSTEM ACCOUNTS & STORE METADATA
+        # -------------------------------------------------------------
+        print("\n--- 7. VERIFYING SYSTEM ACCOUNTS & METADATA ---")
         live_accounts = get_rtdb_node('stores/accounts')
         account_names = set(live_accounts.keys()) if isinstance(live_accounts, dict) else set()
         expected_accounts = {'admin1', 'admin2', 'nhanvien1', 'nhanvien2', 'supervisor'}
@@ -368,9 +417,9 @@ class LiveReconciliationAuditor:
         self.assert_equal("All Required Accounts Preserved", True, expected_accounts.issubset(account_names))
 
         # -------------------------------------------------------------
-        # STEP 7: VERIFY ABSENCE OF OBSOLETE/REDUNDANT NODES
+        # STEP 8: VERIFY ABSENCE OF OBSOLETE/REDUNDANT NODES
         # -------------------------------------------------------------
-        print("\n--- 7. VERIFYING ABSENCE OF OBSOLETE NODES ---")
+        print("\n--- 8. VERIFYING ABSENCE OF OBSOLETE NODES ---")
         obsolete_paths = [
             "stores/store_001/customers",
             "stores/store_001/categories",

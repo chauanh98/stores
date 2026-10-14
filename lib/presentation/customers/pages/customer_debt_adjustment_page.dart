@@ -132,9 +132,12 @@ class _CustomerDebtAdjustmentPageState
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      dateStr,
-                      style: const TextStyle(fontSize: 15),
+                    Flexible(
+                      child: Text(
+                        dateStr,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 15),
+                      ),
                     ),
                     const Icon(Icons.chevron_right,
                         color: AppColors.textSecondary),

@@ -1,3 +1,4 @@
+import 'package:stores/core/utils/initials.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,12 +6,13 @@ import 'package:stores/core/theme/app_colors.dart';
 import 'package:stores/core/utils/store_resolver_helper.dart';
 
 import '../../../application/auth/auth_providers.dart';
+import '../../../application/inventories/stock_transfer_providers.dart';
 import '../../../core/services/filter_storage_service.dart';
 import '../../attendance/pages/attendance_check_in_page.dart';
 import '../../attendance/pages/live_attendance_dashboard_page.dart';
 import '../../attendance/pages/shift_config_page.dart';
 import '../../customers/pages/customers_page.dart';
-import '../../inventories/pages/inter_store_transfer_page.dart';
+import '../../inventories/pages/stock_transfers_page.dart';
 import '../../inventories/pages/stock_in_receipts_page.dart';
 import '../../orders/pages/invoices_page.dart';
 import '../../products/pages/categories_management_page.dart';
@@ -83,7 +85,7 @@ class MorePage extends ConsumerWidget {
                         radius: 28,
                         backgroundColor: AppColors.primary,
                         child: Text(
-                          (user?.username ?? 'K').substring(0, 1).toUpperCase(),
+                          initialOf(user?.username, 'K'),
                           style: const TextStyle(
                             color: AppColors.white,
                             fontSize: 22,
@@ -173,10 +175,13 @@ class MorePage extends ConsumerWidget {
                                         ),
                                         const SizedBox(width: 4),
                                       ],
-                                      Text(
+                                      Flexible(
+                                          child: Text(
                                         (user?.isAdmin == true)
                                             ? 'Toàn bộ chi nhánh'
                                             : 'Chi nhánh: $userAssignedStoreName',
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
                                           color: (user?.isAdmin == true)
                                               ? AppColors.primary
@@ -186,7 +191,7 @@ class MorePage extends ConsumerWidget {
                                               ? FontWeight.bold
                                               : FontWeight.w500,
                                         ),
-                                      ),
+                                      )),
                                     ],
                                   ),
                                 ),
@@ -319,12 +324,16 @@ class MorePage extends ConsumerWidget {
                 _buildMenuTile(
                   icon: Icons.swap_horiz_outlined,
                   title: 'Chuyển kho',
+                  badgeCount: ref
+                          .watch(pendingIncomingTransferCountProvider)
+                          .valueOrNull ??
+                      0,
                   subtitle: 'Điều chuyển hàng hóa giữa các chi nhánh',
                   color: AppColors.chartIndigo,
                   onTap: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                          builder: (_) => const InterStoreTransferPage()),
+                          builder: (_) => const StockTransfersPage()),
                     );
                   },
                 ),
@@ -518,13 +527,17 @@ class MorePage extends ConsumerWidget {
             children: [
               Icon(headerIcon, size: 16, color: headerColor),
               const SizedBox(width: 8),
-              Text(
-                headerTitle,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                  color: AppColors.grey700,
-                  letterSpacing: 0.5,
+              Flexible(
+                child: Text(
+                  headerTitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                    color: AppColors.grey700,
+                    letterSpacing: 0.5,
+                  ),
                 ),
               ),
             ],
@@ -543,6 +556,7 @@ class MorePage extends ConsumerWidget {
     required Color color,
     required VoidCallback onTap,
     bool isDanger = false,
+    int badgeCount = 0,
   }) {
     return InkWell(
       onTap: onTap,
@@ -595,6 +609,23 @@ class MorePage extends ConsumerWidget {
                 ],
               ),
             ),
+            if (badgeCount > 0)
+              Container(
+                margin: const EdgeInsets.only(right: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.danger,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  badgeCount > 99 ? '99+' : '$badgeCount',
+                  key: const Key('more_transfer_pending_badge'),
+                  style: const TextStyle(
+                      color: AppColors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold),
+                ),
+              ),
             Icon(
               Icons.chevron_right,
               color: isDanger ? AppColors.danger : AppColors.grey400,
@@ -611,6 +642,7 @@ class MorePage extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (c) => AlertDialog(
+        scrollable: true,
         title: Text(l10n.logout),
         content: Text(l10n.confirmLogoutApp),
         actions: [
@@ -640,6 +672,7 @@ class MorePage extends ConsumerWidget {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
+          scrollable: true,
           title: const Text('Đổi Mật Khẩu',
               style: TextStyle(fontWeight: FontWeight.bold)),
           content: Form(

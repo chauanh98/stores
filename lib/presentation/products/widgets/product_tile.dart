@@ -1,3 +1,4 @@
+import 'package:stores/core/utils/initials.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -265,7 +266,7 @@ class ProductTile extends ConsumerWidget {
       final words =
           rest.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
       if (words.length >= 2) {
-        return words.map((w) => w[0].toUpperCase()).join();
+        return words.map((w) => initialOf(w)).join();
       } else if (rest.isNotEmpty && rest.length <= 3) {
         return rest.toUpperCase();
       }

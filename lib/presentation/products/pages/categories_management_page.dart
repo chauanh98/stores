@@ -94,6 +94,7 @@ class _CategoriesManagementPageState
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: null,
         key: const Key('fab_add_category'),
         backgroundColor: AppColors.primary,
         icon: const Icon(Icons.add, color: AppColors.white),
@@ -287,47 +288,55 @@ class _CategoriesManagementPageState
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          TextButton.icon(
-                            key: const Key('collapse_all_categories_button'),
-                            onPressed: _expandedCategoryIds.isEmpty
-                                ? null
-                                : () => setState(
-                                    () => _expandedCategoryIds.clear()),
-                            icon: const Icon(Icons.unfold_less, size: 15),
-                            label: const Text('Thu gọn',
-                                style: TextStyle(fontSize: 11.5)),
-                            style: TextButton.styleFrom(
-                              visualDensity: VisualDensity.compact,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              foregroundColor: _expandedCategoryIds.isEmpty
-                                  ? AppColors.grey400
-                                  : AppColors.primary,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 4, vertical: 2),
+                          Flexible(
+                            child: TextButton.icon(
+                              key: const Key('collapse_all_categories_button'),
+                              onPressed: _expandedCategoryIds.isEmpty
+                                  ? null
+                                  : () => setState(
+                                      () => _expandedCategoryIds.clear()),
+                              icon: const Icon(Icons.unfold_less, size: 15),
+                              label: const Text('Thu gọn',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(fontSize: 11.5)),
+                              style: TextButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                foregroundColor: _expandedCategoryIds.isEmpty
+                                    ? AppColors.grey400
+                                    : AppColors.primary,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 4, vertical: 2),
+                              ),
                             ),
                           ),
                           const SizedBox(width: 4),
-                          TextButton.icon(
-                            key: const Key('expand_all_categories_button'),
-                            onPressed: () {
-                              final parentIds = categories
-                                  .where((c) =>
-                                      c.parentId != null &&
-                                      c.parentId!.trim().isNotEmpty)
-                                  .map((c) => c.parentId!.trim())
-                                  .toSet();
-                              setState(
-                                  () => _expandedCategoryIds.addAll(parentIds));
-                            },
-                            icon: const Icon(Icons.unfold_more, size: 15),
-                            label: const Text('Mở rộng',
-                                style: TextStyle(fontSize: 11.5)),
-                            style: TextButton.styleFrom(
-                              visualDensity: VisualDensity.compact,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              foregroundColor: AppColors.primary,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 4, vertical: 2),
+                          Flexible(
+                            child: TextButton.icon(
+                              key: const Key('expand_all_categories_button'),
+                              onPressed: () {
+                                final parentIds = categories
+                                    .where((c) =>
+                                        c.parentId != null &&
+                                        c.parentId!.trim().isNotEmpty)
+                                    .map((c) => c.parentId!.trim())
+                                    .toSet();
+                                setState(() =>
+                                    _expandedCategoryIds.addAll(parentIds));
+                              },
+                              icon: const Icon(Icons.unfold_more, size: 15),
+                              label: const Text('Mở rộng',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(fontSize: 11.5)),
+                              style: TextButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                foregroundColor: AppColors.primary,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 4, vertical: 2),
+                              ),
                             ),
                           ),
                         ],
@@ -735,6 +744,7 @@ class _CategoriesManagementPageState
         return StatefulBuilder(
           builder: (ctx, setDialogState) {
             return AlertDialog(
+              scrollable: true,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16)),
               title: Row(
@@ -742,10 +752,16 @@ class _CategoriesManagementPageState
                   const Icon(Icons.create_new_folder_outlined,
                       color: AppColors.primary),
                   const SizedBox(width: 8),
-                  Text(
-                    selectedParent != null ? 'Thêm nhóm con' : 'Thêm nhóm hàng',
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 17),
+                  Expanded(
+                    child: Text(
+                      selectedParent != null
+                          ? 'Thêm nhóm con'
+                          : 'Thêm nhóm hàng',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 17),
+                    ),
                   ),
                 ],
               ),
@@ -927,15 +943,20 @@ class _CategoriesManagementPageState
         return StatefulBuilder(
           builder: (ctx, setDialogState) {
             return AlertDialog(
+              scrollable: true,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16)),
               title: const Row(
                 children: [
                   Icon(Icons.edit, color: AppColors.primary),
                   SizedBox(width: 8),
-                  Text('Sửa nhóm hàng',
-                      style:
-                          TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+                  Expanded(
+                    child: Text('Sửa nhóm hàng',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 17)),
+                  ),
                 ],
               ),
               content: SingleChildScrollView(
@@ -1135,6 +1156,7 @@ class _CategoriesManagementPageState
       context: context,
       builder: (dialogCtx) {
         return AlertDialog(
+          scrollable: true,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Row(
@@ -1146,11 +1168,17 @@ class _CategoriesManagementPageState
                 color: AppColors.danger,
               ),
               const SizedBox(width: 8),
-              const Text('Xóa nhóm hàng',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+              const Expanded(
+                child: Text('Xóa nhóm hàng',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style:
+                        TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+              ),
             ],
           ),
-          content: Column(
+          content: SingleChildScrollView(
+              child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1219,7 +1247,7 @@ class _CategoriesManagementPageState
                 ),
               ],
             ],
-          ),
+          )),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogCtx),

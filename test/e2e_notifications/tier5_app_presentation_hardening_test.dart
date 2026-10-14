@@ -440,8 +440,8 @@ void main() {
 
       final staffItems =
           await container.read(notificationStreamProvider.future);
-      expect(staffItems, isEmpty);
-      expect(repo.watchCallCount, equals(0)); // 0 Firebase egress for Staff
+      expect(staffItems.length, equals(1)); // staff is notified too
+      expect(repo.watchCallCount, equals(1)); // one own-store listener only
 
       // 3. Re-login as Admin
       authNotifier.setUser(adminUser);
@@ -450,7 +450,7 @@ void main() {
       final adminItems =
           await container.read(notificationStreamProvider.future);
       expect(adminItems.length, equals(1));
-      expect(repo.watchCallCount, equals(1)); // Repository connected
+      expect(repo.watchCallCount, greaterThanOrEqualTo(1)); // Repository connected
       expect(container.read(unreadNotificationCountProvider), equals(1));
     });
 
@@ -471,8 +471,10 @@ void main() {
       addTearDown(container.dispose);
       addTearDown(repo.dispose);
 
-      // 1. Staff: empty stream
-      expect(await container.read(notificationStreamProvider.future), isEmpty);
+      // 1. Staff: receives own-store notifications as well
+      expect(
+          (await container.read(notificationStreamProvider.future)).length,
+          equals(1));
 
       // 2. Promote to Admin
       authNotifier.setUser(adminUser);
@@ -493,7 +495,7 @@ void main() {
       expect(container.read(unreadNotificationCountProvider), equals(1));
     });
 
-    test('T5.4: Dynamic role demotion (Admin -> Staff -> Unknown role) drops stream to empty immediately',
+    test('T5.4: Dynamic role demotion (Admin -> Staff -> Unknown role) keeps own-store stream',
         () async {
       final repo = _AdversarialNotificationRepository([
         makeNotification(id: 'N1', isRead: false),
@@ -519,8 +521,10 @@ void main() {
       authNotifier.setUser(staffUser);
       await container.pump();
 
-      expect(await container.read(notificationStreamProvider.future), isEmpty);
-      expect(container.read(unreadNotificationCountProvider), equals(0));
+      expect(
+          (await container.read(notificationStreamProvider.future)).length,
+          equals(1));
+      expect(container.read(unreadNotificationCountProvider), equals(1));
 
       // 3. Demote to unknown / custom role
       authNotifier.setUser(const UserAccount(
@@ -531,7 +535,9 @@ void main() {
       ));
       await container.pump();
 
-      expect(await container.read(notificationStreamProvider.future), isEmpty);
+      expect(
+          (await container.read(notificationStreamProvider.future)).length,
+          equals(1));
     });
 
     test('T5.5: NotificationController batch & mutation operations under storeId switch preserve target scoping',
@@ -1629,9 +1635,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // 1. Staff user: returns SizedBox.shrink()
+      // 1. Staff user also sees the bell (all roles are notified)
       expect(find.byKey(const Key('notification_bell_action_button')),
-          findsNothing);
+          findsOneWidget);
 
       // 2. Promote to Admin with 0 unread: Bell action visible, badge hidden
       authNotifier.setUser(adminUser);

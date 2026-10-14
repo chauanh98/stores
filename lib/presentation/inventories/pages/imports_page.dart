@@ -1,3 +1,4 @@
+import '../../common/widgets/capped_scroll.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -78,105 +79,115 @@ class ImportsPage extends ConsumerWidget {
       body: Column(
         children: [
           // Date selector card (like revenue page)
-          Card(
-            margin: const EdgeInsets.all(16),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    filterMode == ImportFilterMode.range
-                        ? l10n.selectDateRange
-                        : l10n.selectDate,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
+          CappedScroll(
+              maxFraction: 0.45,
+              child: Card(
+                margin: const EdgeInsets.all(16),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: InkWell(
-                          onTap: () async {
-                            if (filterMode == ImportFilterMode.range) {
-                              final initialRange = DateTimeRange(
-                                  start: selectedRange.start,
-                                  end: selectedRange.end);
-                              final pickedRange = await showDateRangePicker(
-                                context: context,
-                                firstDate: DateTime(2020),
-                                lastDate: DateTime(2100),
-                                initialDateRange: initialRange,
-                              );
-                              if (pickedRange != null) {
-                                final start = DateTime(
-                                    pickedRange.start.year,
-                                    pickedRange.start.month,
-                                    pickedRange.start.day,
-                                    0,
-                                    0,
-                                    0);
-                                final end = DateTime(
-                                    pickedRange.end.year,
-                                    pickedRange.end.month,
-                                    pickedRange.end.day,
-                                    23,
-                                    59,
-                                    59,
-                                    999);
-                                ref
-                                    .read(selectedImportRangeProvider.notifier)
-                                    .state = TupleDateRange(start, end);
-                              }
-                            } else {
-                              final picked = await showDatePicker(
-                                context: context,
-                                initialDate: selectedDate,
-                                firstDate: DateTime(2020),
-                                lastDate: DateTime(2100),
-                              );
-                              if (picked != null) {
-                                ref
-                                    .read(selectedImportDateProvider.notifier)
-                                    .state = picked;
-                              }
-                            }
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                  color: Theme.of(context).colorScheme.outline),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  filterMode == ImportFilterMode.range
-                                      ? Icons.date_range
-                                      : Icons.calendar_today,
-                                  color: Theme.of(context).colorScheme.primary,
+                      Text(
+                        filterMode == ImportFilterMode.range
+                            ? l10n.selectDateRange
+                            : l10n.selectDate,
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
                                 ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  filterMode == ImportFilterMode.range
-                                      ? '${DateFormat('dd/MM/yyyy').format(selectedRange.start)} - ${DateFormat('dd/MM/yyyy').format(selectedRange.end)}'
-                                      : DateFormat('dd/MM/yyyy')
-                                          .format(selectedDate),
-                                  style: Theme.of(context).textTheme.bodyLarge,
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: InkWell(
+                              onTap: () async {
+                                if (filterMode == ImportFilterMode.range) {
+                                  final initialRange = DateTimeRange(
+                                      start: selectedRange.start,
+                                      end: selectedRange.end);
+                                  final pickedRange = await showDateRangePicker(
+                                    context: context,
+                                    firstDate: DateTime(2020),
+                                    lastDate: DateTime(2100),
+                                    initialDateRange: initialRange,
+                                  );
+                                  if (pickedRange != null) {
+                                    final start = DateTime(
+                                        pickedRange.start.year,
+                                        pickedRange.start.month,
+                                        pickedRange.start.day,
+                                        0,
+                                        0,
+                                        0);
+                                    final end = DateTime(
+                                        pickedRange.end.year,
+                                        pickedRange.end.month,
+                                        pickedRange.end.day,
+                                        23,
+                                        59,
+                                        59,
+                                        999);
+                                    ref
+                                        .read(selectedImportRangeProvider
+                                            .notifier)
+                                        .state = TupleDateRange(start, end);
+                                  }
+                                } else {
+                                  final picked = await showDatePicker(
+                                    context: context,
+                                    initialDate: selectedDate,
+                                    firstDate: DateTime(2020),
+                                    lastDate: DateTime(2100),
+                                  );
+                                  if (picked != null) {
+                                    ref
+                                        .read(
+                                            selectedImportDateProvider.notifier)
+                                        .state = picked;
+                                  }
+                                }
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .outline),
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
-                              ],
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      filterMode == ImportFilterMode.range
+                                          ? Icons.date_range
+                                          : Icons.calendar_today,
+                                      color:
+                                          Theme.of(context).colorScheme.primary,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Flexible(
+                                        child: Text(
+                                      filterMode == ImportFilterMode.range
+                                          ? '${DateFormat('dd/MM/yyyy').format(selectedRange.start)} - ${DateFormat('dd/MM/yyyy').format(selectedRange.end)}'
+                                          : DateFormat('dd/MM/yyyy')
+                                              .format(selectedDate),
+                                      style:
+                                          Theme.of(context).textTheme.bodyLarge,
+                                    )),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ),
                     ],
                   ),
-                ],
-              ),
-            ),
-          ),
+                ),
+              )),
           // Data list
           Expanded(
             child: importsAsync.when(
@@ -247,7 +258,9 @@ class _ImportListTile extends StatelessWidget {
             color: theme.colorScheme.onPrimaryContainer),
       ),
       title: Text(
-          product.name.isEmpty ? '#${tx.id.substring(0, 6)}' : product.name,
+          product.name.isEmpty
+              ? '#${tx.id.length > 6 ? tx.id.substring(0, 6) : tx.id}'
+              : product.name,
           style: theme.textTheme.titleMedium
               ?.copyWith(fontWeight: FontWeight.w600)),
       subtitle: Column(

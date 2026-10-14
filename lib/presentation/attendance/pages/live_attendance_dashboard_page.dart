@@ -1,3 +1,4 @@
+import 'package:stores/core/utils/initials.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -79,156 +80,181 @@ class _LiveAttendanceDashboardPageState
       ),
       body: Column(
         children: [
-          // Store Selector Bar (Admin can toggle / Supervisor locked)
-          Container(
-            color: AppColors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: Row(
-              children: [
-                const Icon(Icons.store, color: AppColors.primary, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: user?.role.toLowerCase().trim() == 'admin'
-                      ? DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: storeNames.containsKey(currentStoreId)
-                                ? currentStoreId
-                                : null,
-                            hint: Text(
-                              currentStoreName,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                            isExpanded: true,
-                            items: storeNames.entries.map((e) {
-                              return DropdownMenuItem(
-                                value: e.key,
-                                child: Text(
-                                  e.value,
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.textPrimary,
+          // Fixed chrome is bounded + scrollable so tiny screens / huge text
+          // always leave room for the list below.
+          ConstrainedBox(
+            constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.55),
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  // Store Selector Bar (Admin can toggle / Supervisor locked)
+                  Container(
+                    color: AppColors.white,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.store,
+                            color: AppColors.primary, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: user?.role.toLowerCase().trim() == 'admin'
+                              ? DropdownButtonHideUnderline(
+                                  child: DropdownButton<String>(
+                                    value:
+                                        storeNames.containsKey(currentStoreId)
+                                            ? currentStoreId
+                                            : null,
+                                    hint: Text(
+                                      currentStoreName,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    ),
+                                    isExpanded: true,
+                                    items: storeNames.entries.map((e) {
+                                      return DropdownMenuItem(
+                                        value: e.key,
+                                        child: Text(
+                                          e.value,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColors.textPrimary,
+                                          ),
+                                        ),
+                                      );
+                                    }).toList(),
+                                    onChanged: (newStore) {
+                                      if (newStore != null) {
+                                        ref
+                                            .read(
+                                                liveAttendanceDashboardProvider
+                                                    .notifier)
+                                            .changeStore(newStore);
+                                      }
+                                    },
+                                  ),
+                                )
+                              : Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.surfaceHighlight,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    currentStoreName,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: AppColors.primaryDark,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
+                                    ),
                                   ),
                                 ),
-                              );
-                            }).toList(),
-                            onChanged: (newStore) {
-                              if (newStore != null) {
-                                ref
-                                    .read(liveAttendanceDashboardProvider
-                                        .notifier)
-                                    .changeStore(newStore);
-                              }
-                            },
-                          ),
-                        )
-                      : Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: AppColors.surfaceHighlight,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            currentStoreName,
-                            style: const TextStyle(
-                              color: AppColors.primaryDark,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
-                            ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.refresh,
+                              color: AppColors.primary),
+                          tooltip: 'Tải lại',
+                          onPressed: () {
+                            ref
+                                .read(liveAttendanceDashboardProvider.notifier)
+                                .loadDashboard();
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+
+                  // KPI Cards Header
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _buildKpiCard(
+                            title: 'Đang làm việc',
+                            count: dashboardState.workingCount,
+                            color: AppColors.primary,
+                            icon: Icons.work,
+                            isSelected: _selectedFilterIndex == 1,
+                            onTap: () =>
+                                setState(() => _selectedFilterIndex = 1),
                           ),
                         ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.refresh, color: AppColors.primary),
-                  tooltip: 'Tải lại',
-                  onPressed: () {
-                    ref
-                        .read(liveAttendanceDashboardProvider.notifier)
-                        .loadDashboard();
-                  },
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _buildKpiCard(
+                            title: 'Đi muộn hôm nay',
+                            count: dashboardState.lateCount,
+                            color: AppColors.warning,
+                            icon: Icons.warning_amber_rounded,
+                            isSelected: _selectedFilterIndex == 2,
+                            onTap: () =>
+                                setState(() => _selectedFilterIndex = 2),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _buildKpiCard(
+                            title: 'Chưa đến',
+                            count: dashboardState.notArrivedCount,
+                            color: AppColors.danger,
+                            icon: Icons.person_off,
+                            isSelected: _selectedFilterIndex == 3,
+                            onTap: () =>
+                                setState(() => _selectedFilterIndex = 3),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _buildKpiCard(
+                            title: 'Đã hoàn tất',
+                            count: dashboardState.checkedOutCount,
+                            color: AppColors.success,
+                            icon: Icons.done_all,
+                            isSelected: _selectedFilterIndex == 4,
+                            onTap: () =>
+                                setState(() => _selectedFilterIndex = 4),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
 
-          // KPI Cards Header
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _buildKpiCard(
-                    title: 'Đang làm việc',
-                    count: dashboardState.workingCount,
-                    color: AppColors.primary,
-                    icon: Icons.work,
-                    isSelected: _selectedFilterIndex == 1,
-                    onTap: () => setState(() => _selectedFilterIndex = 1),
+                  // Filter chips
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      children: [
+                        _buildFilterChip(
+                            'Tất cả (${dashboardState.allRecords.length})', 0),
+                        const SizedBox(width: 8),
+                        _buildFilterChip(
+                            'Đang làm (${dashboardState.workingCount})', 1),
+                        const SizedBox(width: 8),
+                        _buildFilterChip(
+                            'Đi muộn (${dashboardState.lateCount})', 2),
+                        const SizedBox(width: 8),
+                        _buildFilterChip(
+                            'Chưa đến (${dashboardState.notArrivedCount})', 3),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildKpiCard(
-                    title: 'Đi muộn hôm nay',
-                    count: dashboardState.lateCount,
-                    color: AppColors.warning,
-                    icon: Icons.warning_amber_rounded,
-                    isSelected: _selectedFilterIndex == 2,
-                    onTap: () => setState(() => _selectedFilterIndex = 2),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildKpiCard(
-                    title: 'Chưa đến',
-                    count: dashboardState.notArrivedCount,
-                    color: AppColors.danger,
-                    icon: Icons.person_off,
-                    isSelected: _selectedFilterIndex == 3,
-                    onTap: () => setState(() => _selectedFilterIndex = 3),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildKpiCard(
-                    title: 'Đã hoàn tất',
-                    count: dashboardState.checkedOutCount,
-                    color: AppColors.success,
-                    icon: Icons.done_all,
-                    isSelected: _selectedFilterIndex == 4,
-                    onTap: () => setState(() => _selectedFilterIndex = 4),
-                  ),
-                ),
-              ],
+                  const SizedBox(height: 8),
+                ],
+              ),
             ),
           ),
-
-          // Filter chips
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                _buildFilterChip(
-                    'Tất cả (${dashboardState.allRecords.length})', 0),
-                const SizedBox(width: 8),
-                _buildFilterChip(
-                    'Đang làm (${dashboardState.workingCount})', 1),
-                const SizedBox(width: 8),
-                _buildFilterChip('Đi muộn (${dashboardState.lateCount})', 2),
-                const SizedBox(width: 8),
-                _buildFilterChip(
-                    'Chưa đến (${dashboardState.notArrivedCount})', 3),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
 
           // Main Content List
           Expanded(
@@ -419,9 +445,7 @@ class _LiveAttendanceDashboardPageState
                             radius: 16,
                             backgroundColor: AppColors.primary.withOpacity(0.1),
                             child: Text(
-                              r.userName.isNotEmpty
-                                  ? r.userName[0].toUpperCase()
-                                  : 'NV',
+                              initialOf(r.userName, 'NV'),
                               style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   color: AppColors.primary),
@@ -453,13 +477,17 @@ class _LiveAttendanceDashboardPageState
                       ),
                     ),
                     const SizedBox(width: 8),
-                    AttendanceStatusBadge(
-                      status: r.status,
-                      lateMinutes: r.lateMinutes,
-                      earlyLeaveMinutes: r.earlyLeaveMinutes,
-                      overtimeMinutes: r.overtimeMinutes,
-                      isGpsValid: r.isGpsValid,
-                      isWorking: r.isWorking,
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                          maxWidth: MediaQuery.sizeOf(context).width * 0.4),
+                      child: AttendanceStatusBadge(
+                        status: r.status,
+                        lateMinutes: r.lateMinutes,
+                        earlyLeaveMinutes: r.earlyLeaveMinutes,
+                        overtimeMinutes: r.overtimeMinutes,
+                        isGpsValid: r.isGpsValid,
+                        isWorking: r.isWorking,
+                      ),
                     ),
                   ],
                 ),
@@ -477,9 +505,12 @@ class _LiveAttendanceDashboardPageState
                         const Icon(Icons.login,
                             size: 16, color: AppColors.success),
                         const SizedBox(width: 4),
-                        Text('Vào: $inTimeStr',
-                            style: const TextStyle(
-                                fontSize: 13, fontWeight: FontWeight.w600)),
+                        Flexible(
+                          child: Text('Vào: $inTimeStr',
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  fontSize: 13, fontWeight: FontWeight.w600)),
+                        ),
                       ],
                     ),
                     Row(
@@ -488,9 +519,12 @@ class _LiveAttendanceDashboardPageState
                         const Icon(Icons.logout,
                             size: 16, color: AppColors.danger),
                         const SizedBox(width: 4),
-                        Text('Ra: $outTimeStr',
-                            style: const TextStyle(
-                                fontSize: 13, fontWeight: FontWeight.w600)),
+                        Flexible(
+                          child: Text('Ra: $outTimeStr',
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  fontSize: 13, fontWeight: FontWeight.w600)),
+                        ),
                       ],
                     ),
                     Row(
@@ -499,9 +533,12 @@ class _LiveAttendanceDashboardPageState
                         const Icon(Icons.timer_outlined,
                             size: 16, color: AppColors.primary),
                         const SizedBox(width: 4),
-                        Text('Tổng: ${r.totalWorkHours}h',
-                            style: const TextStyle(
-                                fontSize: 13, fontWeight: FontWeight.bold)),
+                        Flexible(
+                          child: Text('Tổng: ${r.totalWorkHours}h',
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  fontSize: 13, fontWeight: FontWeight.bold)),
+                        ),
                       ],
                     ),
                   ],

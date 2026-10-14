@@ -150,16 +150,25 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                       ? AppColors.textDisabled
                       : AppColors.primary,
                 ),
-                label: Text(
-                  l10n?.notificationsMarkAllAsRead ?? 'Đọc tất cả',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: unreadCount == 0
-                        ? AppColors.textDisabled
-                        : AppColors.primary,
-                  ),
-                ),
+                // Màn hình hẹp / chữ lớn: chỉ hiện icon để AppBar không tràn.
+                label: (MediaQuery.sizeOf(context).width < 400 ||
+                        MediaQuery.textScalerOf(context).scale(1) > 1.3 ||
+                        // width / text scale < 340: the labelled button no
+                        // longer fits next to the title (e.g. 412dp @ 1.3x).
+                        MediaQuery.sizeOf(context).width /
+                                MediaQuery.textScalerOf(context).scale(1) <
+                            340)
+                    ? const SizedBox.shrink()
+                    : Text(
+                        l10n?.notificationsMarkAllAsRead ?? 'Đọc tất cả',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: unreadCount == 0
+                              ? AppColors.textDisabled
+                              : AppColors.primary,
+                        ),
+                      ),
               ),
             ),
         ],
@@ -192,18 +201,21 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                     label: l10n?.notificationsFilterInventory ?? 'Kho hàng',
                     category: NotificationCategory.inventory,
                     icon: Icons.inventory_2_outlined,
-                    isSelected: selectedFilter == NotificationCategory.inventory,
+                    isSelected:
+                        selectedFilter == NotificationCategory.inventory,
                   ),
                   const SizedBox(width: 8),
                   _buildCategoryChip(
                     label: l10n?.notificationsFilterCustomers ?? 'Khách hàng',
                     category: NotificationCategory.customers,
                     icon: Icons.person_outline_rounded,
-                    isSelected: selectedFilter == NotificationCategory.customers,
+                    isSelected:
+                        selectedFilter == NotificationCategory.customers,
                   ),
                   if (hasOtherStores) ...[
                     const SizedBox(width: 12),
-                    Container(width: 1, height: 22, color: AppColors.borderLight),
+                    Container(
+                        width: 1, height: 22, color: AppColors.borderLight),
                     const SizedBox(width: 12),
                     FilterChip(
                       key: const Key('notification_chip_all_stores'),
@@ -295,7 +307,8 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            l10n?.notificationsEmpty ?? 'Không có thông báo nào',
+                            l10n?.notificationsEmpty ??
+                                'Không có thông báo nào',
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -532,8 +545,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
             ? Icon(
                 icon,
                 size: 16,
-                color:
-                    isSelected ? AppColors.primary : AppColors.textSecondary,
+                color: isSelected ? AppColors.primary : AppColors.textSecondary,
               )
             : null,
         label: Text(label),

@@ -46,15 +46,19 @@ class _PosCartTabBarState extends ConsumerState<PosCartTabBar> {
     final shouldClose = await showDialog<bool>(
       context: context,
       builder: (dialogCtx) => AlertDialog(
+        scrollable: true,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: Row(
           children: [
             const Icon(Icons.warning_amber_rounded,
                 color: AppColors.warning, size: 24),
             const SizedBox(width: 8),
-            Text(
-              l10n?.posCartTabCloseTitle ?? 'Đóng hóa đơn tạm?',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            Flexible(
+              child: Text(
+                l10n?.posCartTabCloseTitle ?? 'Đóng hóa đơn tạm?',
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
             ),
           ],
         ),
@@ -85,6 +89,9 @@ class _PosCartTabBarState extends ConsumerState<PosCartTabBar> {
       ),
     );
 
+    // The tab bar can be gone (page popped / branch switched) while the dialog
+    // was open: `ref` must not be touched then.
+    if (!mounted) return;
     if (shouldClose == true) {
       ref.read(multiCartProvider.notifier).closeTab(tab.id);
     }

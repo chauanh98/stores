@@ -33,7 +33,28 @@ class InterStoreTransferService {
         return 'Không thể chuyển cùng kho';
       }
 
-      final sourceCurrentStock = product.stockInBranch(sourceStoreId);
+      // Dùng mã chuẩn cho đường dẫn/khoá: alias (branch_1/branch_2) tạo nút
+      // chi nhánh không tồn tại.
+      sourceStoreId = normSource;
+      targetStoreId = normTarget;
+
+      // `product` có thể là bản chụp cũ (đã bán/nhập thêm sau đó): tồn nguồn
+      // lấy từ RTDB nếu có, nếu không mới dùng bản chụp.
+      var sourceBranchStocks = Map<String, int>.from(product.branchStocks);
+      var sourceCurrentStock = product.stockInBranch(sourceStoreId);
+      if (_db != null) {
+        final srcSnap = await _db
+            .ref('stores/$sourceStoreId/products/${product.id}/branchStocks')
+            .get();
+        if (srcSnap.exists && srcSnap.value is Map) {
+          final fresh = ProductModel.fromMap(
+            {'id': product.id, 'branchStocks': srcSnap.value},
+            sourceStoreId,
+          ).toEntity();
+          sourceBranchStocks = Map<String, int>.from(fresh.branchStocks);
+          sourceCurrentStock = fresh.stockInBranch(sourceStoreId);
+        }
+      }
       if (sourceCurrentStock < quantity) {
         return 'Không đủ số lượng trong kho';
       }
@@ -70,17 +91,16 @@ class InterStoreTransferService {
           final tModel = ProductModel.fromMap(tMap, targetStoreId);
           final snapTargetStock =
               tModel.toEntity().stockInBranch(targetStoreId);
-          if (snapTargetStock > targetCurrentStock) {
-            targetCurrentStock = snapTargetStock;
-          }
+          // RTDB là nguồn đúng (bản chụp có thể cũ hơn hoặc mới hơn).
+          targetCurrentStock = snapTargetStock;
         }
       }
 
-      final newSourceStock = (sourceCurrentStock - quantity).clamp(0, 999999);
+      final newSourceStock = sourceCurrentStock - quantity; // đã kiểm tra đủ tồn, không chặn trên
       final newTargetStock = targetCurrentStock + quantity;
 
       // Build unified, synchronized branchStocks for both stores
-      final updatedBranchStocks = Map<String, int>.from(product.branchStocks);
+      final updatedBranchStocks = Map<String, int>.from(sourceBranchStocks);
       updatedBranchStocks[sourceStoreId] = newSourceStock;
       updatedBranchStocks[targetStoreId] = newTargetStock;
       if (normSource.isNotEmpty) {

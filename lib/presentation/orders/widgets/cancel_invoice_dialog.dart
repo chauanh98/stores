@@ -139,7 +139,8 @@ class _CancelInvoiceDialogState extends ConsumerState<CancelInvoiceDialog> {
         constraints: const BoxConstraints(maxWidth: 460),
         child: Form(
           key: _formKey,
-          child: Column(
+          child: SingleChildScrollView(
+              child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -350,7 +351,7 @@ class _CancelInvoiceDialogState extends ConsumerState<CancelInvoiceDialog> {
                 ],
               ),
             ],
-          ),
+          )),
         ),
       ),
     );

@@ -34,7 +34,8 @@ class ImportDetailPage extends ConsumerWidget {
               children: [
                 Row(
                   children: [
-                    Container(
+                    Flexible(
+                        child: Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
@@ -46,7 +47,7 @@ class ImportDetailPage extends ConsumerWidget {
                           style: const TextStyle(
                               color: AppColors.success,
                               fontWeight: FontWeight.w600)),
-                    ),
+                    )),
                   ],
                 ),
                 const SizedBox(height: 16),

@@ -1,3 +1,4 @@
+import 'package:stores/core/utils/initials.dart';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -163,10 +164,9 @@ class ProductImageThumbnail extends StatelessWidget {
     final Color bgColor = _getPastelColor(categoryName ?? productName ?? '');
     final Color iconColor = _getDarkerTone(bgColor);
 
-    final String initialLetter =
-        (productName != null && productName!.trim().isNotEmpty)
-            ? productName!.trim().substring(0, 1).toUpperCase()
-            : '';
+    // initialOf() keeps surrogate pairs (emoji) intact: `substring(0, 1)`
+    // splits them and makes Text throw "string is not well-formed UTF-16".
+    final String initialLetter = initialOf(productName, '');
 
     return Container(
       width: size,

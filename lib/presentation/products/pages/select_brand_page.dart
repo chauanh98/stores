@@ -167,6 +167,7 @@ class _SelectBrandPageState extends ConsumerState<SelectBrandPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
+          scrollable: true,
           title: const Text('Thương hiệu mới'),
           content: TextField(
             controller: controller,

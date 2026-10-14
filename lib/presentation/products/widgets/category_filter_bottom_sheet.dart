@@ -152,361 +152,410 @@ class _CategoryFilterBottomSheetState
     final productsAsync = ref.watch(productListProvider);
     final isAllSelected = _selectedCategories.isEmpty;
 
+    // Very short screens (tiny phones / landscape): use the full height and
+    // drop optional chrome so the fixed header/search never overflow.
+    final screenH = MediaQuery.of(context).size.height;
+    final compact =
+        screenH < 420 || MediaQuery.textScalerOf(context).scale(1) > 1.6;
+    final sheetH = compact ? screenH : screenH * 0.85;
     return Container(
       width: double.infinity,
       constraints: BoxConstraints(
         maxWidth: MediaQuery.of(context).size.width,
-        maxHeight: MediaQuery.of(context).size.height * 0.85,
+        maxHeight: sheetH,
       ),
-      height: MediaQuery.of(context).size.height * 0.85,
+      height: sheetH,
       decoration: const BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      child: Column(
-        children: [
-          // Drag handle
-          Center(
-            child: Container(
-              margin: const EdgeInsets.only(top: 10, bottom: 6),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.grey300,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-
-          // Header
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Expanded(
-                  child: Row(
-                    children: [
-                      Icon(Icons.category, color: AppColors.primary, size: 22),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Chọn nhóm hàng',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Row(
-                  children: [
-                    // Quick Action Shortcut: Quản lý nhóm hàng
-                    TextButton.icon(
-                      key: const Key('manage_categories_button'),
-                      onPressed: () {
-                        Navigator.pop(context);
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const CategoriesManagementPage(),
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.settings_outlined, size: 16),
-                      label: const Text(
-                        'Quản lý',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      style: TextButton.styleFrom(
-                        foregroundColor: AppColors.primary,
-                        visualDensity: VisualDensity.compact,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    IconButton(
-                      icon: const Icon(Icons.close, color: AppColors.grey400),
-                      visualDensity: VisualDensity.compact,
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1, color: AppColors.divider),
-
-          // Search Bar
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: TextField(
-              key: const Key('category_search_field'),
-              controller: _searchCtrl,
-              decoration: InputDecoration(
-                hintText: 'Tìm kiếm nhóm hàng...',
-                prefixIcon: const Icon(Icons.search,
-                    size: 20, color: AppColors.grey400),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear,
-                            size: 18, color: AppColors.grey400),
-                        onPressed: () {
-                          _searchCtrl.clear();
-                          setState(() => _searchQuery = '');
-                        },
-                      )
-                    : null,
-                filled: true,
-                fillColor: AppColors.background,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: AppColors.borderLight),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: AppColors.primary),
-                ),
-              ),
-              onChanged: (v) => setState(() => _searchQuery = v.trim()),
-            ),
-          ),
-
-          // "Tất cả nhóm hàng" Option
-          if (_searchQuery.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-              child: InkWell(
-                key: const Key('category_item_all'),
-                onTap: () {
-                  setState(() {
-                    _selectedCategories.clear();
-                  });
-                  if (widget.onCategoriesSelected != null) {
-                    widget.onCategoriesSelected!(const <String>{});
-                  } else if (widget.onCategorySelected != null) {
-                    widget.onCategorySelected!('All');
-                  }
-                  Navigator.pop(context);
-                },
-                borderRadius: BorderRadius.circular(10),
+      child: _compactScroll(
+        compact: compact,
+        child: Column(
+          mainAxisSize: compact ? MainAxisSize.min : MainAxisSize.max,
+          children: [
+            // Drag handle
+            if (!compact)
+              Center(
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  margin: const EdgeInsets.only(top: 10, bottom: 6),
+                  width: 40,
+                  height: 4,
                   decoration: BoxDecoration(
-                    color: isAllSelected
-                        ? AppColors.primary.withOpacity(0.08)
-                        : AppColors.transparent,
-                    borderRadius: BorderRadius.circular(10),
-                    border: isAllSelected
-                        ? Border.all(color: AppColors.primary)
-                        : Border.all(color: AppColors.borderLight),
-                  ),
-                  child: Row(
-                    children: [
-                      Checkbox(
-                        key: const Key('checkbox_category_all'),
-                        value: isAllSelected,
-                        onChanged: (_) {
-                          setState(() {
-                            _selectedCategories.clear();
-                          });
-                          if (widget.onCategoriesSelected == null) {
-                            widget.onCategorySelected?.call('All');
-                            Navigator.pop(context);
-                          }
-                        },
-                        activeColor: AppColors.primary,
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        visualDensity: VisualDensity.compact,
-                      ),
-                      const SizedBox(width: 8),
-                      Icon(
-                        Icons.apps,
-                        size: 20,
-                        color: isAllSelected
-                            ? AppColors.primary
-                            : AppColors.textSecondary,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'Tất cả nhóm hàng',
-                          style: TextStyle(
-                            fontWeight: isAllSelected
-                                ? FontWeight.bold
-                                : FontWeight.w600,
-                            fontSize: 14,
-                            color: isAllSelected
-                                ? AppColors.primary
-                                : AppColors.textPrimary,
-                          ),
-                        ),
-                      ),
-                      if (isAllSelected)
-                        const Icon(Icons.check,
-                            color: AppColors.primary, size: 18),
-                    ],
+                    color: AppColors.grey300,
+                    borderRadius: BorderRadius.circular(2),
                   ),
                 ),
               ),
+
+            // Header
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Expanded(
+                    child: Row(
+                      children: [
+                        Icon(Icons.category,
+                            color: AppColors.primary, size: 22),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Chọn nhóm hàng',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textPrimary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      // Quick Action Shortcut: Quản lý nhóm hàng
+                      if (MediaQuery.sizeOf(context).width < 360)
+                        IconButton(
+                          key: const Key('manage_categories_button'),
+                          tooltip: 'Quản lý',
+                          visualDensity: VisualDensity.compact,
+                          onPressed: () {
+                            Navigator.pop(context);
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    const CategoriesManagementPage(),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.settings_outlined,
+                              size: 18, color: AppColors.primary),
+                        )
+                      else
+                        TextButton.icon(
+                          key: const Key('manage_categories_button'),
+                          onPressed: () {
+                            Navigator.pop(context);
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    const CategoriesManagementPage(),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.settings_outlined, size: 16),
+                          label: const Text(
+                            'Quản lý',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.primary,
+                            visualDensity: VisualDensity.compact,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                          ),
+                        ),
+                      const SizedBox(width: 4),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: AppColors.grey400),
+                        visualDensity: VisualDensity.compact,
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1, color: AppColors.divider),
+
+            // Search Bar
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: TextField(
+                key: const Key('category_search_field'),
+                controller: _searchCtrl,
+                decoration: InputDecoration(
+                  hintText: 'Tìm kiếm nhóm hàng...',
+                  prefixIcon: const Icon(Icons.search,
+                      size: 20, color: AppColors.grey400),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear,
+                              size: 18, color: AppColors.grey400),
+                          onPressed: () {
+                            _searchCtrl.clear();
+                            setState(() => _searchQuery = '');
+                          },
+                        )
+                      : null,
+                  filled: true,
+                  fillColor: AppColors.background,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: AppColors.borderLight),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: AppColors.primary),
+                  ),
+                ),
+                onChanged: (v) => setState(() => _searchQuery = v.trim()),
+              ),
             ),
 
-          const SizedBox(height: 6),
-          const Divider(height: 1, color: AppColors.dividerLight),
+            // "Tất cả nhóm hàng" Option
+            if (_searchQuery.isEmpty && !compact)
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+                child: InkWell(
+                  key: const Key('category_item_all'),
+                  onTap: () {
+                    setState(() {
+                      _selectedCategories.clear();
+                    });
+                    if (widget.onCategoriesSelected != null) {
+                      widget.onCategoriesSelected!(const <String>{});
+                    } else if (widget.onCategorySelected != null) {
+                      widget.onCategorySelected!('All');
+                    }
+                    Navigator.pop(context);
+                  },
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: isAllSelected
+                          ? AppColors.primary.withOpacity(0.08)
+                          : AppColors.transparent,
+                      borderRadius: BorderRadius.circular(10),
+                      border: isAllSelected
+                          ? Border.all(color: AppColors.primary)
+                          : Border.all(color: AppColors.borderLight),
+                    ),
+                    child: Row(
+                      children: [
+                        Checkbox(
+                          key: const Key('checkbox_category_all'),
+                          value: isAllSelected,
+                          onChanged: (_) {
+                            setState(() {
+                              _selectedCategories.clear();
+                            });
+                            if (widget.onCategoriesSelected == null) {
+                              widget.onCategorySelected?.call('All');
+                              Navigator.pop(context);
+                            }
+                          },
+                          activeColor: AppColors.primary,
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        const SizedBox(width: 8),
+                        Icon(
+                          Icons.apps,
+                          size: 20,
+                          color: isAllSelected
+                              ? AppColors.primary
+                              : AppColors.textSecondary,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Tất cả nhóm hàng',
+                            style: TextStyle(
+                              fontWeight: isAllSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.w600,
+                              fontSize: 14,
+                              color: isAllSelected
+                                  ? AppColors.primary
+                                  : AppColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                        if (isAllSelected)
+                          const Icon(Icons.check,
+                              color: AppColors.primary, size: 18),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
 
-          // Categories Tree / Flat Search List
-          Expanded(
-            child: Builder(
-              builder: (context) {
-                final rawCategories = categoriesAsync.valueOrNull ?? [];
-                final products = productsAsync.valueOrNull ?? [];
-                final categoryRepo = ref.watch(categoryRepositoryProvider);
+            const SizedBox(height: 6),
+            const Divider(height: 1, color: AppColors.dividerLight),
 
-                final categories = _getHarvestedCategories(
-                  rawCategories,
-                  products,
-                  categoryRepo,
-                );
+            // Categories Tree / Flat Search List
+            _listArea(
+              compact: compact,
+              child: Builder(
+                builder: (context) {
+                  final rawCategories = categoriesAsync.valueOrNull ?? [];
+                  final products = productsAsync.valueOrNull ?? [];
+                  final categoryRepo = ref.watch(categoryRepositoryProvider);
 
-                final productCountMap =
-                    _getProductCounts(rawCategories, products, categories);
-
-                if (categories.isEmpty) {
-                  if (categoriesAsync.isLoading) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  return const Center(
-                    child: Text('Chưa có nhóm hàng nào'),
+                  final categories = _getHarvestedCategories(
+                    rawCategories,
+                    products,
+                    categoryRepo,
                   );
-                }
 
-                // If searching, show filtered flat list
-                if (_searchQuery.isNotEmpty) {
-                  final qLower = _searchQuery.toLowerCase();
-                  final qNorm =
-                      VietnameseTextHelper.normalizeUnaccented(_searchQuery);
-                  final filtered = categories.where((c) {
-                    final nameLower = c.name.toLowerCase();
-                    final nameNorm =
-                        VietnameseTextHelper.normalizeUnaccented(c.name);
-                    return nameLower.contains(qLower) ||
-                        nameNorm.contains(qNorm);
-                  }).toList();
+                  final productCountMap =
+                      _getProductCounts(rawCategories, products, categories);
 
-                  if (filtered.isEmpty) {
+                  if (categories.isEmpty) {
+                    if (categoriesAsync.isLoading) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
                     return const Center(
-                      child: Text('Không tìm thấy nhóm hàng phù hợp',
-                          style: TextStyle(color: AppColors.textSecondary)),
+                      child: Text('Chưa có nhóm hàng nào'),
                     );
                   }
 
-                  return ListView.separated(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    itemCount: filtered.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 4),
-                    itemBuilder: (context, index) {
-                      final cat = filtered[index];
-                      final isSelected = _isCategorySelected(cat);
-                      final count = productCountMap[cat.id] ?? 0;
-                      final path = _buildCategoryPath(cat, categories);
+                  // If searching, show filtered flat list
+                  if (_searchQuery.isNotEmpty) {
+                    final qLower = _searchQuery.toLowerCase();
+                    final qNorm =
+                        VietnameseTextHelper.normalizeUnaccented(_searchQuery);
+                    final filtered = categories.where((c) {
+                      final nameLower = c.name.toLowerCase();
+                      final nameNorm =
+                          VietnameseTextHelper.normalizeUnaccented(c.name);
+                      return nameLower.contains(qLower) ||
+                          nameNorm.contains(qNorm);
+                    }).toList();
 
-                      return _buildCategoryTile(
-                        category: cat,
-                        isSelected: isSelected,
-                        productCount: count,
-                        subtitle: path,
-                        depth: 0,
-                        hasChildren: false,
-                        isExpanded: false,
-                        onToggleExpand: null,
+                    if (filtered.isEmpty) {
+                      return const Center(
+                        child: Text('Không tìm thấy nhóm hàng phù hợp',
+                            style: TextStyle(color: AppColors.textSecondary)),
                       );
-                    },
-                  );
-                }
+                    }
 
-                // Tree View - include roots, orphan categories, and cycle-breakers
-                final categoryMap = {for (final c in categories) c.id: c};
-                final reachableFromRoot = <String>{};
+                    return ListView.separated(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      itemCount: filtered.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 4),
+                      itemBuilder: (context, index) {
+                        final cat = filtered[index];
+                        final isSelected = _isCategorySelected(cat);
+                        final count = productCountMap[cat.id] ?? 0;
+                        final path = _buildCategoryPath(cat, categories);
 
-                final standardRoots = <Category>[];
-                for (final c in categories) {
-                  if (c.parentId == null ||
-                      c.parentId!.trim().isEmpty ||
-                      !categoryMap.containsKey(c.parentId!.trim())) {
-                    standardRoots.add(c);
+                        return _buildCategoryTile(
+                          category: cat,
+                          isSelected: isSelected,
+                          productCount: count,
+                          subtitle: path,
+                          depth: 0,
+                          hasChildren: false,
+                          isExpanded: false,
+                          onToggleExpand: null,
+                        );
+                      },
+                    );
                   }
-                }
 
-                void markReachable(String parentId) {
+                  // Tree View - include roots, orphan categories, and cycle-breakers
+                  final categoryMap = {for (final c in categories) c.id: c};
+                  final reachableFromRoot = <String>{};
+
+                  final standardRoots = <Category>[];
                   for (final c in categories) {
-                    if (c.parentId != null &&
-                        c.parentId!.trim() == parentId &&
-                        reachableFromRoot.add(c.id)) {
-                      markReachable(c.id);
+                    if (c.parentId == null ||
+                        c.parentId!.trim().isEmpty ||
+                        !categoryMap.containsKey(c.parentId!.trim())) {
+                      standardRoots.add(c);
                     }
                   }
-                }
 
-                for (final root in standardRoots) {
-                  reachableFromRoot.add(root.id);
-                  markReachable(root.id);
-                }
-
-                final cycleRoots = <Category>[];
-                for (final c in categories) {
-                  if (!reachableFromRoot.contains(c.id)) {
-                    cycleRoots.add(c);
+                  void markReachable(String parentId) {
+                    for (final c in categories) {
+                      if (c.parentId != null &&
+                          c.parentId!.trim() == parentId &&
+                          reachableFromRoot.add(c.id)) {
+                        markReachable(c.id);
+                      }
+                    }
                   }
-                }
-                final cycleRootIds = cycleRoots.map((e) => e.id).toSet();
 
-                final rootCategories = [...standardRoots, ...cycleRoots]..sort(
-                    (a, b) =>
+                  for (final root in standardRoots) {
+                    reachableFromRoot.add(root.id);
+                    markReachable(root.id);
+                  }
+
+                  final cycleRoots = <Category>[];
+                  for (final c in categories) {
+                    if (!reachableFromRoot.contains(c.id)) {
+                      cycleRoots.add(c);
+                    }
+                  }
+                  final cycleRootIds = cycleRoots.map((e) => e.id).toSet();
+
+                  final rootCategories = [...standardRoots, ...cycleRoots]
+                    ..sort((a, b) =>
                         a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
-                return Column(
-                  children: [
-                    _buildTreeToolbar(categories),
-                    const Divider(height: 1, color: AppColors.dividerLight),
-                    Expanded(
-                      child: ListView.builder(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 6),
-                        itemCount: rootCategories.length,
-                        itemBuilder: (context, index) {
-                          final root = rootCategories[index];
-                          return _buildTreeNode(
-                            node: root,
-                            allCategories: categories,
-                            productCountMap: productCountMap,
-                            depth: 0,
-                            cycleRootIds: cycleRootIds,
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                );
-              },
+                  return LayoutBuilder(builder: (context, constraints) {
+                    // Khi sheet quá thấp (chữ lớn / màn hình nhỏ) ẩn thanh công cụ
+                    // để danh sách nhóm hàng vẫn còn chỗ hiển thị, không tràn.
+                    final showToolbar = constraints.maxHeight >= 160;
+                    return Column(
+                      children: [
+                        if (showToolbar) ...[
+                          _buildTreeToolbar(categories),
+                          const Divider(
+                              height: 1, color: AppColors.dividerLight),
+                        ],
+                        Expanded(
+                          child: ListView.builder(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 6),
+                            itemCount: rootCategories.length,
+                            itemBuilder: (context, index) {
+                              final root = rootCategories[index];
+                              return _buildTreeNode(
+                                node: root,
+                                allCategories: categories,
+                                productCountMap: productCountMap,
+                                depth: 0,
+                                cycleRootIds: cycleRootIds,
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    );
+                  });
+                },
+              ),
             ),
-          ),
-          _buildFooter(context),
-        ],
+            _buildFooter(context),
+          ],
+        ),
       ),
     );
   }
+
+  /// On very short screens the whole sheet scrolls instead of overflowing.
+  Widget _compactScroll({required bool compact, required Widget child}) =>
+      compact ? SingleChildScrollView(child: child) : child;
+
+  Widget _listArea({required bool compact, required Widget child}) =>
+      compact ? SizedBox(height: 260, child: child) : Expanded(child: child);
 
   Widget _buildTreeToolbar(List<Category> categories) {
     final parentIds = categories

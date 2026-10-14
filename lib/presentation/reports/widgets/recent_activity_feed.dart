@@ -57,12 +57,16 @@ class RecentActivityFeed extends ConsumerWidget {
                 ),
               ),
               const SizedBox(width: 6),
-              const Text(
-                'Giao dịch gần đây',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
+              const Flexible(
+                child: Text(
+                  'Giao dịch gần đây',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
               ),
             ],
@@ -158,6 +162,7 @@ class RecentActivityFeed extends ConsumerWidget {
                   Row(
                     children: [
                       Flexible(
+                        flex: 2,
                         child: Text(
                           '#$shortOrderId',
                           overflow: TextOverflow.ellipsis,
@@ -169,11 +174,15 @@ class RecentActivityFeed extends ConsumerWidget {
                         ),
                       ),
                       const SizedBox(width: 4),
-                      Text(
-                        '• $timeStr',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: AppColors.textTertiary,
+                      Flexible(
+                        child: Text(
+                          '• $timeStr',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textTertiary,
+                          ),
                         ),
                       ),
                     ],
@@ -194,20 +203,30 @@ class RecentActivityFeed extends ConsumerWidget {
             ),
 
             // Amount & Status Badge
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  '${format.format(order.total)} đ',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
-                  ),
+            const SizedBox(width: 8),
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                  maxWidth: (MediaQuery.sizeOf(context).width * 0.3)
+                      .clamp(56.0, 130.0)),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerRight,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      '${format.format(order.total)} đ',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    _buildStatusBadge(order.status),
+                  ],
                 ),
-                const SizedBox(height: 3),
-                _buildStatusBadge(order.status),
-              ],
+              ),
             ),
           ],
         );

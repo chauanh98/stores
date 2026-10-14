@@ -115,7 +115,40 @@ class _CancelStockInReceiptDialogState
 
   @override
   Widget build(BuildContext context) {
+    // Very short viewports: move the buttons into the scrollable body so the
+    // dialog can never overflow.
+    final compact = MediaQuery.sizeOf(context).height < 520;
+    final formBody = _formBody();
+    final actionWidgets = <Widget>[
+      TextButton(
+        key: const Key('btn_cancel_dialog_close'),
+        onPressed: _isLoading ? null : () => Navigator.of(context).pop(false),
+        child: const Text('Đóng'),
+      ),
+      ElevatedButton(
+        key: const Key('btn_confirm_cancel'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.danger,
+          foregroundColor: AppColors.white,
+        ),
+        onPressed: _isLoading ? null : _submit,
+        child: _isLoading
+            ? const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColors.white,
+                ),
+              )
+            : const Text(
+                'Xác nhận hủy',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+      ),
+    ];
     return AlertDialog(
+      scrollable: true,
       key: const Key('cancel_receipt_dialog'),
       title: const Row(
         children: [
@@ -129,68 +162,51 @@ class _CancelStockInReceiptDialogState
           ),
         ],
       ),
-      content: Form(
-        key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Hủy phiếu nhập sẽ tự động hoàn trả số lượng tồn kho và công nợ nhà cung cấp.',
-              style: TextStyle(fontSize: 13, color: AppColors.textPrimary),
-            ),
-            const SizedBox(height: 12),
-            KeyedSubtree(
-              key: const Key('cancel_reason_input'),
-              child: TextFormField(
-                key: const Key('input_cancel_reason'),
-                controller: _reasonController,
-                maxLines: 2,
-                decoration: const InputDecoration(
-                  labelText: 'Lý do hủy phiếu *',
-                  hintText: 'Nhập lý do hủy phiếu (bắt buộc)...',
-                  border: OutlineInputBorder(),
-                  isDense: true,
-                ),
-                validator: (val) {
-                  if (val == null || val.trim().isEmpty) {
-                    return 'Vui lòng nhập lý do hủy';
-                  }
-                  return null;
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          key: const Key('btn_cancel_dialog_close'),
-          onPressed: _isLoading ? null : () => Navigator.of(context).pop(false),
-          child: const Text('Đóng'),
-        ),
-        ElevatedButton(
-          key: const Key('btn_confirm_cancel'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.danger,
-            foregroundColor: AppColors.white,
+      content: compact
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [formBody, const SizedBox(height: 8), ...actionWidgets],
+            )
+          : formBody,
+      actions: compact ? null : actionWidgets,
+    );
+  }
+
+  Widget _formBody() {
+    return Form(
+      key: _formKey,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Hủy phiếu nhập sẽ tự động hoàn trả số lượng tồn kho và công nợ nhà cung cấp.',
+            style: TextStyle(fontSize: 13, color: AppColors.textPrimary),
           ),
-          onPressed: _isLoading ? null : _submit,
-          child: _isLoading
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: AppColors.white,
-                  ),
-                )
-              : const Text(
-                  'Xác nhận hủy',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-        ),
-      ],
+          const SizedBox(height: 12),
+          KeyedSubtree(
+            key: const Key('cancel_reason_input'),
+            child: TextFormField(
+              key: const Key('input_cancel_reason'),
+              controller: _reasonController,
+              maxLines: 2,
+              decoration: const InputDecoration(
+                labelText: 'Lý do hủy phiếu *',
+                hintText: 'Nhập lý do hủy phiếu (bắt buộc)...',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              validator: (val) {
+                if (val == null || val.trim().isEmpty) {
+                  return 'Vui lòng nhập lý do hủy';
+                }
+                return null;
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -14,7 +14,9 @@ import '../../../domain/repositories/inventory_repository.dart';
 import '../../../domain/repositories/product_repository.dart';
 import '../../../domain/repositories/stock_in_receipt_repository.dart';
 import '../../../domain/repositories/supplier_repository.dart';
+import '../../../core/utils/store_resolver_helper.dart';
 import '../../notifications/notification_dispatcher.dart';
+import 'stock_in_store_sync.dart';
 
 /// Use case that completes a stock-in receipt using an atomic multi-path update.
 ///
@@ -54,8 +56,10 @@ class CompleteStockInReceiptUseCase {
   }) async {
     final now = DateTime.now();
 
+    // Mã chuẩn (store_001/store_002/...): alias branch_1/branch_2 sẽ ghi phiếu,
+    // giao dịch kho và thông báo vào nút chi nhánh không tồn tại.
     final effectiveStoreId = receipt.storeId?.trim().isNotEmpty == true
-        ? receipt.storeId!.trim()
+        ? StoreResolverHelper.normalizeStoreId(receipt.storeId!.trim())
         : 'store_001';
 
     final effectiveId = receipt.id.trim().isNotEmpty
@@ -71,6 +75,11 @@ class CompleteStockInReceiptUseCase {
       importCode: effectiveImportCode,
       storeId: effectiveStoreId,
       status: 'completed',
+      // Tiền trả không vượt phần phải trả (trả dư không được lưu vào phiếu).
+      paidAmount: receipt.paidAmount == null
+          ? null
+          : receipt.paidAmount!
+              .clamp(0.0, receipt.effectiveNetPayable.clamp(0.0, double.infinity)),
       createdAt: receipt.createdAt ?? now,
       updatedAt: now,
     );
@@ -160,19 +169,17 @@ class CompleteStockInReceiptUseCase {
       );
       updatedProducts.add(updatedProduct);
 
-      final targetStoreIds = <String>{
-        effectiveStoreId,
-        'store_001',
-        'branch_1',
-        'store_002',
-        'branch_2',
-      };
-
-      for (final sId in targetStoreIds) {
-        updates['stores/$sId/products/${product.id}/branchStocks'] =
-            updatedBranchStocks;
-        updates['stores/$sId/products/${product.id}/costPrice'] = newCost;
-      }
+      final targets =
+          await storesToSyncProduct(_db, effectiveStoreId, product.id);
+      writeProductStockUpdates(
+        updates,
+        targets: targets,
+        productId: product.id,
+        storeId: effectiveStoreId,
+        newStock: newBranchStock,
+        fullBranchStocks: updatedBranchStocks,
+        costPrice: newCost,
+      );
     }
 
     // 2. Inventory Transactions
@@ -262,7 +269,22 @@ class CompleteStockInReceiptUseCase {
 
     // 5. Execute Atomic Multi-Path Update if Firebase Database is present
     if (_db != null) {
-      await _db.ref().update(updates);
+      // Chặn hoàn thành trùng (bấm đúp / 2 thiết bị) cộng kho 2 lần.
+      final claim = await ReceiptStatusClaim.acquire(
+        _db,
+        'stores/$effectiveStoreId/stock_in_receipts/${completedReceipt.id}/status',
+        to: 'completed',
+        blocked: const {'completed', 'cancelled', 'Đã hủy'},
+      );
+      if (claim == null) {
+        throw StateError('Receipt ${completedReceipt.id} is already processed');
+      }
+      try {
+        await _db.ref().update(updates);
+      } catch (_) {
+        await claim.release();
+        rethrow;
+      }
     }
 
     // Synchronize local repository state for cached/in-memory consistency

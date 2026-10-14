@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../common/utils/route_utils.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -97,6 +98,7 @@ class _StockInReceiptsPageState extends ConsumerState<StockInReceiptsPage> {
     final result = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
+        scrollable: true,
         title: const Text('Xác nhận xóa'),
         content: const Text('Xóa phiếu tạm này?'),
         actions: [
@@ -353,14 +355,17 @@ class _StockInReceiptsPageState extends ConsumerState<StockInReceiptsPage> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
+                          Flexible(
+                              child: Text(
                             '${receipts.length} phiếu nhập',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
                               color: AppColors.textSecondary,
                             ),
-                          ),
+                          )),
                           if (canViewCostPrice) ...[
                             const SizedBox(width: 8),
                             Flexible(
@@ -565,7 +570,7 @@ class _StockInReceiptsPageState extends ConsumerState<StockInReceiptsPage> {
       ),
       builder: (ctx) {
         return SafeArea(
-          child: Padding(
+          child: SingleChildScrollView(child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -591,8 +596,8 @@ class _StockInReceiptsPageState extends ConsumerState<StockInReceiptsPage> {
                       ? const Icon(Icons.check, color: AppColors.primary)
                       : null,
                   onTap: () {
-                    notifier.setTimeRange(OverviewTimeRange.today);
-                    Navigator.of(ctx).pop();
+                    if (!closeRoute(ctx)) return;
+                    ref.read(stockInReceiptsFilterProvider.notifier).setTimeRange(OverviewTimeRange.today);
                   },
                 ),
                 ListTile(
@@ -602,8 +607,8 @@ class _StockInReceiptsPageState extends ConsumerState<StockInReceiptsPage> {
                       ? const Icon(Icons.check, color: AppColors.primary)
                       : null,
                   onTap: () {
-                    notifier.setTimeRange(OverviewTimeRange.yesterday);
-                    Navigator.of(ctx).pop();
+                    if (!closeRoute(ctx)) return;
+                    ref.read(stockInReceiptsFilterProvider.notifier).setTimeRange(OverviewTimeRange.yesterday);
                   },
                 ),
                 ListTile(
@@ -613,8 +618,8 @@ class _StockInReceiptsPageState extends ConsumerState<StockInReceiptsPage> {
                       ? const Icon(Icons.check, color: AppColors.primary)
                       : null,
                   onTap: () {
-                    notifier.setTimeRange(OverviewTimeRange.last7Days);
-                    Navigator.of(ctx).pop();
+                    if (!closeRoute(ctx)) return;
+                    ref.read(stockInReceiptsFilterProvider.notifier).setTimeRange(OverviewTimeRange.last7Days);
                   },
                 ),
                 ListTile(
@@ -624,8 +629,8 @@ class _StockInReceiptsPageState extends ConsumerState<StockInReceiptsPage> {
                       ? const Icon(Icons.check, color: AppColors.primary)
                       : null,
                   onTap: () {
-                    notifier.setTimeRange(OverviewTimeRange.thisMonth);
-                    Navigator.of(ctx).pop();
+                    if (!closeRoute(ctx)) return;
+                    ref.read(stockInReceiptsFilterProvider.notifier).setTimeRange(OverviewTimeRange.thisMonth);
                   },
                 ),
                 ListTile(
@@ -635,7 +640,7 @@ class _StockInReceiptsPageState extends ConsumerState<StockInReceiptsPage> {
                       ? const Icon(Icons.check, color: AppColors.primary)
                       : null,
                   onTap: () async {
-                    Navigator.of(ctx).pop();
+                    if (!closeRoute(ctx)) return;
                     final initial = filter.customDateRange ??
                         DateTimeRange(
                           start:
@@ -661,13 +666,13 @@ class _StockInReceiptsPageState extends ConsumerState<StockInReceiptsPage> {
                       },
                     );
                     if (picked != null) {
-                      notifier.setCustomDateRange(picked);
+                      ref.read(stockInReceiptsFilterProvider.notifier).setCustomDateRange(picked);
                     }
                   },
                 ),
               ],
             ),
-          ),
+          )),
         );
       },
     );
@@ -805,8 +810,8 @@ class _StockInReceiptsPageState extends ConsumerState<StockInReceiptsPage> {
                                     color: AppColors.primary)
                                 : null,
                             onTap: () {
-                              notifier.setSupplier(null);
-                              Navigator.of(ctx).pop();
+                              if (!closeRoute(ctx)) return;
+                              ref.read(stockInReceiptsFilterProvider.notifier).setSupplier(null);
                             },
                           ),
                           const Divider(height: 1, indent: 16, endIndent: 16),
@@ -826,8 +831,8 @@ class _StockInReceiptsPageState extends ConsumerState<StockInReceiptsPage> {
                                       color: AppColors.primary)
                                   : null,
                               onTap: () {
-                                notifier.setSupplier(s.id);
-                                Navigator.of(ctx).pop();
+                                if (!closeRoute(ctx)) return;
+                                ref.read(stockInReceiptsFilterProvider.notifier).setSupplier(s.id);
                               },
                             );
                           }),
@@ -909,7 +914,7 @@ class _StockInReceiptsPageState extends ConsumerState<StockInReceiptsPage> {
       ),
       builder: (ctx) {
         return SafeArea(
-          child: Padding(
+          child: SingleChildScrollView(child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -935,8 +940,8 @@ class _StockInReceiptsPageState extends ConsumerState<StockInReceiptsPage> {
                       ? const Icon(Icons.check, color: AppColors.primary)
                       : null,
                   onTap: () {
-                    notifier.setStore('all');
-                    Navigator.of(ctx).pop();
+                    if (!closeRoute(ctx)) return;
+                    ref.read(stockInReceiptsFilterProvider.notifier).setStore('all');
                   },
                 ),
                 ListTile(
@@ -947,8 +952,8 @@ class _StockInReceiptsPageState extends ConsumerState<StockInReceiptsPage> {
                       ? const Icon(Icons.check, color: AppColors.primary)
                       : null,
                   onTap: () {
-                    notifier.setStore('store_001');
-                    Navigator.of(ctx).pop();
+                    if (!closeRoute(ctx)) return;
+                    ref.read(stockInReceiptsFilterProvider.notifier).setStore('store_001');
                   },
                 ),
                 ListTile(
@@ -959,13 +964,13 @@ class _StockInReceiptsPageState extends ConsumerState<StockInReceiptsPage> {
                       ? const Icon(Icons.check, color: AppColors.primary)
                       : null,
                   onTap: () {
-                    notifier.setStore('store_002');
-                    Navigator.of(ctx).pop();
+                    if (!closeRoute(ctx)) return;
+                    ref.read(stockInReceiptsFilterProvider.notifier).setStore('store_002');
                   },
                 ),
               ],
             ),
-          ),
+          )),
         );
       },
     );
@@ -1114,7 +1119,7 @@ class _StockInReceiptsPageState extends ConsumerState<StockInReceiptsPage> {
                 label: const Text('Đặt lại bộ lọc'),
                 onPressed: () {
                   _searchController.clear();
-                  notifier.resetFilters();
+                  ref.read(stockInReceiptsFilterProvider.notifier).resetFilters();
                   setState(() {});
                 },
               ),

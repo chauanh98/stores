@@ -1,3 +1,4 @@
+import '../../common/widgets/capped_scroll.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -173,192 +174,219 @@ class StockInReceiptDetailBottomSheet extends ConsumerWidget {
 
             // ── Scrollable Body ──
             Expanded(
-              child: ListView(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                children: [
-                  // 1. General Info Card
-                  _buildGeneralInfoCard(
-                      effectiveReceipt, matchedSupplier, dateFormat),
-
-                  const SizedBox(height: 16),
-
-                  // 2. Items Breakdown Table/List
-                  _buildItemsSection(
-                      effectiveReceipt, canViewCostPrice, currencyFormat),
-
-                  const SizedBox(height: 16),
-
-                  // 3. Financial Summary Card
-                  _buildFinancialSummaryCard(
-                      effectiveReceipt, canViewCostPrice, currencyFormat),
-
-                  const SizedBox(height: 16),
-
-                  // 4. Note Card (if note exists)
-                  if (effectiveReceipt.note.isNotEmpty) ...[
-                    _buildNoteCard(effectiveReceipt.note),
-                    const SizedBox(height: 16),
-                  ],
-                ],
-              ),
-            ),
-
-            // ── Bottom Action Buttons ──
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: const BoxDecoration(
-                color: AppColors.white,
-                border: Border(top: BorderSide(color: AppColors.dividerLight)),
-              ),
-              child: Row(
-                children: [
-                  // Cancel receipt button for Admin/Supervisor on completed receipts
-                  if (effectiveReceipt.isCompleted &&
-                      (user?.isAdmin == true ||
-                          user?.isSupervisor == true)) ...[
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        key: const Key('btn_cancel_receipt'),
-                        icon: const Icon(Icons.cancel_outlined,
-                            color: AppColors.danger, size: 18),
-                        label: const Text(
-                          'Hủy phiếu nhập',
-                          style: TextStyle(
-                            color: AppColors.danger,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(
-                              color: AppColors.danger, width: 1.2),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                        onPressed: () async {
-                          final cancelled =
-                              await CancelStockInReceiptDialog.show(
-                            context,
-                            receipt: effectiveReceipt!,
-                            storeId: effectiveReceipt.storeId,
-                          );
-                          if (cancelled == true && context.mounted) {
-                            Navigator.of(context).pop();
-                          }
-                        },
+              // Lazily built: a 300-line receipt used to build every row at once
+              // (shrink-wrapped ListView inside a ListView).
+              child: CustomScrollView(
+                slivers: [
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                    sliver: SliverToBoxAdapter(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // 1. General Info Card
+                          _buildGeneralInfoCard(
+                              effectiveReceipt, matchedSupplier, dateFormat),
+                          const SizedBox(height: 16),
+                          // 2. Items Breakdown Table/List
+                          _buildItemsHeader(effectiveReceipt),
+                          const SizedBox(height: 8),
+                        ],
                       ),
                     ),
-                    const SizedBox(width: 12),
-                  ],
-                  // Delete button for Admin on draft/cancelled receipts
-                  if ((effectiveReceipt.isDraft ||
-                          effectiveReceipt.isCancelled) &&
-                      user?.isAdmin == true) ...[
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        key: const Key('btn_delete_receipt'),
-                        icon: const Icon(Icons.delete_outline,
-                            color: AppColors.danger, size: 18),
-                        label: const Text(
-                          'Xóa phiếu',
-                          style: TextStyle(
-                            color: AppColors.danger,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(
-                              color: AppColors.danger, width: 1.2),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                        onPressed: () async {
-                          final confirm = await showDialog<bool>(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              title: const Text('Xác nhận xóa'),
-                              content: Text(
-                                effectiveReceipt!.isDraft
-                                    ? 'Xóa phiếu tạm này?'
-                                    : 'Xóa vĩnh viễn phiếu nhập này?',
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.of(ctx).pop(false),
-                                  child: const Text('Hủy'),
-                                ),
-                                ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppColors.danger),
-                                  onPressed: () => Navigator.of(ctx).pop(true),
-                                  child: const Text('Xóa',
-                                      style: TextStyle(color: AppColors.white)),
-                                ),
-                              ],
-                            ),
-                          );
-
-                          if (confirm == true &&
-                              context.mounted &&
-                              effectiveReceipt != null) {
-                            try {
-                              final targetReceipt = effectiveReceipt;
-                              final sId = targetReceipt.storeId ??
-                                  ref.read(currentStoreIdProvider) ??
-                                  'store_001';
-                              await ref
-                                  .read(deleteStockInReceiptUseCaseProvider)
-                                  .execute(
-                                    storeId: sId,
-                                    receipt: targetReceipt,
-                                  );
-                              if (!context.mounted) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content: Text('Đã xóa phiếu thành công')),
-                              );
-                              Navigator.of(context).pop();
-                            } catch (e) {
-                              if (!context.mounted) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Lỗi khi xóa: $e')),
-                              );
-                            }
-                          }
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                  ],
-                  // Close button
-                  Expanded(
-                    child: ElevatedButton(
-                      key: const Key('btn_close_detail'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: AppColors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 13),
-                      ),
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Text(
-                        'Đóng',
-                        style: TextStyle(
-                            fontSize: 15, fontWeight: FontWeight.bold),
+                  ),
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    sliver: _buildItemsSliver(
+                        effectiveReceipt, canViewCostPrice, currencyFormat),
+                  ),
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                    sliver: SliverToBoxAdapter(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // 3. Financial Summary Card
+                          _buildFinancialSummaryCard(effectiveReceipt,
+                              canViewCostPrice, currencyFormat),
+                          const SizedBox(height: 16),
+                          // 4. Note Card (if note exists)
+                          if (effectiveReceipt.note.isNotEmpty) ...[
+                            _buildNoteCard(effectiveReceipt.note),
+                            const SizedBox(height: 16),
+                          ],
+                        ],
                       ),
                     ),
                   ),
                 ],
               ),
             ),
+
+            // ── Bottom Action Buttons ──
+            CappedScroll(
+                maxFraction: 0.4,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: const BoxDecoration(
+                    color: AppColors.white,
+                    border:
+                        Border(top: BorderSide(color: AppColors.dividerLight)),
+                  ),
+                  child: Row(
+                    children: [
+                      // Cancel receipt button for Admin/Supervisor on completed receipts
+                      if (effectiveReceipt.isCompleted &&
+                          (user?.isAdmin == true ||
+                              user?.isSupervisor == true)) ...[
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            key: const Key('btn_cancel_receipt'),
+                            icon: const Icon(Icons.cancel_outlined,
+                                color: AppColors.danger, size: 18),
+                            label: const Text(
+                              'Hủy phiếu nhập',
+                              style: TextStyle(
+                                color: AppColors.danger,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(
+                                  color: AppColors.danger, width: 1.2),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            onPressed: () async {
+                              final cancelled =
+                                  await CancelStockInReceiptDialog.show(
+                                context,
+                                receipt: effectiveReceipt!,
+                                storeId: effectiveReceipt.storeId,
+                              );
+                              if (cancelled == true && context.mounted) {
+                                Navigator.of(context).pop();
+                              }
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                      ],
+                      // Delete button for Admin on draft/cancelled receipts
+                      if ((effectiveReceipt.isDraft ||
+                              effectiveReceipt.isCancelled) &&
+                          user?.isAdmin == true) ...[
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            key: const Key('btn_delete_receipt'),
+                            icon: const Icon(Icons.delete_outline,
+                                color: AppColors.danger, size: 18),
+                            label: const Text(
+                              'Xóa phiếu',
+                              style: TextStyle(
+                                color: AppColors.danger,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(
+                                  color: AppColors.danger, width: 1.2),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            onPressed: () async {
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  scrollable: true,
+                                  title: const Text('Xác nhận xóa'),
+                                  content: Text(
+                                    effectiveReceipt!.isDraft
+                                        ? 'Xóa phiếu tạm này?'
+                                        : 'Xóa vĩnh viễn phiếu nhập này?',
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.of(ctx).pop(false),
+                                      child: const Text('Hủy'),
+                                    ),
+                                    ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
+                                          backgroundColor: AppColors.danger),
+                                      onPressed: () =>
+                                          Navigator.of(ctx).pop(true),
+                                      child: const Text('Xóa',
+                                          style: TextStyle(
+                                              color: AppColors.white)),
+                                    ),
+                                  ],
+                                ),
+                              );
+
+                              if (confirm == true &&
+                                  context.mounted &&
+                                  effectiveReceipt != null) {
+                                try {
+                                  final targetReceipt = effectiveReceipt;
+                                  final sId = targetReceipt.storeId ??
+                                      ref.read(currentStoreIdProvider) ??
+                                      'store_001';
+                                  await ref
+                                      .read(deleteStockInReceiptUseCaseProvider)
+                                      .execute(
+                                        storeId: sId,
+                                        receipt: targetReceipt,
+                                      );
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content:
+                                            Text('Đã xóa phiếu thành công')),
+                                  );
+                                  Navigator.of(context).pop();
+                                } catch (e) {
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Lỗi khi xóa: $e')),
+                                  );
+                                }
+                              }
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                      ],
+                      // Close button
+                      Expanded(
+                        child: ElevatedButton(
+                          key: const Key('btn_close_detail'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: AppColors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 13),
+                          ),
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text(
+                            'Đóng',
+                            style: TextStyle(
+                                fontSize: 15, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )),
           ],
         ),
       ),
@@ -409,7 +437,9 @@ class StockInReceiptDetailBottomSheet extends ConsumerWidget {
                 ),
               ),
               const SizedBox(width: 6),
-              StockInReceiptStatusBadge(status: receipt.status),
+              Flexible(
+                child: StockInReceiptStatusBadge(status: receipt.status),
+              ),
               const SizedBox(width: 6),
               Flexible(
                 child: StoreBadge(storeId: receipt.storeId),
@@ -506,9 +536,12 @@ class StockInReceiptDetailBottomSheet extends ConsumerWidget {
       children: [
         Icon(icon, size: 14, color: AppColors.textSecondary),
         const SizedBox(width: 6),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+        Flexible(
+          child: Text(
+            label,
+            style:
+                const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          ),
         ),
         const SizedBox(width: 6),
         Expanded(
@@ -527,129 +560,112 @@ class StockInReceiptDetailBottomSheet extends ConsumerWidget {
   }
 
   // ── Items Breakdown Section ──
-  Widget _buildItemsSection(
+  Widget _buildItemsHeader(StockInReceipt receipt) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Flexible(
+          child: Text(
+            'Danh sách sản phẩm (${receipt.itemCount})',
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            'Tổng ${receipt.totalQuantity} sp',
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildItemsSliver(
     StockInReceipt receipt,
     bool canViewCostPrice,
     NumberFormat currencyFormat,
   ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Flexible(
-              child: Text(
-                'Danh sách sản phẩm (${receipt.itemCount})',
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
+    return DecoratedSliver(
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border, width: 1),
+      ),
+      sliver: SliverList.separated(
+        itemCount: receipt.items.length,
+        separatorBuilder: (_, __) =>
+            const Divider(height: 1, indent: 64, color: AppColors.dividerLight),
+        itemBuilder: (context, index) {
+          final item = receipt.items[index];
+          return Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Product Thumbnail
+                ProductImageThumbnail(
+                  imageUrl: item.imageUrl,
+                  productName: item.productName,
+                  size: 46,
+                  borderRadius: 8,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                'Tổng ${receipt.totalQuantity} sp',
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textSecondary,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.border, width: 1),
-          ),
-          child: ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: receipt.items.length,
-            separatorBuilder: (_, __) => const Divider(
-                height: 1, indent: 64, color: AppColors.dividerLight),
-            itemBuilder: (context, index) {
-              final item = receipt.items[index];
-              return Padding(
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    // Product Thumbnail
-                    ProductImageThumbnail(
-                      imageUrl: item.imageUrl,
-                      productName: item.productName,
-                      size: 46,
-                      borderRadius: 8,
-                    ),
-                    const SizedBox(width: 10),
+                const SizedBox(width: 10),
 
-                    // Product Details
-                    Expanded(
-                      flex: 3,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                // Product Details
+                Expanded(
+                  flex: 3,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.productName ?? 'Sản phẩm ${item.productId}',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 3),
+                      Row(
                         children: [
-                          Text(
-                            item.productName ?? 'Sản phẩm ${item.productId}',
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.textPrimary,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 3),
-                          Row(
-                            children: [
-                              if (item.productCode != null &&
-                                  item.productCode!.isNotEmpty) ...[
-                                Flexible(
-                                  child: Text(
-                                    item.productCode!,
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      color: AppColors.textSecondary,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
+                          if (item.productCode != null &&
+                              item.productCode!.isNotEmpty) ...[
+                            Flexible(
+                              child: Text(
+                                item.productCode!,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.textSecondary,
                                 ),
-                                const SizedBox(width: 6),
-                                const Text('•',
-                                    style: TextStyle(
-                                        fontSize: 10,
-                                        color: AppColors.textSecondary)),
-                                const SizedBox(width: 6),
-                              ],
-                              Flexible(
-                                child: Text(
-                                  'ĐVT: ${item.unit != null && item.unit!.isNotEmpty ? item.unit! : 'Cái'}',
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                            ],
-                          ),
-                          if (canViewCostPrice) ...[
-                            const SizedBox(height: 3),
-                            Text(
-                              'Đơn giá: ${currencyFormat.format(item.importPrice)} đ',
+                            ),
+                            const SizedBox(width: 6),
+                            const Text('•',
+                                style: TextStyle(
+                                    fontSize: 10,
+                                    color: AppColors.textSecondary)),
+                            const SizedBox(width: 6),
+                          ],
+                          Flexible(
+                            child: Text(
+                              'ĐVT: ${item.unit != null && item.unit!.isNotEmpty ? item.unit! : 'Cái'}',
                               style: const TextStyle(
                                 fontSize: 11,
                                 color: AppColors.textSecondary,
@@ -657,69 +673,83 @@ class StockInReceiptDetailBottomSheet extends ConsumerWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
-                          ],
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(width: 8),
-
-                    // Quantity and Total Price
-                    Flexible(
-                      flex: 2,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 7, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppColors.surfaceLight,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              'SL: ${item.quantity}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.textPrimary,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
                           ),
-                          const SizedBox(height: 4),
-                          if (canViewCostPrice)
-                            Text(
-                              '${currencyFormat.format(item.totalPrice)} đ',
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.primary,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            )
-                          else
-                            const Text(
-                              '••••••',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.textSecondary,
-                                letterSpacing: 2,
-                              ),
-                            ),
                         ],
                       ),
-                    ),
-                  ],
+                      if (canViewCostPrice) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          'Đơn giá: ${currencyFormat.format(item.importPrice)} đ',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textSecondary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
-              );
-            },
-          ),
-        ),
-      ],
+
+                const SizedBox(width: 8),
+
+                // Quantity and Total Price
+                Flexible(
+                  flex: 2,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceLight,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          'SL: ${item.quantity}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      if (canViewCostPrice)
+                        Text(
+                          '${currencyFormat.format(item.totalPrice)} đ',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        )
+                      else
+                        const Text(
+                          '••••••',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textSecondary,
+                            letterSpacing: 2,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -758,10 +788,11 @@ class StockInReceiptDetailBottomSheet extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Flexible(
+                  child: const Text(
                 'Tổng tiền hàng:',
                 style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-              ),
+              )),
               const SizedBox(width: 8),
               if (canViewCostPrice)
                 Flexible(
@@ -778,15 +809,18 @@ class StockInReceiptDetailBottomSheet extends ConsumerWidget {
                   ),
                 )
               else
-                const Text(
+                Flexible(
+                    child: const Text(
                   '••••••',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
                     color: AppColors.textSecondary,
                     letterSpacing: 2,
                   ),
-                ),
+                )),
             ],
           ),
 
@@ -796,10 +830,11 @@ class StockInReceiptDetailBottomSheet extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Flexible(
+                  child: const Text(
                 'Đã thanh toán:',
                 style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-              ),
+              )),
               const SizedBox(width: 8),
               if (canViewCostPrice)
                 Flexible(
@@ -816,14 +851,17 @@ class StockInReceiptDetailBottomSheet extends ConsumerWidget {
                   ),
                 )
               else
-                const Text(
+                Flexible(
+                    child: const Text(
                   '••••••',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 13,
                     color: AppColors.textSecondary,
                     letterSpacing: 2,
                   ),
-                ),
+                )),
             ],
           ),
 
@@ -833,10 +871,11 @@ class StockInReceiptDetailBottomSheet extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Flexible(
+                  child: const Text(
                 'Nợ NCC:',
                 style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-              ),
+              )),
               const SizedBox(width: 8),
               if (hasDebt) ...[
                 if (canViewCostPrice)
@@ -854,23 +893,29 @@ class StockInReceiptDetailBottomSheet extends ConsumerWidget {
                     ),
                   )
                 else
-                  const Text(
+                  Flexible(
+                      child: const Text(
                     'Ghi nợ NCC',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: AppColors.warning,
                     ),
-                  ),
+                  )),
               ] else ...[
-                const Text(
+                Flexible(
+                    child: const Text(
                   '0 đ (Đã trả đủ)',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
                     color: AppColors.success,
                   ),
-                ),
+                )),
               ],
             ],
           ),

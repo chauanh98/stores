@@ -30,7 +30,7 @@ import 'package:stores/domain/repositories/customer_repository.dart';
 import 'package:stores/domain/repositories/inventory_repository.dart';
 import 'package:stores/domain/repositories/order_repository.dart';
 import 'package:stores/domain/repositories/product_repository.dart';
-import 'package:stores/presentation/orders/pages/pos_checkout_page.dart';
+import 'package:stores/presentation/orders/pages/pos_payment_page.dart';
 import 'package:stores/presentation/orders/pages/pos_page.dart';
 import 'package:stores/presentation/orders/widgets/pos_category_bar.dart';
 
@@ -566,257 +566,255 @@ void main() {
   // --------------------------------------------------------------------------
   // GROUP 3: POS Checkout UI Dual-Input Auto-Balancing & Edge Cases
   // --------------------------------------------------------------------------
-  group('3. POS Checkout UI Split Payment Interactive Stress Tests', () {
-    Widget buildTestApp(ProviderContainer container) {
+  group('3. POS Payment Page Split Payment Interactive Stress Tests', () {
+    // Payment controls (cash field, quick chips, split-payment modal) now live
+    // in POSPaymentPage; POSCheckoutPage only builds the cart. Split payment is
+    // edited through the "•••" bottom sheet (checkbox per method + amount
+    // field + "Xong"), there is no auto-balance / "CK toàn bộ" shortcut any more.
+    Widget buildTestApp(ProviderContainer container, {Customer? customer}) {
       return UncontrolledProviderScope(
         container: container,
-        child: const MaterialApp(
+        child: MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          locale: Locale('vi'),
-          home: POSCheckoutPage(),
+          locale: const Locale('vi'),
+          home: POSPaymentPage(initialCustomer: customer),
         ),
       );
     }
 
-    testWidgets('Interactive: Split Mode dual inputs auto-balance dynamically and handle fast-action buttons', (tester) async {
-      tester.view.physicalSize = const Size(1200, 1400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-
-      final mockOrderRepo = _MockOrderRepository();
-      final mockProductRepo = _MockProductRepository([sampleProduct1]);
-      final mockInvRepo = _MockInventoryRepository();
-      final mockCustRepo = _MockCustomerRepository([testCustomer]);
-
-      final container = ProviderContainer(
+    ProviderContainer buildContainer({
+      required _MockOrderRepository orderRepo,
+      required _MockCustomerRepository custRepo,
+      required String orderId,
+    }) {
+      return ProviderContainer(
         overrides: [
-          orderRepositoryProvider.overrideWithValue(mockOrderRepo),
-          productRepositoryProvider.overrideWithValue(mockProductRepo),
-          inventoryRepositoryProvider.overrideWithValue(mockInvRepo),
-          customerRepositoryProvider.overrideWithValue(mockCustRepo),
+          orderRepositoryProvider.overrideWithValue(orderRepo),
+          productRepositoryProvider
+              .overrideWithValue(_MockProductRepository([sampleProduct1])),
+          inventoryRepositoryProvider
+              .overrideWithValue(_MockInventoryRepository()),
+          customerRepositoryProvider.overrideWithValue(custRepo),
           storePaymentConfigProvider.overrideWithValue(testConfig),
           selectedPOSBranchProvider.overrideWith((ref) => 'store_001'),
-          activeOrderIdProvider.overrideWith((ref) => 'HD_STRESS_001'),
+          activeOrderIdProvider.overrideWith((ref) => orderId),
           authProvider.overrideWith((ref) => _MockAuthNotifier(const UserAccount(
                 username: 'admin',
                 displayName: 'Admin User',
                 role: 'admin',
                 storeId: 'store_001',
               ))),
-          productListProvider.overrideWith((ref) => Stream.value([sampleProduct1])),
-          customerListNotifierProvider.overrideWith(() => _FakeCustomerListNotifier([testCustomer])),
+          productListProvider
+              .overrideWith((ref) => Stream.value([sampleProduct1])),
+          customerListNotifierProvider
+              .overrideWith(() => _FakeCustomerListNotifier([testCustomer])),
         ],
       );
+    }
+
+    void useBigViewport(WidgetTester tester) {
+      tester.view.physicalSize = const Size(1200, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+    }
+
+    Finder sheetFields() => find.descendant(
+        of: find.byType(BottomSheet), matching: find.byType(TextField));
+
+    Finder sheetCheckbox(String title) => find.descendant(
+          of: find.ancestor(
+              of: find.descendant(
+                  of: find.byType(BottomSheet), matching: find.text(title)),
+              matching: find.byType(Row)),
+          matching: find.byType(Checkbox),
+        );
+
+    testWidgets(
+        'Interactive: Split modal (cash + transfer) sums into the paid amount and submits a split order',
+        (tester) async {
+      useBigViewport(tester);
+
+      final mockOrderRepo = _MockOrderRepository();
+      final mockCustRepo = _MockCustomerRepository([testCustomer]);
+      final container = buildContainer(
+          orderRepo: mockOrderRepo,
+          custRepo: mockCustRepo,
+          orderId: 'HD_STRESS_001');
       addTearDown(container.dispose);
 
-      // Add MacBook Pro (1 x 1,000,000đ)
+      // MacBook Pro (1 x 1,000,000đ)
       container.read(cartProvider.notifier).addToCart(sampleProduct1);
 
       await tester.pumpWidget(buildTestApp(container));
       await tester.pumpAndSettle();
 
-      // 1. Switch to Split payment mode
-      await tester.ensureVisible(find.text('Tiền mặt'));
-      await tester.tap(find.text('Tiền mặt'));
+      // Open the split-payment modal via the "•••" button.
+      await tester.tap(find.byIcon(Icons.more_horiz));
+      await tester.pumpAndSettle();
+      expect(find.text('Thanh toán kết hợp'), findsOneWidget);
+
+      // Cash is pre-checked (current method); enable transfer as well.
+      await tester.tap(sheetCheckbox('Chuyển khoản').first);
+      await tester.pumpAndSettle();
+      expect(sheetFields(), findsNWidgets(2));
+
+      // Cash 350,000 + Transfer 650,000
+      await tester.enterText(sheetFields().at(0), '350000');
+      await tester.pumpAndSettle();
+      await tester.enterText(sheetFields().at(1), '650000');
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Kết hợp (TM + CK)').last);
+      // Modal summary reflects the sum of the checked methods.
+      expect(
+          find.descendant(
+              of: find.byType(BottomSheet), matching: find.text('1.000.000')),
+          findsWidgets);
+
+      await tester.tap(find.text('Xong'));
       await tester.pumpAndSettle();
 
-      // Find Cash and Transfer input TextFields
-      final cashRow = find.ancestor(of: find.text('Tiền mặt đưa'), matching: find.byType(Row));
-      final cashField = find.descendant(of: cashRow, matching: find.byType(TextField));
+      // Page summary lists each split part.
+      expect(find.text('350.000 đ'), findsWidgets);
+      expect(find.text('650.000 đ'), findsWidgets);
 
-      final transferRow = find.ancestor(of: find.text('Chuyển khoản (VietQR)'), matching: find.byType(Row));
-      final transferField = find.descendant(of: transferRow, matching: find.byType(TextField));
-
-      // 2. Type 350,000 into Cash -> Transfer must auto-balance to 650,000
-      await tester.ensureVisible(cashField);
-      await tester.enterText(cashField, '350000');
-      await tester.pumpAndSettle();
-
-      final transferWidget1 = tester.widget<TextField>(transferField);
-      expect(transferWidget1.controller?.text, '650.000');
-
-      // 3. Type 200,000 into Transfer -> Cash must auto-balance to 800,000
-      await tester.ensureVisible(transferField);
-      await tester.enterText(transferField, '200000');
-      await tester.pumpAndSettle();
-
-      final cashWidget1 = tester.widget<TextField>(cashField);
-      expect(cashWidget1.controller?.text, '800.000');
-
-      // 4. Test Fast Action Button: [CK toàn bộ]
-      await tester.ensureVisible(find.text('CK toàn bộ'));
-      await tester.tap(find.text('CK toàn bộ'));
-      await tester.pumpAndSettle();
-
-      expect(tester.widget<TextField>(cashField).controller?.text, '0');
-      expect(tester.widget<TextField>(transferField).controller?.text, '1.000.000');
-
-      // 5. Test Fast Action Button: [TM toàn bộ]
-      await tester.ensureVisible(find.text('TM toàn bộ'));
-      await tester.tap(find.text('TM toàn bộ'));
-      await tester.pumpAndSettle();
-
-      expect(tester.widget<TextField>(cashField).controller?.text, '1.000.000');
-      expect(tester.widget<TextField>(transferField).controller?.text, '0');
-
-      // 6. Test Fast Action Button: [Xóa]
-      await tester.ensureVisible(find.text('Xóa'));
-      await tester.tap(find.text('Xóa'));
-      await tester.pumpAndSettle();
-
-      expect(tester.widget<TextField>(cashField).controller?.text, isEmpty);
-      expect(tester.widget<TextField>(transferField).controller?.text, isEmpty);
-
-      // 7. Test Quick Cash Chip in Split Mode (Tap 1.000.000 đ (Trả đủ) chip)
-      await tester.ensureVisible(find.text('1.000.000 đ (Trả đủ)'));
-      await tester.tap(find.text('1.000.000 đ (Trả đủ)'));
-      await tester.pumpAndSettle();
-
-      expect(tester.widget<TextField>(cashField).controller?.text, '1.000.000');
-      expect(tester.widget<TextField>(transferField).controller?.text, '0');
-
-      // 8. Submit Order and verify submitted entity
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Thanh toán'));
+      // Submit
+      await tester.tap(find.widgetWithText(FilledButton, 'Thanh toán'));
       await tester.pumpAndSettle();
 
       final order = mockOrderRepo.lastCreatedOrder;
       expect(order, isNotNull);
       expect(order!.paymentMethod, 'split');
-      expect(order.cashAmount, 1000000.0);
+      expect(order.cashAmount, 350000.0);
+      expect(order.transferAmount, 650000.0);
+      expect(order.amountPaid, 1000000.0);
+      expect(order.debtAmount, 0.0);
+    });
+
+    testWidgets(
+        'Interactive: quick "Trả đủ" chip fills cash and a cash order is fully paid',
+        (tester) async {
+      useBigViewport(tester);
+
+      final mockOrderRepo = _MockOrderRepository();
+      final container = buildContainer(
+          orderRepo: mockOrderRepo,
+          custRepo: _MockCustomerRepository([testCustomer]),
+          orderId: 'HD_CHIP_001');
+      addTearDown(container.dispose);
+      container.read(cartProvider.notifier).addToCart(sampleProduct1);
+
+      await tester.pumpWidget(buildTestApp(container));
+      await tester.pumpAndSettle();
+
+      final chip = find.text('1.000.000 đ (Trả đủ)');
+      await tester.ensureVisible(chip);
+      await tester.tap(chip);
+      await tester.pumpAndSettle();
+
+      final payField = tester.widget<TextField>(
+          find.byKey(const Key('pos_payment_customer_payment_textfield')));
+      expect(payField.controller?.text, '1.000.000');
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Thanh toán'));
+      await tester.pumpAndSettle();
+
+      final order = mockOrderRepo.lastCreatedOrder;
+      expect(order, isNotNull);
+      expect(order!.cashAmount, 1000000.0);
       expect(order.transferAmount, 0.0);
       expect(order.amountPaid, 1000000.0);
       expect(order.debtAmount, 0.0);
     });
 
-    testWidgets('Adversarial: Overpayment in Split mode clamps transfer to 0 and correctly displays change due', (tester) async {
-      tester.view.physicalSize = const Size(1200, 1400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+    testWidgets(
+        'Adversarial: Overpayment in split mode clamps paid amount to net pay (no negative debt)',
+        (tester) async {
+      useBigViewport(tester);
 
       final mockOrderRepo = _MockOrderRepository();
-      final mockProductRepo = _MockProductRepository([sampleProduct1]);
-      final mockInvRepo = _MockInventoryRepository();
-
-      final container = ProviderContainer(
-        overrides: [
-          orderRepositoryProvider.overrideWithValue(mockOrderRepo),
-          productRepositoryProvider.overrideWithValue(mockProductRepo),
-          inventoryRepositoryProvider.overrideWithValue(mockInvRepo),
-          storePaymentConfigProvider.overrideWithValue(testConfig),
-          selectedPOSBranchProvider.overrideWith((ref) => 'store_001'),
-          activeOrderIdProvider.overrideWith((ref) => 'HD_OVERPAY_001'),
-          authProvider.overrideWith((ref) => _MockAuthNotifier(const UserAccount(
-                username: 'admin',
-                displayName: 'Admin',
-                role: 'admin',
-                storeId: 'store_001',
-              ))),
-          productListProvider.overrideWith((ref) => Stream.value([sampleProduct1])),
-        ],
-      );
+      final container = buildContainer(
+          orderRepo: mockOrderRepo,
+          custRepo: _MockCustomerRepository([testCustomer]),
+          orderId: 'HD_OVERPAY_001');
       addTearDown(container.dispose);
-
       container.read(cartProvider.notifier).addToCart(sampleProduct1); // 1,000,000đ
 
       await tester.pumpWidget(buildTestApp(container));
       await tester.pumpAndSettle();
 
-      // Switch to Split mode
-      await tester.tap(find.text('Tiền mặt'));
+      await tester.tap(find.byIcon(Icons.more_horiz));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Kết hợp (TM + CK)').last);
+
+      // Keep cash checked, also check transfer (left at 0) => stays "split".
+      await tester.tap(sheetCheckbox('Chuyển khoản').first);
       await tester.pumpAndSettle();
 
       // Enter 1,500,000 into Cash (excess 500k)
-      final cashRow = find.ancestor(of: find.text('Tiền mặt đưa'), matching: find.byType(Row));
-      final cashField = find.descendant(of: cashRow, matching: find.byType(TextField));
-      await tester.enterText(cashField, '1500000');
+      await tester.enterText(sheetFields().at(0), '1500000');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Xong'));
       await tester.pumpAndSettle();
 
-      // Transfer should clamp to 0
-      final transferRow = find.ancestor(of: find.text('Chuyển khoản (VietQR)'), matching: find.byType(Row));
-      final transferField = find.descendant(of: transferRow, matching: find.byType(TextField));
-      expect(tester.widget<TextField>(transferField).controller?.text, '0');
+      // Excess is surfaced as "change due" on the page.
+      expect(find.textContaining('500.000'), findsWidgets);
 
-      // Change due should display 500.000 đ
-      expect(find.text('500.000 đ'), findsWidgets);
-
-      // Submit
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Thanh toán'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Thanh toán'));
       await tester.pumpAndSettle();
 
       final order = mockOrderRepo.lastCreatedOrder;
       expect(order, isNotNull);
-      expect(order!.amountPaid, 1000000.0); // Clamped to netPay
+      expect(order!.paymentMethod, 'split');
+      expect(order.amountPaid, 1000000.0); // Clamped to netPay
       expect(order.cashAmount, 1500000.0);
       expect(order.transferAmount, 0.0);
       expect(order.debtAmount, 0.0);
     });
 
-    testWidgets('Adversarial: Walk-in retail customer debt is strictly blocked in underpayment; named customer allows debt', (tester) async {
-      tester.view.physicalSize = const Size(1200, 1400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+    testWidgets(
+        'Adversarial: Walk-in retail customer debt is strictly blocked in underpayment; named customer allows debt',
+        (tester) async {
+      useBigViewport(tester);
 
       final mockOrderRepo = _MockOrderRepository();
-      final mockProductRepo = _MockProductRepository([sampleProduct1]);
-      final mockInvRepo = _MockInventoryRepository();
       final mockCustRepo = _MockCustomerRepository([testCustomer]);
-
-      final container = ProviderContainer(
-        overrides: [
-          orderRepositoryProvider.overrideWithValue(mockOrderRepo),
-          productRepositoryProvider.overrideWithValue(mockProductRepo),
-          inventoryRepositoryProvider.overrideWithValue(mockInvRepo),
-          customerRepositoryProvider.overrideWithValue(mockCustRepo),
-          storePaymentConfigProvider.overrideWithValue(testConfig),
-          selectedPOSBranchProvider.overrideWith((ref) => 'store_001'),
-          activeOrderIdProvider.overrideWith((ref) => 'HD_DEBT_001'),
-          authProvider.overrideWith((ref) => _MockAuthNotifier(const UserAccount(
-                username: 'admin',
-                displayName: 'Admin',
-                role: 'admin',
-                storeId: 'store_001',
-              ))),
-          productListProvider.overrideWith((ref) => Stream.value([sampleProduct1])),
-          customerListNotifierProvider.overrideWith(() => _FakeCustomerListNotifier([testCustomer])),
-        ],
-      );
+      final container = buildContainer(
+          orderRepo: mockOrderRepo,
+          custRepo: mockCustRepo,
+          orderId: 'HD_DEBT_001');
       addTearDown(container.dispose);
-
       container.read(cartProvider.notifier).addToCart(sampleProduct1); // 1,000,000đ
 
+      // Case 1: Walk-in customer (no initialCustomer) -> underpayment BLOCKED
       await tester.pumpWidget(buildTestApp(container));
       await tester.pumpAndSettle();
 
-      // In Cash mode, enter underpayment: 400,000đ (Debt: 600,000đ)
-      final paymentField = find.widgetWithText(TextField, '1.000.000');
-      await tester.enterText(paymentField, '400000');
+      final paymentFieldFinder =
+          find.byKey(const Key('pos_payment_customer_payment_textfield'));
+      await tester.enterText(paymentFieldFinder, '400000'); // Debt: 600,000đ
       await tester.pumpAndSettle();
 
-      // Case 1: Walk-in customer (retailCustomer) -> Submit should be BLOCKED
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Thanh toán'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Thanh toán'));
       await tester.pumpAndSettle();
 
       expect(mockOrderRepo.lastCreatedOrder, isNull); // Blocked!
-      expect(find.text('Khách lẻ không thể ghi nợ. Vui lòng chọn hoặc tạo khách hàng!'), findsOneWidget);
+      expect(
+          find.text(
+              'Khách lẻ không thể ghi nợ. Vui lòng chọn hoặc tạo khách hàng!'),
+          findsOneWidget);
 
-      // Case 2: Select registered customer
-      await tester.tap(find.text('Thay đổi'));
+      // Case 2: Registered customer -> debt allowed
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpWidget(buildTestApp(container, customer: testCustomer));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Nguyễn Văn VIP'));
+      await tester.enterText(
+          find.byKey(const Key('pos_payment_customer_payment_textfield')),
+          '400000');
       await tester.pumpAndSettle();
 
-      // Submit again
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Thanh toán'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Thanh toán'));
       await tester.pumpAndSettle();
 
       final order = mockOrderRepo.lastCreatedOrder;

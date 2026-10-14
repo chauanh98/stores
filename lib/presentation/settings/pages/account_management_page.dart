@@ -115,21 +115,29 @@ class _AccountManagementPageState extends ConsumerState<AccountManagementPage> {
                               account.isStaff &&
                               account.storeId == currentUser?.storeId));
 
+                  final narrow = MediaQuery.sizeOf(context).width < 320;
+                  final btnStyle = narrow
+                      ? IconButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          visualDensity: VisualDensity.compact,
+                          minimumSize: const Size(36, 36),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap)
+                      : null;
                   return Container(
                     decoration: BoxDecoration(
                       color: AppColors.white,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: AppColors.border),
                     ),
-                    padding: const EdgeInsets.all(16),
+                    padding: EdgeInsets.all(narrow ? 10 : 16),
                     child: Row(
                       children: [
                         CircleAvatar(
-                          radius: 22,
+                          radius: narrow ? 16 : 22,
                           backgroundColor: roleBgColor,
                           child: Icon(roleIcon, color: roleColor),
                         ),
-                        const SizedBox(width: 16),
+                        SizedBox(width: narrow ? 8 : 16),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -226,16 +234,20 @@ class _AccountManagementPageState extends ConsumerState<AccountManagementPage> {
                                               : AppColors.textSecondary,
                                         ),
                                         const SizedBox(width: 4),
-                                        Text(
-                                          storeName,
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: isAllStores
-                                                ? FontWeight.bold
-                                                : FontWeight.normal,
-                                            color: isAllStores
-                                                ? AppColors.primary
-                                                : AppColors.textPrimary,
+                                        Flexible(
+                                          child: Text(
+                                            storeName,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: isAllStores
+                                                  ? FontWeight.bold
+                                                  : FontWeight.normal,
+                                              color: isAllStores
+                                                  ? AppColors.primary
+                                                  : AppColors.textPrimary,
+                                            ),
                                           ),
                                         ),
                                       ],
@@ -252,6 +264,7 @@ class _AccountManagementPageState extends ConsumerState<AccountManagementPage> {
                             children: [
                               if (canEditThis)
                                 IconButton(
+                                  style: btnStyle,
                                   icon: const Icon(Icons.edit_outlined,
                                       color: AppColors.primary),
                                   onPressed: () => _showAccountFormDialog(
@@ -261,6 +274,7 @@ class _AccountManagementPageState extends ConsumerState<AccountManagementPage> {
                                 ),
                               if (canDeleteThis)
                                 IconButton(
+                                  style: btnStyle,
                                   icon: const Icon(
                                     Icons.delete_outline,
                                     color: AppColors.danger,
@@ -289,6 +303,7 @@ class _AccountManagementPageState extends ConsumerState<AccountManagementPage> {
               ? ScrollAwareFab(
                   scrollController: _scrollController,
                   child: FloatingActionButton(
+                    heroTag: null,
                     onPressed: () => _showAccountFormDialog(context),
                     backgroundColor: AppColors.primary,
                     foregroundColor: AppColors.white,
@@ -378,6 +393,7 @@ class _AccountManagementPageState extends ConsumerState<AccountManagementPage> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
+              scrollable: true,
               title: Text(isEdit ? l10n.editAccount : l10n.addAccount,
                   style: const TextStyle(fontWeight: FontWeight.bold)),
               content: SingleChildScrollView(
@@ -404,14 +420,17 @@ class _AccountManagementPageState extends ConsumerState<AccountManagementPage> {
                                   Icon(Icons.info_outline,
                                       size: 16, color: AppColors.primary),
                                   SizedBox(width: 6),
-                                  Text(
+                                  Flexible(
+                                      child: Text(
                                     'Thông tin hiện tại',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 13,
                                       color: AppColors.primary,
                                     ),
-                                  ),
+                                  )),
                                 ],
                               ),
                               const SizedBox(height: 8),
@@ -423,20 +442,26 @@ class _AccountManagementPageState extends ConsumerState<AccountManagementPage> {
                                   Icon(currentRoleIcon,
                                       size: 14, color: currentRoleColor),
                                   const SizedBox(width: 6),
-                                  const Text(
+                                  const Flexible(
+                                      child: Text(
                                     'Vai trò hiện tại: ',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
                                         fontSize: 12,
                                         color: AppColors.textSecondary),
-                                  ),
-                                  Text(
+                                  )),
+                                  Flexible(
+                                      child: Text(
                                     currentRoleLabel,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.bold,
                                       color: currentRoleColor,
                                     ),
-                                  ),
+                                  )),
                                 ],
                               ),
                               const SizedBox(height: 6),
@@ -450,12 +475,15 @@ class _AccountManagementPageState extends ConsumerState<AccountManagementPage> {
                                     color: AppColors.textSecondary,
                                   ),
                                   const SizedBox(width: 6),
-                                  const Text(
+                                  const Flexible(
+                                      child: Text(
                                     'Chi nhánh hiện tại: ',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
                                         fontSize: 12,
                                         color: AppColors.textSecondary),
-                                  ),
+                                  )),
                                   Expanded(
                                     child: Text(
                                       currentStoreLabel,
@@ -803,6 +831,7 @@ class _AccountManagementPageState extends ConsumerState<AccountManagementPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
+          scrollable: true,
           title: Text(l10n.confirmDeleteAccountTitle,
               style: const TextStyle(fontWeight: FontWeight.bold)),
           content: Text(

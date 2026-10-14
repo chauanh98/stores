@@ -5,7 +5,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:stores/application/auth/auth_providers.dart';
 import 'package:stores/application/inventory/inter_store_transfer_service.dart';
 import 'package:stores/application/inventory/inventory_providers.dart';
+import 'package:stores/application/inventories/stock_in_receipts_providers.dart';
 import 'package:stores/application/products/categories_providers.dart';
+import 'package:stores/application/suppliers/suppliers_providers.dart';
+import 'package:stores/domain/entities/supplier.dart';
+import 'package:stores/domain/repositories/supplier_repository.dart';
+import '../../support/import_flow_helpers.dart';
 import 'package:stores/application/products/products_providers.dart';
 import 'package:stores/application/reports/overview_providers.dart';
 import 'package:stores/core/utils/combo_helper.dart';
@@ -103,6 +108,102 @@ class FakeInventoryRepository implements InventoryRepository {
   }
 }
 
+class _FakeReceiptRepository implements StockInReceiptRepository {
+  final List<StockInReceipt> saved = [];
+
+  @override
+  Future<void> saveReceipt(StockInReceipt receipt) async => saved.add(receipt);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _FakeSupplierRepository implements SupplierRepository {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _EmptySupplierListNotifier
+    extends AutoDisposeAsyncNotifier<List<Supplier>>
+    implements SupplierListNotifier {
+  @override
+  Future<List<Supplier>> build() async => const [];
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// Sets quantity via the embedded numpad (tap quantity area, then digits).
+Future<void> _addProductWithNumpadQty(
+  WidgetTester tester, {
+  required String search,
+  required String productText,
+  required String digits,
+}) async {
+  await openProductSheet(tester, search: search, productText: productText);
+  expect(find.byKey(const Key('product_edit_sheet')), findsOneWidget);
+  await tester.tap(find.byKey(const Key('sheet_qty_text')));
+  await tester.pumpAndSettle();
+  for (final d in digits.split('')) {
+    final key = find.byKey(Key('numpad_$d'));
+    await tester.ensureVisible(key);
+    await tester.tap(key);
+    await tester.pump();
+  }
+  expect(
+      tester.widget<Text>(find.byKey(const Key('sheet_qty_text'))).data,
+      equals(digits));
+  await tester.ensureVisible(find.byKey(const Key('btn_sheet_done')));
+  await tester.tap(find.byKey(const Key('btn_sheet_done')));
+  await tester.pumpAndSettle();
+}
+
+Future<void> _runImportFlow(
+  WidgetTester tester, {
+  required FakeProductRepository repo,
+  required FakeInventoryRepository invRepo,
+  required String storeId,
+  required String search,
+  required String productText,
+  required String digits,
+}) async {
+  tester.view.physicalSize = const Size(900, 2400);
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+
+  await tester.pumpWidget(_wrapWithApp(
+    child: const ImportInventoryPage(),
+    user: const UserAccount(
+      username: 'admin',
+      displayName: 'Quản Lý Hệ Thống',
+      role: 'supervisor',
+      storeId: 'store_001',
+    ),
+    currentStoreId: storeId,
+    productRepo: repo,
+    inventoryRepo: invRepo,
+    extraOverrides: [
+      supplierListNotifierProvider.overrideWith(_EmptySupplierListNotifier.new),
+      // Real use case (no Firebase, no notification dispatcher) wired to the
+      // in-memory fake repositories.
+      completeStockInReceiptUseCaseProvider.overrideWith((ref) =>
+          CompleteStockInReceiptUseCase(
+            productRepository: repo,
+            inventoryRepository: invRepo,
+            supplierRepository: _FakeSupplierRepository(),
+            receiptRepository: _FakeReceiptRepository(),
+          )),
+    ],
+  ));
+  await tester.pumpAndSettle();
+
+  await _addProductWithNumpadQty(tester,
+      search: search, productText: productText, digits: digits);
+  await goToPaymentStep(tester);
+  await completeReceiptOnPaymentStep(tester);
+}
+
 class _FakeAuthNotifier extends StateNotifier<UserAccount?>
     implements AuthNotifier {
   _FakeAuthNotifier(super.state);
@@ -125,6 +226,7 @@ Widget _wrapWithApp({
   List<Category>? categories,
   List<Branch>? branches,
   Map<String, String>? availableStores,
+  List<Override> extraOverrides = const [],
 }) {
   final pRepo = productRepo ?? FakeProductRepository();
   final iRepo = inventoryRepo ?? FakeInventoryRepository();
@@ -158,6 +260,7 @@ Widget _wrapWithApp({
       inventoryRepositoryProvider.overrideWithValue(iRepo),
       transactionsByProductProvider.overrideWith((ref, id) =>
           Stream.value(iRepo.transactions.where((t) => t.productId == id).toList())),
+      ...extraOverrides,
     ],
     child: MaterialApp(
       localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -440,26 +543,15 @@ void main() {
       final repo = FakeProductRepository([product]);
       final invRepo = FakeInventoryRepository();
 
-      await tester.pumpWidget(_wrapWithApp(
-        child: const ImportInventoryPage(),
-        user: adminUser,
-        currentStoreId: 'store_001',
-        productRepo: repo,
-        inventoryRepo: invRepo,
-      ));
-      await tester.pumpAndSettle();
-
-      await tester.enterText(find.widgetWithText(TextFormField, 'Tìm kiếm sản phẩm'), 'Lavie');
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.textContaining('Nước Khoáng Lavie 500ml').last);
-      await tester.pumpAndSettle();
-
-      await tester.enterText(find.widgetWithText(TextFormField, 'Số lượng'), '15');
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.byIcon(Icons.save));
-      await tester.pumpAndSettle();
+      await _runImportFlow(
+        tester,
+        repo: repo,
+        invRepo: invRepo,
+        storeId: 'store_001',
+        search: 'Lavie',
+        productText: 'Nước Khoáng Lavie 500ml',
+        digits: '15',
+      );
 
       final updated = repo.lastUpsertedProduct!;
       expect(updated.branchStocks['store_001'], equals(35));
@@ -487,26 +579,15 @@ void main() {
       final repo = FakeProductRepository([product]);
       final invRepo = FakeInventoryRepository();
 
-      await tester.pumpWidget(_wrapWithApp(
-        child: const ImportInventoryPage(),
-        user: adminUser,
-        currentStoreId: 'store_002',
-        productRepo: repo,
-        inventoryRepo: invRepo,
-      ));
-      await tester.pumpAndSettle();
-
-      await tester.enterText(find.widgetWithText(TextFormField, 'Tìm kiếm sản phẩm'), 'Pepsi');
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.textContaining('Nước Ngọt Pepsi 330ml').last);
-      await tester.pumpAndSettle();
-
-      await tester.enterText(find.widgetWithText(TextFormField, 'Số lượng'), '25');
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.byIcon(Icons.save));
-      await tester.pumpAndSettle();
+      await _runImportFlow(
+        tester,
+        repo: repo,
+        invRepo: invRepo,
+        storeId: 'store_002',
+        search: 'Pepsi',
+        productText: 'Nước Ngọt Pepsi 330ml',
+        digits: '25',
+      );
 
       final updated = repo.lastUpsertedProduct!;
       expect(updated.branchStocks['store_001'], equals(100));
@@ -532,26 +613,15 @@ void main() {
       final repo = FakeProductRepository([legacyProduct]);
       final invRepo = FakeInventoryRepository();
 
-      await tester.pumpWidget(_wrapWithApp(
-        child: const ImportInventoryPage(),
-        user: adminUser,
-        currentStoreId: 'store_001',
-        productRepo: repo,
-        inventoryRepo: invRepo,
-      ));
-      await tester.pumpAndSettle();
-
-      await tester.enterText(find.widgetWithText(TextFormField, 'Tìm kiếm sản phẩm'), 'Chupa');
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.textContaining('Kẹo Dẻo Chupa Chups').last);
-      await tester.pumpAndSettle();
-
-      await tester.enterText(find.widgetWithText(TextFormField, 'Số lượng'), '10');
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.byIcon(Icons.save));
-      await tester.pumpAndSettle();
+      await _runImportFlow(
+        tester,
+        repo: repo,
+        invRepo: invRepo,
+        storeId: 'store_001',
+        search: 'Chupa',
+        productText: 'Kẹo Dẻo Chupa Chups',
+        digits: '10',
+      );
 
       final updated = repo.lastUpsertedProduct!;
       expect(updated.branchStocks['branch_1'], equals(40));

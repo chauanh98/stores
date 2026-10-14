@@ -86,6 +86,7 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
     }
     return url;
   }
+
   bool _imageRemoved = false;
   bool _isLoading = false;
 
@@ -564,27 +565,38 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Row(
-                  children: [
-                    Icon(Icons.straighten, color: AppColors.primary, size: 20),
-                    SizedBox(width: 8),
-                    Text(
-                      'Đơn vị tính & Quy đổi',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                        color: AppColors.textPrimary,
+                const Flexible(
+                  child: Row(
+                    children: [
+                      Icon(Icons.straighten,
+                          color: AppColors.primary, size: 20),
+                      SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          'Đơn vị tính & Quy đổi',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
                 if (enabled)
-                  TextButton.icon(
-                    onPressed: () => _showAddEditUnitDialog(
-                        canViewCostPrice: canViewCostPrice),
-                    icon: const Icon(Icons.add_circle_outline, size: 16),
-                    label: const Text('Thêm ĐVT quy đổi',
-                        style: TextStyle(fontSize: 12)),
+                  Flexible(
+                    child: TextButton.icon(
+                      onPressed: () => _showAddEditUnitDialog(
+                          canViewCostPrice: canViewCostPrice),
+                      icon: const Icon(Icons.add_circle_outline, size: 16),
+                      label: const Text('Thêm ĐVT quy đổi',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 12)),
+                    ),
                   ),
               ],
             ),
@@ -716,6 +728,7 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
         return StatefulBuilder(
           builder: (ctx, setDialogState) {
             return AlertDialog(
+              scrollable: true,
               title: Text(
                 unitToEdit != null
                     ? 'Sửa đơn vị quy đổi'
@@ -883,12 +896,16 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
                 Icon(Icons.notifications_active_outlined,
                     color: AppColors.primary, size: 20),
                 SizedBox(width: 8),
-                Text(
-                  'Định mức tồn kho (Cảnh báo Min / Max)',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                    color: AppColors.textPrimary,
+                Expanded(
+                  child: Text(
+                    'Định mức tồn kho (Cảnh báo Min / Max)',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
                 ),
               ],
@@ -1128,33 +1145,36 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
                       ),
                   ],
                 )
-              : Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.06),
-                        shape: BoxShape.circle,
+              : FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withOpacity(0.06),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.add_a_photo_outlined,
+                            color: AppColors.primary, size: 28),
                       ),
-                      child: const Icon(Icons.add_a_photo_outlined,
-                          color: AppColors.primary, size: 28),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Thêm ảnh sản phẩm',
-                      style: TextStyle(
-                          fontSize: 13,
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 2),
-                    const Text(
-                      'Camera · Thư viện · Link web · Gợi ý AI',
-                      style: TextStyle(
-                          fontSize: 11, color: AppColors.textTertiary),
-                    )
-                  ],
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Thêm ảnh sản phẩm',
+                        style: TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 2),
+                      const Text(
+                        'Camera · Thư viện · Link web · Gợi ý AI',
+                        style: TextStyle(
+                            fontSize: 11, color: AppColors.textTertiary),
+                      )
+                    ],
+                  ),
                 ),
         ),
       ),
@@ -1175,7 +1195,8 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
         return SafeArea(
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: Column(
+            child: SingleChildScrollView(
+                child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 ListTile(
@@ -1253,7 +1274,7 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
                   },
                 ),
               ],
-            ),
+            )),
           ),
         );
       },
@@ -1332,9 +1353,11 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
+          scrollable: true,
           title: const Text('Nhập Link Ảnh Online',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          content: Column(
+          content: SingleChildScrollView(
+              child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1354,7 +1377,7 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
                 keyboardType: TextInputType.url,
               ),
             ],
-          ),
+          )),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
@@ -1615,8 +1638,10 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
+          scrollable: true,
           title: const Text('Thêm thuộc tính'),
-          content: Column(
+          content: SingleChildScrollView(
+              child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
@@ -1633,7 +1658,7 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
                     border: OutlineInputBorder()),
               ),
             ],
-          ),
+          )),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -1700,11 +1725,15 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
                 children: [
                   Icon(Icons.widgets, color: AppColors.primary, size: 20),
                   SizedBox(width: 8),
-                  Text(
-                    'Sản phẩm Combo / Bộ',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
+                  Expanded(
+                    child: Text(
+                      'Sản phẩm Combo / Bộ',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
                     ),
                   ),
                 ],
@@ -1720,11 +1749,15 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Danh sách thành phần (${_comboComponents.length})',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
+                  Flexible(
+                    child: Text(
+                      'Danh sách thành phần (${_comboComponents.length})',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
                     ),
                   ),
                   if (enabled)

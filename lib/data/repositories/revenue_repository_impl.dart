@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../../core/services/fifo_calculator.dart';
 import '../../domain/entities/inventory_transaction.dart';
 import '../../domain/entities/revenue_report.dart';
+import '../../domain/entities/transaction_type.dart';
 import '../datasources/firebase/inventory_remote_data_source.dart';
 import '../datasources/firebase/order_remote_data_source.dart';
 import '../datasources/firebase/product_remote_data_source.dart';
@@ -25,11 +26,13 @@ class RevenueRepositoryImpl {
     final ordersStream = _orderDs.watchByDateRange(startOfDay, endOfDay);
     final orders = await ordersStream.first;
 
+    // Lấy products trước để biết nhu cầu lô FIFO của từng sản phẩm
+    final products = await _productDs.fetchAll();
+
     // Lấy inventory transactions date-bounded thay vì fetchAll() không giới hạn
     List<Map> inventoryTransactions;
     try {
-      inventoryTransactions =
-          await _inventoryDs.fetchTransactionsUpToDate(endOfDay);
+      inventoryTransactions = await _fetchLots(endOfDay, orders, products);
     } catch (_) {
       try {
         inventoryTransactions =
@@ -38,9 +41,6 @@ class RevenueRepositoryImpl {
         inventoryTransactions = await _inventoryDs.fetchAll();
       }
     }
-
-    // Lấy products
-    final products = await _productDs.fetchAll();
 
     return calculateRevenueReport(
       orders: orders,
@@ -61,11 +61,12 @@ class RevenueRepositoryImpl {
     final ordersStream = _orderDs.watchByDateRange(startOfRange, endOfRange);
     final orders = await ordersStream.first;
 
+    final products = await _productDs.fetchAll();
+
     // Lấy inventory transactions date-bounded thay vì fetchAll() không giới hạn
     List<Map> inventoryTransactions;
     try {
-      inventoryTransactions =
-          await _inventoryDs.fetchTransactionsUpToDate(endOfRange);
+      inventoryTransactions = await _fetchLots(endOfRange, orders, products);
     } catch (_) {
       try {
         inventoryTransactions = await _inventoryDs.fetchImportsByDateRange(
@@ -74,7 +75,6 @@ class RevenueRepositoryImpl {
         inventoryTransactions = await _inventoryDs.fetchAll();
       }
     }
-    final products = await _productDs.fetchAll();
 
     return calculateRevenueSummary(
       orders: orders,
@@ -83,6 +83,46 @@ class RevenueRepositoryImpl {
       startDate: startDate,
       endDate: endDate,
     );
+  }
+
+  /// Lấy lô nhập phục vụ FIFO: phân trang lùi có chặn, dừng khi đã đủ lô cho các
+  /// sản phẩm trong đơn (nhu cầu = số bán trong kỳ + tồn hiện tại). Nếu nguồn dữ
+  /// liệu không hỗ trợ thì dùng truy vấn cũ [fetchTransactionsUpToDate].
+  Future<List<Map>> _fetchLots(DateTime end, List<Map<String, dynamic>> orders,
+      List<Map> products) async {
+    final needed = <String, int>{};
+    for (final o in orders) {
+      try {
+        final m = OrderModel.fromMap(o);
+        if (m.isCancelled || m.isDraft || m.isReturned) continue;
+        for (final it in m.items) {
+          if (it.activeQuantity > 0) {
+            needed[it.productId] =
+                (needed[it.productId] ?? 0) + it.activeQuantity;
+          }
+        }
+      } catch (_) {}
+    }
+    for (final p in products) {
+      final id = p['id']?.toString();
+      if (id == null || !needed.containsKey(id)) continue;
+      final bs = p['branchStocks'];
+      var stock = 0;
+      if (bs is Map) {
+        for (final v in bs.values) {
+          if (v is num && v > 0) stock += v.toInt();
+        }
+      } else if (p['stock'] is num) {
+        stock = (p['stock'] as num).toInt();
+      }
+      needed[id] = needed[id]! + stock;
+    }
+    try {
+      return await _inventoryDs.fetchLotTransactionsUpToDate(end,
+          neededQty: needed);
+    } catch (_) {
+      return _inventoryDs.fetchTransactionsUpToDate(end);
+    }
   }
 
   /// Helper phân tích inventory transactions
@@ -94,6 +134,14 @@ class RevenueRepositoryImpl {
     for (final m in inventoryTransactions) {
       try {
         final model = InventoryTransactionModel.fromMap(m);
+        // POS ghi 1 giao dịch `export_<ms>_<productId>` cho MỖI lần bán. Chính
+        // đơn bán đã tiêu thụ lô khi tính giá vốn (calculateCostForSale) nên
+        // phải bỏ giao dịch này, nếu không lô bị trừ 2 lần và các đơn sau rơi về
+        // giá vốn dự phòng => sai giá vốn / lợi nhuận.
+        if (model.toTransactionType() == TransactionType.export &&
+            model.id.startsWith('export_')) {
+          continue;
+        }
         final product = productMap[model.productId];
         final fallbackPrice =
             product != null ? _toDouble(product['costPrice']) : null;
@@ -154,26 +202,36 @@ class RevenueRepositoryImpl {
       return dateA.compareTo(dateB);
     });
 
+    // Gom đơn theo NGÀY LỊCH CỤC BỘ trong 1 lượt (O(n)) thay vì lọc lại toàn bộ
+    // danh sách cho từng ngày (O(ngày x đơn)). Mốc thời gian dạng UTC ('Z' /
+    // offset) phải đổi sang giờ máy trước khi lấy ngày, giống bộ lọc ở
+    // OrderRemoteDataSource.watchByDateRange; nếu không đơn 'Z' bị xếp sai ngày
+    // (và biến mất khỏi báo cáo 1 ngày) khi múi giờ khác UTC.
+    final ordersByDay = <DateTime, List<Map<String, dynamic>>>{};
+    for (final order in allSortedOrders) {
+      final createdAtStr =
+          (order['orderDate'] ?? order['createdAt'] ?? order['date'])
+              ?.toString();
+      if (createdAtStr == null) continue;
+      final parsed = DateTime.tryParse(createdAtStr);
+      if (parsed == null) continue;
+      final local = parsed.isUtc ? parsed.toLocal() : parsed;
+      ordersByDay
+          .putIfAbsent(DateTime(local.year, local.month, local.day),
+              () => <Map<String, dynamic>>[])
+          .add(order);
+    }
+
     final dailyReports = <RevenueReport>[];
     DateTime currentDate =
         DateTime(startDate.year, startDate.month, startDate.day);
     final endDateOnly = DateTime(endDate.year, endDate.month, endDate.day);
 
     while (!currentDate.isAfter(endDateOnly)) {
-      final dayOrders = allSortedOrders.where((order) {
-        final createdAtStr =
-            (order['orderDate'] ?? order['createdAt'] ?? order['date'])
-                ?.toString();
-        if (createdAtStr == null) return false;
-        final orderDate = DateTime.tryParse(createdAtStr);
-        if (orderDate == null) return false;
-        return orderDate.year == currentDate.year &&
-            orderDate.month == currentDate.month &&
-            orderDate.day == currentDate.day;
-      }).toList();
+      final dayOrders = ordersByDay[currentDate] ?? const [];
 
       final dailyReport = calculateRevenueReport(
-        orders: dayOrders,
+        orders: List<Map<String, dynamic>>.of(dayOrders),
         inventoryTransactions: inventoryTransactions,
         products: products,
         date: currentDate,
@@ -181,7 +239,8 @@ class RevenueRepositoryImpl {
       );
 
       dailyReports.add(dailyReport);
-      currentDate = currentDate.add(const Duration(days: 1));
+      currentDate =
+          DateTime(currentDate.year, currentDate.month, currentDate.day + 1);
     }
 
     // Tính tổng kết

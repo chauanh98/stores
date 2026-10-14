@@ -174,8 +174,19 @@ class LiveAttendanceDashboardNotifier
     );
   }
 
+  // BĂNG THÔNG: `_processRecords` chạy ở MỖI sự kiện chấm công trực tiếp; trước
+  // đây mỗi lần đều tải lại TOÀN BỘ node accounts (kèm mật khẩu). Danh sách nhân
+  // viên hầu như không đổi trong phiên => lưu cache theo chi nhánh trong 5 phút.
+  static const _staffCacheTtl = Duration(minutes: 5);
+  final Map<String, ({DateTime at, List<UserAccount> staff})> _staffCache = {};
+
   Future<List<UserAccount>> _fetchStaffForStore(String storeId) async {
     if (_db == null) return [];
+    final cached = _staffCache[storeId];
+    if (cached != null &&
+        DateTime.now().difference(cached.at) < _staffCacheTtl) {
+      return cached.staff;
+    }
     try {
       final snap = await _db.ref('stores/accounts').get();
       if (!snap.exists || snap.value == null) return [];
@@ -189,6 +200,7 @@ class LiveAttendanceDashboardNotifier
           }
         }
       });
+      _staffCache[storeId] = (at: DateTime.now(), staff: staffList);
       return staffList;
     } catch (_) {
       return [];

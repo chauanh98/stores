@@ -95,6 +95,7 @@ class AttendanceRepositoryImpl
     final models = await _dataSource.getAttendances(
       storeId: storeId,
       userId: userId,
+      monthPrefix: prefix,
     );
     return models
         .where((m) => m.date.startsWith(prefix))
@@ -203,11 +204,11 @@ class AttendanceRepositoryImpl
 
     // If approved, update the corresponding attendance record
     if (status == AdjustmentStatus.approved && target.attendanceId.isNotEmpty) {
-      final attendances =
-          await _dataSource.getAttendances(storeId: target.storeId);
-      for (final att in attendances) {
-        if (att.id == target.attendanceId) {
-          final domainAtt = att.toDomain();
+      // Chỉ đọc đúng bản ghi cần sửa (trước đây tải toàn bộ lịch sử chi nhánh).
+      final att = await _dataSource.getAttendanceById(target.attendanceId);
+      for (final a in [if (att != null) att]) {
+        if (a.id == target.attendanceId && a.storeId == target.storeId) {
+          final domainAtt = a.toDomain();
           final parsedIn = DateTime.parse(target.requestedCheckIn);
           final parsedOut = DateTime.parse(target.requestedCheckOut);
           final workHours =

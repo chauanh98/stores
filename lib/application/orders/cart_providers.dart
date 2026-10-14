@@ -75,7 +75,11 @@ class CartItem {
     );
   }
 
-  double get price => customPrice ?? product.price;
+  double get price {
+    final p = customPrice ?? product.price;
+    // Giá âm / NaN / vô cực làm hỏng clamp() & tổng tiền: coi như 0.
+    return (p.isFinite && p > 0) ? p : 0.0;
+  }
 
   /// Số tiền giảm giá trên 1 đơn vị sản phẩm
   double get unitDiscountAmount {

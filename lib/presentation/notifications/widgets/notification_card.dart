@@ -72,6 +72,12 @@ _CategoryStyle _resolveTypeStyle(NotificationItem item) {
         iconColor: AppColors.info,
         backgroundColor: AppColors.infoLight,
       );
+    case NotificationType.stockTransfer:
+      return const _CategoryStyle(
+        icon: Icons.swap_horiz_rounded,
+        iconColor: AppColors.primaryDark,
+        backgroundColor: AppColors.primaryLight,
+      );
     case NotificationType.customerDebtAdded:
       return const _CategoryStyle(
         icon: Icons.account_balance_wallet_outlined,
@@ -132,7 +138,8 @@ class NotificationCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final style = _resolveTypeStyle(item);
     final isRead = item.isRead;
-    final relativeTime = formatNotificationRelativeTime(context, item.createdAt);
+    final relativeTime =
+        formatNotificationRelativeTime(context, item.createdAt);
 
     return Container(
       key: Key('notification_card_container_${item.id}'),
@@ -206,7 +213,8 @@ class NotificationCard extends ConsumerWidget {
                               item.title,
                               style: TextStyle(
                                 fontSize: 14,
-                                fontWeight: isRead ? FontWeight.w600 : FontWeight.bold,
+                                fontWeight:
+                                    isRead ? FontWeight.w600 : FontWeight.bold,
                                 color: AppColors.textHeadline,
                               ),
                               maxLines: 2,
@@ -214,12 +222,16 @@ class NotificationCard extends ConsumerWidget {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          Text(
-                            relativeTime,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: AppColors.textMuted,
-                              fontWeight: FontWeight.normal,
+                          Flexible(
+                            child: Text(
+                              relativeTime,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: AppColors.textMuted,
+                                fontWeight: FontWeight.normal,
+                              ),
                             ),
                           ),
                           if (!isRead) ...[

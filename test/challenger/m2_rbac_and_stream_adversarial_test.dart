@@ -201,8 +201,8 @@ void main() {
   // =========================================================================
   group('1. Adversarial Dynamic Role Switching & Zero Egress', () {
     test(
-        'Switch Admin -> Staff in same ProviderContainer: stream immediately '
-        'transitions to empty, unread count becomes 0, and watchNotifications is NOT called for staff',
+        'Switch Admin -> Staff in same ProviderContainer: stream stays live but '
+        'is masked (no amounts) for staff',
         () async {
       final authNotifier = _TestAuthNotifier(adminUser);
       final container = ProviderContainer(
@@ -238,21 +238,19 @@ void main() {
       // 3. ADVERSARIAL ROLE TRANSITION: Dynamically switch Admin -> Staff in same container
       authNotifier.setUser(staffUser);
       await pumpEventQueue();
+      // Firebase replays the current snapshot on (re)subscribe; emulate it.
+      repo.getOrCreateController('store_001').add(sampleBatch);
+      await pumpEventQueue();
 
-      // 4. Verify stream immediately transitions to empty list
+      // 4. Staff keeps receiving own-store notifications, but masked:
+      //    prices stripped, same events (inventory/orders) still visible.
       final staffAsync = container.read(notificationStreamProvider);
-      expect(staffAsync.value, isEmpty,
-          reason: 'Staff must NEVER receive active notification records');
-      expect(container.read(unreadNotificationCountProvider), equals(0),
-          reason: 'Unread count for staff must instantly transition to 0');
-
-      // 5. CRITICAL: Prior store stream subscription cancelled upon role switch
-      expect(repo.activeListenStoreIds, isEmpty,
-          reason: 'Switching to staff must immediately cancel active store stream');
-
-      // 6. CRITICAL: watchNotifications must NOT have been called again for staff
-      expect(repo.watchCallLog.length, equals(1),
-          reason: 'Zero egress: watchNotifications must NOT be called for staff');
+      expect(staffAsync.value?.length, equals(4));
+      for (final n in staffAsync.value!) {
+        expect(RegExp(r'\d[\d.,]*\s?đ').hasMatch(n.body), isFalse,
+            reason: 'Staff must never see amounts: ${n.body}');
+      }
+      expect(container.read(unreadNotificationCountProvider), equals(3));
 
       // 6. ADVERSARIAL LEAK CHECK: Emit more data to the old store_001 controller
       // Verify late emissions do NOT leak to staff or alter unread count
@@ -270,13 +268,14 @@ void main() {
       ]);
       await pumpEventQueue();
 
-      expect(container.read(notificationStreamProvider).value, isEmpty);
-      expect(container.read(unreadNotificationCountProvider), equals(0));
+      // Late emission still reaches staff (masked) and bumps unread count
+      expect(container.read(notificationStreamProvider).value?.length, equals(5));
+      expect(container.read(unreadNotificationCountProvider), equals(4));
     });
 
     test(
-        'Switch Staff -> Admin in same ProviderContainer: clean escalation '
-        'from empty stream to active repository stream', () async {
+        'Switch Staff -> Admin in same ProviderContainer: masked stream becomes '
+        'full-content stream', () async {
       final authNotifier = _TestAuthNotifier(staffUser);
       final container = ProviderContainer(
         overrides: [
@@ -291,23 +290,32 @@ void main() {
           container.listen(notificationStreamProvider, (_, __) {});
       addTearDown(subStream.close);
 
-      // Staff starts with 0 calls to watchNotifications
+      // Staff also listens to their own store only
       await pumpEventQueue();
-      expect(repo.watchCallLog, isEmpty);
-      expect(container.read(notificationStreamProvider).value, isEmpty);
-      expect(container.read(unreadNotificationCountProvider), equals(0));
+      expect(repo.watchCallLog, equals(['store_001']));
+      repo.getOrCreateController('store_001').add(sampleBatch);
+      await pumpEventQueue();
+      expect(
+          container
+              .read(notificationStreamProvider)
+              .value!
+              .any((n) => RegExp(r'\d[\d.,]*\s?đ').hasMatch(n.body)),
+          isFalse);
 
-      // Escalate role: Staff -> Admin
+      // Escalate role: Staff -> Admin => full, unmasked content
       authNotifier.setUser(adminUser);
       await pumpEventQueue();
-
-      // watchNotifications now called for Admin
-      expect(repo.watchCallLog, equals(['store_001']));
+      expect(repo.watchCallLog.last, equals('store_001'));
 
       // Emit data
       repo.getOrCreateController('store_001').add(sampleBatch);
       await pumpEventQueue();
-
+      expect(
+          container
+              .read(notificationStreamProvider)
+              .value!
+              .any((n) => n.body.contains('200.000đ')),
+          isTrue);
       expect(container.read(notificationStreamProvider).value?.length, equals(4));
       expect(container.read(unreadNotificationCountProvider), equals(3));
     });
@@ -353,9 +361,9 @@ void main() {
       expect(container.read(unreadNotificationCountProvider), equals(3));
     });
 
-    test('All non-admin supervisor roles are strictly blocked from egress',
+    test('Every non-admin role listens to its own store only; price access decides masking',
         () async {
-      for (final nonAdmin in [
+      final roles = [
         supervisorUser,
         giamsatUser,
         cuahangtruongUser,
@@ -369,25 +377,32 @@ void main() {
           role: 'unknown_unauthorized_role',
           storeId: 'store_001',
         ),
-      ]) {
+      ];
+      for (final role in roles) {
+        final localRepo = _ObservableNotificationRepository();
         final container = ProviderContainer(
           overrides: [
-            authProvider.overrideWith((ref) => _TestAuthNotifier(nonAdmin)),
+            authProvider.overrideWith((ref) => _TestAuthNotifier(role)),
             currentStoreIdProvider.overrideWith((ref) => 'store_001'),
-            notificationRepositoryProvider.overrideWith((ref) => repo),
+            notificationRepositoryProvider.overrideWith((ref) => localRepo),
           ],
         );
+        final sub = container.listen(notificationStreamProvider, (_, __) {});
+        await pumpEventQueue();
+        localRepo.getOrCreateController('store_001').add(sampleBatch);
+        await pumpEventQueue();
 
-        final result =
-            await container.read(notificationStreamProvider.future);
-        expect(result, isEmpty,
-            reason: 'Role ${nonAdmin.role} must not receive notifications');
-        expect(container.read(unreadNotificationCountProvider), equals(0));
+        final result = container.read(notificationStreamProvider).value!;
+        expect(localRepo.watchCallLog, equals(['store_001']),
+            reason: 'Role ${role.role}: exactly one own-store listener');
+        final hasAmount =
+            result.any((n) => RegExp(r'\d[\d.,]*\s?đ').hasMatch(n.body));
+        expect(hasAmount, equals(role.canViewCostPrice),
+            reason: 'Role ${role.role}: amounts visible iff canViewCostPrice');
+        sub.close();
         container.dispose();
+        localRepo.dispose();
       }
-
-      expect(repo.watchCallLog, isEmpty,
-          reason: 'None of the non-admin roles should trigger watchNotifications');
     });
   });
 
